@@ -1,0 +1,23 @@
+{
+  "name": "@raptor/wire-client",
+  "version": "0.1.0",
+  "description": "RaptorWire client: sesiune, subscription, replica reactiva + transport loopback (whitepaper 14/15/17).",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "types": "./src/index.ts",
+  "dependencies": {
+    "@raptor/core": "workspace:*",
+    "@raptor/wire-core": "workspace:*"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.ts"
+  },
+  "license": "MIT",
+  "files": [
+    "src",
+    "LICENSE"
+  ]
+}

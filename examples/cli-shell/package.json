@@ -1,0 +1,19 @@
+{
+  "name": "@raptor-example/cli-shell",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Exemplu: aceeasi aplicatie ca desktop/mobile/web/service-shell, de data asta ca unealta de linie de comanda.",
+  "bin": {
+    "raptor-notes": "./src/bin.ts"
+  },
+  "dependencies": {
+    "@raptor/cli-host": "workspace:*",
+    "@raptor/core": "workspace:*",
+    "@raptor/host": "workspace:*"
+  },
+  "scripts": {
+    "demo": "node src/demo.ts",
+    "test": "node --test tests/*.test.ts"
+  }
+}

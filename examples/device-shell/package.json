@@ -1,0 +1,16 @@
+{
+  "name": "@raptor-example/device-shell",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Exemplu: a sasea forma a aceleiasi aplicatii - un logger de senzor pe o placheta, cu watchdog, somn profund si periferice declarate.",
+  "dependencies": {
+    "@raptor/core": "workspace:*",
+    "@raptor/device-host": "workspace:*",
+    "@raptor/host": "workspace:*"
+  },
+  "scripts": {
+    "demo": "node src/demo.ts",
+    "test": "node --test tests/*.test.ts"
+  }
+}

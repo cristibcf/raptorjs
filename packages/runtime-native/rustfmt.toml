@@ -1,0 +1,4 @@
+# Latime aliniata cu restul depozitului: liniile din pachetele TypeScript merg
+# pana pe la 120 de coloane, iar codul nativ ramane lizibil langa ele.
+max_width = 110
+use_small_heuristics = "Max"

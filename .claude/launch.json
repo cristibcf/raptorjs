@@ -1,0 +1,29 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "site",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "dev:site"
+      ],
+      "port": 5180
+    },
+    {
+      "name": "todo-realtime",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "dev:todo"
+      ],
+      "port": 5190
+    },
+    {
+      "name": "web-shell",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "dev:web-shell"
+      ],
+      "port": 5174
+    }
+  ]
+}

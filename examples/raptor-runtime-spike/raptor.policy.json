@@ -1,0 +1,4 @@
+{
+  "development": { "auditLog": null, "onUndeclared": "prompt" },
+  "production": { "auditLog": "./.raptor/audit.jsonl", "onUndeclared": "deny" }
+}

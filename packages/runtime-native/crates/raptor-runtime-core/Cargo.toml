@@ -1,0 +1,47 @@
+[package]
+name = "raptor-runtime-core"
+description = "Contractele de host RaptorRuntime in Rust: manifest, capabilitati, task fabric, telemetrie, graf de module si adaptorul de motor."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+# Fara dependente externe in configuratia implicita. Spec sectiunea 12 cere
+# revizuire de licenta, vulnerabilitati si actualizari pentru fiecare dependenta
+# nativa; cel mai ieftin mod de a trece acea poarta este sa nu avem niciuna.
+#
+# Motorul JavaScript este prima si singura exceptie, exact cum s-a prevazut, si
+# sta in spatele unui feature: `cargo build` ramane zero-dep, iar cine vrea
+# evaluare de module cere explicit `--features quickjs`.
+[dependencies]
+rquickjs = { version = "0.14", optional = true, default-features = false, features = ["loader"] }
+
+# Stripping de TypeScript. Acelasi lant de unelte pe care il foloseste deja
+# `integrations/rolldown` pe latura JS, deci nu introduce un al doilea parser de
+# TypeScript in proiect.
+oxc_allocator = { version = "0.151", optional = true }
+oxc_codegen = { version = "0.151", optional = true }
+oxc_parser = { version = "0.151", optional = true }
+oxc_semantic = { version = "0.151", optional = true }
+oxc_span = { version = "0.151", optional = true }
+oxc_transformer = { version = "0.151", optional = true }
+
+[features]
+default = []
+# QuickJS: motor ES2023 complet, compilat din sursa C. Ales inaintea lui V8
+# pentru ca demonstreaza *acum* ca host-ul ruleaza JavaScript fara Node, cu un
+# build de minute in loc de ore. V8 ramane tinta din spec si intra prin acelasi
+# `EngineAdapter`, fara sa schimbe nimic in aplicatii.
+quickjs = ["dep:rquickjs"]
+# TypeScript: fara el, `.ts` primeste un refuz explicit in loc de o aproximare.
+typescript = [
+    "dep:oxc_allocator",
+    "dep:oxc_codegen",
+    "dep:oxc_parser",
+    "dep:oxc_semantic",
+    "dep:oxc_span",
+    "dep:oxc_transformer",
+]
+# Configuratia completa a unui runtime care chiar inlocuieste Node.
+full = ["quickjs", "typescript"]

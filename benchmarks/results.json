@@ -1,0 +1,172 @@
+{
+  "meta": {
+    "date": "2026-09-23T08:42:22.709Z",
+    "node": "v24.16.0",
+    "platform": "win32",
+    "arch": "x64",
+    "cpu": "AMD Ryzen AI 9 465 w/ Radeon 880M              "
+  },
+  "dom": [
+    {
+      "framework": "RaptorJS",
+      "scenarios": [
+        {
+          "scenario": "create 1000",
+          "medianMs": 37.41389999999956,
+          "ops": {
+            "createElement": 3000,
+            "createText": 2000,
+            "insert": 5000,
+            "remove": 0,
+            "textUpdate": 0
+          }
+        },
+        {
+          "scenario": "updateAll 1000",
+          "medianMs": 1.6648999999997613,
+          "ops": {
+            "createElement": 0,
+            "createText": 0,
+            "insert": 0,
+            "remove": 0,
+            "textUpdate": 1000
+          }
+        },
+        {
+          "scenario": "update every 10th (100)",
+          "medianMs": 0.2694000000010419,
+          "ops": {
+            "createElement": 0,
+            "createText": 0,
+            "insert": 0,
+            "remove": 0,
+            "textUpdate": 100
+          }
+        },
+        {
+          "scenario": "clear 1000",
+          "medianMs": 8.123100000000704,
+          "ops": {
+            "createElement": 0,
+            "createText": 0,
+            "insert": 0,
+            "remove": 1000,
+            "textUpdate": 0
+          }
+        }
+      ]
+    },
+    {
+      "framework": "React 19",
+      "scenarios": [
+        {
+          "scenario": "create 1000",
+          "medianMs": 40.40259999999944,
+          "ops": {
+            "createElement": 3000,
+            "createText": 0,
+            "insert": 3000,
+            "remove": 0,
+            "textUpdate": 2000
+          }
+        },
+        {
+          "scenario": "updateAll 1000",
+          "medianMs": 23.30079999999907,
+          "ops": {
+            "createElement": 0,
+            "createText": 0,
+            "insert": 0,
+            "remove": 0,
+            "textUpdate": 1000
+          }
+        },
+        {
+          "scenario": "update every 10th (100)",
+          "medianMs": 5.612499999999272,
+          "ops": {
+            "createElement": 0,
+            "createText": 0,
+            "insert": 0,
+            "remove": 0,
+            "textUpdate": 100
+          }
+        },
+        {
+          "scenario": "clear 1000",
+          "medianMs": 10.28859999999986,
+          "ops": {
+            "createElement": 0,
+            "createText": 0,
+            "insert": 0,
+            "remove": 1000,
+            "textUpdate": 0
+          }
+        }
+      ]
+    },
+    {
+      "framework": "Preact 10",
+      "scenarios": [
+        {
+          "scenario": "create 1000",
+          "medianMs": 32.82430000000022,
+          "ops": {
+            "createElement": 0,
+            "createText": 2000,
+            "insert": 5000,
+            "remove": 0,
+            "textUpdate": 0
+          }
+        },
+        {
+          "scenario": "updateAll 1000",
+          "medianMs": 5.489700000001903,
+          "ops": {
+            "createElement": 0,
+            "createText": 0,
+            "insert": 0,
+            "remove": 0,
+            "textUpdate": 1000
+          }
+        },
+        {
+          "scenario": "update every 10th (100)",
+          "medianMs": 3.8456999999980326,
+          "ops": {
+            "createElement": 0,
+            "createText": 0,
+            "insert": 0,
+            "remove": 0,
+            "textUpdate": 100
+          }
+        },
+        {
+          "scenario": "clear 1000",
+          "medianMs": 8.58520000000135,
+          "ops": {
+            "createElement": 0,
+            "createText": 0,
+            "insert": 0,
+            "remove": 1000,
+            "textUpdate": 0
+          }
+        }
+      ]
+    }
+  ],
+  "signals": [
+    {
+      "library": "RaptorJS",
+      "updatesPerSec": 185615.10758483628,
+      "totalMs": 215.4997000000003,
+      "checksum": 6420032000
+    },
+    {
+      "library": "@preact/signals",
+      "updatesPerSec": 455395.18055280036,
+      "totalMs": 87.83580000000075,
+      "checksum": 6420032000
+    }
+  ]
+}

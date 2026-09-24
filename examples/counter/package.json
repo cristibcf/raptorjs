@@ -1,0 +1,19 @@
+{
+  "name": "@raptor-example/counter",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Exemplu counter: reactivitate + bindings DOM fine-grained.",
+  "dependencies": {
+    "@raptor/core": "workspace:*",
+    "@raptor/dom": "workspace:*"
+  },
+  "devDependencies": {
+    "@raptor/bundle": "workspace:*"
+  },
+  "scripts": {
+    "demo": "node src/demo.ts",
+    "dev": "raptor-bundle dev src/main.tsx --root . --port 5173",
+    "build": "raptor-bundle build src/main.tsx --out dist/bundle.js --html index.html"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "name": "@raptor/service-host",
+  "version": "0.1.0",
+  "description": "Host pentru servicii: supervizorul de proces ca host Raptor - socketi de ascultare, configuratie, semnal de sanatate si drenare la oprire. Numele evita confuzia cu @raptor/server, care este SDK-ul de store RaptorWire.",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "types": "./src/index.ts",
+  "scripts": {
+    "test": "node --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "@raptor/host": "workspace:*"
+  },
+  "license": "MIT",
+  "files": [
+    "src",
+    "LICENSE"
+  ]
+}

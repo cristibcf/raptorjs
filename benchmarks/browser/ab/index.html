@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ro">
+<head><meta charset="utf-8"><title>A/B For</title>
+<style>body{font:14px system-ui;margin:20px}#a,#b{display:none}pre{background:#f4f4f5;padding:12px;border-radius:6px}</style>
+</head>
+<body>
+<h1>A/B intercalat: doua implementari ale lui <code>For</code></h1>
+<p>Ambele variante traiesc in aceeasi pagina. Se masoara alternativ, deci zgomotul
+masinii cade pe amandoua deodata. Estimator: minimul.</p>
+<button id="run">Ruleaza</button>
+<pre id="out">—</pre>
+<div id="a"></div><div id="b"></div>
+<script type="module">
+import { mountRaptor as mountA } from './dist/a.js';
+import { mountRaptor as mountB } from './dist/b.js';
+
+const settle = () => new Promise(r => setTimeout(r, 0));
+const mn = xs => Math.min(...xs);
+
+const SCENARIOS = [
+  ['create 10k',  a => a.clear(),                    a => a.run(10000)],
+  ['append 1k',   a => { a.clear(); a.run(10000); }, a => a.append(1000)],
+  ['clear 10k',   a => { a.clear(); a.run(10000); }, a => a.clear()],
+  ['update 10th', a => { a.clear(); a.run(10000); }, a => a.update()],
+  ['swap',        a => { a.clear(); a.run(10000); }, a => a.swap()],
+];
+
+document.getElementById('run').onclick = async () => {
+  const out = document.getElementById('out');
+  out.textContent = 'rulez…';
+  const apps = { A: mountA(document.getElementById('a')), B: mountB(document.getElementById('b')) };
+  const times = { A: {}, B: {} };
+  for (const [name] of SCENARIOS) { times.A[name] = []; times.B[name] = []; }
+
+  const ROUNDS = 15;
+  for (let r = 0; r < ROUNDS; r++) {
+    // rotatie: A si B schimba pozitia in runda, ca niciuna sa nu plateasca
+    // sistematic costul de "prima dupa GC"
+    const order = r % 2 === 0 ? ['A','B'] : ['B','A'];
+    for (const key of order) {
+      for (const [name, setup, action] of SCENARIOS) {
+        setup(apps[key]); await settle();
+        const t0 = performance.now(); action(apps[key]); times[key][name].push(performance.now() - t0);
+        await settle();
+      }
+    }
+    out.textContent = `runda ${r+1}/${ROUNDS}…`;
+  }
+  apps.A.clear(); apps.B.clear();
+
+  let s = 'operatie'.padEnd(14) + 'A (baseline)'.padStart(14) + 'B (generatie)'.padStart(15) + 'castig'.padStart(10) + '\n' + '-'.repeat(53) + '\n';
+  for (const [name] of SCENARIOS) {
+    const a = mn(times.A[name]), b = mn(times.B[name]);
+    const gain = a === 0 ? 0 : ((a - b) / a * 100);
+    s += name.padEnd(14) + (a.toFixed(2)+' ms').padStart(14) + (b.toFixed(2)+' ms').padStart(15) + (gain.toFixed(0)+'%').padStart(10) + '\n';
+  }
+  out.textContent = s;
+  window.__AB__ = s;
+};
+</script>
+</body></html>

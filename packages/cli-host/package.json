@@ -1,0 +1,22 @@
+{
+  "name": "@raptor/cli-host",
+  "version": "0.1.0",
+  "description": "Terminalul ca host Raptor: argumente, fluxuri de iesire, informatii de TTY, intrebari catre utilizator, Ctrl-C si cod de iesire. Acelasi contract ca pe desktop, mobil, web si server.",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "types": "./src/index.ts",
+  "scripts": {
+    "test": "node --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "@raptor/host": "workspace:*"
+  },
+  "license": "MIT",
+  "files": [
+    "src",
+    "LICENSE"
+  ]
+}

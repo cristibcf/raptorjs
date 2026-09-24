@@ -1,0 +1,16 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.DS_Store
+coverage/
+*.log
+
+# Artefacte de build Rust (packages/runtime-native/target ajunge la ~3 GB).
+target/
+
+# Randari intermediare de PDF si alte fisiere de lucru.
+# `output/` NU e ignorat: acolo stau PDF-urile-sursa ale RaptorRuntime.
+tmp/
+
+# Jurnalul de audit scris de `raptor-runtime run` in proiectul rulat.
+.raptor/

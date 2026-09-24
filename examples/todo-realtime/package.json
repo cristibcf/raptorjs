@@ -1,0 +1,22 @@
+{
+  "name": "@raptor-example/todo-realtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Todo realtime end-to-end: server RaptorWire peste WebSocket, client reactiv, un singur proces.",
+  "dependencies": {
+    "@raptor/core": "workspace:*",
+    "@raptor/dom": "workspace:*",
+    "@raptor/server": "workspace:*",
+    "@raptor/wire-client": "workspace:*",
+    "@raptor/wire-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@raptor/bundle": "workspace:*"
+  },
+  "scripts": {
+    "dev": "node src/server.ts",
+    "test": "node --test tests/*.test.ts"
+  },
+  "license": "MIT"
+}

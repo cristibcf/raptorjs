@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ro">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RaptorJS - Web Shell</title>
+    <style>
+      body { font-family: system-ui, sans-serif; max-width: 44rem; margin: 3rem auto; padding: 0 1rem; color: #16191d; }
+      h1 { font-size: 1.8rem; margin-bottom: 0.25rem; }
+      h2 { font-size: 1.1rem; margin-top: 2rem; text-transform: uppercase; letter-spacing: 0.05em; color: #5b6472; }
+      .summary { color: #5b6472; margin-top: 0; font-variant-numeric: tabular-nums; }
+      .row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1.5rem 0; }
+      input { flex: 1 1 12rem; font-size: 1rem; padding: 0.4rem 0.6rem; border: 1px solid #d4d8de; border-radius: 4px; }
+      button { font-size: 0.95rem; padding: 0.4rem 0.9rem; cursor: pointer; border: 1px solid #17457a; background: #17457a; color: white; border-radius: 4px; }
+      button:hover { background: #1d5596; }
+      .error { background: #fdf0ef; border-left: 3px solid #b3261e; padding: 0.6rem 0.9rem; color: #7c1d17; }
+      ul { padding-left: 1.2rem; }
+      li { margin: 0.25rem 0; }
+      small { color: #8a92a0; }
+      .abilities { list-style: none; padding-left: 0; font-family: ui-monospace, monospace; font-size: 0.9rem; }
+      .abilities .yes::before { content: "+ "; color: #0f6e4f; }
+      .abilities .no::before { content: "- "; color: #b3261e; }
+      .abilities .no { color: #8a92a0; }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

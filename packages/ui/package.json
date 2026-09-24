@@ -1,0 +1,58 @@
+{
+  "name": "@raptor/ui",
+  "version": "0.1.0",
+  "description": "RaptorJS UI: componente reutilizabile construite pe bindingurile fine-grained (Table, DropdownMenu). Zero dependente runtime.",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./styles": "./src/styles.ts",
+    "./primitives": "./src/primitives/index.ts",
+    "./button": "./src/button.ts",
+    "./input": "./src/input.ts",
+    "./input-extra": "./src/input-extra.ts",
+    "./controls": "./src/controls.ts",
+    "./select": "./src/select.ts",
+    "./combobox": "./src/combobox.ts",
+    "./form": "./src/form.ts",
+    "./layout": "./src/layout.ts",
+    "./layout-extra": "./src/layout-extra.ts",
+    "./typography": "./src/typography.ts",
+    "./display": "./src/display.ts",
+    "./disclosure": "./src/disclosure.ts",
+    "./table": "./src/table.ts",
+    "./data-grid": "./src/data-grid.ts",
+    "./data-views": "./src/data-views.ts",
+    "./menu": "./src/menu.ts",
+    "./tabs": "./src/tabs.ts",
+    "./overlay": "./src/overlay.ts",
+    "./overlay-extra": "./src/overlay-extra.ts",
+    "./toast": "./src/toast.ts",
+    "./navigation": "./src/navigation.ts",
+    "./date": "./src/date.ts",
+    "./files": "./src/files.ts",
+    "./progress": "./src/progress.ts",
+    "./slider": "./src/slider.ts",
+    "./sparkline": "./src/sparkline.ts",
+    "./split-pane": "./src/split-pane.ts",
+    "./chart": "./src/chart.ts",
+    "./chart-extra": "./src/chart-extra.ts",
+    "./editors": "./src/editors.ts",
+    "./media": "./src/media.ts",
+    "./qrcode": "./src/qrcode.ts",
+    "./advanced": "./src/advanced.ts"
+  },
+  "types": "./src/index.ts",
+  "dependencies": {
+    "@raptor/core": "workspace:*",
+    "@raptor/dom": "workspace:*"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.ts"
+  },
+  "license": "MIT",
+  "files": [
+    "src",
+    "LICENSE"
+  ]
+}

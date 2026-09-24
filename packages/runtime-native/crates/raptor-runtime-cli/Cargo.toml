@@ -1,0 +1,28 @@
+[package]
+name = "raptor-runtime-cli"
+description = "Binarul `raptor-runtime`: suprafata de comanda a platformei RaptorRuntime."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "raptor-runtime"
+path = "src/main.rs"
+
+[dependencies]
+raptor-runtime-core = { path = "../raptor-runtime-core" }
+
+[features]
+default = []
+# Trece mai departe motorul catre nucleu: `cargo build --features quickjs`
+# produce un binar care chiar evalueaza module, fara Node pe masina.
+quickjs = ["raptor-runtime-core/quickjs"]
+typescript = ["raptor-runtime-core/typescript"]
+# Configuratia completa: motor plus TypeScript. Asta este binarul care chiar
+# poate lua locul lui `node` pentru un proiect Raptor.
+full = ["quickjs", "typescript"]
+
+[dev-dependencies]
+raptor-runtime-core = { path = "../raptor-runtime-core" }

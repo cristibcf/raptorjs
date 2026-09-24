@@ -1,0 +1,22 @@
+{
+  "name": "@raptor/example-raptorengine-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Exemplu end-to-end RaptorEngine: .raptor -> IR -> optimize -> codegen -> ruleaza pe runtime-ul real (mini-dom).",
+  "type": "module",
+  "dependencies": {
+    "@raptor/core": "workspace:*",
+    "@raptor/dom": "workspace:*",
+    "@raptor/compiler": "workspace:*",
+    "@raptor/engine": "workspace:*",
+    "@raptor/run": "workspace:*",
+    "@raptor/profile": "workspace:*",
+    "@raptor/wire-client": "workspace:*"
+  },
+  "scripts": {
+    "demo": "node src/demo.ts",
+    "demo:run": "node src/run-demo.ts",
+    "demo:profile": "node src/profile-demo.ts"
+  },
+  "license": "MIT"
+}

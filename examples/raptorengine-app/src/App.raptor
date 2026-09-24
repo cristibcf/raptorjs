@@ -1,0 +1,22 @@
+// Exemplu RaptorEngine (whitepaper sectiunea 35 - exemplu end-to-end de compilare).
+//
+// Demonstreaza, dintr-un singur graf semantic:
+//   - signal local (count) + event handler care il scrie
+//   - derived cu 2 consumatori (doubled: text + atribut) -> supravietuieste fuziunii
+//   - derived cu consumator unic (label) -> fuzionat in binding
+//   - derived mort (unused) -> eliminat de Dead Signal Elimination
+//   - server signal (price) -> schema + RAS address in manifestul wire
+component App {
+  const count = state(0)
+  const doubled = derived(() => count * 2)
+  const label = derived(() => "clicks: " + count)
+  const unused = derived(() => doubled + count + 999)
+  const price = serverSignal("BTC.price", schema.money)
+
+  <div class="app">
+    <button on:click={count++}>increment</button>
+    <span class="count">{label}</span>
+    <span class="double" data-value={doubled}>doubled = {doubled}</span>
+    <span class="price">price = {price}</span>
+  </div>
+}

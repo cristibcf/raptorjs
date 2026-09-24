@@ -1,0 +1,14 @@
+{
+  "name": "raptor-integration-rolldown",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Integrare izolata RaptorEngine <-> Rolldown/Oxc (whitepaper RaptorEngine §2, §37). NU face parte din pnpm-workspace, deci nu atinge invariantul zero-dep al pachetelor @raptor/*. Instaleaza Rolldown/Oxc separat si demonstreaza build-ul de productie real.",
+  "scripts": {
+    "verify": "node verify.ts"
+  },
+  "dependencies": {
+    "oxc-minify": "^0.151.0",
+    "rolldown": "^1.2.9"
+  }
+}

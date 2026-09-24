@@ -1,0 +1,8 @@
+packages:
+  - "packages/*"
+  - "examples/*"
+# Testele/demo-urile ruleaza direct pe Node; nu verifica/instala dependente
+# inainte de `pnpm run` (evita promptul de build esbuild, necesar doar la `pnpm dev`).
+verifyDepsBeforeRun: false
+onlyBuiltDependencies:
+  - esbuild

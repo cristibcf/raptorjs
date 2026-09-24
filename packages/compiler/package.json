@@ -1,0 +1,19 @@
+{
+  "name": "@raptor/compiler",
+  "version": "0.1.0",
+  "description": "RaptorCompiler: .raptor parser, Raptor IR (Appendix C taxonomy), Semantic Application Graph si graph diff. Nucleu stabil, independent de bundler (whitepaper RaptorEngine 6-9).",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "types": "./src/index.ts",
+  "scripts": {
+    "test": "node --test tests/*.test.ts"
+  },
+  "license": "MIT",
+  "files": [
+    "src",
+    "LICENSE"
+  ]
+}

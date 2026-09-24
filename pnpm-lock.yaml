@@ -1,0 +1,418 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.20.4
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+
+  examples/chat:
+    dependencies:
+      '@raptor/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@raptor/server':
+        specifier: workspace:*
+        version: link:../../packages/server
+      '@raptor/wire-client':
+        specifier: workspace:*
+        version: link:../../packages/wire-client
+      '@raptor/wire-core':
+        specifier: workspace:*
+        version: link:../../packages/wire-core
+
+  examples/cli-shell:
+    dependencies:
+      '@raptor/cli-host':
+        specifier: workspace:*
+        version: link:../../packages/cli-host
+      '@raptor/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@raptor/host':
+        specifier: workspace:*
+        version: link:../../packages/host
+
+  examples/counter:
+    dependencies:
+      '@raptor/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@raptor/dom':
+        specifier: workspace:*
+        version: link:../../packages/dom
+    devDependencies:
+      '@raptor/bundle':
+        specifier: workspace:*
+        version: link:../../packages/bundle
+
+  examples/desktop-shell:
+    dependencies:
+      '@raptor/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@raptor/desktop':
+        specifier: workspace:*
+        version: link:../../packages/desktop
+      '@raptor/dom':
+        specifier: workspace:*
+        version: link:../../packages/dom
+      '@raptor/host':
+        specifier: workspace:*
+        version: link:../../packages/host
+
+  examples/device-shell:
+    dependencies:
+      '@raptor/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@raptor/device-host':
+        specifier: workspace:*
+        version: link:../../packages/device-host
+      '@raptor/host':
+        specifier: workspace:*
+        version: link:../../packages/host
+
+  examples/mobile-shell:
+    dependencies:
+      '@raptor/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@raptor/dom':
+        specifier: workspace:*
+        version: link:../../packages/dom
+      '@raptor/host':
+        specifier: workspace:*
+        version: link:../../packages/host
+      '@raptor/mobile':
+        specifier: workspace:*
+        version: link:../../packages/mobile
+
+  examples/raptor-runtime-spike:
+    devDependencies:
+      '@raptor/runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
+      '@raptor/runtime-cli':
+        specifier: workspace:*
+        version: link:../../packages/runtime-cli
+
+  examples/raptorengine-app:
+    dependencies:
+      '@raptor/compiler':
+        specifier: workspace:*
+        version: link:../../packages/compiler
+      '@raptor/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@raptor/dom':
+        specifier: workspace:*
+        version: link:../../packages/dom
+      '@raptor/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
+      '@raptor/profile':
+        specifier: workspace:*
+        version: link:../../packages/profile
+      '@raptor/run':
+        specifier: workspace:*
+        version: link:../../packages/run
+      '@raptor/wire-client':
+        specifier: workspace:*
+        version: link:../../packages/wire-client
+
+  examples/raptortest-crud:
+    dependencies:
+      '@raptor/test':
+        specifier: workspace:*
+        version: link:../../packages/test
+
+  examples/realtime-dashboard:
+    dependencies:
+      '@raptor/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@raptor/dom':
+        specifier: workspace:*
+        version: link:../../packages/dom
+      '@raptor/server':
+        specifier: workspace:*
+        version: link:../../packages/server
+      '@raptor/wire-client':
+        specifier: workspace:*
+        version: link:../../packages/wire-client
+      '@raptor/wire-core':
+        specifier: workspace:*
+        version: link:../../packages/wire-core
+    devDependencies:
+      '@raptor/bundle':
+        specifier: workspace:*
+        version: link:../../packages/bundle
+
+  examples/service-shell:
+    dependencies:
+      '@raptor/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@raptor/host':
+        specifier: workspace:*
+        version: link:../../packages/host
+      '@raptor/service-host':
+        specifier: workspace:*
+        version: link:../../packages/service-host
+
+  examples/site:
+    dependencies:
+      '@raptor/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@raptor/dom':
+        specifier: workspace:*
+        version: link:../../packages/dom
+      '@raptor/server':
+        specifier: workspace:*
+        version: link:../../packages/server
+      '@raptor/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      '@raptor/wire-client':
+        specifier: workspace:*
+        version: link:../../packages/wire-client
+      '@raptor/wire-core':
+        specifier: workspace:*
+        version: link:../../packages/wire-core
+    devDependencies:
+      '@raptor/bundle':
+        specifier: workspace:*
+        version: link:../../packages/bundle
+
+  examples/todo-realtime:
+    dependencies:
+      '@raptor/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@raptor/dom':
+        specifier: workspace:*
+        version: link:../../packages/dom
+      '@raptor/server':
+        specifier: workspace:*
+        version: link:../../packages/server
+      '@raptor/wire-client':
+        specifier: workspace:*
+        version: link:../../packages/wire-client
+      '@raptor/wire-core':
+        specifier: workspace:*
+        version: link:../../packages/wire-core
+    devDependencies:
+      '@raptor/bundle':
+        specifier: workspace:*
+        version: link:../../packages/bundle
+
+  examples/web-shell:
+    dependencies:
+      '@raptor/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@raptor/dom':
+        specifier: workspace:*
+        version: link:../../packages/dom
+      '@raptor/host':
+        specifier: workspace:*
+        version: link:../../packages/host
+      '@raptor/web-host':
+        specifier: workspace:*
+        version: link:../../packages/web-host
+    devDependencies:
+      '@raptor/bundle':
+        specifier: workspace:*
+        version: link:../../packages/bundle
+
+  packages/bundle:
+    dependencies:
+      typescript:
+        specifier: '>=5.5.0'
+        version: 5.9.3
+
+  packages/cli-host:
+    dependencies:
+      '@raptor/host':
+        specifier: workspace:*
+        version: link:../host
+
+  packages/compiler: {}
+
+  packages/core: {}
+
+  packages/desktop:
+    dependencies:
+      '@raptor/host':
+        specifier: workspace:*
+        version: link:../host
+
+  packages/device-host:
+    dependencies:
+      '@raptor/host':
+        specifier: workspace:*
+        version: link:../host
+
+  packages/dom:
+    dependencies:
+      '@raptor/core':
+        specifier: workspace:*
+        version: link:../core
+
+  packages/engine:
+    dependencies:
+      '@raptor/compiler':
+        specifier: workspace:*
+        version: link:../compiler
+
+  packages/forge:
+    dependencies:
+      '@raptor/desktop':
+        specifier: workspace:*
+        version: link:../desktop
+      '@raptor/host':
+        specifier: workspace:*
+        version: link:../host
+      '@raptor/mobile':
+        specifier: workspace:*
+        version: link:../mobile
+      '@raptor/runtime':
+        specifier: workspace:*
+        version: link:../runtime
+
+  packages/host: {}
+
+  packages/mobile:
+    dependencies:
+      '@raptor/host':
+        specifier: workspace:*
+        version: link:../host
+
+  packages/profile:
+    dependencies:
+      '@raptor/compiler':
+        specifier: workspace:*
+        version: link:../compiler
+      '@raptor/engine':
+        specifier: workspace:*
+        version: link:../engine
+      '@raptor/run':
+        specifier: workspace:*
+        version: link:../run
+      '@raptor/wire-codec':
+        specifier: workspace:*
+        version: link:../wire-codec
+      '@raptor/wire-core':
+        specifier: workspace:*
+        version: link:../wire-core
+
+  packages/run:
+    dependencies:
+      '@raptor/compiler':
+        specifier: workspace:*
+        version: link:../compiler
+      '@raptor/engine':
+        specifier: workspace:*
+        version: link:../engine
+      '@raptor/server':
+        specifier: workspace:*
+        version: link:../server
+      '@raptor/wire-core':
+        specifier: workspace:*
+        version: link:../wire-core
+    devDependencies:
+      '@raptor/wire-client':
+        specifier: workspace:*
+        version: link:../wire-client
+
+  packages/runtime: {}
+
+  packages/runtime-cli:
+    dependencies:
+      '@raptor/runtime':
+        specifier: workspace:*
+        version: link:../runtime
+
+  packages/server:
+    dependencies:
+      '@raptor/wire-core':
+        specifier: workspace:*
+        version: link:../wire-core
+    devDependencies:
+      '@raptor/wire-client':
+        specifier: workspace:*
+        version: link:../wire-client
+
+  packages/service-host:
+    dependencies:
+      '@raptor/host':
+        specifier: workspace:*
+        version: link:../host
+
+  packages/test: {}
+
+  packages/ui:
+    dependencies:
+      '@raptor/core':
+        specifier: workspace:*
+        version: link:../core
+      '@raptor/dom':
+        specifier: workspace:*
+        version: link:../dom
+
+  packages/web-host:
+    dependencies:
+      '@raptor/host':
+        specifier: workspace:*
+        version: link:../host
+
+  packages/wire-client:
+    dependencies:
+      '@raptor/core':
+        specifier: workspace:*
+        version: link:../core
+      '@raptor/wire-core':
+        specifier: workspace:*
+        version: link:../wire-core
+
+  packages/wire-codec: {}
+
+  packages/wire-core:
+    dependencies:
+      '@raptor/wire-codec':
+        specifier: workspace:*
+        version: link:../wire-codec
+
+packages:
+
+  '@types/node@22.20.4':
+    resolution: {integrity: sha512-zJRE40jpHtKqE/C4fgHrAKQLJuSpzEnP9ff9Y7YtoR3Wd2pwqzlekDeEuUQXjRd+QCYnVnNwuJYmhdk9XV8gvA==}
+
+  typescript@5.9.3:
+    resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
+    engines: {node: '>=14.17'}
+    hasBin: true
+
+  undici-types@6.21.0:
+    resolution: {integrity: sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==}
+
+snapshots:
+
+  '@types/node@22.20.4':
+    dependencies:
+      undici-types: 6.21.0
+
+  typescript@5.9.3: {}
+
+  undici-types@6.21.0: {}

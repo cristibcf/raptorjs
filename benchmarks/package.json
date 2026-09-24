@@ -1,0 +1,26 @@
+{
+  "name": "raptor-benchmarks",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Benchmark suite comparing RaptorJS fine-grained reactivity against React, Preact, Solid and Preact Signals. Isolated dev-only project; does NOT touch the zero-dependency runtime packages.",
+  "scripts": {
+    "bench": "node src/bench.ts",
+    "bench:dom": "node src/bench-dom.ts",
+    "bench:signals": "node src/bench-signals.ts",
+    "build:browser": "node browser/build.ts",
+    "serve:browser": "node browser/serve.ts"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.29.7",
+    "@preact/signals-core": "^1.8.0",
+    "babel-preset-solid": "^1.9.15",
+    "esbuild": "^0.28.2",
+    "esbuild-plugin-solid": "^0.6.0",
+    "jsdom": "^25.0.1",
+    "preact": "^10.25.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "solid-js": "^1.9.3"
+  }
+}

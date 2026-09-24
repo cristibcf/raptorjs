@@ -1,0 +1,14 @@
+{
+  "name": "@raptor-example/raptortest-crud",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "RaptorTest descopera autonom bug-ul stale-read RT-184 intr-o aplicatie cart CRUD.",
+  "dependencies": {
+    "@raptor/test": "workspace:*"
+  },
+  "scripts": {
+    "demo": "node src/demo.ts",
+    "test": "node --test tests/*.test.ts"
+  }
+}

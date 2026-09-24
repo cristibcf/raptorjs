@@ -1,0 +1,25 @@
+{
+  "name": "@raptor/engine",
+  "version": "0.1.0",
+  "description": "RaptorEngine: CLI unificat, optimizer semantic (DSE, Dependency Fusion), codegen multi-target (browser/server/wire), Stateful Reactive HMR, caching, build manifest (whitepaper RaptorEngine v0.1).",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "bin": {
+    "raptor": "./src/bin.ts"
+  },
+  "types": "./src/index.ts",
+  "dependencies": {
+    "@raptor/compiler": "workspace:*"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.ts"
+  },
+  "license": "MIT",
+  "files": [
+    "src",
+    "LICENSE"
+  ]
+}

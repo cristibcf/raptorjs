@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ro">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RaptorJS · js-framework-benchmark (browser)</title>
+    <style>
+      :root {
+        --bg: #0f1115;
+        --panel: #171a21;
+        --border: #262b36;
+        --text: #e6e9ef;
+        --muted: #9aa4b2;
+        --best: #1f7a3d;
+        --best-bg: #12351f;
+        --accent: #e8590c;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font: 14px/1.5 -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+      header {
+        padding: 20px 24px 8px;
+      }
+      h1 { font-size: 18px; margin: 0 0 4px; }
+      .sub { color: var(--muted); font-size: 13px; }
+      .wrap { display: grid; grid-template-columns: 1fr 360px; gap: 16px; padding: 16px 24px 32px; align-items: start; }
+      @media (max-width: 900px) { .wrap { grid-template-columns: 1fr; } }
+      .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+      .panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 10px; }
+
+      .toolbar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+      button {
+        background: #202632; color: var(--text); border: 1px solid var(--border);
+        border-radius: 7px; padding: 6px 11px; font-size: 13px; cursor: pointer;
+      }
+      button:hover { border-color: #3a4250; }
+      button.fw { border-left: 3px solid var(--c); }
+      button.fw.active { background: var(--c); color: #fff; border-color: var(--c); }
+      #runAll { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+      #runAll:disabled { opacity: .5; cursor: default; }
+
+      #status { color: var(--muted); font-size: 13px; min-height: 18px; margin: 6px 0 12px; }
+
+      table.table { border-collapse: collapse; width: 100%; }
+      table.table td { padding: 2px 8px; border-bottom: 1px solid #1e222b; font-size: 13px; }
+      table.table td.col-id { color: var(--muted); width: 70px; }
+      table.table tr.danger td { color: #ff6b6b; font-weight: 600; }
+
+      #stage { max-height: 60vh; overflow: auto; border: 1px solid var(--border); border-radius: 8px; background: #10131a; }
+
+      #results { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+      #results th, #results td { padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: right; }
+      #results th:first-child, #results td.op { text-align: left; color: var(--text); }
+      #results th { color: var(--muted); font-size: 12px; font-weight: 600; }
+      #results td.num { color: var(--text); }
+      #results td.best { background: var(--best-bg); color: #7ee2a0; font-weight: 700; border-radius: 4px; }
+      #results tr.geo td { border-top: 2px solid var(--border); font-weight: 700; }
+      .legend { color: var(--muted); font-size: 12px; margin-top: 8px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>RaptorJS · js-framework-benchmark <span class="sub">(browser real)</span></h1>
+      <div class="sub">RaptorJS vs React 19 vs Preact 10 vs Solid 1.9 — timp median (ms) de commit sincron al update-ului (costul JS de reconciliere vs fine-grained). Mai putin = mai bine.</div>
+    </header>
+    <div class="wrap">
+      <div class="panel">
+        <h2>Aplicatie live</h2>
+        <div class="toolbar" id="fwBar"></div>
+        <div class="toolbar" id="opBar"></div>
+        <div id="stage"></div>
+      </div>
+      <div class="panel">
+        <h2>Rezultate</h2>
+        <div class="toolbar"><button id="runAll">▶ Ruleaza tot</button></div>
+        <div id="status"></div>
+        <table id="results"><thead><tr></tr></thead><tbody></tbody></table>
+        <div class="legend">geo. mean = media geometrica peste toate operatiile (scor global). Verde = cel mai rapid pe rand.</div>
+      </div>
+    </div>
+    <script type="module" src="./dist/bundle.js"></script>
+  </body>
+</html>

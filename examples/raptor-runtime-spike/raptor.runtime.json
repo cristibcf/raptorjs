@@ -1,0 +1,13 @@
+{
+  "name": "raptor-runtime-spike",
+  "version": "0.1.0",
+  "entry": "./src/main.ts",
+  "policy": "development",
+  "engines": { "raptorRuntime": ">=0.1.0" },
+  "capabilities": {
+    "files.read": ["./src", "./checks", "./raptor.runtime.json"],
+    "files.write": ["./.raptor"],
+    "clock.real": true
+  },
+  "tasks": { "maxConcurrent": 8, "defaultDeadlineMs": null }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "@raptor-example/chat",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Exemplu chat: APPEND mesaje, PATCH status, REMOVE, broadcast la mai multi clienti.",
+  "dependencies": {
+    "@raptor/core": "workspace:*",
+    "@raptor/wire-core": "workspace:*",
+    "@raptor/wire-client": "workspace:*",
+    "@raptor/server": "workspace:*"
+  },
+  "scripts": {
+    "demo": "node src/demo.ts",
+    "test": "node --test tests/*.test.ts"
+  }
+}

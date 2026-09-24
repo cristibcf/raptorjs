@@ -1,0 +1,21 @@
+# Spatiul de lucru nativ RaptorRuntime (spec sectiunea 9: "native host may live
+# in runtime-native"). Este separat de workspace-ul pnpm si nu impune nimic
+# pachetelor TypeScript existente.
+[workspace]
+resolver = "2"
+members = ["crates/raptor-runtime-core", "crates/raptor-runtime-cli"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.77"
+license = "MIT"
+repository = "https://github.com/raptorjs/raptorjs"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+# Fara `panic = "abort"`: un panic intr-un task trebuie sa ramana izolat la
+# firul lui si sa fie raportat ca eroare, nu sa darame host-ul cu tot cu
+# celelalte task-uri in zbor.

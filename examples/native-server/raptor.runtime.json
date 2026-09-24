@@ -1,0 +1,12 @@
+{
+  "name": "native-server",
+  "version": "0.1.0",
+  "entry": "./src/main.ts",
+  "policy": "development",
+  "engines": { "raptorRuntime": ">=0.1.0" },
+  "capabilities": {
+    "files.read": ["./src"],
+    "net.connect": ["127.0.0.1:*"]
+  },
+  "tasks": { "maxConcurrent": 8, "defaultDeadlineMs": null }
+}

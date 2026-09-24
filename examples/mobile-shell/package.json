@@ -1,0 +1,17 @@
+{
+  "name": "@raptor-example/mobile-shell",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Exemplu: o aplicatie RaptorJS intr-un host mobil - navigare controlata de adaptor, stocare securizata, lifecycle si module native optionale (roadmap sectiunile 6 si 8).",
+  "dependencies": {
+    "@raptor/core": "workspace:*",
+    "@raptor/dom": "workspace:*",
+    "@raptor/host": "workspace:*",
+    "@raptor/mobile": "workspace:*"
+  },
+  "scripts": {
+    "demo": "node src/demo.ts",
+    "test": "node --test tests/*.test.ts"
+  }
+}

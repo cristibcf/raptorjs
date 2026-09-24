@@ -1,0 +1,17 @@
+{
+  "name": "@raptor-example/desktop-shell",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Exemplu: o aplicatie RaptorJS care ruleaza intr-un host desktop nativ prin puntea de capabilitati (roadmap sectiunile 6 si 8).",
+  "dependencies": {
+    "@raptor/core": "workspace:*",
+    "@raptor/desktop": "workspace:*",
+    "@raptor/dom": "workspace:*",
+    "@raptor/host": "workspace:*"
+  },
+  "scripts": {
+    "demo": "node src/demo.ts",
+    "test": "node --test tests/*.test.ts"
+  }
+}
