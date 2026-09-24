@@ -48,6 +48,24 @@ pnpm raptor toolchain                                            # detectează R
 pnpm raptor:dev examples/raptorengine-app/src/App.raptor         # server live: fs.watch → HMR (SSE)
 ```
 
+**RaptorRuntime** — runtime de aplicație cu capabilități declarate, și un binar nativ care rulează
+JavaScript și TypeScript **fără Node instalat**:
+
+```bash
+pnpm raptor:runtime init exemplu-app      # proiect nou cu raptor.runtime.json
+pnpm raptor:runtime doctor                # manifest, politici, graf static, ocoluri de broker
+pnpm raptor:runtime run                   # rulează cu capabilitățile declarate
+pnpm raptor:runtime pack                  # unitate reproductibilă cu lockfile
+
+pnpm native -- build --features full      # binarul Rust (prin WSL, vezi nota de mediu)
+pnpm native:test                          # 151 de teste Rust
+```
+
+Ce refuză, concret: cu `files.read: ["./src"]` în manifest, o citire din `./src` reușește, iar una
+din `../../package.json` primește `raptor:capability/denied` — deși fișierul există pe disc.
+Cu `--policy production`, un `import` de `node:fs` **oprește pornirea**, pentru că pe motorul de
+bootstrap ar ocoli brokerul cu totul (vezi [SECURITY-AUDIT.md](SECURITY-AUDIT.md)).
+
 Proiecte noi, pentru web și pentru host-uri native (vezi [`docs/NATIVE-HOSTS.md`](docs/NATIVE-HOSTS.md)):
 
 ```bash
@@ -104,6 +122,9 @@ cd examples/counter && pnpm build   # emite dist/bundle.js + dist/index.html (st
 | [`@raptor/engine`](packages/engine) | **RaptorEngine** (orchestrare): optimizer (DSE, Fusion), codegen browser/server/wire, Stateful Reactive HMR, caching reproductibil, build manifest, CLI `raptor`. | RaptorEngine §5, §13–§18, §21, §34 |
 | [`@raptor/run`](packages/run) | **RaptorRun** (server runtime): leagă `serverSignal`→store reactiv→RaptorWire→client din același graf; routing + SSR/resume, sesiuni, observability, targets Node/memory. | RaptorEngine §19–§21 |
 | [`@raptor/profile`](packages/profile) | **RaptorProfile** (PGO): telemetrie runtime (signal freq, derived fan-out, route co-usage, wire payload, DOM bursts) + build planner care emite hints de **strategie** (chunk folding, preload, batch, encoding), niciodată de corectitudine. | RaptorEngine §22–§24 |
+| [`@raptor/runtime`](packages/runtime) | **RaptorRuntime** (nucleu): runtime de aplicație cu **capabilități ca funcție de produs**. Spațiul de nume `raptor:` (`files`, `net`, `serve`, `process`, `kv`, `observe`, `capabilities`, `tasks`), capability broker cu țintă per cale / `gazdă:port` / variabilă / comandă, revocare la runtime și delegare explicită, fabrică de task-uri cu deadline, observabilitate structurată, adaptor de motor. Pe motorul de bootstrap brokerul e **consultativ** — vezi [SECURITY-AUDIT](SECURITY-AUDIT.md). | RaptorRuntime §5–§7 |
+| [`@raptor/runtime-cli`](packages/runtime-cli) | `raptor-runtime`: `init`, `run`, `doctor`, `test`, `pack` (unitate reproductibilă cu lockfile), `trace` (urmărire compatibilă OpenTelemetry). `doctor` și `run` raportează importurile care ocolesc brokerul, cu aceeași regulă. | RaptorRuntime §4, §8 |
+| [`packages/runtime-native`](packages/runtime-native) | **Binarul nativ, în Rust**: rulează JavaScript **și TypeScript fără Node instalat**. Motor QuickJS în spatele unui `EngineAdapter` (`--features quickjs`), TypeScript transformat cu oxc (`--features typescript`), modulele `raptor:` ca funcții native, HTTP/1.1 propriu peste `std::net` (client + server). Build implicit **zero dependențe** (964 KB); complet 4,4 MB. Vezi [nota de mediu](#note). | RaptorRuntime §3, §13 |
 | [`@raptor/host`](packages/host) | Contractul comun al host-urilor native: matricea de capabilități, manifestul `raptor.host.json`, puntea JS↔host (cereri corelate + evenimente), mașina de lifecycle și planul de împachetare. Fără cod de platformă. | Roadmap §6 |
 | [`@raptor/desktop`](packages/desktop) | **Raptor Desktop Adapter**: back-end-uri WebView (WebView2 / WKWebView / WebKitGTK), ferestre, meniuri, deep links, notificări, stocare locală, actualizări și semnare; host de referință + formate de instalator (msi, nsis, dmg, deb, AppImage). | Roadmap §6–§8 |
 | [`@raptor/mobile`](packages/mobile) | **Raptor Mobile Adapter**: bridge minimal Android/iOS — navigare controlată de adaptor, stocare securizată (Keychain / EncryptedSharedPreferences), lifecycle, deep links; module native opționale, fiecare cu capabilitatea lui. | Roadmap §6–§8 |
@@ -113,7 +134,7 @@ cd examples/counter && pnpm build   # emite dist/bundle.js + dist/index.html (st
 | [`@raptor/device-host`](packages/device-host) | Firmware-ul unei plachete ca host: pini și magistrale declarate *per instanță*, somn profund, OTA cu rollback și un **watchdog** care resetează aplicația blocată. Singurul host care nu are încredere în aplicație. | derivat |
 | [`@raptor/forge`](packages/forge) | **RaptorForge**: `raptor-create` pentru web/desktop/mobile — generează `raptor.runtime.json` valid, granița nativă `raptor.host.json`, descriptorul de împachetare și workflow-ul de instalatoare, toate din aceeași sursă. | Roadmap §5, §8 |
 
-Exemple: [`counter`](examples/counter), [`realtime-dashboard`](examples/realtime-dashboard) (MVP headline), [`chat`](examples/chat), [`raptortest-crud`](examples/raptortest-crud) (descoperire autonomă de bug-uri), [`raptorengine-app`](examples/raptorengine-app) (compilare end-to-end: `.raptor` → cod care rulează pe runtime-ul real), [`site`](examples/site) (**site de prezentare + documentație construit CU stack-ul Raptor**: UI RaptorJS, demo realtime RaptorWire în pagină, compilat cu RaptorBundle — `pnpm dev:site`), [`desktop-shell`](examples/desktop-shell) (**o aplicație RaptorJS care rulează într-un host desktop nativ**: fereastră, meniu, stocare locală, deep links și notificări, toate prin puntea de capabilități — `pnpm demo:desktop`), [`mobile-shell`](examples/mobile-shell) (**aceeași aplicație, host mobil**: navigare condusă de adaptor, stocare securizată, suspendare și reluare, module native opționale — `pnpm demo:mobile`), [`web-shell`](examples/web-shell) (**a treia oară aceeași aplicație, cu browserul pe post de host**: History API și butonul de back, `localStorage`, notificări cu permisiune — `pnpm dev:web-shell`), [`service-shell`](examples/service-shell) (**a patra oară, ca serviciu HTTP**: server real `node:http`, configurație de la supervizor, drenare curată — `pnpm demo:service`), [`cli-shell`](examples/cli-shell) (**a cincea oară, ca unealtă de linie de comanda**: `raptor-notes add/list/clear`, cu refuz de confirmare când nu există terminal — `pnpm demo:cli`), [`device-shell`](examples/device-shell) (**a șasea, pe o plachetă**: logger de senzor cu LED, I2C, somn între citiri și watchdog — `pnpm demo:device`).
+Exemple: [`counter`](examples/counter), [`realtime-dashboard`](examples/realtime-dashboard) (MVP headline), [`chat`](examples/chat), [`raptortest-crud`](examples/raptortest-crud) (descoperire autonomă de bug-uri), [`raptorengine-app`](examples/raptorengine-app) (compilare end-to-end: `.raptor` → cod care rulează pe runtime-ul real), [`site`](examples/site) (**site de prezentare + documentație construit CU stack-ul Raptor**: UI RaptorJS, demo realtime RaptorWire în pagină, compilat cu RaptorBundle — `pnpm dev:site`), [`desktop-shell`](examples/desktop-shell) (**o aplicație RaptorJS care rulează într-un host desktop nativ**: fereastră, meniu, stocare locală, deep links și notificări, toate prin puntea de capabilități — `pnpm demo:desktop`), [`mobile-shell`](examples/mobile-shell) (**aceeași aplicație, host mobil**: navigare condusă de adaptor, stocare securizată, suspendare și reluare, module native opționale — `pnpm demo:mobile`), [`web-shell`](examples/web-shell) (**a treia oară aceeași aplicație, cu browserul pe post de host**: History API și butonul de back, `localStorage`, notificări cu permisiune — `pnpm dev:web-shell`), [`service-shell`](examples/service-shell) (**a patra oară, ca serviciu HTTP**: server real `node:http`, configurație de la supervizor, drenare curată — `pnpm demo:service`), [`cli-shell`](examples/cli-shell) (**a cincea oară, ca unealtă de linie de comanda**: `raptor-notes add/list/clear`, cu refuz de confirmare când nu există terminal — `pnpm demo:cli`), [`device-shell`](examples/device-shell) (**a șasea, pe o plachetă**: logger de senzor cu LED, I2C, somn între citiri și watchdog — `pnpm demo:device`), [`native-hello`](examples/native-hello) (**TypeScript rulat de binarul nativ**, fără Node și fără tsc: tipuri, generice, interfețe — plus dovada că refuzul de capabilitate chiar blochează un fișier care există), [`native-server`](examples/native-server) (**un server HTTP scris în TypeScript care răspunde la `curl` real**, pe binarul nativ).
 
 > `@raptor/test` mapează structura de pachete din whitepaper-ul RaptorTest (§32: probe, semantic-ui, behavior-graph, twin-core, explorer, oracle, chaos, replay, coverage) într-un singur pachet, ca submodule.
 
@@ -200,8 +221,29 @@ Vezi [`SPEC-RaptorWire-v0.2.md`](SPEC-RaptorWire-v0.2.md).
 - Pentru variantele browser: `pnpm dev:counter` / `pnpm dev:dashboard` (dev server RaptorBundle cu
   live-reload) sau `pnpm build` în directorul exemplului (emite `dist/bundle.js` static). Fără toolchain extern.
 - Convenție de cod: **sintaxă TS erasabilă** (fără `enum`/`namespace`-runtime/parameter properties)
-  ca să ruleze nativ pe Node.
+  ca să ruleze nativ pe Node. Binarul nativ acceptă un **superset**: oxc transformă și `enum`/`namespace`,
+  deci cod care merge nativ poate să nu meargă sub `node --experimental-strip-types`.
+- **Build-ul Rust pe Windows**: `rustc.exe` nu pornește când **Smart App Control** e activ
+  (`0xC0E90002`, la încărcarea `rustc_driver-*.dll`). `cargo.exe` merge, ceea ce induce în eroare.
+  Reinstalarea toolchain-ului nu rezolvă. Soluția folosită aici: build în **WSL2 Ubuntu**, prin
+  `pnpm native` / `pnpm native:test`. A **nu** se dezactiva Smart App Control — e ireversibil fără
+  reinstalare de Windows.
+
+### Ce NU e făcut (ca să nu fie prezentat ca făcut)
+
+- **Buclă de evenimente și promisiuni în binarul nativ.** Fără ele nu există `fetch` asincron și nici
+  forma `serve({ fetch })`; bucla de acceptare aparține aplicației, deliberat și documentat.
+- **TLS**, nicăieri. `https://` trece de verificarea de capabilitate și apoi eșuează limpede, în loc
+  să coboare tăcut la `http`.
+- **`tasks`, `test` și `trace` legate la izolatul nativ** — există în runtime-ul TS, sunt `pending` în cel nativ.
+- **Shell-ul nativ complet** (WebView2/WKWebView/WebKitGTK + launcher) și comanda `raptor-package`.
+  Fără ele, criteriul „pornește o aplicație cu fereastră fără Node instalat" nu e atins — deși
+  *binarul* rulează deja JS și TS fără Node.
+- **Minify în `@raptor/bundle`.** Pentru asta există calea opțională Rolldown/Oxc.
+- Trei findinguri de securitate deschise, numite în [SECURITY-AUDIT.md](SECURITY-AUDIT.md): symlink-uri
+  neurmărite la verificarea căilor, `Origin` neverificat la handshake-ul WebSocket, `@raptor/wire-client`
+  fără teste.
 
 ## Licență
 
-MIT.
+MIT — vezi [LICENSE](LICENSE).

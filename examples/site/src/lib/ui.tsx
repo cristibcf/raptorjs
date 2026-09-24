@@ -13,13 +13,18 @@ export function slug(text: string): string {
 /** Inline markup: `code` spans and [label](path) internal links. */
 export function inline(text: string): any[] {
   const out: any[] = [];
-  const re = /\*\*([^*]+)\*\*|`([^`]+)`|\[([^\]]+)\]\(([^)]+)\)/g;
+  // Ordinea alternativelor conteaza: `**tare**` trebuie incercat inaintea lui
+  // `*inclinat*`, altfel primul ar fi citit ca al doilea, gol. Cursivele refuza
+  // backtick-urile in interior, ca `packages/*/src` sa ramana cod, nu inceput de
+  // italice - si oricum un span de cod incepe mai la stanga, deci castiga.
+  const re = /\*\*([^*]+)\*\*|`([^`]+)`|\[([^\]]+)\]\(([^)]+)\)|\*([^*`\n]+)\*/g;
   let last = 0;
   let m: RegExpExecArray | null;
   while ((m = re.exec(text)) !== null) {
     if (m.index > last) out.push(text.slice(last, m.index));
     if (m[1] != null) out.push(<b>{m[1]}</b>);
     else if (m[2] != null) out.push(<code class="inl">{m[2]}</code>);
+    else if (m[5] != null) out.push(<i>{m[5]}</i>);
     else {
       const target = m[4]!;
       out.push(

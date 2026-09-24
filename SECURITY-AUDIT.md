@@ -1,85 +1,152 @@
-# Audit de securitate și coding standards — Raptor
+# Securitate — Raptor
 
-> **DEPĂȘIT (2026-09-24).** Acesta este instantaneul de la 21 septembrie, păstrat
-> pentru istoric. Acoperea ~10 pachete; repo-ul are azi 24 + un runtime nativ în
-> Rust. Trei afirmații din el **nu mai sunt adevărate**: „75/75 teste" (sunt 804),
-> „typecheck curat" (7 erori) și „niciun acces `fs`/`child_process`/rețea în cod
-> runtime" (9 pachete fac asta acum). Starea curentă, cu findinguri noi verificate
-> cu proof-of-concept: [`AUDIT-2026-09-24.md`](AUDIT-2026-09-24.md).
+Starea curentă a modelului de securitate și a tuturor findingurilor, vechi și
+noi. Ultima revizuire: **2026-09-24**.
 
-Data: 2026-09-21 · Scope: pachetele și exemplele scrise în această sesiune
-(`packages/*`, `examples/*`). `benchmarks/` este un proiect izolat dev-only,
-adăugat separat — scanat superficial, în afara scope-ului principal.
+Rapoartele de audit, cu metoda și proof-of-concept-urile:
 
-## Rezumat
+- [`AUDIT-2026-09-24.md`](AUDIT-2026-09-24.md) — audit complet (cod, documentație,
+  conținut de site, runtime nativ). 24 de pachete + crate-ul Rust.
+- Auditul din 2026-09-21 acoperea ~10 pachete. Findingurile lui sunt în tabelul
+  de mai jos (#1–#3); restul documentului a fost absorbit aici.
 
-| # | Finding | Severitate | Status |
-|---|---|---|---|
-| 1 | Prototype pollution la decodarea datelor de pe fir (CWE-1321) | Medie | ✅ Reparat |
-| 2 | Prefix matching fără delimitator → expunere de handle-uri vecine | Medie | ✅ Reparat |
-| 3 | Clientul nu era fail-closed la frame-uri corupte | Scăzută | ✅ Reparat |
+## Suprafețele de securitate, pe scurt
 
-Nu s-au găsit: execuție dinamică de cod (`eval`/`Function`), acces `fs`/`child_process`/
-rețea în cod runtime, secrete hardcodate, dependențe runtime (zero-dep confirmat),
-bucle nemărginite (toate au bound: buffer, `maxDepth`, `maxSteps`).
+Proiectul are **trei** granițe distincte. Se confundă ușor, și fiecare are alt
+nivel de maturitate.
 
-Verificare: **75/75 teste** (`pnpm test`, include 5 teste de regresie de securitate),
-**typecheck curat** (`pnpm typecheck`), toate demo-urile rulează.
+| Graniță | Ce apără | Stare |
+|---|---|---|
+| **RaptorWire** (`wire-core`, `server`, `wire-client`) | starea locală față de un peer de pe fir | auditată de două ori; transportul WebSocket e mai nou decât prima trecere |
+| **Capability broker** (`runtime`, `runtime-cli`) | sistemul gazdă față de codul aplicației | auditată 2026-09-24; **pe motorul de bootstrap e consultativă**, vezi mai jos |
+| **Puntea de host** (`host` + cele șase adaptoare) | sistemul de operare față de aplicație | contract + verificare dublă; în browser dă portabilitate, nu izolare |
 
-## Findings detaliate
+### Precizarea care nu trebuie pierdută
 
-### 1. Prototype pollution la decodare (CWE-1321) — Medie
+Pe **motorul de bootstrap** (Node), capability broker-ul este **consultativ, nu
+o graniță**. Codul de aplicație poate scrie `import fs from "node:fs"` și ajunge
+la disc fără ca brokerul să fie întrebat. Granița reală apartine host-ului nativ
+în Rust, unde `node:*` pur și simplu nu există.
 
-**Unde:** `wire-core/value.ts` (`readValue` OBJECT), `wire-core/operation.ts`
-(`decodeOp` PATCH), `wire-core/document.ts` (`apply` SET/INC/PATCH),
-`test/twin.ts` (`VirtualDB.update`).
+Până atunci apărarea stă în unelte, nu în motor:
+`raptor-runtime doctor` raportează fiecare ocol, iar `raptor-runtime run`
+**refuză să pornească** în politica `production` și scrie ocolul în jurnalul de
+audit în `development` (`packages/runtime-cli/src/bypass.ts`).
 
-**Problemă:** o cheie `__proto__` provenită din date de pe fir era scrisă cu
-`obj[key] = value`, invocând setter-ul de prototip. Un peer malițios putea muta
-prototipul obiectului decodat / al unei înregistrări din starea clientului și
-corupe integritatea valorii. `Object.prototype` global **nu** era poluat (scope
-limitat), dar suprafața e reală la stratul care aplică operații netăgăduite pe
-starea locală.
+## Findinguri
 
-**Fix:** helper `setOwn()` (`wire-core/safe.ts`) care folosește
-`Object.defineProperty` → scrie mereu o proprietate **proprie**, neutralizează
-setter-ul și păstrează round-trip-ul corect. `VirtualDB.update` nu mai folosește
-`Object.assign`. Regresie: `wire-core/tests/security.test.ts`.
+| # | Finding | Severitate | Stare | Regresie |
+|---|---|---|---|---|
+| 1 | Prototype pollution la decodarea datelor de pe fir (CWE-1321) | Medie | ✅ reparat 2026-09-21 | `wire-core/tests/security.test.ts` |
+| 2 | Prefix matching fără delimitator → expunere de handle-uri vecine | Medie | ✅ reparat 2026-09-21 | `server/tests/store.test.ts` |
+| 3 | Clientul nu era fail-closed la frame-uri corupte | Scăzută | ✅ reparat 2026-09-21 | ⚠️ **niciuna** — `wire-client` nu are teste |
+| S1 | `process.spawn`: `env` și `cwd` treceau pe lângă broker → execuție de cod arbitrar | **Ridicată** | ✅ reparat 2026-09-24 | `runtime/tests/escapes.test.ts` |
+| S2 | `net.fetch` nu re-verifica destinația după redirect → SSRF | **Ridicată** | ✅ reparat 2026-09-24 | `runtime/tests/escapes.test.ts` |
+| S3 | Dev-server RaptorBundle: prefix fără delimitator + bind pe toate interfețele | Medie | ✅ reparat 2026-09-24 | `bundle/tests/dev-server-scope.test.ts` |
+| S4 | `serve` deschidea porturi fără capability, în TS și în Rust | Medie | ✅ reparat 2026-09-24 | `runtime/tests/escapes.test.ts`, `modules.rs` |
+| S5 | Ocolul prin `node:` era raportat doar de `doctor`, nu și de `run` | Medie | ✅ reparat 2026-09-24 | `runtime-cli/tests/bypass.test.ts` |
+| S6 | Containerea de căi e pur lexicală (symlink) | Medie | 📖 documentat, nereparat | — |
+| S7 | WebSocket fără verificare de `Origin`, fără cotă de conexiuni | Scăzută-Medie | ⬜ deschis | — |
+| S8 | `spawn`: buffere nemărginite, oprire fără escaladare | Scăzută | ✅ reparat 2026-09-24 | `runtime/tests/escapes.test.ts` |
+| S9 | `plain()` din puntea de host e superficial | Scăzută | ⬜ deschis (teoretic) | — |
+| S10 | `@raptor/wire-client` nu are niciun test | Scăzută | ⬜ deschis | — |
 
-### 2. Prefix matching fără delimitator — Medie
+### Cele trei findinguri din 2026-09-21
 
-**Unde:** `server/store.ts` (`matches`, folosit de `snapshotFor` și `resyncSince`).
+**#1 — Prototype pollution la decodare.** O cheie `__proto__` venită de pe fir
+era scrisă cu `obj[key] = value`, invocând setter-ul de prototip. Fix: helper
+`setOwn()` (`wire-core/safe.ts`) prin `Object.defineProperty` — scrie mereu o
+proprietate proprie.
 
-**Problemă:** proiecția unui query folosea `handle.startsWith(prefix)` fără
-graniță, deci un query autorizat pe `"cpu"` expunea și `"cpuSecret"` / `"cpu2"`
-(scurgere de date către un subscriber neautorizat pentru acele handle-uri).
+**#2 — Prefix matching fără delimitator.** `handle.startsWith(prefix)` fără
+graniță: un query autorizat pe `"cpu"` expunea și `"cpuSecret"`. Fix: un prefix
+expune copii doar dacă se termină cu delimitator (`:`, `/`, `.`).
 
-**Fix:** un prefix expune copii doar dacă se termină cu delimitator (`:`, `/`,
-`.`); altfel se cere potrivire exactă. Regresie: `server/tests/store.test.ts`.
+**#3 — Client nu era fail-closed.** Un frame invalid arunca o excepție
+necontrolată în microtask. Fix: `try/catch` în `bindTransport`.
 
-### 3. Client nu era fail-closed la frame-uri corupte — Scăzută
+### Findingurile din 2026-09-24
 
-**Unde:** `wire-client/client.ts` (`bindTransport`).
+Descrierea completă, cu proof-of-concept-ul fiecăruia, e în
+[`AUDIT-2026-09-24.md`](AUDIT-2026-09-24.md) §1. Pe scurt, ce s-a schimbat în cod:
 
-**Problemă:** serverul prindea erorile de decodare, dar clientul nu — un frame
-invalid/corupt arunca o excepție necontrolată în microtask.
+- **S1** — fiecare cheie din `options.env` trece prin `env.read`; variabilele
+  care încarcă cod (`NODE_OPTIONS`, `LD_*`, `DYLD_*`, `BASH_ENV`,
+  `GIT_SSH_COMMAND`, `PATH`, …) sunt refuzate **chiar și cu `env.read`
+  acordată**, pentru că altfel „care comenzi" ar însemna „orice cod"; un `cwd`
+  din afara proiectului cere `files.read` pe acea cale.
+- **S2** — `redirect: "manual"` plus `broker.require` pe fiecare salt, cu limită
+  de salturi. Clientul HTTP nativ nu urmărea redirect-uri deloc, deci era deja
+  corect.
+- **S3** — containere pe segmente (`resolveAsset`), decodarea căii, refuz pe
+  fișiere ascunse și pe surse, `listen` implicit pe `127.0.0.1` cu `--host`
+  pentru expunere explicită.
+- **S4** — `net.listen` a intrat în vocabularul de capabilități, în TS și în
+  Rust, cu ținta `gazdă:port` potrivită de aceeași funcție ca `net.connect`.
+  Verificarea se face **înainte** de `bind`.
+- **S5** — regula despre importurile `node:` stă acum într-un singur loc
+  (`runtime-cli/src/bypass.ts`) și o folosesc și `doctor`, și `run`.
+- **S8** — fluxurile copilului sunt plafonate la 8 MB, cu `truncated` în
+  rezultat; `abort` escaladează la SIGKILL după 2 s.
 
-**Fix:** decodarea pe client e într-un `try/catch` care ignoră frame-ul invalid
-(fail-closed, conform whitepaper §21 „state machine fail-closed pentru mesaje
-imposibile").
+## Ce rămâne deschis
 
-## Coding standards — verificat
+**S6 — symlink.** `packages/runtime/src/paths.ts` și `crates/.../paths.rs`
+rezolvă căile **lexical**, fără `realpath`. Un symlink aflat în domeniul acordat
+duce accesul în afara lui. Partea Rust documenta deja asta; acum o documentează
+și partea TS. Reparația reală cere `realpath` pe directorul-părinte, cu grija
+TOCTOU care vine la pachet.
 
-- **Zero dependențe runtime**: confirmat; `typescript`/`@types/node` sunt doar dev (typecheck + transformul de build al `@raptor/bundle`). Vite/esbuild au fost eliminate — varianta browser folosește bundler-ul propriu `@raptor/bundle`.
-- **Sintaxă TS erasabilă** (fără `enum`/`namespace`-runtime/parameter properties): respectată; `pnpm typecheck` cu `erasableSyntaxOnly` trece.
-- **Cod mort eliminat**: `scheduleFlush()` (no-op) scos din nucleul reactiv.
-- **`for...in` → `Object.keys`** în `dom/runtime.ts` (evită proprietăți moștenite).
-- **Determinism** (cerință RaptorTest): nucleul nu folosește `Math.random`/wall-clock; `Math.random` apare doar în demo-ul de UI din browser.
-- **Bounds / DoS**: `Reader` verifică limitele bufferului; `varint` respinge valori negative/prea mari; `VirtualClock.runUntilIdle` are `maxSteps`; explorarea RaptorTest e mărginită de `maxDepth`.
-- **Autorizare**: hook-uri `authorize` per query/mutation pe server; clientul nu poate injecta operații la alți clienți (ops sunt doar server→client).
+**S7 — WebSocket.** `serveOverWebSocket` verifică doar calea și prezența
+`sec-websocket-key`. Fără verificare de `Origin`, orice pagină pe care o deschide
+utilizatorul poate deschide o conexiune la un server Raptor. Nu există nici
+limită de conexiuni simultane, nici timeout de handshake.
 
-## Limitări cunoscute (documentate, nu blocante pentru MVP)
+Restul parser-ului RFC 6455 e solid: mască obligatorie, plafoane de 16 MB pe
+cadru și pe mesajul reasamblat, opcode necunoscut → închidere.
 
-- RAS este session-scoped per conexiune; la reconnect address space-ul se renegociază (starea se păstrează). Formatul exact al ID-urilor rămâne de ales după benchmark (whitepaper §5.2).
-- `onMount` folosește o coadă la nivel de modul — corectă în modelul sincron de montare; un runtime concurent ar cere ownership per-render.
-- Codec-ul generic de valori nu impune o schemă; `SchemaCodec` (adaptive encoding) e opțional. O validare strictă pe schemă ar respinge din start câmpuri rezervate.
+**S9 — `plain()`.** `packages/host/src/protocol.ts` curăță
+`__proto__`/`constructor`/`prototype` doar la primul nivel. Nu există azi un
+consumator care să transforme asta într-o problemă; merită totuși recursivitate.
+
+**S10 — `wire-client` fără teste.** Singurul pachet fără director `tests/`, și
+tocmai cel care aplică operații venite de pe rețea pe starea locală. Consecință
+directă: fixul #3 nu are regresie.
+
+## Limite asumate, nu bug-uri
+
+- **Fără TLS**, nicăieri: nici în transportul RaptorWire, nici în clientul HTTP
+  nativ (unde `https://` trece de verificarea de capabilitate și apoi **eșuează
+  limpede**, în loc să coboare tăcut la `http`). Terminarea TLS se face în față.
+- **Fără rate limiting sau cote de conexiuni.** Un client care se reconectează
+  în buclă e problema aplicației.
+- **Fără validare de schemă la decodare.** `SchemaCodec` e opțional; codec-ul
+  generic acceptă orice formă, deci o mutație trebuie să-și valideze intrarea.
+- **`@raptor/ui` nu a fost revizuit pentru injecție prin props.** Singurul sink
+  de HTML din bibliotecă este `RichTextEditor`, care **nu sanitizează** și o
+  spune atât în sursă cât și pe pagina lui din catalog.
+- **RAS e session-scoped**; formatul exact al identificatorilor rămâne deschis.
+- **Fără penetration testing.**
+
+## Standarde verificate (2026-09-24)
+
+- **Zero dependențe runtime externe** — măsurat, nu afirmat: `pnpm stats`
+  numără dependențele non-`@raptor/*` ale pachetelor publicate și dă 0.
+  `typescript`/`@types/node` sunt devDependencies.
+- **Fără `eval` sau constructor `Function` în `packages/*/src`.** Apar doar în
+  teste și în Playground-ul site-ului, care rulează deliberat codul scris de
+  vizitator, în pagina lui.
+- **Acces la sistem, unde este:** 9 din 24 de pachete importă
+  `node:fs`/`http`/`net`/`child_process` — `bundle`, `engine`, `forge`,
+  `profile`, `run`, `runtime`, `runtime-cli`, `server`, `service-host`. Sunt
+  unelte de build și runtime-uri, nu biblioteci de aplicație; nucleul reactiv și
+  stratul wire nu ating sistemul.
+- **Fără secrete în cod.**
+- **Determinism:** nucleul reactiv nu folosește `Math.random` sau ceas de perete
+   — ceea ce face posibil replay-ul din RaptorTest.
+- **Margini:** `Reader` verifică limitele bufferului, `varint` respinge valori
+  prea mari, cadrele WebSocket sunt plafonate la 16 MB, `VirtualClock` are
+  `maxSteps`, explorarea RaptorTest are `maxDepth`, iar fluxurile unui proces
+  copil sunt plafonate la 8 MB.
+- **Autorizare:** hook-uri `authorize` per query/mutation; operațiile merg doar
+  server → client, deci un client nu poate injecta stare în replica altuia.

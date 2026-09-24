@@ -222,7 +222,9 @@ export function HomeView() {
           <div style="display:flex;align-items:baseline;justify-content:space-between;gap:24px;flex-wrap:wrap">
             <h2 class="h2" style="margin:0">Numbers, honestly</h2>
             <p style="font-family:var(--mono);font-size:12px;color:var(--faint);margin:0;max-width:46ch;text-align:right">
-              Chromium and jsdom, production builds, median of six. Reproduce with <span style="color:#3c424d">cd benchmarks &amp;&amp; npm run bench</span>.
+              Chromium and jsdom, production builds, median of six. Reproduce the browser numbers with{" "}
+              <span style="color:#3c424d">cd benchmarks &amp;&amp; npm run build:browser &amp;&amp; npm run serve:browser</span>,
+              the jsdom ones with <span style="color:#3c424d">npm run bench</span>.
             </p>
           </div>
           <div class="grid cols-3">

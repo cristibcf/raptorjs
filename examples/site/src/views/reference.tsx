@@ -37,6 +37,19 @@ function Sidebar() {
   );
 }
 
+/**
+ * Numele importabil al unei intrari, sau `null` daca nu e unul.
+ *
+ * `state` -> `state`; `raptor-bundle (CLI)` -> `raptor-bundle`, care nu e
+ * identificator, deci `null`; `raptor.runtime.json` la fel. Regula e simpla
+ * dinadins: daca dupa curatare nu ramane un identificator JS, nu inventam o
+ * linie de import.
+ */
+function importableSymbol(name: string): string | null {
+  const bare = name.replace(/\s*\(.*\)$/, "").trim();
+  return /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(bare) ? bare : null;
+}
+
 function Entry(props: { e: ApiEntry; pkg: string }) {
   const e = props.e;
   const makeDemo = e.demo ? API_DEMOS[e.demo] : undefined;
@@ -57,11 +70,17 @@ function Entry(props: { e: ApiEntry; pkg: string }) {
         </div>
       ) : null}
 
-      <div class="api-import">
-        <code class="inl">
-          import {"{"} {e.name.replace(/\s*\(.*\)$/, "").split(".")[0]} {"}"} from "{props.pkg}"
-        </code>
-      </div>
+      {/* Linia de import se arata doar cand intrarea CHIAR e un simbol
+          importabil. Intrarile care descriu un fisier de manifest, un spatiu de
+          nume sau un binar produceau altfel text care nu se compileaza
+          (`import { raptor: modules } from ...`). */}
+      {importableSymbol(e.name) !== null ? (
+        <div class="api-import">
+          <code class="inl">
+            import {"{"} {importableSymbol(e.name)} {"}"} from "{props.pkg}"
+          </code>
+        </div>
+      ) : null}
 
       {e.params && e.params.length > 0 ? (
         <div class="params">
@@ -80,7 +99,7 @@ function Entry(props: { e: ApiEntry; pkg: string }) {
         </p>
       ) : null}
 
-      <Code code={e.example} />
+      <Code code={e.example} lang={e.lang} />
 
       {e.notes && e.notes.length > 0 ? (
         <div class="api-notes">

@@ -4,6 +4,20 @@
  * Contine logica sensibila la securitate: `containsPath` trebuie sa refuze
  * traversarea (`../`), sa nu confunde `/proiect-secret` cu `/proiect`, si sa
  * trateze corect Windows (separatori mixti, litera de disc, case-insensitive).
+ *
+ * **Rezolvarea este lexicala si nu atinge discul.** Doua consecinte, amandoua
+ * deliberate:
+ *
+ *  - o cale nu trebuie sa existe ca sa poata fi verificata, deci un refuz nu
+ *    scurge informatie despre ce fisiere exista;
+ *  - **legaturile simbolice nu sunt urmarite.** Un symlink aflat in domeniul
+ *    acordat duce accesul in afara lui: `./date/link` trece verificarea si
+ *    citeste ce arata link-ul. Modelul de amenintare de azi presupune ca
+ *    domeniul acordat nu contine symlink-uri puse de altcineva. Inchiderea
+ *    gaurii cere `realpath` pe directorul-parinte, cu cursa TOCTOU care vine la
+ *    pachet - vezi S6 in `SECURITY-AUDIT.md`.
+ *
+ * Aceeasi limita, documentata identic, in `crates/raptor-runtime-core/src/paths.rs`.
  */
 import { isAbsolute, resolve, sep } from "node:path";
 

@@ -645,11 +645,12 @@ const findings = rt.explore();   // Finding[] — each with a replayable capsule
     group: "Core concepts",
     title: "Security",
     intro:
-      "What a peer on the wire can and cannot do to you, the three findings from the audit, and what the audit does not cover.",
+      "What a peer on the wire can and cannot do to you, what your own code is allowed to do to the machine, and what neither audit covers yet.",
     blocks: [
-      { t: "p", text: "A protocol that applies operations from the network onto local state is a security surface by construction. The repository has an audit — `SECURITY-AUDIT.md` — that found three issues and fixed all of them, each with a regression test. Here is what it found and what it leaves open." },
+      { t: "p", text: "A protocol that applies operations from the network onto local state is a security surface by construction. So is a runtime that hands application code a filesystem. The repository audits both, and writes down what it finds: `SECURITY-AUDIT.md` carries the current state, `AUDIT-2026-09-24.md` the full report with a proof-of-concept per finding." },
+      { t: "p", text: "Thirteen findings so far. Ten are fixed, each with a regression test; three are open and named below. Here is the shape of it." },
 
-      { t: "h", text: "Three findings, all fixed" },
+      { t: "h", text: "Three findings on the wire, all fixed" },
       { t: "table",
         head: ["Finding", "Severity", "Fix"],
         rows: [
@@ -675,25 +676,50 @@ const findings = rt.explore();   // Finding[] — each with a replayable capsule
         "**Not exhaust you trivially.** The reader bounds-checks the buffer, varint rejects oversized values, the frame parser caps at 16 MB, and the test explorer is depth-bounded.",
       ] },
 
-      { t: "h", text: "Standards the audit verified" },
+      { t: "h", text: "Standards, measured" },
       { t: "list", items: [
-        "Zero runtime dependencies — confirmed, not claimed. `typescript` is build-time only, and `benchmarks/` sits outside the workspace precisely so React and Preact never enter the graph.",
-        "No dynamic code execution: no `eval`, no `Function` constructor.",
-        "No filesystem, process or network access in runtime code.",
+        "**Zero external runtime dependencies** — counted, not claimed. `pnpm stats` counts the non-`@raptor/*` dependencies of every published package and gets 0. `typescript` is a devDependency, and `benchmarks/` sits outside the workspace precisely so React and Preact never enter the graph.",
+        "**No dynamic code execution in the libraries** — neither `eval` nor the `Function` constructor appears in `packages/*/src`. Both show up in tests, and in the Playground on this site, which deliberately runs code you type, in your own page.",
+        "**System access, where it is.** 9 of the 24 packages import `node:fs`, `node:http`, `node:net` or `node:child_process` — the bundler, the build engine, the scaffolder, the profiler, the server runtimes. They are tools and runtimes, not application libraries. The reactive core and the wire layer touch nothing.",
         "No hardcoded secrets.",
         "Determinism: the reactive core uses neither `Math.random` nor wall-clock time, which is what makes replay testing possible.",
       ] },
 
-      { t: "h", text: "What the audit does not cover" },
-      { t: "note", kind: "warn", title: "The WebSocket transport is newer than the audit", text: "`SECURITY-AUDIT.md` was written before `serveOverWebSocket` and `connectWebSocket` existed. The RFC 6455 frame parser — masking, fragmentation, length handling — has tests, including a 16 MB frame cap, but it has not been through a review pass. Treat it accordingly until it has." },
+      { t: "h", text: "The other boundary: capabilities" },
+      { t: "p", text: "Everything above is about RaptorWire — what a peer on the wire can do to you. Raptor has a second security boundary that works the other way round: what your own application code is allowed to do to the machine it runs on. That is the capability model in `@raptor/runtime`, and it is worth knowing where it is strong and where it is not." },
+      { t: "p", text: "A `raptor.runtime.json` declares targets, not permissions in the abstract: which paths, which `host:port`, which environment variables, which commands. Everything undeclared is denied, and every check — granted or refused — lands in the diagnostics." },
+      { t: "code", file: "raptor.runtime.json", code: `{
+  "policy": "production",
+  "capabilities": {
+    "files.read":  ["./src", "./config"],
+    "net.connect": ["api.example.com:443"],
+    "net.listen":  ["127.0.0.1:8787"],
+    "env.read":    ["RAPTOR_*"]
+  }
+}` },
+      { t: "note", kind: "warn", title: "On Node, the broker is advisory — not a sandbox", text: "The bootstrap engine runs your code in the Node process, so `import fs from \"node:fs\"` reaches the disk without asking the broker. The real boundary belongs to the native Rust host, where `node:*` does not exist at all. Until then the defence lives in the tooling: `raptor-runtime doctor` reports every bypass, and `raptor-runtime run` refuses to start under the `production` policy and records it in the audit log under `development`. If your threat model includes hostile application code, this is the sentence that matters." },
+      { t: "p", text: "The 2026-09-24 audit found five escapes from this model and closed them: a `process.spawn` grant that could be widened to arbitrary code through `NODE_OPTIONS`, a `fetch` that followed redirects without re-checking the destination, a dev server that served files from sibling directories, `serve` opening ports with nothing declared, and the bypass above being visible only to `doctor`. Each one has a regression test that started life as a working exploit." },
+
+      { t: "h", text: "Still open, by name" },
+      { t: "p", text: "Three findings from the last audit are not fixed. They are listed here rather than in a footnote, because an open finding you do not know about is worse than one you do." },
+      { t: "table",
+        head: ["Open", "What it means for you"],
+        rows: [
+          ["Path containment is lexical — symlinks are not followed", "A symlink planted inside a granted directory reads through it. Fine if the granted scope is yours; not fine if it is attacker-writable."],
+          ["The WebSocket handshake does not check `Origin`", "Any page your user visits can open a connection to a Raptor server they can reach. Put a reverse proxy in front, or check the header yourself, until the transport does."],
+          ["`@raptor/wire-client` has no tests", "The one package that applies hostile bytes to local state. Its fail-closed fix has no regression guarding it."],
+        ],
+      },
+      { t: "h", text: "Limits that are choices, not bugs" },
       { t: "list", items: [
-        "No TLS. Terminate it in front and use `wss://`; nothing in the transport does encryption.",
+        "No TLS anywhere — not in the wire transport, not in the native HTTP client, where `https://` passes the capability check and then **fails loudly** instead of quietly downgrading to `http`. Terminate TLS in front and use `wss://`.",
         "No rate limiting or connection quotas. A client that reconnects in a loop is your problem to bound.",
         "No schema validation on decode. `SchemaCodec` is optional; the generic value codec accepts any shape, so a mutation should validate its own input rather than trust it.",
         "The reactive address space is renegotiated per connection. The exact identifier format is still open.",
-        "No penetration testing, and no review of the `@raptor/ui` components for injection through props.",
+        "`@raptor/ui` has not been reviewed for injection through props. The one HTML sink in the library is `RichTextEditor`, which does not sanitise and says so both in its source and on [its catalogue page](/components).",
+        "No penetration testing.",
       ] },
-      { t: "p", text: "The full report, including the code for each fix, is in `SECURITY-AUDIT.md` at the repository root." },
+      { t: "p", text: "The current state is in `SECURITY-AUDIT.md`; the report behind it, with a proof-of-concept per finding, is in `AUDIT-2026-09-24.md`. Both at the repository root." },
     ],
   },
   {

@@ -349,6 +349,10 @@ RichTextEditor({ value: html, minHeight: "120px", label: "Body" });`,
           </div>
         );
       },
+      notes: [
+        "**It does not sanitise HTML.** The signal you pass is written straight into `innerHTML`, and whatever the editor produces is written back out. That is fine for a value the same person just typed; it is not fine for a value that arrived over the wire or from another user. Sanitise before you render it back.",
+        "Built on `contenteditable` and `document.execCommand`, which is deprecated and produces slightly different HTML in every browser. This covers a description field with bold and links; for a real editor, reach for a dedicated library.",
+      ],
     },
     {
       slug: "code-editor",

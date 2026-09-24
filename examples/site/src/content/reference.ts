@@ -12,6 +12,11 @@ export interface ApiEntry {
   params?: ApiParam[];
   returns?: string;
   example: string;
+  /**
+   * Eticheta blocului de cod. Implicit `tsx`, care e gresit pentru un manifest
+   * JSON sau pentru o comanda de shell - deci intrarile alea si-o spun.
+   */
+  lang?: string;
   /** Cheie in API_DEMOS: intrarea primeste o demonstratie care chiar ruleaza. */
   demo?: string;
   /** Capcane si lucruri care se invata altfel doar lovindu-te de ele. */
@@ -73,9 +78,152 @@ export const PACKAGE_ROUTES: PackageRoute[] = [
     to: "run",
     note: "A server runtime with file-based routing and server rendering. Separate from `@raptor/bundle`, which only targets the browser.",
   },
+  {
+    want: "Run an app with declared permissions",
+    packages: ["@raptor/runtime", "@raptor/runtime-cli"],
+    to: "runtime",
+    note: "The `raptor:` module namespace and a capability broker: every path, host, variable and command is declared in a manifest, and everything undeclared is denied. Read [Security](/learn/security) for where that boundary is real and where it is advisory.",
+  },
+  {
+    want: "Desktop, mobile, CLI, service or device",
+    packages: ["@raptor/host", "@raptor/desktop", "@raptor/mobile", "@raptor/web-host", "@raptor/cli-host", "@raptor/service-host", "@raptor/device-host"],
+    to: "host",
+    note: "One contract, six targets. The application asks the host for a window, a socket, a pin or a prompt, and the host decides — including saying no.",
+  },
 ];
 
 export const REF_PACKAGES: RefPackage[] = [
+  {
+    slug: "runtime",
+    name: "@raptor/runtime",
+    tagline: "An application runtime where permissions are a product feature: the `raptor:` namespace plus a capability broker that denies everything undeclared.",
+    entries: [
+      {
+        name: "raptor.runtime.json",
+        signature: "{ name, version, entry, policy, capabilities, tasks }",
+        lang: "json",
+        summary:
+          "The manifest. Capabilities are declared per target — a path, a `host:port`, a variable name, a command — never as a blanket permission. Anything not listed is denied, and every check lands in the diagnostics whether it was granted or refused.",
+        example: `{
+  "name": "notes",
+  "version": "0.1.0",
+  "entry": "./src/main.ts",
+  "policy": "production",
+  "capabilities": {
+    "files.read":  ["./src", "./config"],
+    "files.write": ["./data"],
+    "net.connect": ["api.example.com:443"],
+    "net.listen":  ["127.0.0.1:8787"],
+    "env.read":    ["RAPTOR_*"],
+    "process.spawn": ["git"]
+  }
+}`,
+        notes: [
+          "`policy: production` turns on strict mode: there is no implicit project-root read, so absolutely every access must be declared.",
+          "`net.listen` uses the same target form as `net.connect`. Write `127.0.0.1:*` for any port on loopback only; a rule that names a port does not cover an ephemeral one.",
+          "`process.spawn` names *which commands*. It does not become *any code*: the environment handed to a child goes through `env.read`, and variables that load code before `main` — `NODE_OPTIONS`, `LD_PRELOAD`, `BASH_ENV` — are refused outright.",
+        ],
+      },
+      {
+        name: "raptor: modules",
+        signature: 'import { readText } from "raptor:files"',
+        summary:
+          "The only way to the system. `files`, `net`, `serve`, `process`, `kv`, `observe`, `capabilities`, `tasks` — each call goes through the broker, and the types come from the host contracts, so your editor checks them without hand-written declarations.",
+        example: `import { readText } from "raptor:files";
+import net from "raptor:net";
+import observe from "raptor:observe";
+
+const config = await readText("./config/app.json");
+observe.log("info", "config.loaded", { bytes: config.length });
+
+// Denied unless api.example.com:443 is declared — and the check runs
+// again on every redirect hop, so a 302 cannot walk you somewhere else.
+const response = await net.fetch("https://api.example.com/v1/items");`,
+        notes: [
+          "A refusal is a `CapabilityError` carrying `code`, `capability` and `target`, so an application can tell the difference between you may not and it did not work.",
+          "The native binary exposes a **synchronous** shape of `raptor:files` and `raptor:serve`; the bootstrap runtime is asynchronous. Same names, two profiles — pick the one for your target.",
+        ],
+      },
+      {
+        name: "raptor-runtime (CLI)",
+        signature: "raptor-runtime init|run|doctor|test|pack|trace [--policy development|production]",
+        lang: "bash",
+        summary:
+          "Scaffold, run, diagnose, package. `doctor` reads the static import graph and reports anything that would not exist on the native host; `pack` emits a reproducible unit with a lockfile; `trace` writes OpenTelemetry-compatible spans.",
+        example: `raptor-runtime init notes
+cd notes
+raptor-runtime doctor     # manifest, policy, static graph, broker bypasses
+raptor-runtime run
+raptor-runtime pack --out dist/`,
+        notes: [
+          "Under `--policy production`, an `import` of `node:fs` **stops the run**. On the bootstrap engine that import reaches the disk without asking the broker, so strict mode cannot honestly let it through.",
+          "Under `development` the same import runs, but is reported in the summary and written to the audit log. An audit trail that shows the refusal and hides the successful way round is worse than none.",
+        ],
+      },
+      {
+        name: "The native binary",
+        signature: "raptor-runtime run   # Rust, no Node installed",
+        lang: "bash",
+        summary:
+          "A Rust binary that runs JavaScript *and* TypeScript with no Node and no tsc anywhere on the machine: QuickJS behind an engine adapter, oxc for the TypeScript transform, the `raptor:` modules as native functions, and a small HTTP/1.1 stack over `std::net`.",
+        example: `# Default build: zero dependencies, 964 KB.
+cargo build --release
+# With an engine and the TypeScript transform: 4.4 MB.
+cargo build --release --features full`,
+        notes: [
+          "This is where the capability model is a real boundary rather than an advisory one — `node:*` does not exist, so there is nothing to bypass it with.",
+          "Deliberately synchronous: without an event loop, the accept loop belongs to the application (`serve.next()` blocks, `null` means timeout). `serve({ fetch })` arrives with the event loop, on top of this contract, not instead of it.",
+          "oxc transforms `enum` and `namespace`, which Node type stripping rejects. Code that runs on the binary may not run under `node --experimental-strip-types`.",
+        ],
+      },
+    ],
+  },
+  {
+    slug: "host",
+    name: "@raptor/host + the six adapters",
+    tagline: "One capability contract, six targets: desktop, mobile, browser, service, terminal, device.",
+    entries: [
+      {
+        name: "raptor.host.json",
+        signature: "{ target, bundleId, displayName, capabilities, window, deepLinkSchemes, update }",
+        lang: "json",
+        summary:
+          "Two manifests that compose, not one. `raptor.runtime.json` says what the application may do; `raptor.host.json` says what it asks of the operating system. The `process.spawn` capability here says *whether*; the list in the runtime manifest says *which commands*.",
+        example: `{
+  "target": "desktop",
+  "bundleId": "com.example.notes",
+  "displayName": "Notes",
+  "capabilities": ["window.manage", "device.notifications", "storage.local"],
+  "deepLinkSchemes": ["notes"],
+  "update": { "feed": "https://example.com/appcast.xml", "channel": "stable" }
+}`,
+        notes: [
+          "Capability checks happen twice: once in the JS bridge, for a good error message, and once in the host, because the bridge runs in the same isolate as the application and can be bypassed.",
+          "`bridge.allows(method)` answers the capability question only. `bridge.supported(method)` also asks the adapter — `menu.set` passes `window.manage` on the web too, but a browser has no menu bar. An interface that draws its options from `allows` lies.",
+        ],
+      },
+      {
+        name: "The six hosts",
+        signature: "@raptor/desktop · mobile · web-host · service-host · cli-host · device-host",
+        summary:
+          "The same application, unchanged, against six different hosts. What differs is not the API but what each host is willing to grant — and each one has a refusal worth knowing about.",
+        example: `// The same call, six answers.
+await bridge.call("window.open", { width: 900 });
+// desktop → a real window
+// mobile  → navigation, driven by the adapter
+// web     → the page itself; portability, not isolation
+// service → refused: a service has no windows
+// cli     → refused
+// device  → refused`,
+        notes: [
+          "**Terminal:** without an interactive TTY a question is *refused*, not assumed. A tool in CI gets `capability-unavailable` and can say run me with --yes instead of guessing yes at a destructive command.",
+          "**Service:** the supervisor owns the sockets — the application asks for a listener *by name*, and the port comes from the deployment. SIGTERM moves it to draining, not death.",
+          "**Device:** `watchdog.pet` is the one method in the whole contract that cannot ask for a capability. One that could be refused would make optional exactly the mechanism that saves the product.",
+          "**Browser:** the bridge gives portability, *not* isolation. The page and the host share an isolate; the real boundary is the origin sandbox.",
+        ],
+      },
+    ],
+  },
   {
     slug: "core",
     name: "@raptor/core",
