@@ -6,7 +6,7 @@
  */
 import { createServer, type Server, type ServerResponse } from "node:http";
 import { readFileSync, existsSync, statSync, watch, type FSWatcher } from "node:fs";
-import { join, extname, resolve, dirname } from "node:path";
+import { join, extname, resolve, dirname, sep } from "node:path";
 import { bundleApp } from "./bundle.ts";
 import { rewriteHtml } from "./html.ts";
 
@@ -44,6 +44,48 @@ const MIME: Record<string, string> = {
 
 const BUNDLE_PATH = "/__raptor_bundle.js";
 const RELOAD_PATH = "/__raptor_reload";
+
+/** Windows compara caile fara sa tina cont de registrul literelor. */
+const CASE_INSENSITIVE = sep === "\\";
+
+/**
+ * Calea de pe disc a unui asset cerut, sau `null` daca cererea nu are voie.
+ *
+ * Trei reguli, fiecare pentru o gaura reala:
+ *
+ * 1. **Decodam calea.** `req.url` este tinta bruta din cerere, nedecodata. Fara
+ *    pasul asta, `/logo%20mic.png` cauta un fisier cu `%20` in nume si da 404.
+ *
+ * 2. **Continerea se verifica pe segmente, nu pe prefix de sir.** `startsWith`
+ *    parea corect si nu era: cu radacina `.../site`, cererea `/../site-privat/.env`
+ *    da o cale care chiar incepe cu radacina, deci trecea. Este exact greseala
+ *    reparata in `server/store.ts` la auditul precedent, reaparuta aici.
+ *
+ * 3. **Nu servim nimic care incepe cu punct, si nicio sursa.** `.env`, `.git/`
+ *    si `raptor.runtime.json`-ul cu capabilitati nu au ce cauta pe fir nici pe
+ *    `localhost`; sursele `.ts`/`.tsx` trec oricum prin bundle.
+ */
+function resolveAsset(root: string, url: string): string | null {
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(url);
+  } catch {
+    // Secventa procentuala invalida: cerere malformata, nu asset.
+    return null;
+  }
+  // NUL taie sirul in apelurile de sistem: `/a.png\0.ts` ar ocoli filtrul.
+  if (decoded.includes("\0")) return null;
+
+  const segments = decoded.split(/[/\\]+/).filter((part) => part.length > 0);
+  if (segments.some((part) => part.startsWith("."))) return null;
+  if (/\.(tsx?|jsx?)$/.test(decoded)) return null;
+
+  const candidate = resolve(root, ...segments);
+  const scope = CASE_INSENSITIVE ? root.toLowerCase() : root;
+  const target = CASE_INSENSITIVE ? candidate.toLowerCase() : candidate;
+  if (target !== scope && !target.startsWith(scope.endsWith(sep) ? scope : scope + sep)) return null;
+  return candidate;
+}
 
 export function startDevServer(options: DevServerOptions): Server {
   const entry = resolve(options.entry);
@@ -105,13 +147,8 @@ export function startDevServer(options: DevServerOptions): Server {
     }
 
     // Asset static (nu servim surse .ts/.tsx: acelea trec prin bundle).
-    const filePath = join(root, url);
-    if (
-      filePath.startsWith(root) &&
-      existsSync(filePath) &&
-      statSync(filePath).isFile() &&
-      !/\.(tsx?|jsx?)$/.test(filePath)
-    ) {
+    const filePath = resolveAsset(root, url);
+    if (filePath !== null && existsSync(filePath) && statSync(filePath).isFile()) {
       res.writeHead(200, { "content-type": MIME[extname(filePath)] ?? "application/octet-stream" });
       res.end(readFileSync(filePath));
       return;

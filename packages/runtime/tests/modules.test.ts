@@ -203,7 +203,9 @@ test("raptor:serve ruteaza cu parametri si cade pe 404 fara handler", async () =
 });
 
 test("raptor:serve porneste un server real si il opreste gratios", async () => {
-  const context = harness({});
+  // `net.listen` e declarata: a deschide un port cere capability (vezi
+  // `escapes.test.ts`, S4). Aici verificam ce face serverul, nu ce refuza.
+  const context = harness({ "net.listen": ["127.0.0.1:*"] });
   try {
     const serve = createServe(context.host);
     const server = await serve.serve({ port: 0, fetch: () => new Response("viu") });

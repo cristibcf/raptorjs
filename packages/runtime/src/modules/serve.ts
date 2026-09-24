@@ -111,6 +111,16 @@ export function createServe(host: HostContext): RaptorServe {
 
     async serve(options: ServeOptions): Promise<RunningServer> {
       const hostname = options.hostname ?? "127.0.0.1";
+
+      // A deschide un port e un acces la exterior, la fel ca o conexiune de
+      // iesire - doar ca in sens invers. Verificarea se face INAINTE de `bind`:
+      // un refuz dupa ce socket-ul e deja deschis nu mai e un refuz.
+      //
+      // Cu portul 0 tinta ramane `gazda:0`, deci o regula care fixeaza un port
+      // anume nu acopera un port efemer. Cine vrea "orice port pe loopback"
+      // scrie `127.0.0.1:*`.
+      host.broker.require("net.listen", `${hostname.toLowerCase()}:${options.port ?? 0}`);
+
       const handler = options.fetch ?? route(options.routes ?? []);
       const inFlight = new Set<Promise<void>>();
 

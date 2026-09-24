@@ -197,8 +197,23 @@ function ensureHooks(): void {
 let isolateCounter = 0;
 
 /**
- * Adaptorul de bootstrap. Ruleaza in procesul curent; izolarea la nivel de motor
- * apartine host-ului nativ, iar aceasta implementare respecta acelasi contract.
+ * Adaptorul de bootstrap. Ruleaza in procesul curent.
+ *
+ * **Aici capability broker-ul este consultativ, nu o granita.** Codul de
+ * aplicatie poate scrie `import fs from "node:fs"` si ajunge la disc fara ca
+ * brokerul sa fie intrebat. Hook-urile de mai sus *inregistreaza* importurile
+ * `node:` (le clasifica in graf), dar nu le pot bloca fara sa rupa exact
+ * pachetele de care are nevoie launcher-ul insusi.
+ *
+ * Granita reala apartine host-ului nativ, unde `node:*` pur si simplu nu exista
+ * si singurul drum catre sistem sunt functiile de host. Pana atunci, apararea e
+ * in unelte, nu in motor: `raptor-runtime doctor` raporteaza fiecare ocol, iar
+ * `raptor-runtime run` refuza sa porneasca in politica `production` si il scrie
+ * in jurnalul de audit in `development` (`runtime-cli/src/bypass.ts`).
+ *
+ * Distinctia conteaza: "izolarea apartine host-ului nativ" si "aici poate fi
+ * ocolita" nu sunt acelasi lucru, iar a doua e cea care trebuie stiuta de cine
+ * isi alege modelul de amenintare.
  */
 export function createBootstrapAdapter(isolateId = `iso${++isolateCounter}`): EngineAdapter {
   return {

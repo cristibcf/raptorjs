@@ -18,16 +18,22 @@ pub enum CapabilityKind {
     FilesRead,
     FilesWrite,
     NetConnect,
+    /// A deschide un port de ascultare. Aceeasi forma de tinta ca `NetConnect`
+    /// (`gazda:port`, cu `*` acceptat), deci `127.0.0.1:*` inseamna "doar
+    /// local, orice port". Exista pentru ca `serve.listen` lega porturi cu
+    /// manifestul gol (audit 2026-09-24, S4).
+    NetListen,
     EnvRead,
     ProcessSpawn,
     ClockReal,
     CryptoRandom,
 }
 
-pub const CAPABILITY_KINDS: [CapabilityKind; 7] = [
+pub const CAPABILITY_KINDS: [CapabilityKind; 8] = [
     CapabilityKind::FilesRead,
     CapabilityKind::FilesWrite,
     CapabilityKind::NetConnect,
+    CapabilityKind::NetListen,
     CapabilityKind::EnvRead,
     CapabilityKind::ProcessSpawn,
     CapabilityKind::ClockReal,
@@ -40,6 +46,7 @@ impl CapabilityKind {
             CapabilityKind::FilesRead => "files.read",
             CapabilityKind::FilesWrite => "files.write",
             CapabilityKind::NetConnect => "net.connect",
+            CapabilityKind::NetListen => "net.listen",
             CapabilityKind::EnvRead => "env.read",
             CapabilityKind::ProcessSpawn => "process.spawn",
             CapabilityKind::ClockReal => "clock.real",

@@ -198,7 +198,7 @@ impl Broker {
                 CapabilityKind::FilesRead | CapabilityKind::FilesWrite => {
                     paths::contains(&paths::resolve(&self.project_root, rule), target)
                 }
-                CapabilityKind::NetConnect => matches_host(rule, target),
+                CapabilityKind::NetConnect | CapabilityKind::NetListen => matches_host(rule, target),
                 _ => matches_name(rule, target),
             };
             if hit {

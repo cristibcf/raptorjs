@@ -14,6 +14,16 @@ export const CAPABILITY_KINDS = [
   "files.read",
   "files.write",
   "net.connect",
+  /**
+   * A deschide un port de ascultare. Tinta are aceeasi forma ca `net.connect`
+   * (`gazda:port`, cu `*` acceptat pe oricare parte), ca `127.0.0.1:*` sa poata
+   * insemna "doar local" fara sa fixeze portul.
+   *
+   * Exista pentru ca `@raptor/host` cerea deja capability pentru exact aceleasi
+   * metode (`serve.listen` -> `net.listen` in `packages/host/src/protocol.ts`),
+   * in timp ce runtime-ul lega porturi cu manifestul gol.
+   */
+  "net.listen",
   "env.read",
   "process.spawn",
   "clock.real",

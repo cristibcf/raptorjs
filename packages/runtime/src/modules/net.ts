@@ -9,7 +9,18 @@ import { RaptorError } from "../errors.ts";
 export interface FetchOptions extends RequestInit {
   /** Implicit 30s; `0` dezactiveaza timeout-ul (cere deadline la nivel de task). */
   readonly timeoutMs?: number;
+  /** Cate redirect-uri urmam, fiecare re-verificat prin broker. Implicit 5. */
+  readonly maxRedirects?: number;
 }
+
+/**
+ * Cate salturi acceptam implicit. Acelasi numar ca in `fetch`-ul browserului:
+ * destul pentru lanturile reale (http -> https -> cu slash final), prea putin
+ * pentru o bucla.
+ */
+const DEFAULT_MAX_REDIRECTS = 5;
+
+const REDIRECT_STATUS = new Set([301, 302, 303, 307, 308]);
 
 export interface RaptorNet {
   fetch(input: string | URL | Request, options?: FetchOptions): Promise<Response>;
@@ -46,6 +57,7 @@ export function createNet(host: HostContext): RaptorNet {
       host.broker.require("net.connect", destination);
 
       const timeoutMs = options.timeoutMs ?? 30_000;
+      const maxRedirects = options.maxRedirects ?? DEFAULT_MAX_REDIRECTS;
       const span = host.observer.startSpan("net.fetch", { destination, timeoutMs });
       const controller = new AbortController();
       const forward = (): void => controller.abort(options.signal?.reason);
@@ -64,9 +76,58 @@ export function createNet(host: HostContext): RaptorNet {
       try {
         const init: RequestInit = { ...options, signal: controller.signal };
         delete (init as Record<string, unknown>)["timeoutMs"];
-        const response = await fetch(input as RequestInfo, init);
-        span.end({ status: response.status });
-        return response;
+        delete (init as Record<string, unknown>)["maxRedirects"];
+
+        // Urmarim redirect-urile noi, nu `fetch`.
+        //
+        // Cu `redirect: "follow"` (implicitul), brokerul vede doar primul URL:
+        // o gazda permisa raspunde 302 si urmatorul salt pleaca spre orice, fara
+        // sa mai treaca pe la nimeni. Asa se citeste `169.254.169.254` cu o
+        // allowlist care nu-l contine. Deci cerem raspunsul brut si punem
+        // fiecare salt prin `require`, ca si pe primul.
+        init.redirect = "manual";
+
+        // Limita asumata: daca `input` a fost un `Request` cu corp, corpul nu
+        // se retrimite dupa un 307/308 - continuam de la URL-ul nou, cu `init`.
+        // Pentru cererile cu corp care chiar trebuie sa supravietuiasca unui
+        // redirect, da `body` in `options`, nu in `Request`.
+        let current: RequestInfo = input as RequestInfo;
+        let hops = 0;
+        for (;;) {
+          const response = await fetch(current, init);
+          if (!REDIRECT_STATUS.has(response.status)) {
+            span.end({ status: response.status, hops });
+            return response;
+          }
+
+          const location = response.headers.get("location");
+          if (location === null) {
+            // Un 3xx fara `Location` nu e un redirect, e raspunsul final.
+            span.end({ status: response.status, hops });
+            return response;
+          }
+
+          if (hops >= maxRedirects) {
+            throw new RaptorError("raptor:module/unsupported", `prea multe redirect-uri de la ${destination}`, {
+              destination,
+              maxRedirects,
+            });
+          }
+
+          const base = typeof current === "string" ? current : current instanceof Request ? current.url : String(current);
+          const next = new URL(location, base).href;
+          // Aici e toata reparatia: saltul urmator e o destinatie noua.
+          host.broker.require("net.connect", destinationOf(next));
+
+          // 303, si 301/302 pe non-GET, continua cu GET fara corp (RFC 9110).
+          if (response.status === 303 || ((response.status === 301 || response.status === 302) && (init.method ?? "GET").toUpperCase() !== "GET")) {
+            init.method = "GET";
+            delete (init as Record<string, unknown>)["body"];
+          }
+          await response.body?.cancel();
+          current = next;
+          hops += 1;
+        }
       } catch (error) {
         span.end({ error: String(error) });
         throw error;

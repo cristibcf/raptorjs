@@ -5,13 +5,58 @@
  */
 import { spawn as spawnChild } from "node:child_process";
 import type { HostContext } from "../context.ts";
-import { RaptorError } from "../errors.ts";
+import { CapabilityError, RaptorError } from "../errors.ts";
+import { containsPath, resolvePath } from "../paths.ts";
+
+/**
+ * Variabile de mediu care fac un proces sa incarce cod inainte sa ajunga la
+ * `main`. Nu pot fi setate pentru un copil, nici macar cu `env.read` acordata.
+ *
+ * Fara regula asta, capabilitatea `process.spawn: ["node"]` - care promite
+ * *care comenzi* - devine *orice cod*: `NODE_OPTIONS=--require ./payload.js`
+ * ruleaza payload-ul inainte de argumentele comenzii permise. Acelasi lucru il
+ * face `LD_PRELOAD` pentru orice binar pe Linux, `DYLD_INSERT_LIBRARIES` pe
+ * macOS, `BASH_ENV` pentru orice shell si `GIT_SSH_COMMAND` pentru git.
+ *
+ * Lista e o allowlist inversata deliberat: blocam prefixe intregi, ca o varianta
+ * noua (`DYLD_FRAMEWORK_PATH`) sa nu treaca pentru ca nimeni nu a actualizat-o.
+ */
+const CODE_LOADING_ENV: readonly RegExp[] = [
+  /^NODE_OPTIONS$/i,
+  /^NODE_REPL_EXTERNAL_MODULE$/i,
+  /^LD_/i,
+  /^DYLD_/i,
+  /^BASH_ENV$/i,
+  /^ENV$/i,
+  /^PERL5OPT$/i,
+  /^PYTHONSTARTUP$/i,
+  /^PYTHONPATH$/i,
+  /^GIT_SSH(_COMMAND)?$/i,
+  /^GIT_EXTERNAL_DIFF$/i,
+  /^GIT_PAGER$/i,
+  /^PAGER$/i,
+  /^EDITOR$/i,
+  /^VISUAL$/i,
+  /^PATH$/i,
+];
+
+function isCodeLoading(name: string): boolean {
+  return CODE_LOADING_ENV.some((pattern) => pattern.test(name));
+}
+
+/** Plafon per flux capturat de la un copil (vezi `collect` in `spawn`). */
+const MAX_CAPTURED_BYTES = 8 * 1024 * 1024;
+
+/** Cat asteptam dupa SIGTERM inainte de SIGKILL. */
+const KILL_GRACE_MS = 2_000;
 
 export interface SpawnResult {
   readonly code: number | null;
   readonly signal: string | null;
   readonly stdout: string;
   readonly stderr: string;
+  /** `true` daca iesirea a depasit plafonul si a fost taiata. */
+  readonly truncated: boolean;
 }
 
 export interface SpawnChildOptions {
@@ -56,7 +101,16 @@ export function createProcess(host: HostContext, source: NodeJS.ProcessEnv = pro
 
     async spawn(command: string, options: SpawnChildOptions = {}): Promise<SpawnResult> {
       host.broker.require("process.spawn", command);
-      const span = host.observer.startSpan("process.spawn", { command, args: options.args ?? [] });
+
+      // Directorul de lucru este acces la disc, deci trece prin aceeasi
+      // capability ca o citire. Fara asta, o comanda permisa poate fi pornita
+      // oriunde pe masina, in afara proiectului.
+      const cwd = options.cwd === undefined ? host.projectRoot : resolvePath(host.projectRoot, options.cwd);
+      if (options.cwd !== undefined && !containsPath(host.projectRoot, cwd)) {
+        host.broker.require("files.read", cwd);
+      }
+
+      const span = host.observer.startSpan("process.spawn", { command, args: options.args ?? [], cwd });
 
       // Mediul copilului contine doar variabilele pe care aplicatia le poate citi.
       const childEnv: Record<string, string> = {};
@@ -64,41 +118,80 @@ export function createProcess(host: HostContext, source: NodeJS.ProcessEnv = pro
         const value = source[key];
         if (value !== undefined) childEnv[key] = value;
       }
-      Object.assign(childEnv, options.env ?? {});
+
+      // ...si atat. Variabilele cerute de apelant trec prin aceeasi poarta:
+      // `env.read` decide care nume are voie sa existe pentru copil, iar cele
+      // care incarca cod sunt refuzate chiar si cu capability acordata.
+      for (const [key, value] of Object.entries(options.env ?? {})) {
+        if (isCodeLoading(key)) {
+          throw new CapabilityError(
+            "raptor:capability/denied",
+            "process.spawn",
+            key,
+            `'${key}' incarca cod in proces inainte de comanda, deci ar ocoli lista de comenzi permise`,
+          );
+        }
+        host.broker.require("env.read", key);
+        childEnv[key] = value;
+      }
 
       return await host.tasks.spawn<SpawnResult>(
         (context) =>
           new Promise<SpawnResult>((resolve, reject) => {
             const child = spawnChild(command, [...(options.args ?? [])], {
-              cwd: options.cwd ?? host.projectRoot,
+              cwd,
               env: childEnv,
               shell: false,
             });
 
+            // Fluxurile copilului sunt date necontrolate: fara plafon, un copil
+            // vorbaret umple memoria runtime-ului. Peste limita taiem si
+            // marcam, ca apelantul sa stie ca vede o iesire trunchiata.
             let stdout = "";
             let stderr = "";
+            let truncated = false;
+            const collect = (current: string, chunk: Buffer): string => {
+              if (current.length >= MAX_CAPTURED_BYTES) {
+                truncated = true;
+                return current;
+              }
+              const next = current + chunk.toString("utf8");
+              if (next.length <= MAX_CAPTURED_BYTES) return next;
+              truncated = true;
+              return next.slice(0, MAX_CAPTURED_BYTES);
+            };
             child.stdout?.on("data", (chunk: Buffer) => {
-              stdout += chunk.toString("utf8");
+              stdout = collect(stdout, chunk);
             });
             child.stderr?.on("data", (chunk: Buffer) => {
-              stderr += chunk.toString("utf8");
+              stderr = collect(stderr, chunk);
             });
 
+            // Oprirea are doua trepte: intai cerem, apoi insistam. Un copil
+            // care ignora SIGTERM ar supravietui deadline-ului task-ului.
+            let escalation: NodeJS.Timeout | null = null;
             const abort = (): void => {
               child.kill();
+              escalation = setTimeout(() => child.kill("SIGKILL"), KILL_GRACE_MS);
+              escalation.unref();
             };
             context.signal.addEventListener("abort", abort, { once: true });
 
-            child.on("error", (error) => {
+            const done = (): void => {
               context.signal.removeEventListener("abort", abort);
+              if (escalation) clearTimeout(escalation);
+            };
+
+            child.on("error", (error) => {
+              done();
               span.end({ error: String(error) });
               reject(new RaptorError("raptor:module/unsupported", `nu am putut porni '${command}'`, { command, cause: String(error) }));
             });
 
             child.on("close", (code, signal) => {
-              context.signal.removeEventListener("abort", abort);
-              span.end({ code, signal });
-              resolve({ code, signal, stdout, stderr });
+              done();
+              span.end({ code, signal, truncated });
+              resolve({ code, signal, stdout, stderr, truncated });
             });
 
             if (options.input !== undefined) child.stdin?.end(options.input);

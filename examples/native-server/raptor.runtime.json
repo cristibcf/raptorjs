@@ -6,7 +6,8 @@
   "engines": { "raptorRuntime": ">=0.1.0" },
   "capabilities": {
     "files.read": ["./src"],
-    "net.connect": ["127.0.0.1:*"]
+    "net.connect": ["127.0.0.1:*"],
+    "net.listen": ["127.0.0.1:8787"]
   },
   "tasks": { "maxConcurrent": 8, "defaultDeadlineMs": null }
 }

@@ -9,6 +9,7 @@ import { MANIFEST_FILENAME, RUNTIME_VERSION, buildStaticGraph, loadProject, pars
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { POLICY_FILENAME, describeUndeclared, loadPolicyFile, profileFor } from "../policy.ts";
+import { bypassSeverity, describeBypass, isBypass } from "../bypass.ts";
 import type { CommandInput, CommandResult } from "../shared.ts";
 import { fail, ok, table } from "../shared.ts";
 
@@ -103,13 +104,11 @@ export async function doctorCommand(input: CommandInput): Promise<CommandResult>
         if (specifier.startsWith("raptor:") && !KNOWN_HOST_MODULES.has(specifier)) {
           findings.push({ level: "error", message: `modul de host necunoscut: ${specifier}` });
         }
-        if (specifier.startsWith("node:")) {
+        if (isBypass(specifier)) {
           // Spec sectiunea 8: ce depinde de interne se raporteaza ca nesuportat,
-          // nu se emuleaza la nesfarsit.
-          findings.push({
-            level: "warn",
-            message: `${specifier} ocoleste capability broker-ul si nu va exista in host-ul nativ; foloseste echivalentul raptor:`,
-          });
+          // nu se emuleaza la nesfarsit. Aceeasi regula o aplica si `run` - de
+          // aceea sta in `bypass.ts`, nu aici.
+          findings.push({ level: bypassSeverity(mode), message: describeBypass(specifier).message });
         }
       }
       for (const external of graph.externalImports) {

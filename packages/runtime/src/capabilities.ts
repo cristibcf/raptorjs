@@ -181,7 +181,7 @@ class Broker implements CapabilityBroker {
       const hit =
         capability === "files.read" || capability === "files.write"
           ? matchPath(rule, this.projectRoot, target)
-          : capability === "net.connect"
+          : capability === "net.connect" || capability === "net.listen"
             ? matchHost(rule, target)
             : matchName(rule, target);
       if (hit) {

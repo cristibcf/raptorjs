@@ -373,8 +373,9 @@ struct Server {
 ///
 /// Forma `serve({ fetch })` din runtime-ul TypeScript ajunge odata cu bucla de
 /// evenimente; contractul de acolo nu se schimba, se adauga peste acesta.
-fn serve_module(observer: Observer) -> HostModule {
+fn serve_module(broker: Arc<Broker>, observer: Observer) -> HostModule {
     let state: Arc<Mutex<Option<Server>>> = Arc::new(Mutex::new(None));
+    let broker_listen = broker;
     let listen_state = Arc::clone(&state);
     let next_state = Arc::clone(&state);
     let respond_state = Arc::clone(&state);
@@ -398,6 +399,12 @@ fn serve_module(observer: Observer) -> HostModule {
                 .and_then(Json::as_str)
                 .unwrap_or("127.0.0.1")
                 .to_string();
+
+            // A deschide un port este acces la exterior, in sens invers fata de
+            // `net.connect` - deci trece prin aceeasi poarta, si INAINTE de
+            // `bind`. Fara asta, o aplicatie cu manifestul gol putea lega un
+            // port, inclusiv pe `0.0.0.0` (audit 2026-09-24, S4).
+            broker_listen.require(CapabilityKind::NetListen, &format!("{}:{port}", host.to_ascii_lowercase()))?;
 
             let listener = TcpListener::bind((host.as_str(), port)).map_err(|error| {
                 RaptorError::new(ErrorCode::ModuleUnsupported, "nu am putut deschide portul")
@@ -582,8 +589,8 @@ pub fn build(
         ("kv".to_string(), kv_module()),
         ("capabilities".to_string(), capabilities_module(Arc::clone(&broker))),
         ("tasks".to_string(), pending_module("tasks", "task fabric-ul nativ nu este inca legat la izolat")),
-        ("net".to_string(), net_module(broker, observer.clone())),
-        ("serve".to_string(), serve_module(observer)),
+        ("net".to_string(), net_module(Arc::clone(&broker), observer.clone())),
+        ("serve".to_string(), serve_module(broker, observer)),
     ])
 }
 
@@ -777,12 +784,13 @@ mod tests {
         // manifest, a doua o largire a domeniului existent.
     }
 
-    /// Harness cu `net.connect` declarat pentru localhost pe orice port.
+    /// Harness cu reteaua declarata pentru localhost pe orice port, in ambele
+    /// sensuri: `net.connect` pentru iesire, `net.listen` pentru ascultare.
     fn net_harness(name: &str) -> HostModules {
         let root = temp_root(name);
         let manifest_source = concat!(
             "{\"name\":\"t\",\"version\":\"1.0.0\",\"entry\":\"./src/main.js\",\"policy\":\"development\",",
-            "\"capabilities\":{\"net.connect\":[\"127.0.0.1:*\"]}}"
+            "\"capabilities\":{\"net.connect\":[\"127.0.0.1:*\"],\"net.listen\":[\"127.0.0.1:*\"]}}"
         );
         let manifest = crate::manifest::parse(manifest_source).manifest.expect("manifest valid");
         let observer = Observer::new();
@@ -794,6 +802,34 @@ mod tests {
             observer.child("cap"),
         ));
         build(broker, observer, root, Vec::new())
+    }
+
+    #[test]
+    fn fara_net_listen_serverul_nu_poate_deschide_un_port() {
+        // Regresie pentru auditul din 2026-09-24 (S4): `serve.listen` lega
+        // porturi fara sa ceara nimic, desi puntea de host cerea deja
+        // `net.listen` pentru exact aceeasi metoda. Harness-ul general NU
+        // declara retea, deci e exact manifestul unei aplicatii care n-a cerut.
+        let (modules, _root, _broker) = harness("listen-refuzat");
+        let error = call(&modules, "serve", "listen", &[Json::from_pairs([("port", Json::Number(0.0))])])
+            .expect_err("a deschide un port este o capability");
+        assert_eq!(error.code, ErrorCode::CapabilityUndeclared);
+        assert_eq!(error.detail.get("capability").map(String::as_str), Some("net.listen"));
+    }
+
+    #[test]
+    fn o_regula_pe_loopback_nu_acopera_toate_interfetele() {
+        // `0.0.0.0` expune serverul retelei. O regula scrisa pentru `127.0.0.1`
+        // nu are cum sa insemne si asta.
+        let modules = net_harness("listen-0000");
+        let error = call(
+            &modules,
+            "serve",
+            "listen",
+            &[Json::from_pairs([("port", Json::Number(0.0)), ("hostname", Json::string("0.0.0.0"))])],
+        )
+        .expect_err("expunerea pe toate interfetele se cere explicit");
+        assert_eq!(error.detail.get("capability").map(String::as_str), Some("net.listen"));
     }
 
     #[test]
