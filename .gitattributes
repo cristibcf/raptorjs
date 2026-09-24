@@ -1,0 +1,11 @@
+# Repo-ul e LF peste tot: Node citeste fisierele ca atare, iar testele care
+# compara output emis (codegen, bundle, SSR) cad daca Git rescrie terminatiile
+# de linie la checkout. `core.autocrlf` global era `true` pe masina asta.
+* text=auto eol=lf
+
+# Binare: nicio normalizare.
+*.pdf   binary
+*.png   binary
+*.jpg   binary
+*.ico   binary
+*.woff2 binary
