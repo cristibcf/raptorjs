@@ -40,6 +40,7 @@ function harness(declarations: CapabilityDeclarations = {}): Harness {
     engines: { raptorRuntime: "*" },
     capabilities: declarations,
     dependencies: [],
+    tasks: { maxConcurrent: 8, defaultDeadlineMs: null },
   };
   const broker = createBroker({ projectRoot, declarations, policy: "production", observer, strict: true });
   const tasks = createTaskFabric({ observer });

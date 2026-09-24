@@ -17,7 +17,7 @@ nivel de maturitate.
 
 | Graniță | Ce apără | Stare |
 |---|---|---|
-| **RaptorWire** (`wire-core`, `server`, `wire-client`) | starea locală față de un peer de pe fir | auditată de două ori; transportul WebSocket e mai nou decât prima trecere |
+| **RaptorWire** (`wire-core`, `server`, `wire-client`) | starea locală față de un peer de pe fir | auditată de două ori; transportul WebSocket verifică `Origin` din 2026-09-24 |
 | **Capability broker** (`runtime`, `runtime-cli`) | sistemul gazdă față de codul aplicației | auditată 2026-09-24; **pe motorul de bootstrap e consultativă**, vezi mai jos |
 | **Puntea de host** (`host` + cele șase adaptoare) | sistemul de operare față de aplicație | contract + verificare dublă; în browser dă portabilitate, nu izolare |
 
@@ -39,17 +39,17 @@ audit în `development` (`packages/runtime-cli/src/bypass.ts`).
 |---|---|---|---|---|
 | 1 | Prototype pollution la decodarea datelor de pe fir (CWE-1321) | Medie | ✅ reparat 2026-09-21 | `wire-core/tests/security.test.ts` |
 | 2 | Prefix matching fără delimitator → expunere de handle-uri vecine | Medie | ✅ reparat 2026-09-21 | `server/tests/store.test.ts` |
-| 3 | Clientul nu era fail-closed la frame-uri corupte | Scăzută | ✅ reparat 2026-09-21 | ⚠️ **niciuna** — `wire-client` nu are teste |
+| 3 | Clientul nu era fail-closed la frame-uri corupte | Scăzută | ✅ reparat 2026-09-21 | `wire-client/tests/client.test.ts` (adăugată 2026-09-24) |
 | S1 | `process.spawn`: `env` și `cwd` treceau pe lângă broker → execuție de cod arbitrar | **Ridicată** | ✅ reparat 2026-09-24 | `runtime/tests/escapes.test.ts` |
 | S2 | `net.fetch` nu re-verifica destinația după redirect → SSRF | **Ridicată** | ✅ reparat 2026-09-24 | `runtime/tests/escapes.test.ts` |
 | S3 | Dev-server RaptorBundle: prefix fără delimitator + bind pe toate interfețele | Medie | ✅ reparat 2026-09-24 | `bundle/tests/dev-server-scope.test.ts` |
 | S4 | `serve` deschidea porturi fără capability, în TS și în Rust | Medie | ✅ reparat 2026-09-24 | `runtime/tests/escapes.test.ts`, `modules.rs` |
 | S5 | Ocolul prin `node:` era raportat doar de `doctor`, nu și de `run` | Medie | ✅ reparat 2026-09-24 | `runtime-cli/tests/bypass.test.ts` |
-| S6 | Containerea de căi e pur lexicală (symlink) | Medie | 📖 documentat, nereparat | — |
-| S7 | WebSocket fără verificare de `Origin`, fără cotă de conexiuni | Scăzută-Medie | ⬜ deschis | — |
+| S6 | Containerea de căi e pur lexicală (symlink) | Medie | 📖 documentat de ambele părți, nereparat | — |
+| S7 | WebSocket fără verificare de `Origin`, fără cotă de conexiuni | Scăzută-Medie | ✅ reparat 2026-09-24 | `server/tests/websocket-origin.test.ts` |
 | S8 | `spawn`: buffere nemărginite, oprire fără escaladare | Scăzută | ✅ reparat 2026-09-24 | `runtime/tests/escapes.test.ts` |
-| S9 | `plain()` din puntea de host e superficial | Scăzută | ⬜ deschis (teoretic) | — |
-| S10 | `@raptor/wire-client` nu are niciun test | Scăzută | ⬜ deschis | — |
+| S9 | `plain()` din puntea de host e superficial | Scăzută | ✅ reparat 2026-09-24 | `host/tests/bridge.test.ts` |
+| S10 | `@raptor/wire-client` nu are niciun test | Scăzută | ✅ reparat 2026-09-24 | 11 teste în `wire-client/tests/client.test.ts` |
 
 ### Cele trei findinguri din 2026-09-21
 
@@ -91,35 +91,45 @@ Descrierea completă, cu proof-of-concept-ul fiecăruia, e în
 
 ## Ce rămâne deschis
 
-**S6 — symlink.** `packages/runtime/src/paths.ts` și `crates/.../paths.rs`
-rezolvă căile **lexical**, fără `realpath`. Un symlink aflat în domeniul acordat
-duce accesul în afara lui. Partea Rust documenta deja asta; acum o documentează
-și partea TS. Reparația reală cere `realpath` pe directorul-părinte, cu grija
-TOCTOU care vine la pachet.
+**S6 — symlink.** Singurul finding neînchis. `packages/runtime/src/paths.ts` și
+`crates/.../paths.rs` rezolvă căile **lexical**, fără `realpath`. Un symlink
+aflat în domeniul acordat duce accesul în afara lui.
 
-**S7 — WebSocket.** `serveOverWebSocket` verifică doar calea și prezența
-`sec-websocket-key`. Fără verificare de `Origin`, orice pagină pe care o deschide
-utilizatorul poate deschide o conexiune la un server Raptor. Nu există nici
-limită de conexiuni simultane, nici timeout de handshake.
+Este acum documentat în ambele fișiere, cu modelul de amenințare scris explicit:
+**presupunem că domeniul acordat nu conține symlink-uri puse de altcineva.**
+Reparația reală cere `realpath` pe directorul-părinte înainte de comparație, cu
+cursa TOCTOU care vine la pachet — de aceea nu a fost făcută la repezeală.
 
-Restul parser-ului RFC 6455 e solid: mască obligatorie, plafoane de 16 MB pe
-cadru și pe mesajul reasamblat, opcode necunoscut → închidere.
+### Ce s-a închis între timp
 
-**S9 — `plain()`.** `packages/host/src/protocol.ts` curăță
-`__proto__`/`constructor`/`prototype` doar la primul nivel. Nu există azi un
-consumator care să transforme asta într-o problemă; merită totuși recursivitate.
+**S7 — WebSocket.** `serveOverWebSocket` verifică acum `Origin` înainte de
+`101`, implicit **doar same-origin** (autoritatea din `Origin` comparată cu
+`Host`, nu șirul). O listă explicită de origini o înlocuiește; `"any"`
+dezactivează verificarea, scris în litere ca să nu se întâmple din neatenție. O
+cerere fără `Origin` trece — nu vine dintr-un browser, deci nu poartă autoritate
+ambientală. Plus un plafon de conexiuni (implicit 1024) care răspunde 503 în loc
+să atârne.
 
-**S10 — `wire-client` fără teste.** Singurul pachet fără director `tests/`, și
-tocmai cel care aplică operații venite de pe rețea pe starea locală. Consecință
-directă: fixul #3 nu are regresie.
+Restul parser-ului RFC 6455 era deja solid: mască obligatorie, plafoane de 16 MB
+pe cadru și pe mesajul reasamblat, opcode necunoscut → închidere.
+
+**S9 — `plain()`** curăță acum recursiv, inclusiv prin array-uri. Testul verifică
+nu doar că cheile au dispărut, ci și că un `Object.assign({}, …)` peste oricare
+sub-obiect nu atinge prototipul — care era mecanismul real de exploatare.
+
+**S10 — `wire-client`** are 11 teste, scrise peste un server fals care poate
+trimite și ce un server cinstit n-ar trimite niciodată. Fixul #3 (fail-closed)
+are în sfârșit o regresie, iar testul verifică și că sesiunea rămâne utilizabilă
+după un cadru aruncat.
 
 ## Limite asumate, nu bug-uri
 
 - **Fără TLS**, nicăieri: nici în transportul RaptorWire, nici în clientul HTTP
   nativ (unde `https://` trece de verificarea de capabilitate și apoi **eșuează
   limpede**, în loc să coboare tăcut la `http`). Terminarea TLS se face în față.
-- **Fără rate limiting sau cote de conexiuni.** Un client care se reconectează
-  în buclă e problema aplicației.
+- **Fără rate limiting.** Există un plafon de conexiuni simultane pe WebSocket
+  (implicit 1024), dar nicio limită de rată: un client care se reconectează în
+  buclă rămâne problema aplicației.
 - **Fără validare de schemă la decodare.** `SchemaCodec` e opțional; codec-ul
   generic acceptă orice formă, deci o mutație trebuie să-și valideze intrarea.
 - **`@raptor/ui` nu a fost revizuit pentru injecție prin props.** Singurul sink

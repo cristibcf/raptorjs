@@ -31,6 +31,60 @@ export interface WebSocketOptions {
   path?: string;
   /** Interval ping keep-alive, ms (implicit 30000; 0 dezactiveaza). */
   pingIntervalMs?: number;
+  /**
+   * Originile din care browserele pot deschide conexiuni.
+   *
+   * **Implicit: doar same-origin.** Spre deosebire de `fetch`, un WebSocket NU e
+   * oprit de politica same-origin a browserului: orice pagina pe care o deschide
+   * utilizatorul poate deschide o conexiune catre un server Raptor la care
+   * ajunge, cu cookie-urile lui cu tot (cross-site WebSocket hijacking). Singurul
+   * loc unde se poate opri asta e aici.
+   *
+   * O lista explicita (`["https://app.example.com"]`) e comparata exact,
+   * ignorand registrul literelor. `"any"` dezactiveaza verificarea - scris in
+   * litere, ca sa nu se intample din neatentie.
+   *
+   * O cerere **fara** antet `Origin` trece: nu vine dintr-un browser, deci nu
+   * poarta autoritatea ambientala a unei sesiuni. Autentificarea ramane treaba
+   * hook-urilor `authorize` per query/mutation.
+   */
+  allowedOrigins?: readonly string[] | "any";
+  /** Plafon de conexiuni simultane (implicit 1024; 0 = fara plafon). */
+  maxConnections?: number;
+}
+
+/**
+ * `true` daca upgrade-ul e permis din originea cererii.
+ *
+ * Exportat ca sa poata fi testat fara socket - e o functie pura, si e singura
+ * bucata din handshake unde o greseala se vede abia intr-un raport de bug.
+ */
+export function originAllowed(
+  origin: string | undefined,
+  host: string | undefined,
+  allowed: readonly string[] | "any" | undefined,
+): boolean {
+  if (allowed === "any") return true;
+  // Fara `Origin`: client care nu e browser (CLI, alt serviciu, un test).
+  if (origin === undefined || origin === "") return true;
+
+  if (allowed !== undefined) {
+    const wanted = origin.toLowerCase();
+    return allowed.some((candidate) => candidate.toLowerCase() === wanted);
+  }
+
+  // Implicit same-origin: comparam AUTORITATEA, nu sirul. `Origin` poarta
+  // schema (`https://app:8443`), `Host` nu (`app:8443`).
+  if (host === undefined) return false;
+  let authority: string;
+  try {
+    authority = new URL(origin).host;
+  } catch {
+    // `Origin: null` (sandbox, redirect cross-origin) si orice alta forma pe
+    // care nu o putem citi: refuzam, nu ghicim.
+    return false;
+  }
+  return authority.toLowerCase() === host.toLowerCase();
 }
 
 /** Cadru server -> client: nemascat (RFC 6455 5.1), lungime pe 7/16/64 biti. */
@@ -198,6 +252,7 @@ export function serveOverWebSocket(
 ): WebSocketHandle {
   const path = options.path ?? "/raptor";
   const pingIntervalMs = options.pingIntervalMs ?? 30_000;
+  const maxConnections = options.maxConnections ?? 1024;
   const live = new Set<Socket>();
 
   const onUpgrade = (req: IncomingMessage, socket: Socket, head: Buffer): void => {
@@ -205,6 +260,19 @@ export function serveOverWebSocket(
     const key = req.headers["sec-websocket-key"];
     if (url !== path || typeof key !== "string") {
       socket.end("HTTP/1.1 400 Bad Request\r\n\r\n");
+      return;
+    }
+
+    // Originea se verifica INAINTE de `101`: dupa upgrade nu mai exista un cod
+    // de stare in care sa incapa un refuz.
+    if (!originAllowed(req.headers.origin, req.headers.host, options.allowedOrigins)) {
+      socket.end("HTTP/1.1 403 Forbidden\r\n\r\n");
+      return;
+    }
+
+    if (maxConnections > 0 && live.size >= maxConnections) {
+      // 503, nu 403: nu e o problema de permisiune, iar clientul poate reincerca.
+      socket.end("HTTP/1.1 503 Service Unavailable\r\n\r\n");
       return;
     }
 

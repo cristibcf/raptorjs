@@ -648,7 +648,7 @@ const findings = rt.explore();   // Finding[] — each with a replayable capsule
       "What a peer on the wire can and cannot do to you, what your own code is allowed to do to the machine, and what neither audit covers yet.",
     blocks: [
       { t: "p", text: "A protocol that applies operations from the network onto local state is a security surface by construction. So is a runtime that hands application code a filesystem. The repository audits both, and writes down what it finds: `SECURITY-AUDIT.md` carries the current state, `AUDIT-2026-09-24.md` the full report with a proof-of-concept per finding." },
-      { t: "p", text: "Thirteen findings so far. Ten are fixed, each with a regression test; three are open and named below. Here is the shape of it." },
+      { t: "p", text: "Thirteen findings so far. Twelve are fixed, each with a regression test that started life as a working exploit; one is open and named below. Here is the shape of it." },
 
       { t: "h", text: "Three findings on the wire, all fixed" },
       { t: "table",
@@ -673,7 +673,7 @@ const findings = rt.explore();   // Finding[] — each with a replayable capsule
         "**Send mutations.** Every mutation runs `authorize()` first, which receives the input and the store. There is no default identity — see [What's ready, what's yours](/learn/whats-ready).",
         "**Subscribe to queries.** A query's `authorize()` and its projection decide what that connection ever sees.",
         "**Not push operations to other clients.** Operations travel server → client only. A client cannot inject state into another client's replica; it can only ask the server to mutate, and the server decides.",
-        "**Not exhaust you trivially.** The reader bounds-checks the buffer, varint rejects oversized values, the frame parser caps at 16 MB, and the test explorer is depth-bounded.",
+        "**Not exhaust you trivially.** The reader bounds-checks the buffer, varint rejects oversized values, the frame parser caps at 16 MB per frame *and* per reassembled message, and the transport caps concurrent connections.",
       ] },
 
       { t: "h", text: "Standards, measured" },
@@ -701,19 +701,13 @@ const findings = rt.explore();   // Finding[] — each with a replayable capsule
       { t: "p", text: "The 2026-09-24 audit found five escapes from this model and closed them: a `process.spawn` grant that could be widened to arbitrary code through `NODE_OPTIONS`, a `fetch` that followed redirects without re-checking the destination, a dev server that served files from sibling directories, `serve` opening ports with nothing declared, and the bypass above being visible only to `doctor`. Each one has a regression test that started life as a working exploit." },
 
       { t: "h", text: "Still open, by name" },
-      { t: "p", text: "Three findings from the last audit are not fixed. They are listed here rather than in a footnote, because an open finding you do not know about is worse than one you do." },
-      { t: "table",
-        head: ["Open", "What it means for you"],
-        rows: [
-          ["Path containment is lexical — symlinks are not followed", "A symlink planted inside a granted directory reads through it. Fine if the granted scope is yours; not fine if it is attacker-writable."],
-          ["The WebSocket handshake does not check `Origin`", "Any page your user visits can open a connection to a Raptor server they can reach. Put a reverse proxy in front, or check the header yourself, until the transport does."],
-          ["`@raptor/wire-client` has no tests", "The one package that applies hostile bytes to local state. Its fail-closed fix has no regression guarding it."],
-        ],
-      },
+      { t: "note", kind: "warn", title: "Path containment is lexical — symlinks are not followed", text: "Both `packages/runtime/src/paths.ts` and its Rust twin resolve paths textually, without `realpath`. A symlink planted inside a granted directory reads straight through it. The threat model, written down rather than assumed: **the granted scope does not contain symlinks put there by someone else.** Fine when the scope is your own project directory; not fine when it is attacker-writable. Closing it properly means `realpath` on the parent directory, with the TOCTOU race that comes with it — which is why it has not been done in a hurry." },
+      { t: "p", text: "It is listed here rather than in a footnote, because an open finding you do not know about is worse than one you do." },
       { t: "h", text: "Limits that are choices, not bugs" },
       { t: "list", items: [
         "No TLS anywhere — not in the wire transport, not in the native HTTP client, where `https://` passes the capability check and then **fails loudly** instead of quietly downgrading to `http`. Terminate TLS in front and use `wss://`.",
-        "No rate limiting or connection quotas. A client that reconnects in a loop is your problem to bound.",
+        "No rate limiting. There is a concurrent-connection cap on the WebSocket transport (1024 by default), but a client that reconnects in a loop is still yours to bound.",
+        "The WebSocket handshake checks `Origin` and defaults to same-origin — a browser page on another site cannot open a connection. Pass `allowedOrigins` when your app is served from a different origin than the API.",
         "No schema validation on decode. `SchemaCodec` is optional; the generic value codec accepts any shape, so a mutation should validate its own input rather than trust it.",
         "The reactive address space is renegotiated per connection. The exact identifier format is still open.",
         "`@raptor/ui` has not been reviewed for injection through props. The one HTML sink in the library is `RichTextEditor`, which does not sanitise and says so both in its source and on [its catalogue page](/components).",

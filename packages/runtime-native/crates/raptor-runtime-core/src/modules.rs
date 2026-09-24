@@ -433,8 +433,8 @@ fn serve_module(broker: Arc<Broker>, observer: Observer) -> HostModule {
                         let request = match crate::http::read_request(&stream) {
                             Ok(request) => request,
                             Err(error) => {
-                                let mut bad = crate::http::Response::new(400, error.message.clone());
-                                let _ = crate::http::write_response(&mut stream, &mut bad);
+                                let bad = crate::http::Response::new(400, error.message.clone());
+                                let _ = crate::http::write_response(&mut stream, &bad);
                                 continue;
                             }
                         };
@@ -759,13 +759,14 @@ mod tests {
     #[test]
     fn modulele_neimplementate_spun_asta_in_loc_sa_se_prefaca() {
         let (modules, _root, _broker) = harness("nefacute");
-        for name in ["tasks"] {
-            let module = modules.get(name).expect("modulul exista");
-            assert_eq!(module.descriptor.get("implemented"), Some(&Json::Bool(false)));
-            let error = call(&modules, name, "__unavailable", &[]).expect_err("neimplementat");
-            assert_eq!(error.code, ErrorCode::ModuleUnsupported);
-            assert!(error.detail.contains_key("reason"), "refuzul spune de ce");
-        }
+        // `net` si `serve` erau aici pana au fost implementate; `tasks` a ramas
+        // singurul modul care inca refuza cinstit, in loc sa para ca merge.
+        let name = "tasks";
+        let module = modules.get(name).expect("modulul exista");
+        assert_eq!(module.descriptor.get("implemented"), Some(&Json::Bool(false)));
+        let error = call(&modules, name, "__unavailable", &[]).expect_err("neimplementat");
+        assert_eq!(error.code, ErrorCode::ModuleUnsupported);
+        assert!(error.detail.contains_key("reason"), "refuzul spune de ce");
     }
 
     #[test]

@@ -12,5 +12,15 @@
     "examples/*/src/**/*.ts",
     "examples/*/src/**/*.tsx",
     "examples/*/tests/**/*.ts"
+  ],
+  "//exclude": [
+    "Exemplele native si profilul lor de tipuri traiesc in `tsconfig.native.json`:",
+    "acolo `raptor:` este sincron, aici este asincron, si cele doua declaratii",
+    "nu pot sta in acelasi program fara sa se contopeasca."
+  ],
+  "exclude": [
+    "packages/runtime/src/raptor-modules.native.d.ts",
+    "examples/native-hello/**",
+    "examples/native-server/**"
   ]
 }

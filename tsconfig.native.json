@@ -1,0 +1,19 @@
+{
+  "//": [
+    "Programul TypeScript al exemplelor care ruleaza pe BINARUL NATIV.",
+    "",
+    "Separat de `tsconfig.json` pentru ca exista doua profiluri `raptor:` -",
+    "unul asincron (bootstrap, pe Node) si unul sincron (nativ, pe QuickJS).",
+    "Doua blocuri `declare module \"raptor:files\"` in acelasi program s-ar",
+    "contopi si ar da un tip care nu descrie corect niciuna dintre tinte.",
+    "",
+    "`pnpm typecheck` ruleaza ambele programe."
+  ],
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "allowImportingTsExtensions": true
+  },
+  "files": ["packages/runtime/src/raptor-modules.native.d.ts"],
+  "include": ["examples/native-hello/src/**/*.ts", "examples/native-server/src/**/*.ts"]
+}

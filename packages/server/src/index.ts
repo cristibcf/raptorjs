@@ -12,4 +12,4 @@ export {
 
 export { ReactiveStore, type ServerConnection, type Subscription } from "./store.ts";
 
-export { serveOverWebSocket, type WebSocketOptions } from "./websocket.ts";
+export { serveOverWebSocket, originAllowed, type WebSocketOptions } from "./websocket.ts";

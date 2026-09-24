@@ -148,18 +148,39 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/** Chei care, la atribuire, ating prototipul in loc sa devina proprietati. */
+const DANGEROUS_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+
+/**
+ * Curata RECURSIV cheile periculoase dintr-o valoare venita de pe punte.
+ *
+ * `JSON.parse` produce `__proto__` ca proprietate **proprie**, deci obiectul
+ * decodat e inofensiv in sine. Pericolul apare la primul consumator care face
+ * `Object.assign({}, ...)` sau `tinta[cheie] = valoare` cu ea - acolo setter-ul
+ * de prototip se declanseaza.
+ *
+ * O curatare doar la primul nivel ar lasa `{ optiuni: { __proto__: {...} } }`
+ * intact, iar fisierul asta isi pune ca titlu ca nimic din cadru nu poate
+ * atinge prototipul. Deci coboara peste tot (audit 2026-09-24, S9).
+ */
+function sanitize(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sanitize);
+  if (!isRecord(value)) return value;
+  const out: Record<string, unknown> = {};
+  for (const key of Object.keys(value)) {
+    if (DANGEROUS_KEYS.has(key)) continue;
+    out[key] = sanitize(value[key]);
+  }
+  return out;
+}
+
 /** Copie fara chei mostenite: nimic din cadru nu poate atinge prototipul. */
 function plain(value: unknown, where: string): Record<string, unknown> {
   if (value === undefined) return {};
   if (!isRecord(value)) {
     throw new HostError("raptor:host/protocol", `${where} trebuie sa fie un obiect`, { received: typeof value });
   }
-  const out: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
-  for (const key of Object.keys(value)) {
-    if (key === "__proto__" || key === "constructor" || key === "prototype") continue;
-    out[key] = value[key];
-  }
-  return Object.assign({}, out);
+  return sanitize(value) as Record<string, unknown>;
 }
 
 export function encodeFrame(frame: Frame): string {

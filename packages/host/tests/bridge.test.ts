@@ -258,3 +258,48 @@ test("un adaptor poate inlocui host.describe cu propriul raspuns", async () => {
     link.dispose();
   }
 });
+
+/**
+ * Regresie pentru auditul din 2026-09-24 (S9).
+ *
+ * `plain()` curata `__proto__` / `constructor` / `prototype` doar la primul
+ * nivel. `JSON.parse` le produce ca proprietati proprii, deci obiectul decodat
+ * era inofensiv in sine - dar primul consumator care face `Object.assign({}, x)`
+ * cu un sub-obiect ramas necuratat ar fi declansat setter-ul de prototip.
+ */
+test("nicio cheie periculoasa nu supravietuieste decodarii, oricat de adanc", () => {
+  const frame = decodeFrame(
+    JSON.stringify({
+      kind: "call",
+      id: 1,
+      method: "storage.set",
+      params: {
+        __proto__: { poluat: true },
+        adanc: { mai: { __proto__: { poluat: true }, constructor: { poluat: true }, ok: 1 } },
+        lista: [{ __proto__: { poluat: true }, valoare: 2 }],
+      },
+    }),
+  ) as unknown as { params: Record<string, unknown> };
+
+  const params = frame.params;
+  const adanc = params["adanc"] as Record<string, unknown>;
+  const mai = adanc["mai"] as Record<string, unknown>;
+  const lista = params["lista"] as Array<Record<string, unknown>>;
+
+  // Cheile au disparut la fiecare nivel, inclusiv in interiorul unui array.
+  assert.deepEqual(Object.keys(params).sort(), ["adanc", "lista"]);
+  assert.deepEqual(Object.keys(mai), ["ok"]);
+  assert.deepEqual(Object.keys(lista[0]!), ["valoare"]);
+
+  // Iar datele utile au trecut neatinse.
+  assert.equal(mai["ok"], 1);
+  assert.equal(lista[0]!["valoare"], 2);
+
+  // Proba care conteaza: copierea oricareia dintre ele nu atinge prototipul.
+  for (const candidate of [params, adanc, mai, lista[0]!]) {
+    const copy = Object.assign({}, candidate) as Record<string, unknown>;
+    assert.equal(Object.getPrototypeOf(copy), Object.prototype, "copia si-a pastrat prototipul");
+    assert.equal((copy as { poluat?: unknown }).poluat, undefined);
+  }
+  assert.equal(({} as { poluat?: unknown }).poluat, undefined, "Object.prototype a ramas curat");
+});
