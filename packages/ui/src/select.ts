@@ -13,6 +13,7 @@ import { R, For, Show, type Child } from "@raptor/dom";
 import { clickOutside } from "./primitives/click-outside.ts";
 import { positioner, type Placement } from "./primitives/positioner.ts";
 import { focus, type El } from "./primitives/env.ts";
+import { isolate } from "./primitives/isolate.ts";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -257,5 +258,10 @@ export function select<T>(props: SelectProps<T>): SelectHandle {
 
 /** Varianta componenta. */
 export function Select<T>(props: SelectProps<T>): El {
+  // Constructia nu aboneaza computatia apelantului; vezi `isolate`.
+  return isolate(() => SelectImpl<T>(props));
+}
+
+function SelectImpl<T>(props: SelectProps<T>): El {
   return select(props).el;
 }

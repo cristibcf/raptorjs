@@ -110,11 +110,18 @@ export class SemanticGraph {
     }
     while (queue.length > 0) {
       const id = queue.pop()!;
-      for (const producer of this.producers(id)) {
-        if (!live.has(producer)) {
-          live.add(producer);
-          queue.push(producer);
-        }
+      const reach = (other: string): void => {
+        if (live.has(other)) return;
+        live.add(other);
+        queue.push(other);
+      };
+      for (const producer of this.producers(id)) reach(producer);
+      // Si tintele scrise: codul emis pentru un handler viu le NUMESTE, deci
+      // stergerea lor ar lasa o referinta moarta in fisierul generat. Un semnal
+      // scris si necitit poate fi inutil, dar asta nu e treaba lui DSE sa
+      // decida taindu-l pe jumatate.
+      for (const edge of this.edges) {
+        if (edge.type === EdgeType.Write && edge.from === id) reach(edge.to);
       }
     }
     return live;
@@ -173,9 +180,18 @@ function walkElement(
       kind: GraphNodeKind.Event,
       label: `on:${ev.event}`,
       component: comp.name,
-      sink: false,
+      // Un handler ESTE un output observabil: ruleaza cand utilizatorul apasa.
+      // Cat timp nu era sink, nimic din el nu tinea nimic in viata - iar DSE
+      // stergea un derived citit doar in handler, lasand in codul emis o
+      // referinta catre un nume care nu mai exista. Runda 3 de audit, U4/U5.
+      sink: true,
     });
     graph.addEdge(el.id, ev.id, EdgeType.Renders);
+    // Ce CITESTE handler-ul il tine in viata, exact ca un binding din DOM.
+    for (const r of ev.reads) {
+      const p = producerOf(r);
+      if (p) graph.addEdge(p, ev.id, EdgeType.Flow);
+    }
     for (const w of ev.writes) {
       const p = producerOf(w);
       if (p) graph.addEdge(ev.id, p, EdgeType.Write);

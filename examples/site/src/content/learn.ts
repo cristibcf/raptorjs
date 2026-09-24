@@ -648,7 +648,7 @@ const findings = rt.explore();   // Finding[] — each with a replayable capsule
       "What a peer on the wire can and cannot do to you, what your own code is allowed to do to the machine, and what neither audit covers yet.",
     blocks: [
       { t: "p", text: "A protocol that applies operations from the network onto local state is a security surface by construction. So is a runtime that hands application code a filesystem. The repository audits both, and writes down what it finds: `SECURITY-AUDIT.md` carries the current state, `AUDIT-2026-09-24.md` the full report with a proof-of-concept per finding." },
-      { t: "p", text: "Eighteen findings across two passes, all fixed, each with a regression test that started life as a working exploit. The second pass went looking specifically at the first pass's own fixes, and found five more — which is the useful lesson: a fix is a claim, and claims need auditing too. What is left is a list of limits, which are choices rather than oversights, and one race that no fix here closes. Both are named below." },
+      { t: "p", text: "Three passes so far. The second went looking specifically at the first one's own fixes and found five more findings — a fix is a claim, and claims need auditing too. The third went into the component library and the compiler, and found that the optimiser could emit code that throws. Everything found is fixed, each with a regression test that started life as a failing program. What is left is a list of limits, which are choices rather than oversights, and one race that no fix here closes." },
 
       { t: "h", text: "Three findings on the wire, all fixed" },
       { t: "table",

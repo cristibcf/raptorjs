@@ -163,3 +163,42 @@ test("bundle-ul probei trece prin tree-shaking fără să piardă module necesar
     assert.ok(complete.has(file), "modul apărut doar cu shaking: " + file);
   }
 });
+
+/**
+ * Regresie pentru runda 3 de audit (U6): unsprezece componente abonau
+ * computatia care le construia, deci prima interactiune cu ele re-randa toata
+ * regiunea parinte - iar regiunea reconstruita pierde focusul, scroll-ul si ce
+ * era tastat intr-un input.
+ *
+ * Site-ul ocolea problema construind fiecare demo in `untracked(...)`. Ocolul a
+ * fost scos si reparatia a intrat in biblioteca (`@raptor/ui` -> `isolate`);
+ * testul asta e ce tine reparatia pe loc.
+ */
+test("nicio componenta nu re-randa regiunea care o construieste", async () => {
+  installMiniDom();
+  const doc = (globalThis as any).document;
+  const restore = installBrowserStubs();
+  let stopTimers = (): void => {};
+
+  try {
+    const { code } = bundleApp(join(HERE, "..", "src", "catalog", "leaks.ts"));
+    stopTimers = evaluateWithTimerGuard(code, doc);
+
+    const report = (globalThis as any).__catalogLeaks as {
+      leaking: string[];
+      checked: number;
+      skipped: number;
+    };
+    assert.ok(report, "proba nu a produs raport");
+    assert.ok(report.checked > 50, `prea putine componente exercitate: ${report.checked}`);
+    assert.deepEqual(
+      report.leaking,
+      [],
+      ["componente care abonează computația apelantului:", ...report.leaking].join(" · "),
+    );
+  } finally {
+    stopTimers();
+    delete (globalThis as any).__catalogLeaks;
+    restore();
+  }
+});

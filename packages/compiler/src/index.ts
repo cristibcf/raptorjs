@@ -10,6 +10,8 @@ export {
   parseExpression,
   analyze,
   cloneExpr,
+  countIdent,
+  freeIdents,
   substituteIdent,
   exprToJs,
   type Expr,

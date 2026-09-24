@@ -132,6 +132,41 @@ function setFormProperty(el: El, name: string, value: unknown): void {
   target[name] = value === true || (value != null && value !== false);
 }
 
+/**
+ * Atributele care incarca o adresa: acolo o schema `javascript:` executa cod.
+ *
+ * `formaction` si `action` conteaza la fel de mult ca `href`: un buton de
+ * trimitere cu `formaction="javascript:..."` ruleaza la click.
+ */
+const URL_ATTRS = new Set(["href", "src", "action", "formaction", "xlink:href", "poster", "data", "srcdoc"]);
+
+/**
+ * `true` daca valoarea e o adresa care executa cod in loc sa navigheze.
+ *
+ * Normalizarea conteaza mai mult decat lista: browserele ignora spatiile albe
+ * si caracterele de control dinaintea schemei, deci `"java\\nscript:alert(1)"`
+ * si `" javascript:alert(1)"` sunt tot atat de executabile ca forma curata.
+ * Verificam dupa ce le scoatem, nu inainte.
+ */
+const EXECUTABLE_SCHEMES = ["javascript:", "vbscript:", "data:text/html"];
+
+/** Spatii si caractere de control pe care parserul de URL-uri le ignora. */
+function isIgnorable(code: number): boolean {
+  if (code <= 0x20) return true; // control + spatiu
+  return code === 0xa0 || code === 0x180e || code === 0xfeff || (code >= 0x2000 && code <= 0x200d) || code === 0x2028 || code === 0x2029 || code === 0x202f || code === 0x205f || code === 0x3000;
+}
+
+function isExecutableUrl(value: string): boolean {
+  let normalized = "";
+  for (const ch of value) {
+    if (!isIgnorable(ch.codePointAt(0)!)) normalized += ch;
+    // Ne oprim cand am depasit cel mai lung prefix care ne intereseaza.
+    if (normalized.length > 16) break;
+  }
+  const head = normalized.toLowerCase();
+  return EXECUTABLE_SCHEMES.some((scheme) => head.startsWith(scheme));
+}
+
 function setAttribute(el: El, name: string, value: unknown): void {
   // tagName e majuscule in DOM-ul real si minuscule in mini-dom-ul de test.
   const tag = ((el as unknown as { tagName?: string }).tagName ?? "").toUpperCase();
@@ -144,9 +179,20 @@ function setAttribute(el: El, name: string, value: unknown): void {
   }
   if (value === false || value == null) {
     el.removeAttribute(name);
-  } else {
-    el.setAttribute(name, String(value));
+    return;
   }
+
+  const text = String(value);
+  // O adresa vine aproape intotdeauna din date, iar datele vin de pe fir: asta
+  // e toata teza RaptorWire. Un `href` luat dintr-un element de navigatie
+  // trimis de server nu are voie sa execute cod. Refuzam, si spunem de ce -
+  // un atribut disparut fara explicatie e mai greu de depanat decat o gaura.
+  if (URL_ATTRS.has(name) && isExecutableUrl(text)) {
+    console.warn(`[raptor] '${name}' cu schema executabila, refuzat: ${text.slice(0, 60)}`);
+    el.removeAttribute(name);
+    return;
+  }
+  el.setAttribute(name, text);
 }
 
 export function applyProps(el: El, props: Record<string, unknown> | null): void {

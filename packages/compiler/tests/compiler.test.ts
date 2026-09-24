@@ -4,6 +4,7 @@ import {
   parseExpression,
   analyze,
   substituteIdent,
+  countIdent,
   exprToJs,
   parseModule,
   buildGraph,
@@ -49,7 +50,25 @@ test("expr: substitutie pentru fusion", () => {
   const consumer = parseExpression("b + 1");
   const bBody = parseExpression("a * 2");
   const fused = substituteIdent(consumer, "b", bBody);
+  assert.ok(fused, "substitutia simpla nu are cum sa captureze");
   assert.equal(exprToJs(fused, new Set(["a"])), "((a() * 2) + 1)");
+});
+
+test("expr: substitutia refuza cand ar captura o variabila legata", () => {
+  // `a` citeste semnalul `x`; la locul folosirii, `x` e parametrul lui `map`.
+  // Inlocuind naiv iese `items.map(x => x + 1)`, adica alt program.
+  const consumer = parseExpression("items.map(x => a)");
+  const aBody = parseExpression("x + 1");
+  assert.equal(substituteIdent(consumer, "a", aBody), null);
+
+  // Fara conflict de nume, aceeasi forma trece.
+  assert.ok(substituteIdent(parseExpression("items.map(y => a)"), "a", aBody));
+});
+
+test("expr: countIdent numara doar folosirile libere", () => {
+  assert.equal(countIdent(parseExpression("scump + scump"), "scump"), 2);
+  assert.equal(countIdent(parseExpression("items.map(x => x + 1)"), "x"), 0, "parametrul nu e o folosire libera");
+  assert.equal(countIdent(parseExpression("a.b.c"), "a"), 1);
 });
 
 test("expr: exprToJs rescrie citirile de semnale in accesori", () => {
@@ -157,4 +176,29 @@ test("imbricarea patologica da o eroare de parsare, nu stiva plina", () => {
   // Iar imbricarea obisnuita ramane neatinsa.
   const normal = parseModule(`component App { ${"<div>".repeat(20)}x${"</div>".repeat(20)} }`, "ok.raptor");
   assert.equal(normal.components.length, 1);
+});
+
+/**
+ * Regresie pentru runda 3 de audit (U3): `derived(() => n++)` se compila tacut.
+ *
+ * Scrierile sunt emise separat de codegen (`writeToJs`), deci intr-o pozitie de
+ * citire `exprToJs` le ignora - si incrementul disparea din codul emis fara ca
+ * nimeni sa spuna nimic. Un `derived` e o valoare citita, nu o actiune.
+ */
+test("un derived care scrie e refuzat la parsare, nu compilat tacut", () => {
+  for (const scriere of ["n++", "n += 1", "n = 2"]) {
+    assert.throws(
+      () => parseModule(`component App { const n = state(1)\n const d = derived(() => ${scriere})\n <div>{d}</div> }`, "x.raptor"),
+      (error: unknown) => {
+        assert.match((error as Error).message, /nu poate scrie/, scriere);
+        return true;
+      },
+      scriere,
+    );
+  }
+
+  // Un handler are voie sa scrie - acolo e locul pentru asta.
+  assert.doesNotThrow(() =>
+    parseModule(`component App { const n = state(1)\n <button on:click={n++}>+</button> }`, "x.raptor"),
+  );
 });

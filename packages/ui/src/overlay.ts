@@ -15,6 +15,7 @@ import { clickOutside } from "./primitives/click-outside.ts";
 import { positioner, type Placement } from "./primitives/positioner.ts";
 import { onDoc, focus, type El } from "./primitives/env.ts";
 import { Button, type ButtonVariant } from "./button.ts";
+import { isolate } from "./primitives/isolate.ts";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -193,6 +194,11 @@ export interface PopoverProps {
 }
 
 export function Popover(props: PopoverProps): El {
+  // Constructia nu aboneaza computatia apelantului; vezi `isolate`.
+  return isolate(() => PopoverImpl(props));
+}
+
+function PopoverImpl(props: PopoverProps): El {
   const id = "rui-pop-" + ++idSeq;
   const open = props.open ?? state(false);
   let triggerEl: El = null;

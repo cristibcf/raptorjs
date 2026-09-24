@@ -12,6 +12,7 @@ import { clickOutside } from "./primitives/click-outside.ts";
 import { positioner, type Placement } from "./primitives/positioner.ts";
 import { focus, type El } from "./primitives/env.ts";
 import { Button } from "./button.ts";
+import { isolate } from "./primitives/isolate.ts";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -759,6 +760,11 @@ export function colorPicker(props: ColorPickerProps): { el: El; open: Accessor<b
 }
 
 export function ColorPicker(props: ColorPickerProps): El {
+  // Constructia nu aboneaza computatia apelantului; vezi `isolate`.
+  return isolate(() => ColorPickerImpl(props));
+}
+
+function ColorPickerImpl(props: ColorPickerProps): El {
   return colorPicker(props).el;
 }
 
@@ -928,6 +934,11 @@ export interface CascaderProps {
  * ce vrea utilizatorul. `anyLevel: true` schimba asta.
  */
 export function Cascader(props: CascaderProps): El {
+  // Constructia nu aboneaza computatia apelantului; vezi `isolate`.
+  return isolate(() => CascaderImpl(props));
+}
+
+function CascaderImpl(props: CascaderProps): El {
   const id = "rui-casc-" + ++idSeq;
   const open = state(false);
   /** Calea deschisa in acest moment (nu neaparat si aleasa). */
@@ -1049,6 +1060,11 @@ export interface TreeSelectProps {
 
 /** TreeSelect - aceleasi date ca `Cascader`, dar afisate ca arbore vertical. */
 export function TreeSelect(props: TreeSelectProps): El {
+  // Constructia nu aboneaza computatia apelantului; vezi `isolate`.
+  return isolate(() => TreeSelectImpl(props));
+}
+
+function TreeSelectImpl(props: TreeSelectProps): El {
   const open = state(false);
   const expanded = state<ReadonlySet<string>>(new Set());
   const pos = positioner({ placement: props.placement ?? "bottom-start", enabled: () => open() });

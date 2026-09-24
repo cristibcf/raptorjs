@@ -14,6 +14,7 @@ import { onDoc, focus, type El } from "./primitives/env.ts";
 import { Button } from "./button.ts";
 import { DropdownMenu, type MenuEntry } from "./menu.ts";
 import { type FormGroup } from "./form.ts";
+import { isolate } from "./primitives/isolate.ts";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -339,6 +340,11 @@ export interface MenubarProps {
  * bara de meniuri nativa.
  */
 export function Menubar(props: MenubarProps): El {
+  // Constructia nu aboneaza computatia apelantului; vezi `isolate`.
+  return isolate(() => MenubarImpl(props));
+}
+
+function MenubarImpl(props: MenubarProps): El {
   /** Cate un semnal per meniu; unul singur poate fi deschis la un moment dat. */
   const opens = new Map<string, State<boolean>>();
   for (const menu of props.menus) opens.set(menu.key, state(false));
@@ -651,5 +657,10 @@ export function tour(props: TourProps): TourHandle {
 }
 
 export function Tour(props: TourProps): Child {
+  // Constructia nu aboneaza computatia apelantului; vezi `isolate`.
+  return isolate(() => TourImpl(props));
+}
+
+function TourImpl(props: TourProps): Child {
   return tour(props).el;
 }

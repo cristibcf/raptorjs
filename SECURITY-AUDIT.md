@@ -1,8 +1,8 @@
 # Securitate — Raptor
 
-Starea curentă a modelului de securitate și a tuturor findingurilor. Două
-runde de audit, **18 findinguri**, toate închise. Ultima revizuire:
-**2026-09-24 (runda 2)**.
+Starea curentă a modelului de securitate și a tuturor findingurilor. Trei
+runde de audit, **25 findinguri**, toate închise. Ultima revizuire:
+**2026-09-24 (runda 3)**.
 
 Rapoartele de audit, cu metoda și proof-of-concept-urile:
 
@@ -56,6 +56,7 @@ audit în `development` (`packages/runtime-cli/src/bypass.ts`).
 | R3 | Lista de variabile care încarcă cod era incompletă; a apărut `env.set` | Medie | ✅ reparat (runda 2) | `runtime/tests/escapes.test.ts` |
 | R4 | `Authorization` / `Cookie` treceau la altă gazdă după un redirect | Medie | ✅ reparat (runda 2) | `runtime/tests/escapes.test.ts` |
 | R5 | `sanitize` recursiv fără limită de adâncime | Scăzută | ✅ reparat (runda 2) | `host/tests/bridge.test.ts` |
+| U7 | `javascript:` / `vbscript:` / `data:text/html` treceau în `href`, `src`, `formaction` | Medie | ✅ reparat (runda 3) | `dom/tests/url-schemes.test.ts` |
 
 ### Cele trei findinguri din 2026-09-21
 
@@ -106,10 +107,19 @@ Descrierea completă, cu proof-of-concept-ul fiecăruia, e în
 **Niciun finding de securitate.** Toate cele 18 sunt închise, fiecare cu un test
 de regresie.
 
-Două probleme de **calitate** rămân deschise, numite în
-[`AUDIT-2026-09-24.md`](AUDIT-2026-09-24.md): `@raptor/test` e cel mai puțin
-testat pachet din repo (R9), iar `parseCapsule` validează două câmpuri dintr-un
-format proiectat ca artefact partajabil (R10).
+Rămân deschise, numite în [`AUDIT-2026-09-24.md`](AUDIT-2026-09-24.md):
+`@raptor/test` e cel mai puțin testat pachet din repo (R9); `parseCapsule`
+validează două câmpuri dintr-un format proiectat ca artefact partajabil (R10);
+iar `@raptor/ui` a fost verificat pe două axe — scurgere reactivă și injecție
+prin `href` — dar **nu** pe corectitudinea ARIA, curățarea ascultătorilor
+globali sau navigarea la tastatură per componentă (runda 3).
+
+Separat de securitate, runda 3 a găsit **cinci defecte de corectitudine în
+pilonul de compilare** — trei dintre ele făceau compilatorul să emită cod care
+aruncă sau care calculează altceva decât scrie în sursă. Sunt descrise în
+raport (U1-U5) și au regresii în `engine/tests/optimizer-safety.test.ts`; nu
+apar în tabelul de mai sus fiindcă nu sunt găuri de securitate, dar lovesc
+direct în afirmația „adaptive strategies, not adaptive correctness".
 Ce rămâne sunt limitele asumate de mai jos — care sunt alegeri, nu scăpări — și
 o cursă pe care nici S6 nu o închide complet, descrisă imediat.
 

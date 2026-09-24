@@ -14,6 +14,7 @@
  */
 import {
   buildGraph,
+  countIdent,
   substituteIdent,
   type IRModule,
   type IRComponent,
@@ -162,7 +163,38 @@ function fuseComponent(comp: IRComponent, trace: OptEntry[]): number {
       const readers = slots.filter((s) => s.id !== d.id && s.reads.includes(d.name));
       if (readers.length !== 1) continue;
       const r = readers[0]!;
-      r.setExpr(substituteIdent(r.getExpr(), d.name, d.expr));
+
+      // Un consumator unic nu inseamna o singura FOLOSIRE. `scump + scump` are
+      // un singur consumator, dar inlocuirea ar calcula expresia de doua ori si
+      // ar sterge tocmai memo-ul care o calcula o data: o "optimizare" care
+      // incetineste. Runda 3 de audit, U2.
+      const folosiri = countIdent(r.getExpr(), d.name);
+      if (folosiri > 1) {
+        trace.push({
+          pass: "Fusion",
+          action: "blocked",
+          target: d.id,
+          detail: `folosit de ${folosiri} ori in ${r.id} - fuziunea ar duplica lucrul`,
+        });
+        blocked.add(d.id);
+        continue;
+      }
+
+      const fuzionat = substituteIdent(r.getExpr(), d.name, d.expr);
+      if (fuzionat === null) {
+        // Inlocuirea ar captura o variabila legata la locul folosirii, deci ar
+        // schimba intelesul programului. Runda 3 de audit, U1.
+        trace.push({
+          pass: "Fusion",
+          action: "blocked",
+          target: d.id,
+          detail: `fuziunea in ${r.id} ar captura o variabila legata acolo`,
+        });
+        blocked.add(d.id);
+        continue;
+      }
+
+      r.setExpr(fuzionat);
       r.setReads(unique([...r.reads.filter((n) => n !== d.name), ...d.reads]));
       comp.deriveds = comp.deriveds.filter((x: IRDerived) => x.id !== d.id);
       trace.push({

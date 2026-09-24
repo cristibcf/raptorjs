@@ -13,6 +13,7 @@
 import { state, derived, effect, onCleanup, type Accessor, type State } from "@raptor/core";
 import { R, Show, type Child } from "@raptor/dom";
 import { positioner, type Placement } from "./primitives/positioner.ts";
+import { isolate } from "./primitives/isolate.ts";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type El = any;
@@ -64,6 +65,11 @@ function focus(el: El): void {
 }
 
 export function DropdownMenu(props: DropdownMenuProps): El {
+  // Constructia nu aboneaza computatia apelantului; vezi `isolate`.
+  return isolate(() => DropdownMenuImpl(props));
+}
+
+function DropdownMenuImpl(props: DropdownMenuProps): El {
   const open = props.open ?? state(false);
   const entries = asAccessor(props.entries);
   const active = state(-1);

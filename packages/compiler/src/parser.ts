@@ -300,6 +300,20 @@ function parseDeclaration(
     const inner = sc.readBalanced("(", ")");
     const parsed = parseExpression(inner);
     const body = parsed.kind === "Arrow" ? parsed.body : parsed;
+
+    // Un `derived` este o valoare CITITA, nu o actiune. Scrierile sunt emise
+    // separat de codegen (`writeToJs`), deci intr-o pozitie de citire `exprToJs`
+    // le ignora: `derived(() => n++)` se compila tacut ca `n`, adica incrementul
+    // dispare fara ca nimeni sa spuna nimic. Mai bine refuzam la parsare decat
+    // sa producem un program care nu face ce scrie in el. Runda 3 de audit, U3.
+    const scrieri = analyze(body).writes;
+    if (scrieri.length > 0) {
+      throw new RaptorParseError(
+        `'${name}' este un derived, deci nu poate scrie (${scrieri.join(", ")}); muta scrierea intr-un handler sau intr-un effect`,
+        declStart,
+      );
+    }
+
     ctx.reactiveNames.add(name);
     deriveds.push({
       kind: "Derived",

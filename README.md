@@ -18,7 +18,7 @@ Totul rulează direct pe **Node ≥ 22** (TypeScript nativ prin type-stripping).
 
 ```bash
 pnpm install          # doar leagă workspace-ul (+ devDeps opționale)
-pnpm test             # 861 de teste (859 pass; 2 sărite)
+pnpm test             # 875 de teste (873 pass; 2 sărite)
 pnpm typecheck        # tsc --noEmit pe tot
 
 pnpm demo:counter     # bindings DOM fine-grained (headless)

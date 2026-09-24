@@ -615,57 +615,130 @@ export function cloneExpr(e: Expr): Expr {
  * (folosit la fuziune: `derived c = () => b + 1` cu `b` fuzionat devine
  * `() => <expr-b> + 1`). Nu intra in scope-uri arrow care leaga `name`.
  */
-export function substituteIdent(e: Expr, name: string, replacement: Expr): Expr {
+/** Identificatorii liberi ai unei expresii (fara cei legati de arrow-uri). */
+export function freeIdents(e: Expr): Set<string> {
+  return new Set(analyze(e).reads);
+}
+
+/** De cate ori apare `name` ca identificator liber in `e`. */
+export function countIdent(e: Expr, name: string): number {
+  switch (e.kind) {
+    case "Num":
+    case "Str":
+    case "Bool":
+      return 0;
+    case "Ident":
+      return e.name === name ? 1 : 0;
+    case "Member":
+      return countIdent(e.object, name);
+    case "Call":
+      return countIdent(e.callee, name) + e.args.reduce((n, a) => n + countIdent(a, name), 0);
+    case "Unary":
+      return countIdent(e.arg, name);
+    case "Update":
+      return countIdent(e.arg, name);
+    case "Binary":
+    case "Logical":
+      return countIdent(e.left, name) + countIdent(e.right, name);
+    case "Cond":
+      return countIdent(e.test, name) + countIdent(e.consequent, name) + countIdent(e.alternate, name);
+    case "Assign":
+      return countIdent(e.target, name) + countIdent(e.value, name);
+    case "Arrow":
+      return e.params.includes(name) ? 0 : countIdent(e.body, name);
+  }
+}
+
+/**
+ * Inlocuieste `name` cu `replacement`, sau intoarce `null` daca inlocuirea ar
+ * **captura** o variabila.
+ *
+ * Captura arata asa:
+ *
+ * ```
+ * const a = derived(() => x + 1)             // `x` liber = semnalul x
+ * const b = derived(() => items.map(x => a)) // `x` aici = parametrul lui map
+ * ```
+ *
+ * Inlocuind naiv iese `items.map(x => x + 1)`, unde `x` nu mai e semnalul, ci
+ * parametrul - alt program. Runda 3 de audit a gasit exact asta in Dependency
+ * Fusion: expresia se schimba, iar lista de dependinte primea `x`, deci
+ * bindingul se abona la un semnal pe care codul emis nici nu-l mai citea.
+ *
+ * Semnatura intoarce `null` dinadins: un apelant nu are cum sa "uite" de
+ * captura, fiindca trebuie sa trateze cazul ca sa compileze.
+ */
+export function substituteIdent(e: Expr, name: string, replacement: Expr): Expr | null {
+  const free = freeIdents(replacement);
+  return substituteChecked(e, name, replacement, free, new Set());
+}
+
+function substituteChecked(
+  e: Expr,
+  name: string,
+  replacement: Expr,
+  free: Set<string>,
+  bound: Set<string>,
+): Expr | null {
+  const go = (child: Expr, inner = bound): Expr | null => substituteChecked(child, name, replacement, free, inner);
+  const both = <T>(a: Expr | null, b: Expr | null, make: (x: Expr, y: Expr) => T): T | null =>
+    a === null || b === null ? null : make(a, b);
+
   switch (e.kind) {
     case "Num":
     case "Str":
     case "Bool":
       return e;
-    case "Ident":
-      return e.name === name ? cloneExpr(replacement) : e;
-    case "Member":
-      return { kind: "Member", object: substituteIdent(e.object, name, replacement), property: e.property };
-    case "Call":
-      return {
-        kind: "Call",
-        callee: substituteIdent(e.callee, name, replacement),
-        args: e.args.map((a) => substituteIdent(a, name, replacement)),
-      };
-    case "Unary":
-      return { kind: "Unary", op: e.op, arg: substituteIdent(e.arg, name, replacement) };
-    case "Update":
-      return { kind: "Update", op: e.op, prefix: e.prefix, arg: substituteIdent(e.arg, name, replacement) };
+    case "Ident": {
+      if (e.name !== name) return e;
+      // Aici s-ar face inlocuirea: daca vreun identificator liber al
+      // inlocuitorului e legat pe drumul pana aici, l-am captura.
+      for (const f of free) if (bound.has(f)) return null;
+      return cloneExpr(replacement);
+    }
+    case "Member": {
+      const object = go(e.object);
+      return object && { kind: "Member", object, property: e.property };
+    }
+    case "Call": {
+      const callee = go(e.callee);
+      if (callee === null) return null;
+      const args: Expr[] = [];
+      for (const a of e.args) {
+        const next = go(a);
+        if (next === null) return null;
+        args.push(next);
+      }
+      return { kind: "Call", callee, args };
+    }
+    case "Unary": {
+      const arg = go(e.arg);
+      return arg && { kind: "Unary", op: e.op, arg };
+    }
+    case "Update": {
+      const arg = go(e.arg);
+      return arg && { kind: "Update", op: e.op, prefix: e.prefix, arg };
+    }
     case "Binary":
-      return {
-        kind: "Binary",
-        op: e.op,
-        left: substituteIdent(e.left, name, replacement),
-        right: substituteIdent(e.right, name, replacement),
-      };
+      return both(go(e.left), go(e.right), (left, right) => ({ kind: "Binary", op: e.op, left, right }) as Expr);
     case "Logical":
-      return {
-        kind: "Logical",
-        op: e.op,
-        left: substituteIdent(e.left, name, replacement),
-        right: substituteIdent(e.right, name, replacement),
-      };
-    case "Cond":
-      return {
-        kind: "Cond",
-        test: substituteIdent(e.test, name, replacement),
-        consequent: substituteIdent(e.consequent, name, replacement),
-        alternate: substituteIdent(e.alternate, name, replacement),
-      };
+      return both(go(e.left), go(e.right), (left, right) => ({ kind: "Logical", op: e.op, left, right }) as Expr);
+    case "Cond": {
+      const test = go(e.test);
+      const consequent = go(e.consequent);
+      const alternate = go(e.alternate);
+      if (test === null || consequent === null || alternate === null) return null;
+      return { kind: "Cond", test, consequent, alternate };
+    }
     case "Assign":
-      return {
-        kind: "Assign",
-        op: e.op,
-        target: substituteIdent(e.target, name, replacement),
-        value: substituteIdent(e.value, name, replacement),
-      };
-    case "Arrow":
-      if (e.params.includes(name)) return e; // shadowed
-      return { kind: "Arrow", params: [...e.params], body: substituteIdent(e.body, name, replacement) };
+      return both(go(e.target), go(e.value), (target, value) => ({ kind: "Assign", op: e.op, target, value }) as Expr);
+    case "Arrow": {
+      if (e.params.includes(name)) return e; // numele e umbrit aici
+      const inner = new Set(bound);
+      for (const p of e.params) inner.add(p);
+      const body = go(e.body, inner);
+      return body && { kind: "Arrow", params: [...e.params], body };
+    }
   }
 }
 

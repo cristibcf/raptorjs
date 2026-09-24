@@ -15,6 +15,7 @@ import { R, For, Show, type Child } from "@raptor/dom";
 import { clickOutside } from "./primitives/click-outside.ts";
 import { positioner, type Placement } from "./primitives/positioner.ts";
 import { focus, type El } from "./primitives/env.ts";
+import { isolate } from "./primitives/isolate.ts";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -491,6 +492,11 @@ export function datePicker(props: DatePickerProps): DatePickerHandle {
 }
 
 export function DatePicker(props: DatePickerProps): El {
+  // Constructia nu aboneaza computatia apelantului; vezi `isolate`.
+  return isolate(() => DatePickerImpl(props));
+}
+
+function DatePickerImpl(props: DatePickerProps): El {
   return datePicker(props).el;
 }
 
@@ -503,6 +509,11 @@ export interface DateRangePickerProps extends Omit<DatePickerProps, "value"> {
 }
 
 export function DateRangePicker(props: DateRangePickerProps): El {
+  // Constructia nu aboneaza computatia apelantului; vezi `isolate`.
+  return isolate(() => DateRangePickerImpl(props));
+}
+
+function DateRangePickerImpl(props: DateRangePickerProps): El {
   const open = state(false);
   let triggerEl: El = null;
   const pos = positioner({ placement: props.placement ?? "bottom-start", enabled: () => open() });

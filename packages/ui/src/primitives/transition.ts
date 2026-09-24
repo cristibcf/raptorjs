@@ -10,6 +10,7 @@
  */
 import { state, effect, onCleanup, type Accessor } from "@raptor/core";
 import { Show, type Block, type Child } from "@raptor/dom";
+import { isolate } from "./isolate.ts";
 
 export interface TransitionProps {
   when: Accessor<unknown>;
@@ -22,6 +23,11 @@ export interface TransitionProps {
 }
 
 export function Transition(props: TransitionProps): Block {
+  // Constructia nu aboneaza computatia apelantului; vezi `isolate`.
+  return isolate(() => TransitionImpl(props));
+}
+
+function TransitionImpl(props: TransitionProps): Block {
   const duration = props.duration ?? 0;
   if (duration <= 0) {
     return Show({ when: () => props.when(), children: props.children, fallback: props.fallback });

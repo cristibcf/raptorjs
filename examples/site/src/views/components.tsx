@@ -5,7 +5,6 @@
  * Everything here is data-driven from `src/catalog` — the routes, the sidebar,
  * the index page and prev/next all come from the same array.
  */
-import { untracked } from "@raptor/dom";
 import { effect } from "@raptor/core";
 import { sub, navigate } from "../lib/route.ts";
 import { importLine } from "../catalog/modules.ts";
@@ -137,10 +136,13 @@ function Detail(c: ComponentDoc) {
         Live
         <span class="cmp-live">running in this page</span>
       </h2>
-      {/* The demo is built untracked: a component that reads a signal while it
-          builds must not subscribe the view binding, or changing that signal
-          would re-render the whole page instead of the one binding it belongs to. */}
-      <div class="cmp-stage">{untracked(() => c.demo())}</div>
+      {/* Built plainly, on purpose. This used to need an `untracked(...)`
+          wrapper, because eleven components subscribed whatever computation
+          built them and re-rendered this whole page on their first click. That
+          is fixed in the library now (`@raptor/ui` -> `isolate`), and building
+          the demo without the workaround is what keeps it fixed: if a component
+          starts leaking again, the catalogue test sees it. */}
+      <div class="cmp-stage">{c.demo()}</div>
 
       <Code code={c.code} file="usage.ts" />
 
