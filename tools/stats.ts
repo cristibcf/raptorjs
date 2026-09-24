@@ -149,6 +149,19 @@ function renderReadme(current: string, stats: Stats): string {
 
 export function run(check: boolean): number {
   const stats = collect();
+
+  // O cifra masurata pe o suita rosie nu e mai buna decat una scrisa de mana -
+  // e mai rea, fiindca pare masurata. Unealta asta exista ca sa nu publicam
+  // numere in care nu ne putem increde, deci nu publica nici numere de aici.
+  if (stats.fail > 0) {
+    console.error(
+      `suita are ${stats.fail} test(e) care pica - nu scriu cifre pornind de la ea.
+` +
+        "Ruleaza 'pnpm test', repara, apoi 'pnpm stats'.",
+    );
+    return 1;
+  }
+
   const site = renderSiteStats(stats);
   const readme = renderReadme(readFileSync(README, "utf8"), stats);
 

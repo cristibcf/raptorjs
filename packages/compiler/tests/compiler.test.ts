@@ -128,3 +128,33 @@ test("diff: fara schimbari -> niciun patch", () => {
   const diff = diffModules(oldM, newM);
   assert.deepEqual(diff.patches, []);
 });
+
+/**
+ * Regresie pentru runda 2 de audit (R8): parserul e recursiv-descendent, deci o
+ * imbricare patologica dadea `RangeError: Maximum call stack size exceeded`.
+ *
+ * Mesajul ala arata ca s-a stricat compilatorul, cand de fapt fisierul e absurd.
+ * Limita e acum o alegere, si se raporteaza ca orice alta greseala de sintaxa.
+ */
+test("imbricarea patologica da o eroare de parsare, nu stiva plina", () => {
+  const cazuri: Array<[string, string]> = [
+    ["JSX", `component App { ${"<div>".repeat(5000)}${"</div>".repeat(5000)} }`],
+    ["expresii", `component App { const a = derived(() => ${"(".repeat(5000)}1${")".repeat(5000)}) }`],
+  ];
+
+  for (const [nume, sursa] of cazuri) {
+    assert.throws(
+      () => parseModule(sursa, "adanc.raptor"),
+      (error: unknown) => {
+        assert.ok(!(error instanceof RangeError), `${nume}: nu stiva, ci limita noastra`);
+        assert.match((error as Error).message, /imbricat/, nume);
+        return true;
+      },
+      nume,
+    );
+  }
+
+  // Iar imbricarea obisnuita ramane neatinsa.
+  const normal = parseModule(`component App { ${"<div>".repeat(20)}x${"</div>".repeat(20)} }`, "ok.raptor");
+  assert.equal(normal.components.length, 1);
+});

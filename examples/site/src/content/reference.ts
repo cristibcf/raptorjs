@@ -115,13 +115,15 @@ export const REF_PACKAGES: RefPackage[] = [
     "net.connect": ["api.example.com:443"],
     "net.listen":  ["127.0.0.1:8787"],
     "env.read":    ["RAPTOR_*"],
+    "env.set":     ["RAPTOR_CHILD_*"],
     "process.spawn": ["git"]
   }
 }`,
         notes: [
           "`policy: production` turns on strict mode: there is no implicit project-root read, so absolutely every access must be declared.",
           "`net.listen` uses the same target form as `net.connect`. Write `127.0.0.1:*` for any port on loopback only; a rule that names a port does not cover an ephemeral one.",
-          "`process.spawn` names *which commands*. It does not become *any code*: the environment handed to a child goes through `env.read`, and variables that load code before `main` — `NODE_OPTIONS`, `LD_PRELOAD`, `BASH_ENV` — are refused outright.",
+          "`process.spawn` names *which commands*. It does not become *any code*: a child inherits only the variables covered by `env.read`, anything the app wants to add on top needs `env.set`, and variables that load code before `main` — `NODE_OPTIONS`, `LD_PRELOAD`, `JAVA_TOOL_OPTIONS`, `BASH_ENV` — are refused even then.",
+          "`env.read` and `env.set` are separate on purpose. Reading a variable tells you something; setting one for a child can change what code that child runs. A second audit pass found `env.read: [\"*\"]` was enough to turn `process.spawn: [\"git\"]` into arbitrary code through `JAVA_TOOL_OPTIONS`.",
         ],
       },
       {

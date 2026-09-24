@@ -25,6 +25,19 @@ export const CAPABILITY_KINDS = [
    */
   "net.listen",
   "env.read",
+  /**
+   * Ce variabile de mediu poate **seta** aplicatia pentru un proces copil.
+   *
+   * Separata de `env.read` pentru ca a citi si a scrie nu sunt acelasi lucru:
+   * a doua trecere de audit a aratat ca o aplicatie cu `env.read: ["*"]` putea
+   * transforma `process.spawn: ["git"]` in "orice cod" prin `JAVA_TOOL_OPTIONS`,
+   * `NODE_PATH`, `RUBYOPT` si altele - orice listă de variabile interzise ramane
+   * in urma fata de inventivitatea ecosistemelor.
+   *
+   * Implicit: **niciuna**. Copilul primeste mediul filtrat prin `env.read`, iar
+   * ce vrea aplicatia sa adauge peste el trebuie declarat aici, pe nume.
+   */
+  "env.set",
   "process.spawn",
   "clock.real",
   "crypto.random",

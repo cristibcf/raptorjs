@@ -6,6 +6,22 @@ import { join } from "node:path";
 import { RaptorDevServer, readFirstSseEvent } from "../src/index.ts";
 import type { DevUpdate } from "@raptor/engine";
 
+/**
+ * Asteapta o conditie, nu o durata.
+ *
+ * Un `setTimeout` fix intr-un test de retea e o presupunere despre cat de
+ * incarcata e masina, si presupunerea cade exact cand suita ruleaza in
+ * paralel - adica in CI. Aici asteptam pana cand lucrul verificat chiar s-a
+ * intamplat, cu un plafon care sa nu atarne la infinit daca nu se intampla.
+ */
+async function until(conditie: () => boolean, ceAsteptam: string, limitaMs = 4000): Promise<void> {
+  const pana = Date.now() + limitaMs;
+  while (!conditie()) {
+    if (Date.now() > pana) throw new Error(`timeout: ${ceAsteptam}`);
+    await new Promise((r) => setTimeout(r, 5));
+  }
+}
+
 const SRC = `
 component App {
   const count = state(0)
@@ -73,7 +89,10 @@ test("dev: SSE trimite update-ul HMR clientilor conectati", async () => {
   const port = await server.listen(0);
   try {
     const event = readFirstSseEvent(`http://127.0.0.1:${port}/@raptor/hmr`);
-    await new Promise((r) => setTimeout(r, 60)); // lasa SSE sa se inregistreze
+    // Asteptam CONDITIA, nu un cronometru: un `setTimeout(60)` trecea pe o
+    // masina libera si pica pe una incarcata, iar difuzarea catre zero clienti
+    // nu se mai putea recupera - testul astepta apoi 4 secunde degeaba.
+    await until(() => server.hmrClientCount > 0, "niciun client SSE inregistrat");
     server.applyChange("/App.raptor", SRC.replace("count * 2", "count * 3"));
     const u = (await event) as { kind: string };
     assert.equal(u.kind, "patch");
@@ -93,9 +112,16 @@ test("dev: fs.watch real declanseaza recompilarea la scrierea fisierului", async
       setTimeout(() => rej(new Error("timeout fs.watch")), 4000);
     });
     server.watch(dir);
-    await new Promise((r) => setTimeout(r, 60));
-    writeFileSync(file, SRC.replace("count * 2", "count * 3"));
-    const u = await got;
+    // `fs.watch` nu spune cand e gata de urmarit, deci rescriem pana cand
+    // evenimentul chiar ajunge. O singura scriere dupa un `setTimeout(60)` se
+    // pierde pe o masina incarcata, si atunci nu mai are cine sa o recupereze.
+    const rescrie = setInterval(() => writeFileSync(file, SRC.replace("count * 2", "count * 3")), 50);
+    let u: DevUpdate;
+    try {
+      u = await got;
+    } finally {
+      clearInterval(rescrie);
+    }
     assert.equal(u.kind, "patch");
   } finally {
     await server.close();

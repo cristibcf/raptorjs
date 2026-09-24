@@ -152,6 +152,19 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 const DANGEROUS_KEYS = new Set(["__proto__", "constructor", "prototype"]);
 
 /**
+ * Cat de adanc poate fi imbricat un cadru.
+ *
+ * `JSON.parse` din V8 e iterativ si duce zeci de mii de niveluri fara sa
+ * clipeasca; `sanitize` e recursiv si cadea cu `RangeError: Maximum call stack
+ * size exceeded` pe la 5000. Era prins de `try/catch`-ul apelantilor, deci nu
+ * dobora nimic - dar un cadru refuzat cu "stiva plina" in loc de "prea adanc"
+ * spune ca s-a stricat ceva la noi, cand de fapt limita e o alegere.
+ *
+ * 64 e cu mult peste orice cadru real de punte si cu mult sub stiva.
+ */
+const MAX_FRAME_DEPTH = 64;
+
+/**
  * Curata RECURSIV cheile periculoase dintr-o valoare venita de pe punte.
  *
  * `JSON.parse` produce `__proto__` ca proprietate **proprie**, deci obiectul
@@ -163,13 +176,18 @@ const DANGEROUS_KEYS = new Set(["__proto__", "constructor", "prototype"]);
  * intact, iar fisierul asta isi pune ca titlu ca nimic din cadru nu poate
  * atinge prototipul. Deci coboara peste tot (audit 2026-09-24, S9).
  */
-function sanitize(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(sanitize);
+function sanitize(value: unknown, depth = 0): unknown {
+  if (depth > MAX_FRAME_DEPTH) {
+    throw new HostError("raptor:host/protocol", `cadru imbricat pe mai mult de ${MAX_FRAME_DEPTH} niveluri`, {
+      limit: MAX_FRAME_DEPTH,
+    });
+  }
+  if (Array.isArray(value)) return value.map((item) => sanitize(item, depth + 1));
   if (!isRecord(value)) return value;
   const out: Record<string, unknown> = {};
   for (const key of Object.keys(value)) {
     if (DANGEROUS_KEYS.has(key)) continue;
-    out[key] = sanitize(value[key]);
+    out[key] = sanitize(value[key], depth + 1);
   }
   return out;
 }

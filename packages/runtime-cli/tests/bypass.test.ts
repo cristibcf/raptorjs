@@ -123,3 +123,70 @@ test("S5: doctor si run folosesc aceeasi regula", async () => {
     app.dispose();
   }
 });
+
+/* ------------------------------------------------- runda 2 de audit ------- */
+
+const OCOL_CALCULAT = `import observe from "raptor:observe";
+// Specificatorul e CALCULAT, deci graful static nu vede niciun \`node:\`.
+const nume = ["node", "fs"].join(":");
+const fs = await import(nume);
+observe.log("info", "am citit oricum", { octeti: fs.readFileSync(import.meta.filename, "utf8").length });
+export const gata = true;
+`;
+
+const IMPORT_LIPSA = `import observe from "raptor:observe";
+import "./nu-exista.ts";
+observe.log("info", "nu ajunge aici", {});
+`;
+
+test("R1: un import() cu specificator calculat opreste rularea in production", async () => {
+  // Prima reparatie se uita doar la `hostImports`, iar un specificator calculat
+  // nu ajunge niciodata acolo. Aplicatia rula in production cu manifestul gol si
+  // raporta "0 capabilitati refuzate" dupa ce citise ce voia.
+  const app = project("production", OCOL_CALCULAT);
+  try {
+    const result = await runCli(["run", "--cwd", app.root], { cwd: app.root });
+    assert.equal(result.code, 1, `ar fi trebuit sa refuze:\n${result.out}`);
+    assert.match(result.out, /neverificabil|nu pot demonstra/);
+    const unverifiable = result.data["unverifiable"] as Array<{ what: string }>;
+    assert.ok(unverifiable.length > 0, "raportul spune ce nu a putut verifica");
+  } finally {
+    app.dispose();
+  }
+});
+
+test("R1: in development ruleaza, dar neverificabilul e raportat", async () => {
+  const app = project("development", OCOL_CALCULAT);
+  try {
+    const result = await runCli(["run", "--cwd", app.root], { cwd: app.root });
+    assert.equal(result.code, 0, result.out);
+    assert.match(result.out, /neverificabil/);
+  } finally {
+    app.dispose();
+  }
+});
+
+test("R2: daca graful nu poate fi construit, production refuza in loc sa treaca", async () => {
+  // `findBypasses(...).catch(() => [])` spunea "n-am gasit nimic" cand adevarul
+  // era "n-am putut sa ma uit" - adica fail-open exact in regimul strict.
+  const app = project("production", IMPORT_LIPSA);
+  try {
+    const result = await runCli(["run", "--cwd", app.root], { cwd: app.root });
+    assert.equal(result.code, 1, `un graf nereconstruibil nu e o dovada de curatenie:\n${result.out}`);
+    assert.match(result.out, /nu-exista\.ts|graful static/);
+  } finally {
+    app.dispose();
+  }
+});
+
+test("R1/R2: o aplicatie curata nu e afectata de niciuna dintre reguli", async () => {
+  const app = project("production", CURAT);
+  try {
+    const result = await runCli(["run", "--cwd", app.root], { cwd: app.root });
+    assert.equal(result.code, 0, result.out);
+    assert.deepEqual(result.data["unverifiable"], []);
+    assert.deepEqual(result.data["bypasses"], []);
+  } finally {
+    app.dispose();
+  }
+});

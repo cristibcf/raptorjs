@@ -115,7 +115,12 @@ export async function doctorCommand(input: CommandInput): Promise<CommandResult>
         findings.push({ level: "warn", message: `pachet extern '${external}': cere puntea npm (faza 3)` });
       }
       for (const problem of graph.unresolved) {
-        findings.push({ level: "error", message: `${problem.from}: ${problem.specifier} - ${problem.reason}` });
+        // Acelasi nivel ca un ocol dovedit: un import pe care nu-l putem rezolva
+        // nu dovedeste ca nu ocoleste brokerul, ci doar ca nu putem sti.
+        findings.push({
+          level: bypassSeverity(mode),
+          message: `${problem.from}: ${problem.specifier} - ${problem.reason} (un ocol aici nu ar fi vizibil)`,
+        });
       }
     } catch (error) {
       findings.push({ level: "error", message: `graful static nu a putut fi construit: ${(error as Error).message}` });

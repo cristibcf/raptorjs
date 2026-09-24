@@ -170,8 +170,8 @@ render(Counter, document.getElementById("app"));` },
       { t: "table",
         head: ["Concern", "State", "Where"],
         rows: [
-          ["Autonomous behavioural testing", "Ready", "`@raptor/test` — virtual clock, probes, chaos, replay"],
-          ["Security review", "Done once", "`SECURITY-AUDIT.md` — three findings, all fixed, with regression tests"],
+          ["Autonomous behavioural testing", "Works, thinly tested", "`@raptor/test` — virtual clock, probes, chaos, replay. The clock, the twin and the graph have tests; `chaos`, `probe` and `replay` do not yet."],
+          ["Security review", "Twice, 18 findings fixed", "`SECURITY-AUDIT.md` for the current state, `AUDIT-2026-09-24.md` for the reports. Each fix has a regression test that started as a working exploit."],
           ["Benchmarks against React, Preact, Solid", "Ready", "[Performance, measured](/learn/performance) — including the one Raptor loses"],
           ["Runtime dependencies", "Zero", "Confirmed by audit; `benchmarks/` is deliberately outside the workspace"],
         ],
@@ -648,7 +648,7 @@ const findings = rt.explore();   // Finding[] — each with a replayable capsule
       "What a peer on the wire can and cannot do to you, what your own code is allowed to do to the machine, and what neither audit covers yet.",
     blocks: [
       { t: "p", text: "A protocol that applies operations from the network onto local state is a security surface by construction. So is a runtime that hands application code a filesystem. The repository audits both, and writes down what it finds: `SECURITY-AUDIT.md` carries the current state, `AUDIT-2026-09-24.md` the full report with a proof-of-concept per finding." },
-      { t: "p", text: "Thirteen findings so far, all fixed, each with a regression test that started life as a working exploit. What is left is a list of limits — which are choices, not oversights — and one race that the last fix narrows without closing. Both are named below. Here is the shape of it." },
+      { t: "p", text: "Eighteen findings across two passes, all fixed, each with a regression test that started life as a working exploit. The second pass went looking specifically at the first pass's own fixes, and found five more — which is the useful lesson: a fix is a claim, and claims need auditing too. What is left is a list of limits, which are choices rather than oversights, and one race that no fix here closes. Both are named below." },
 
       { t: "h", text: "Three findings on the wire, all fixed" },
       { t: "table",
@@ -694,7 +694,8 @@ const findings = rt.explore();   // Finding[] — each with a replayable capsule
     "files.read":  ["./src", "./config"],
     "net.connect": ["api.example.com:443"],
     "net.listen":  ["127.0.0.1:8787"],
-    "env.read":    ["RAPTOR_*"]
+    "env.read":    ["RAPTOR_*"],
+    "env.set":     ["RAPTOR_CHILD_*"]
   }
 }` },
       { t: "note", kind: "warn", title: "On Node, the broker is advisory — not a sandbox", text: "The bootstrap engine runs your code in the Node process, so `import fs from \"node:fs\"` reaches the disk without asking the broker. The real boundary belongs to the native Rust host, where `node:*` does not exist at all. Until then the defence lives in the tooling: `raptor-runtime doctor` reports every bypass, and `raptor-runtime run` refuses to start under the `production` policy and records it in the audit log under `development`. If your threat model includes hostile application code, this is the sentence that matters." },

@@ -237,12 +237,33 @@ const BINDING: Record<string, number> = {
 const ASSIGN_OPS = new Set(["=", "+=", "-=", "*=", "/=", "%=", "**="]);
 const LOGICAL_OPS = new Set(["&&", "||"]);
 
+/**
+ * Cat de adanc poate cobori parserul de expresii.
+ *
+ * E un parser recursiv-descendent, deci `((((...))))` il duce in stiva. Fara
+ * limita, o expresie patologica da `RangeError: Maximum call stack size
+ * exceeded` - un mesaj care arata ca s-a stricat compilatorul, cand de fapt
+ * expresia e absurda. 256 e cu mult peste orice expresie scrisa de om.
+ */
+const MAX_EXPR_DEPTH = 256;
+
 class Parser {
   private readonly tokens: Token[];
   private idx: number;
+  private depth = 0;
   constructor(tokens: Token[]) {
     this.tokens = tokens;
     this.idx = 0;
+  }
+
+  /** Coboara un nivel, verificand limita. Perechea lui e `leave()`. */
+  private enter(): void {
+    if (++this.depth > MAX_EXPR_DEPTH) {
+      throw new SyntaxError(`[raptor:expr] expresie imbricata pe mai mult de ${MAX_EXPR_DEPTH} niveluri`);
+    }
+  }
+  private leave(): void {
+    this.depth--;
   }
 
   private peek(): Token {
@@ -271,6 +292,15 @@ class Parser {
   }
 
   private parseAssign(): Expr {
+    this.enter();
+    try {
+      return this.parseAssignInner();
+    } finally {
+      this.leave();
+    }
+  }
+
+  private parseAssignInner(): Expr {
     // Arrow: `(a, b) => body` sau `a => body`.
     const arrow = this.tryParseArrow();
     if (arrow) return arrow;

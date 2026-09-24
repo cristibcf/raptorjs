@@ -76,10 +76,10 @@ test("S1: spawn nu poate seta variabile pe care aplicatia nu are voie sa le cite
   }
 });
 
-test("S1: variabilele care incarca cod sunt refuzate chiar si cu env.read acordata", async () => {
-  // Chiar si cu voie sa citeasca TOT mediul, aplicatia nu poate transforma
+test("S1: variabilele care incarca cod sunt refuzate chiar si cu env.set acordata", async () => {
+  // Chiar si cu voie sa seteze TOT mediul, aplicatia nu poate transforma
   // `process.spawn: ["node"]` in "orice cod" printr-un `--require`.
-  const context = harness({ "process.spawn": ["node"], "env.read": ["*"] });
+  const context = harness({ "process.spawn": ["node"], "env.read": ["*"], "env.set": ["*"] });
   try {
     const proc = createProcess(context.host, {});
     for (const name of ["NODE_OPTIONS", "LD_PRELOAD", "DYLD_INSERT_LIBRARIES", "BASH_ENV", "GIT_SSH_COMMAND", "PATH"]) {
@@ -111,7 +111,7 @@ test("S1: cwd in afara proiectului cere files.read pe acea cale", async () => {
 
 test("S1: mediul acordat explicit ajunge totusi la copil", async () => {
   // Reparatia nu are voie sa strice cazul legitim.
-  const context = harness({ "process.spawn": ["node"], "env.read": ["RAPTOR_*"] });
+  const context = harness({ "process.spawn": ["node"], "env.read": ["RAPTOR_*"], "env.set": ["RAPTOR_*"] });
   try {
     const proc = createProcess(context.host, {});
     const result = await proc.spawn("node", {
@@ -236,5 +236,97 @@ test("S4: net.listen se acorda pe gazda si port, nu global", async () => {
     );
   } finally {
     context.dispose();
+  }
+});
+
+/* --------------------------------------------- runda 2: env.set ----------- */
+
+test("R3: a seta mediul unui copil cere env.set, nu env.read", async () => {
+  // A citi si a scrie nu sunt acelasi lucru: scrierea e cea care poate schimba
+  // ce cod ruleaza copilul. Cu env.read peste tot, dar fara env.set, nimic nu
+  // trece.
+  const context = harness({ "process.spawn": ["node"], "env.read": ["*"] });
+  try {
+    const proc = createProcess(context.host, {});
+    await assert.rejects(
+      proc.spawn("node", { args: ["-e", "0"], env: { ORICE: "1" } }),
+      (error: unknown) => (error as { capability?: string }).capability === "env.set",
+      "a citi tot mediul nu da dreptul de a-l si scrie",
+    );
+  } finally {
+    context.dispose();
+  }
+});
+
+test("R3: lista de variabile care incarca cod acopera si ecosistemele nenodejs", async () => {
+  // Prima versiune a listei parea completa; a doua trecere de audit a trecut pe
+  // langa ea cu toate numele de mai jos, cu `env.read: ["*"]` acordata.
+  const context = harness({ "process.spawn": ["node"], "env.read": ["*"], "env.set": ["*"] });
+  try {
+    const proc = createProcess(context.host, {});
+    const nume = [
+      "NODE_PATH",
+      "JAVA_TOOL_OPTIONS",
+      "_JAVA_OPTIONS",
+      "JDK_JAVA_OPTIONS",
+      "CLASSPATH",
+      "RUBYOPT",
+      "RUBYLIB",
+      "PYTHONHOME",
+      "PYTHONPATH",
+      "PERL5LIB",
+      "ZDOTDIR",
+      "LD_AUDIT",
+      "DYLD_FRAMEWORK_PATH",
+    ];
+    for (const name of nume) {
+      await assert.rejects(
+        proc.spawn("node", { args: ["-e", "0"], env: { [name]: "x" } }),
+        (error: unknown) => (error as { capability?: string }).capability === "env.set",
+        `${name} incarca cod si trebuie refuzata chiar si cu env.set acordata`,
+      );
+    }
+  } finally {
+    context.dispose();
+  }
+});
+
+/* ------------------------------ runda 2: credentiale la redirect ---------- */
+
+test("R4: un redirect catre alta gazda pleaca fara credentiale", async () => {
+  const primite: Array<Record<string, unknown>> = [];
+  const tinta = createServer((request, response) => {
+    primite.push({ ...request.headers });
+    response.writeHead(200);
+    response.end("ajuns");
+  });
+  await new Promise<void>((resolve) => tinta.listen(0, "127.0.0.1", resolve));
+  const tintaPort = (tinta.address() as { port: number }).port;
+
+  const plecare = createServer((_request, response) => {
+    // Alta gazda: acelasi IP, alt port. Pentru `net.connect` sunt destinatii
+    // diferite, deci si pentru credentiale sunt.
+    response.writeHead(302, { location: `http://127.0.0.1:${tintaPort}/` });
+    response.end();
+  });
+  await new Promise<void>((resolve) => plecare.listen(0, "127.0.0.1", resolve));
+  const plecarePort = (plecare.address() as { port: number }).port;
+
+  const context = harness({ "net.connect": [`127.0.0.1:${plecarePort}`, `127.0.0.1:${tintaPort}`] });
+  try {
+    const net = createNet(context.host);
+    const response = await net.fetch(`http://127.0.0.1:${plecarePort}/`, {
+      headers: { authorization: "Bearer SECRET", cookie: "sid=abc", "x-corelatie": "pastrat" },
+    });
+    assert.equal(await response.text(), "ajuns");
+
+    const headers = primite[0] ?? {};
+    assert.equal(headers["authorization"], undefined, "token-ul nu are ce cauta pe alta gazda");
+    assert.equal(headers["cookie"], undefined, "nici cookie-ul");
+    assert.equal(headers["x-corelatie"], "pastrat", "restul anteturilor merg mai departe");
+  } finally {
+    context.dispose();
+    tinta.close();
+    plecare.close();
   }
 });

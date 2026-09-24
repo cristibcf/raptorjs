@@ -18,7 +18,7 @@ Totul rulează direct pe **Node ≥ 22** (TypeScript nativ prin type-stripping).
 
 ```bash
 pnpm install          # doar leagă workspace-ul (+ devDeps opționale)
-pnpm test             # 852 de teste (850 pass; 2 sărite)
+pnpm test             # 861 de teste (859 pass; 2 sărite)
 pnpm typecheck        # tsc --noEmit pe tot
 
 pnpm demo:counter     # bindings DOM fine-grained (headless)
@@ -58,7 +58,7 @@ pnpm raptor:runtime run                   # rulează cu capabilitățile declara
 pnpm raptor:runtime pack                  # unitate reproductibilă cu lockfile
 
 pnpm native -- build --features full      # binarul Rust (prin WSL, vezi nota de mediu)
-pnpm native:test                          # 151 de teste Rust
+pnpm native:test                          # testele Rust (implicit si cu toate feature-urile)
 ```
 
 Ce refuză, concret: cu `files.read: ["./src"]` în manifest, o citire din `./src` reușește, iar una

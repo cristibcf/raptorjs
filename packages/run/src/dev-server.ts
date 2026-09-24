@@ -91,6 +91,18 @@ export class RaptorDevServer {
   }
 
   /** Aboneaza-te la update-uri HMR; intoarce un unsubscribe. */
+  /**
+   * Cati ascultatori HMR sunt inregistrati acum (clienti SSE + abonati interni).
+   *
+   * Exista ca sa se poata astepta pe o CONDITIE, nu pe un cronometru. Testul
+   * care verifica difuzarea SSE dormea 60 ms sperand ca cererea a ajuns si
+   * clientul s-a inregistrat; pe o masina incarcata nu ajungea, `applyChange`
+   * difuza catre nimeni, si testul pica dupa 4 secunde de asteptare degeaba.
+   */
+  get hmrClientCount(): number {
+    return this.hmrListeners.size;
+  }
+
   onHmr(fn: (u: DevUpdate) => void): () => void {
     this.hmrListeners.add(fn);
     return () => this.hmrListeners.delete(fn);

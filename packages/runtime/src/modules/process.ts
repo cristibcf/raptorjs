@@ -10,33 +10,53 @@ import { containsPath, resolvePath } from "../paths.ts";
 
 /**
  * Variabile de mediu care fac un proces sa incarce cod inainte sa ajunga la
- * `main`. Nu pot fi setate pentru un copil, nici macar cu `env.read` acordata.
+ * `main`. Nu pot fi setate pentru un copil **nici macar cu `env.set` acordata**.
  *
- * Fara regula asta, capabilitatea `process.spawn: ["node"]` - care promite
- * *care comenzi* - devine *orice cod*: `NODE_OPTIONS=--require ./payload.js`
- * ruleaza payload-ul inainte de argumentele comenzii permise. Acelasi lucru il
- * face `LD_PRELOAD` pentru orice binar pe Linux, `DYLD_INSERT_LIBRARIES` pe
- * macOS, `BASH_ENV` pentru orice shell si `GIT_SSH_COMMAND` pentru git.
+ * Fara ele, capabilitatea `process.spawn: ["node"]` - care promite *care
+ * comenzi* - devine *orice cod*: `NODE_OPTIONS=--require ./payload.js` ruleaza
+ * payload-ul inainte de argumentele comenzii permise. La fel `LD_PRELOAD` pentru
+ * orice binar pe Linux, `DYLD_INSERT_LIBRARIES` pe macOS, `JAVA_TOOL_OPTIONS`
+ * pentru orice JVM, `BASH_ENV` pentru orice shell, `GIT_SSH_COMMAND` pentru git.
  *
- * Lista e o allowlist inversata deliberat: blocam prefixe intregi, ca o varianta
- * noua (`DYLD_FRAMEWORK_PATH`) sa nu treaca pentru ca nimeni nu a actualizat-o.
+ * **Lista asta nu este granita, si nu trebuie confundata cu una.** Prima
+ * versiune a ei parea completa si a doua trecere de audit a trecut pe langa ea
+ * cu `NODE_PATH`, `JAVA_TOOL_OPTIONS`, `_JAVA_OPTIONS`, `RUBYOPT`, `PYTHONHOME`
+ * si `CLASSPATH`. Fiecare ecosistem isi are propriile variabile care incarca
+ * cod, si apar altele noi. Granita e `env.set`: implicit nu se poate seta
+ * NIMIC, iar ce se declara acolo e o alegere constienta. Lista de aici e a doua
+ * treapta, pentru greselile evidente.
  */
 const CODE_LOADING_ENV: readonly RegExp[] = [
+  // Node
   /^NODE_OPTIONS$/i,
+  /^NODE_PATH$/i,
   /^NODE_REPL_EXTERNAL_MODULE$/i,
+  // Incarcator dinamic (Linux / macOS / AIX)
   /^LD_/i,
   /^DYLD_/i,
+  /^LDR_/i,
+  // JVM
+  /^JAVA_TOOL_OPTIONS$/i,
+  /^_?JAVA_OPTIONS$/i,
+  /^JDK_JAVA_OPTIONS$/i,
+  /^CLASSPATH$/i,
+  // Python
+  /^PYTHON(STARTUP|PATH|HOME)$/i,
+  // Ruby / Perl
+  /^RUBY(OPT|LIB)$/i,
+  /^PERL5(OPT|LIB)$/i,
+  // Shell
   /^BASH_ENV$/i,
   /^ENV$/i,
-  /^PERL5OPT$/i,
-  /^PYTHONSTARTUP$/i,
-  /^PYTHONPATH$/i,
+  /^ZDOTDIR$/i,
+  // git si unelte care cheama alte programe
   /^GIT_SSH(_COMMAND)?$/i,
   /^GIT_EXTERNAL_DIFF$/i,
   /^GIT_PAGER$/i,
   /^PAGER$/i,
   /^EDITOR$/i,
   /^VISUAL$/i,
+  // Cautarea binarului insusi
   /^PATH$/i,
 ];
 
@@ -119,19 +139,19 @@ export function createProcess(host: HostContext, source: NodeJS.ProcessEnv = pro
         if (value !== undefined) childEnv[key] = value;
       }
 
-      // ...si atat. Variabilele cerute de apelant trec prin aceeasi poarta:
-      // `env.read` decide care nume are voie sa existe pentru copil, iar cele
-      // care incarca cod sunt refuzate chiar si cu capability acordata.
+      // ...si atat. Ce vrea apelantul sa adauge peste mediul filtrat cere
+      // `env.set`, declarata pe nume - a citi si a scrie nu sunt acelasi lucru,
+      // iar scrierea e cea care poate schimba ce cod ruleaza copilul.
       for (const [key, value] of Object.entries(options.env ?? {})) {
         if (isCodeLoading(key)) {
           throw new CapabilityError(
             "raptor:capability/denied",
-            "process.spawn",
+            "env.set",
             key,
             `'${key}' incarca cod in proces inainte de comanda, deci ar ocoli lista de comenzi permise`,
           );
         }
-        host.broker.require("env.read", key);
+        host.broker.require("env.set", key);
         childEnv[key] = value;
       }
 

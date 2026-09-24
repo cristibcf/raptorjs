@@ -160,7 +160,21 @@ interface ParseContext {
   component: string;
   reactiveNames: Set<string>;
   elementCounter: { n: number };
+  /** Cate niveluri de JSX suntem adanc; vezi `MAX_ELEMENT_DEPTH`. */
+  depth: number;
 }
+
+/**
+ * Cat de adanc poate fi imbricat JSX-ul dintr-o componenta.
+ *
+ * `parseElement` e recursiv, deci fara limita o imbricare patologica da
+ * `RangeError: Maximum call stack size exceeded` - un mesaj care arata ca s-a
+ * stricat compilatorul, cand de fapt fisierul e absurd. Cu limita, primesti o
+ * eroare de parsare cu pozitie, ca pentru orice alta greseala de sintaxa.
+ *
+ * 256 e cu mult peste orice interfata scrisa de om.
+ */
+const MAX_ELEMENT_DEPTH = 256;
 
 /** Filtreaza reads la doar numele reactive cunoscute in componenta. */
 function reactiveReads(expr: Expr, ctx: ParseContext): string[] {
@@ -184,6 +198,7 @@ function parseComponent(sc: Scanner): IRComponent {
     component: name,
     reactiveNames: new Set(),
     elementCounter: { n: 0 },
+    depth: 0,
   };
 
   const signals: IRSignal[] = [];
@@ -329,6 +344,18 @@ function parseDeclaration(
 
 function parseElement(sc: Scanner, cid: string, ctx: ParseContext): IRElement {
   const start = sc.pos;
+  if (ctx.depth >= MAX_ELEMENT_DEPTH) {
+    throw new RaptorParseError(`JSX imbricat pe mai mult de ${MAX_ELEMENT_DEPTH} niveluri`, start);
+  }
+  ctx.depth++;
+  try {
+    return parseElementBody(sc, cid, ctx, start);
+  } finally {
+    ctx.depth--;
+  }
+}
+
+function parseElementBody(sc: Scanner, cid: string, ctx: ParseContext, start: number): IRElement {
   sc.expect("<");
   const tag = sc.readIdent();
   const elId = `${cid}/e${ctx.elementCounter.n++}`;

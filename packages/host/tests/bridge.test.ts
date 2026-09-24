@@ -303,3 +303,37 @@ test("nicio cheie periculoasa nu supravietuieste decodarii, oricat de adanc", ()
   }
   assert.equal(({} as { poluat?: unknown }).poluat, undefined, "Object.prototype a ramas curat");
 });
+
+/**
+ * Regresie pentru runda 2 de audit (R5): `sanitize` era recursiv fara limita.
+ *
+ * `JSON.parse` din V8 e iterativ si duce zeci de mii de niveluri; curatarea
+ * cadea cu `RangeError: Maximum call stack size exceeded` pe la 5000. Era prinsa
+ * de `try/catch`-ul apelantilor, deci nu dobora host-ul - dar un cadru refuzat
+ * cu "stiva plina" spune ca s-a stricat ceva la noi, cand de fapt limita e o
+ * alegere pe care trebuie sa o facem explicit.
+ */
+test("un cadru imbricat patologic e refuzat cu o limita, nu cu stiva plina", () => {
+  const adanc = (n: number): string =>
+    `{"kind":"call","id":1,"method":"storage.set","params":{"x":${'{"n":'.repeat(n)}1${"}".repeat(n)}}}`;
+
+  for (const n of [1000, 20000]) {
+    const linie = adanc(n);
+    // Premisa: JSON-ul in sine e valid, deci refuzul vine de la noi, deliberat.
+    assert.doesNotThrow(() => JSON.parse(linie), `JSON.parse trebuie sa reuseasca la ${n}`);
+    assert.throws(
+      () => decodeFrame(linie),
+      (error: unknown) => {
+        assert.ok(!(error instanceof RangeError), "nu stiva, ci limita noastra");
+        assert.equal((error as { code?: string }).code, "raptor:host/protocol");
+        assert.match((error as Error).message, /imbricat/);
+        return true;
+      },
+      `adancimea ${n}`,
+    );
+  }
+
+  // Iar un cadru de adancime rezonabila trece nestingherit.
+  const rezonabil = decodeFrame(adanc(10)) as unknown as { params: Record<string, unknown> };
+  assert.ok(rezonabil.params["x"]);
+});

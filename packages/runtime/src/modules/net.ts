@@ -22,6 +22,23 @@ const DEFAULT_MAX_REDIRECTS = 5;
 
 const REDIRECT_STATUS = new Set([301, 302, 303, 307, 308]);
 
+/**
+ * Anteturi care poarta autoritate si NU au ce cauta pe alta gazda.
+ *
+ * Un token pentru `api.example.com` nu trebuie sa ajunga la `cdn.example.com`
+ * doar pentru ca prima a raspuns cu 302. Browserele fac exact asta la un
+ * redirect cross-origin; noi il faceam la prima trecere si nu-l faceam la a
+ * doua - a fost gasit la re-audit.
+ */
+const CREDENTIAL_HEADERS = ["authorization", "cookie", "proxy-authorization"];
+
+/** Anteturile trimise mai departe, fara cele de autoritate. */
+function withoutCredentials(headers: HeadersInit | undefined): Headers {
+  const next = new Headers(headers ?? {});
+  for (const name of CREDENTIAL_HEADERS) next.delete(name);
+  return next;
+}
+
 export interface RaptorNet {
   fetch(input: string | URL | Request, options?: FetchOptions): Promise<Response>;
   /** Verifica destinatia fara sa emita cererea (util in `doctor`). */
@@ -87,23 +104,35 @@ export function createNet(host: HostContext): RaptorNet {
         // fiecare salt prin `require`, ca si pe primul.
         init.redirect = "manual";
 
+        // Anteturile efective sunt adunate ACUM, fiindca un `Request` si le
+        // poarta pe ale lui: dupa primul salt continuam cu un URL simplu, si
+        // fara pasul asta anteturile cererii initiale s-ar pierde toate, nu doar
+        // cele de autoritate.
+        if (input instanceof Request) {
+          const merged = new Headers(input.headers);
+          for (const [name, value] of new Headers(options.headers ?? {})) merged.set(name, value);
+          init.headers = merged;
+          if (init.method === undefined) init.method = input.method;
+        }
+
         // Limita asumata: daca `input` a fost un `Request` cu corp, corpul nu
         // se retrimite dupa un 307/308 - continuam de la URL-ul nou, cu `init`.
         // Pentru cererile cu corp care chiar trebuie sa supravietuiasca unui
         // redirect, da `body` in `options`, nu in `Request`.
         let current: RequestInfo = input as RequestInfo;
         let hops = 0;
+        let credentialsDropped = false;
         for (;;) {
           const response = await fetch(current, init);
           if (!REDIRECT_STATUS.has(response.status)) {
-            span.end({ status: response.status, hops });
+            span.end({ status: response.status, hops, credentialsDropped });
             return response;
           }
 
           const location = response.headers.get("location");
           if (location === null) {
             // Un 3xx fara `Location` nu e un redirect, e raspunsul final.
-            span.end({ status: response.status, hops });
+            span.end({ status: response.status, hops, credentialsDropped });
             return response;
           }
 
@@ -116,8 +145,20 @@ export function createNet(host: HostContext): RaptorNet {
 
           const base = typeof current === "string" ? current : current instanceof Request ? current.url : String(current);
           const next = new URL(location, base).href;
+          const nextDestination = destinationOf(next);
           // Aici e toata reparatia: saltul urmator e o destinatie noua.
-          host.broker.require("net.connect", destinationOf(next));
+          host.broker.require("net.connect", nextDestination);
+
+          // Si daca e alta gazda, pleaca fara credentiale. Capabilitatea spune
+          // doar ca putem VORBI cu ea, nu ca are voie sa auda token-ul nostru.
+          if (nextDestination !== destinationOf(base)) {
+            init.headers = withoutCredentials(init.headers);
+            credentialsDropped = true;
+            host.observer.log("debug", "net.redirect.credentialsDropped", {
+              from: destinationOf(base),
+              to: nextDestination,
+            });
+          }
 
           // 303, si 301/302 pe non-GET, continua cu GET fara corp (RFC 9110).
           if (response.status === 303 || ((response.status === 301 || response.status === 302) && (init.method ?? "GET").toUpperCase() !== "GET")) {

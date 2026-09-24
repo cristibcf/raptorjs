@@ -1,7 +1,8 @@
 # Securitate — Raptor
 
-Starea curentă a modelului de securitate și a tuturor findingurilor, vechi și
-noi. Ultima revizuire: **2026-09-24**.
+Starea curentă a modelului de securitate și a tuturor findingurilor. Două
+runde de audit, **18 findinguri**, toate închise. Ultima revizuire:
+**2026-09-24 (runda 2)**.
 
 Rapoartele de audit, cu metoda și proof-of-concept-urile:
 
@@ -50,6 +51,11 @@ audit în `development` (`packages/runtime-cli/src/bypass.ts`).
 | S8 | `spawn`: buffere nemărginite, oprire fără escaladare | Scăzută | ✅ reparat 2026-09-24 | `runtime/tests/escapes.test.ts` |
 | S9 | `plain()` din puntea de host e superficial | Scăzută | ✅ reparat 2026-09-24 | `host/tests/bridge.test.ts` |
 | S10 | `@raptor/wire-client` nu are niciun test | Scăzută | ✅ reparat 2026-09-24 | 11 teste în `wire-client/tests/client.test.ts` |
+| R1 | Gate-ul anti-ocol se evită cu un `import()` calculat | **Ridicată** | ✅ reparat (runda 2) | `runtime-cli/tests/bypass.test.ts` |
+| R2 | Verificarea ocolurilor era fail-open când graful nu se putea construi | Medie | ✅ reparat (runda 2) | `runtime-cli/tests/bypass.test.ts` |
+| R3 | Lista de variabile care încarcă cod era incompletă; a apărut `env.set` | Medie | ✅ reparat (runda 2) | `runtime/tests/escapes.test.ts` |
+| R4 | `Authorization` / `Cookie` treceau la altă gazdă după un redirect | Medie | ✅ reparat (runda 2) | `runtime/tests/escapes.test.ts` |
+| R5 | `sanitize` recursiv fără limită de adâncime | Scăzută | ✅ reparat (runda 2) | `host/tests/bridge.test.ts` |
 
 ### Cele trei findinguri din 2026-09-21
 
@@ -70,30 +76,49 @@ necontrolată în microtask. Fix: `try/catch` în `bindTransport`.
 Descrierea completă, cu proof-of-concept-ul fiecăruia, e în
 [`AUDIT-2026-09-24.md`](AUDIT-2026-09-24.md) §1. Pe scurt, ce s-a schimbat în cod:
 
-- **S1** — fiecare cheie din `options.env` trece prin `env.read`; variabilele
-  care încarcă cod (`NODE_OPTIONS`, `LD_*`, `DYLD_*`, `BASH_ENV`,
-  `GIT_SSH_COMMAND`, `PATH`, …) sunt refuzate **chiar și cu `env.read`
-  acordată**, pentru că altfel „care comenzi" ar însemna „orice cod"; un `cwd`
-  din afara proiectului cere `files.read` pe acea cale.
-- **S2** — `redirect: "manual"` plus `broker.require` pe fiecare salt, cu limită
-  de salturi. Clientul HTTP nativ nu urmărea redirect-uri deloc, deci era deja
-  corect.
+- **S1 + R3** — a seta mediul unui copil cere capabilitatea **`env.set`**,
+  separată de `env.read` și implicit goală: a citi o variabilă îți spune ceva,
+  a o seta pentru un copil poate schimba ce cod rulează acel copil. Peste ea,
+  un blocklist de variabile care încarcă cod (`NODE_OPTIONS`, `NODE_PATH`,
+  `LD_*`, `DYLD_*`, `JAVA_TOOL_OPTIONS`, `CLASSPATH`, `RUBYOPT`, `PYTHON*`,
+  `BASH_ENV`, `GIT_SSH_COMMAND`, `PATH`, …) refuzate **chiar și cu `env.set`
+  acordată**. Un `cwd` din afara proiectului cere `files.read` pe acea cale.
+- **S2 + R4** — `redirect: "manual"` plus `broker.require` pe fiecare salt, cu
+  limită de salturi; iar la un salt către altă destinație pleacă fără
+  `Authorization`, `Cookie` și `Proxy-Authorization`. Clientul HTTP nativ nu
+  urmărea redirect-uri deloc, deci era deja corect.
 - **S3** — containere pe segmente (`resolveAsset`), decodarea căii, refuz pe
   fișiere ascunse și pe surse, `listen` implicit pe `127.0.0.1` cu `--host`
   pentru expunere explicită.
 - **S4** — `net.listen` a intrat în vocabularul de capabilități, în TS și în
   Rust, cu ținta `gazdă:port` potrivită de aceeași funcție ca `net.connect`.
   Verificarea se face **înainte** de `bind`.
-- **S5** — regula despre importurile `node:` stă acum într-un singur loc
-  (`runtime-cli/src/bypass.ts`) și o folosesc și `doctor`, și `run`.
+- **S5 + R1 + R2** — regula stă într-un singur loc (`runtime-cli/src/bypass.ts`)
+  și o folosesc și `doctor`, și `run`. Contractul ei nu e „lista de ocoluri", ci
+  *ce știu* și *ce nu pot ști*: un `import()` cu specificator calculat, sau un
+  graf care nu poate fi construit, înseamnă **absența unei dovezi**, iar în
+  regim strict absența dovezii nu e suficientă.
 - **S8** — fluxurile copilului sunt plafonate la 8 MB, cu `truncated` în
   rezultat; `abort` escaladează la SIGKILL după 2 s.
 
 ## Ce rămâne deschis
 
-**Niciun finding.** Toate cele 13 sunt închise, fiecare cu un test de regresie.
+**Niciun finding de securitate.** Toate cele 18 sunt închise, fiecare cu un test
+de regresie.
+
+Două probleme de **calitate** rămân deschise, numite în
+[`AUDIT-2026-09-24.md`](AUDIT-2026-09-24.md): `@raptor/test` e cel mai puțin
+testat pachet din repo (R9), iar `parseCapsule` validează două câmpuri dintr-un
+format proiectat ca artefact partajabil (R10).
 Ce rămâne sunt limitele asumate de mai jos — care sunt alegeri, nu scăpări — și
 o cursă pe care nici S6 nu o închide complet, descrisă imediat.
+
+### Lecția rundei a doua
+
+A doua trecere a căutat anume în **reparațiile primei**, și a găsit cinci
+findinguri acolo — inclusiv unul (R1) care ocolea aproape complet o reparație
+proaspătă. O reparație este o afirmație despre cod; afirmațiile se auditează la
+rândul lor. Trei dintre cele cinci erau în cod scris cu o zi înainte.
 
 ### S6 — symlink, și ce anume s-a închis
 
