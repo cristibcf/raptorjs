@@ -133,7 +133,10 @@ const README_CATALOG = /\*\*\d+ de intrări în catalog\*\*/;
 const README_ENTRIES = /\*\*\d+ de puncte de intrare\*\*/;
 
 function renderReadme(current: string, stats: Stats): string {
-  const suffix = stats.skip > 0 ? `; ${stats.skip} skip fără Rolldown instalat` : "";
+  // Fara motiv scris: testele sar din motive diferite (Rolldown neinstalat,
+  // symlink-uri de fisier indisponibile pe Windows) si fiecare si-l tipareste pe
+  // al lui. Un motiv unic scris aici ar fi gresit de indata ce apare al doilea.
+  const suffix = stats.skip > 0 ? `; ${stats.skip} sărite` : "";
   const line = `pnpm test             # ${stats.tests} de teste (${stats.pass} pass${suffix})`;
   if (!README_TEST_LINE.test(current)) throw new Error("nu am gasit linia 'pnpm test' in README.md");
   if (!README_CATALOG.test(current)) throw new Error("nu am gasit numarul de intrari de catalog in README.md");

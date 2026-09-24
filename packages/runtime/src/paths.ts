@@ -1,24 +1,25 @@
 /**
  * Normalizare si continere de cai, folosita de capability broker.
  *
- * Contine logica sensibila la securitate: `containsPath` trebuie sa refuze
- * traversarea (`../`), sa nu confunde `/proiect-secret` cu `/proiect`, si sa
- * trateze corect Windows (separatori mixti, litera de disc, case-insensitive).
+ * Contine logica sensibila la securitate: continerea trebuie sa refuze
+ * traversarea (`../`), sa nu confunde `/proiect-secret` cu `/proiect`, sa nu se
+ * lase pacalita de o legatura simbolica, si sa trateze corect Windows
+ * (separatori mixti, litera de disc, case-insensitive).
  *
- * **Rezolvarea este lexicala si nu atinge discul.** Doua consecinte, amandoua
- * deliberate:
+ * **Doua niveluri, folosite in locuri diferite:**
  *
- *  - o cale nu trebuie sa existe ca sa poata fi verificata, deci un refuz nu
- *    scurge informatie despre ce fisiere exista;
- *  - **legaturile simbolice nu sunt urmarite.** Un symlink aflat in domeniul
- *    acordat duce accesul in afara lui: `./date/link` trece verificarea si
- *    citeste ce arata link-ul. Modelul de amenintare de azi presupune ca
- *    domeniul acordat nu contine symlink-uri puse de altcineva. Inchiderea
- *    gaurii cere `realpath` pe directorul-parinte, cu cursa TOCTOU care vine la
- *    pachet - vezi S6 in `SECURITY-AUDIT.md`.
+ *  - `containsPath` este pur **lexical** si nu atinge discul. Il folosim acolo
+ *    unde raspunsul nu trebuie sa depinda de ce exista pe disc: diagnostice,
+ *    teste, si prima treapta a verificarii reale.
+ *  - `realPath` / `containsPathReal` **urmaresc legaturile simbolice**. Astea le
+ *    foloseste capability broker-ul, fiindca altfel un symlink pus in domeniul
+ *    acordat ar duce accesul in afara lui: `./date/link` ar trece verificarea si
+ *    ar citi ce arata link-ul (S6 din `SECURITY-AUDIT.md`).
  *
- * Aceeasi limita, documentata identic, in `crates/raptor-runtime-core/src/paths.rs`.
+ * Aceeasi impartire, cu aceleasi nume, in
+ * `crates/raptor-runtime-core/src/paths.rs`.
  */
+import { realpathSync } from "node:fs";
 import { isAbsolute, resolve, sep } from "node:path";
 
 const WINDOWS = sep === "\\";
@@ -53,13 +54,78 @@ function comparable(path: string): string {
   return WINDOWS ? path.toLowerCase() : path;
 }
 
-/** `true` daca `target` este `scope` sau se afla strict sub el. */
+/**
+ * `true` daca `target` este `scope` sau se afla strict sub el, **lexical**.
+ *
+ * Nu atinge discul, deci nu vede legaturile simbolice. Pentru o decizie de
+ * securitate foloseste `containsPathReal`.
+ */
 export function containsPath(scope: string, target: string): boolean {
   const a = comparable(normalizePath(scope));
   const b = comparable(normalizePath(target));
   if (a === b) return true;
   const prefix = a.endsWith("/") ? a : a + "/";
   return b.startsWith(prefix);
+}
+
+function parentOf(path: string): string {
+  const index = path.lastIndexOf("/");
+  if (index < 0) return path;
+  if (index === 0) return "/";
+  // `C:/x` -> `C:/`, nu `C:`, care pe Windows inseamna altceva.
+  return path[index - 1] === ":" ? path.slice(0, index + 1) : path.slice(0, index);
+}
+
+/**
+ * Forma canonica a unei cai **dupa** rezolvarea legaturilor simbolice.
+ *
+ * `realpathSync` cere ca fisierul sa existe, iar brokerul trebuie sa poata
+ * decide si despre un fisier care urmeaza sa fie creat (`files.write`). Deci
+ * urcam pana la cel mai adanc parinte care CHIAR exista, il rezolvam pe acela,
+ * si lipim inapoi segmentele ramase. O scriere in `./date/link/nou.txt` ajunge
+ * astfel unde ajunge si `open`: prin link, nu pe langa el.
+ *
+ * Cand nimic din cale nu exista - sau cand sistemul refuza sa ne spuna -
+ * ramanem la forma lexicala. Asta nu slabeste verificarea: o cale care nu
+ * exista nu poate fi un symlink catre altundeva, iar daca apare intre timp, o
+ * prinde `realPath` de la urmatorul acces.
+ */
+export function realPath(input: string): string {
+  const normalized = normalizePath(input);
+  const suffix: string[] = [];
+  let current = normalized;
+
+  for (;;) {
+    try {
+      const resolved = normalizePath(realpathSync(current));
+      return suffix.length === 0 ? resolved : normalizePath(resolve(resolved, ...suffix.reverse()));
+    } catch {
+      const parent = parentOf(current);
+      // Am ajuns la radacina fara sa gasim nimic existent: raspunsul lexical e
+      // tot ce avem, si e corect ca atare.
+      if (parent === current) return normalized;
+      suffix.push(current.slice(parent.endsWith("/") ? parent.length : parent.length + 1));
+      current = parent;
+    }
+  }
+}
+
+/**
+ * `true` daca `target` este `scope` sau se afla strict sub el, **cu legaturile
+ * simbolice rezolvate de ambele parti**.
+ *
+ * Domeniul se rezolva si el, nu doar tinta: pe macOS `/tmp` este un link catre
+ * `/private/tmp`, deci o comparatie intre un domeniu nerezolvat si o tinta
+ * rezolvata ar refuza accesul in propriul director.
+ *
+ * **Cursa TOCTOU ramane, si trebuie spusa:** intre verificarea de aici si
+ * `open`-ul propriu-zis, cineva care poate scrie in domeniu poate inlocui un
+ * director cu o legatura. Inchiderea completa cere `openat2(RESOLVE_BENEATH)`
+ * pe Linux sau echivalentul lui, la care Node nu da acces. Ce se inchide aici e
+ * cazul real: un link **deja prezent** in domeniu nu mai scoate accesul afara.
+ */
+export function containsPathReal(scope: string, target: string): boolean {
+  return containsPath(realPath(scope), realPath(target));
 }
 
 /** Cale relativa la radacina proiectului, pentru diagnostice lizibile. */

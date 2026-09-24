@@ -16,7 +16,7 @@ import type { CapabilityDeclarations, CapabilityKind, PolicyMode } from "./manif
 import { CAPABILITY_KINDS } from "./manifest.ts";
 import type { Observer } from "./observe.ts";
 import { silentObserver } from "./observe.ts";
-import { containsPath, normalizePath, resolvePath } from "./paths.ts";
+import { containsPath, normalizePath, realPath, resolvePath } from "./paths.ts";
 
 /** Capabilitati ambientale: boolean, fara tinta. */
 export const AMBIENT_KINDS: readonly CapabilityKind[] = ["clock.real", "crypto.random"];
@@ -30,6 +30,14 @@ export interface CapabilityDecision {
   readonly rule: string | null;
   /** Accesul e permis, dar trebuie marcat in trace (clock/crypto implicite). */
   readonly annotated: boolean;
+  /**
+   * Unde ajunge de fapt calea, cand difera de cea ceruta - adica atunci cand
+   * pe drum exista o legatura simbolica. `null` in rest.
+   *
+   * Un jurnal care arata doar `./date/link` si nu si `/etc/shadow` spune
+   * adevarul si totusi induce in eroare pe cine il citeste.
+   */
+  readonly resolved: string | null;
 }
 
 export interface CapabilityUsage {
@@ -83,10 +91,16 @@ function ruleTargets(declarations: CapabilityDeclarations, capability: Capabilit
   return Array.isArray(value) ? (value as string[]) : [];
 }
 
-/** `./src` se rezolva fata de radacina proiectului; caile absolute raman. */
-function matchPath(rule: string, projectRoot: string, target: string): boolean {
-  const scope = resolvePath(projectRoot, rule);
-  return containsPath(scope, target);
+/**
+ * `./src` se rezolva fata de radacina proiectului; caile absolute raman.
+ *
+ * `target` vine **deja cu legaturile rezolvate** (vezi `check`): altfel l-am
+ * rezolva o data pentru fiecare regula din manifest, cu aceleasi apeluri de
+ * sistem de fiecare data. Domeniul se rezolva aici, fiindca difera de la o
+ * regula la alta.
+ */
+function matchRealPath(rule: string, projectRoot: string, realTarget: string): boolean {
+  return containsPath(realPath(resolvePath(projectRoot, rule)), realTarget);
 }
 
 /** `api.example.com:443`, `*.example.com:443`, `api.example.com:*`. */
@@ -138,15 +152,20 @@ class Broker implements CapabilityBroker {
     return this.#strict;
   }
 
-  #decide(capability: CapabilityKind, target: string): CapabilityDecision {
+  /**
+   * `target` este ce a cerut aplicatia (dupa normalizare), `realTarget` este
+   * unde ajunge cu legaturile rezolvate. Deciziile poarta primul - el e ce
+   * recunoaste cine citeste jurnalul - dar se iau pe al doilea.
+   */
+  #decide(capability: CapabilityKind, target: string, realTarget: string): CapabilityDecision {
     if (this.#revoked.has(capability)) {
-      return { granted: false, capability, target, reason: "capability revocata in timpul rularii", rule: null, annotated: false };
+      return { granted: false, capability, target, reason: "capability revocata in timpul rularii", rule: null, annotated: false, resolved: null };
     }
 
     if (AMBIENT_KINDS.includes(capability)) {
       const declared = (this.#declarations as Record<string, unknown>)[capability];
       if (declared === false) {
-        return { granted: false, capability, target, reason: "dezactivata explicit in manifest", rule: `${capability}: false`, annotated: false };
+        return { granted: false, capability, target, reason: "dezactivata explicit in manifest", rule: `${capability}: false`, annotated: false, resolved: null };
       }
       // Implicit permisa, dar marcata in trace (spec sectiunea 7).
       return {
@@ -156,6 +175,7 @@ class Broker implements CapabilityBroker {
         reason: declared === true ? "declarata in manifest" : "implicit permisa, adnotata in trace",
         rule: declared === true ? `${capability}: true` : null,
         annotated: declared !== true,
+        resolved: null,
       };
     }
 
@@ -164,7 +184,7 @@ class Broker implements CapabilityBroker {
       // Spec sectiunea 7: citirea de fisiere este "refuzata in afara proiectului".
       // Fara declaratie, domeniul implicit este exact radacina proiectului; orice
       // manifest care declara `files.read` inlocuieste complet acest implicit.
-      if (!this.#strict && capability === "files.read" && containsPath(this.projectRoot, target)) {
+      if (!this.#strict && capability === "files.read" && containsPath(realPath(this.projectRoot), realTarget)) {
         return {
           granted: true,
           capability,
@@ -172,20 +192,21 @@ class Broker implements CapabilityBroker {
           reason: "in radacina proiectului (domeniu implicit)",
           rule: "(implicit: radacina proiectului)",
           annotated: true,
+          resolved: null,
         };
       }
-      return { granted: false, capability, target, reason: "nedeclarata in manifest", rule: null, annotated: false };
+      return { granted: false, capability, target, reason: "nedeclarata in manifest", rule: null, annotated: false, resolved: null };
     }
 
     for (const rule of rules) {
       const hit =
         capability === "files.read" || capability === "files.write"
-          ? matchPath(rule, this.projectRoot, target)
+          ? matchRealPath(rule, this.projectRoot, realTarget)
           : capability === "net.connect" || capability === "net.listen"
             ? matchHost(rule, target)
             : matchName(rule, target);
       if (hit) {
-        return { granted: true, capability, target, reason: "acoperita de o regula declarata", rule, annotated: false };
+        return { granted: true, capability, target, reason: "acoperita de o regula declarata", rule, annotated: false, resolved: null };
       }
     }
 
@@ -196,13 +217,20 @@ class Broker implements CapabilityBroker {
       reason: `in afara domeniului declarat (${rules.join(", ")})`,
       rule: null,
       annotated: false,
+      resolved: null,
     };
   }
 
   check(capability: CapabilityKind, target = ""): CapabilityDecision {
-    const normalized =
-      capability === "files.read" || capability === "files.write" ? resolvePath(this.projectRoot, target) : target;
-    const decision = this.#decide(capability, normalized);
+    const isPath = capability === "files.read" || capability === "files.write";
+    const normalized = isPath ? resolvePath(this.projectRoot, target) : target;
+    // O singura rezolvare pe verificare, oricate reguli ar avea manifestul.
+    const real = isPath ? realPath(normalized) : normalized;
+    const decided = this.#decide(capability, normalized, real);
+
+    // Calea reala intra in decizie doar cand difera - altfel am umple
+    // diagnosticul cu repetari ale aceluiasi sir.
+    const decision: CapabilityDecision = real === normalized ? decided : { ...decided, resolved: real };
 
     const key = `${capability}${SEPARATOR}${normalized}`;
     const entry = this.#usage.get(key);
@@ -220,6 +248,7 @@ class Broker implements CapabilityBroker {
         reason: decision.reason,
         rule: decision.rule,
         annotated: decision.annotated,
+        resolved: decision.resolved,
         policy: this.policy,
       },
     });

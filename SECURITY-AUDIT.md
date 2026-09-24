@@ -45,7 +45,7 @@ audit în `development` (`packages/runtime-cli/src/bypass.ts`).
 | S3 | Dev-server RaptorBundle: prefix fără delimitator + bind pe toate interfețele | Medie | ✅ reparat 2026-09-24 | `bundle/tests/dev-server-scope.test.ts` |
 | S4 | `serve` deschidea porturi fără capability, în TS și în Rust | Medie | ✅ reparat 2026-09-24 | `runtime/tests/escapes.test.ts`, `modules.rs` |
 | S5 | Ocolul prin `node:` era raportat doar de `doctor`, nu și de `run` | Medie | ✅ reparat 2026-09-24 | `runtime-cli/tests/bypass.test.ts` |
-| S6 | Containerea de căi e pur lexicală (symlink) | Medie | 📖 documentat de ambele părți, nereparat | — |
+| S6 | Containerea de căi e pur lexicală (symlink) | Medie | ✅ reparat 2026-09-24 | `runtime/tests/symlinks.test.ts`, `paths.rs`, `capabilities.rs` |
 | S7 | WebSocket fără verificare de `Origin`, fără cotă de conexiuni | Scăzută-Medie | ✅ reparat 2026-09-24 | `server/tests/websocket-origin.test.ts` |
 | S8 | `spawn`: buffere nemărginite, oprire fără escaladare | Scăzută | ✅ reparat 2026-09-24 | `runtime/tests/escapes.test.ts` |
 | S9 | `plain()` din puntea de host e superficial | Scăzută | ✅ reparat 2026-09-24 | `host/tests/bridge.test.ts` |
@@ -91,16 +91,45 @@ Descrierea completă, cu proof-of-concept-ul fiecăruia, e în
 
 ## Ce rămâne deschis
 
-**S6 — symlink.** Singurul finding neînchis. `packages/runtime/src/paths.ts` și
-`crates/.../paths.rs` rezolvă căile **lexical**, fără `realpath`. Un symlink
-aflat în domeniul acordat duce accesul în afara lui.
+**Niciun finding.** Toate cele 13 sunt închise, fiecare cu un test de regresie.
+Ce rămâne sunt limitele asumate de mai jos — care sunt alegeri, nu scăpări — și
+o cursă pe care nici S6 nu o închide complet, descrisă imediat.
 
-Este acum documentat în ambele fișiere, cu modelul de amenințare scris explicit:
-**presupunem că domeniul acordat nu conține symlink-uri puse de altcineva.**
-Reparația reală cere `realpath` pe directorul-părinte înainte de comparație, cu
-cursa TOCTOU care vine la pachet — de aceea nu a fost făcută la repezeală.
+### S6 — symlink, și ce anume s-a închis
 
-### Ce s-a închis între timp
+`packages/runtime/src/paths.ts` și `crates/.../paths.rs` au acum **două**
+niveluri, cu aceleași nume de ambele părți:
+
+- `containsPath` — pur lexical, nu atinge discul. Pentru diagnostice și teste,
+  unde răspunsul nu trebuie să depindă de ce există pe disc.
+- `realPath` / `containsPathReal` — rezolvă legăturile. Astea le folosește
+  brokerul.
+
+`realPath` funcționează și pentru o cale care **nu există încă** — necesar,
+fiindcă `files.write` decide despre un fișier care urmează să fie creat: urcă la
+cel mai adânc părinte care chiar există, îl rezolvă, și lipește înapoi
+segmentele rămase. O scriere în `./date/link/nou.txt` ajunge astfel unde ajunge
+și `open`: prin link, nu pe lângă el.
+
+Domeniul se rezolvă și el, nu doar ținta — altfel pe macOS, unde `/tmp` este un
+link către `/private/tmp`, accesul în propriul director ar fi refuzat.
+
+Un refuz poartă acum și `resolved`: **unde ajungea de fapt calea**, când diferă
+de cea cerută. Un jurnal care arată doar `./date/spre-parola` și nu și
+`/tmp/secrete/parola.txt` spune adevărul și totuși induce în eroare.
+
+**Ce NU se închide: cursa TOCTOU.** Între verificare și `open`-ul propriu-zis,
+cine poate scrie în domeniu poate înlocui un director cu o legătură. Închiderea
+completă cere `openat2(RESOLVE_BENEATH)` pe Linux sau echivalentul lui, la care
+Node nu dă acces. Ce s-a închis este cazul real: un link **deja prezent** în
+domeniu nu mai scoate accesul afară.
+
+Testele construiesc legături reale pe disc. Pe Windows un symlink obișnuit cere
+Developer Mode, dar o **joncțiune** de director nu cere nimic și e rezolvată de
+`realpath` la fel — deci cazul principal se verifică peste tot, iar cel cu
+legătură către un fișier se sare cu motivul scris când nu se poate construi.
+
+### Cum s-au închis celelalte
 
 **S7 — WebSocket.** `serveOverWebSocket` verifică acum `Origin` înainte de
 `101`, implicit **doar same-origin** (autoritatea din `Origin` comparată cu

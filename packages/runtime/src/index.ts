@@ -29,7 +29,7 @@ export type {
 export { AMBIENT_KINDS, createBroker } from "./capabilities.ts";
 export type { BrokerOptions, CapabilityBroker, CapabilityDecision, CapabilityDiagnostics, CapabilityUsage } from "./capabilities.ts";
 
-export { containsPath, normalizePath, relativeToRoot, resolvePath } from "./paths.ts";
+export { containsPath, containsPathReal, normalizePath, realPath, relativeToRoot, resolvePath } from "./paths.ts";
 
 export { createObserver, silentObserver } from "./observe.ts";
 export type { Observer, ObserverOptions, RuntimeEvent, Severity, Span } from "./observe.ts";

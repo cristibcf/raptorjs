@@ -179,7 +179,7 @@ impl Broker {
             // inlocuieste complet acest implicit.
             if !self.strict
                 && capability == CapabilityKind::FilesRead
-                && paths::contains(&self.project_root, target)
+                && paths::contains_real(&self.project_root, target)
             {
                 return Decision {
                     granted: true,
@@ -196,7 +196,10 @@ impl Broker {
         for rule in rules {
             let hit = match capability {
                 CapabilityKind::FilesRead | CapabilityKind::FilesWrite => {
-                    paths::contains(&paths::resolve(&self.project_root, rule), target)
+                    // `contains_real`, nu `contains`: o legatura simbolica pusa
+                    // in domeniul acordat nu are voie sa scoata accesul afara
+                    // (S6 din SECURITY-AUDIT.md).
+                    paths::contains_real(&paths::resolve(&self.project_root, rule), target)
                 }
                 CapabilityKind::NetConnect | CapabilityKind::NetListen => matches_host(rule, target),
                 _ => matches_name(rule, target),
@@ -404,6 +407,58 @@ mod tests {
         let capabilities = broker(&[(CapabilityKind::FilesRead, targets(&["./src"]))]);
         assert!(capabilities.check(CapabilityKind::FilesRead, "./src/a.ts").granted);
         assert!(!capabilities.check(CapabilityKind::FilesRead, "./src-privat/a.ts").granted);
+    }
+
+    #[test]
+    fn o_legatura_simbolica_nu_scapa_din_domeniul_declarat() {
+        // Regresie S6: `contains` era lexical, deci un link pus in `./date`
+        // trecea verificarea si citea ce arata el. Testul construieste linkul
+        // REAL - daca sistemul nu ne lasa (Windows fara Developer Mode), se sare
+        // cu motivul scris, nu trece tacit.
+        let base = std::env::temp_dir().join(format!("raptor-cap-link-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        let proiect = base.join("proiect");
+        let secrete = base.join("secrete");
+        if std::fs::create_dir_all(proiect.join("date")).is_err() || std::fs::create_dir_all(&secrete).is_err() {
+            eprintln!("sarit: nu pot pregati terenul");
+            return;
+        }
+        let _ = std::fs::write(secrete.join("parola.txt"), "hunter2
+");
+        let _ = std::fs::write(proiect.join("date").join("cuminte.txt"), "obisnuit
+");
+
+        let legatura = proiect.join("date").join("spre-secrete");
+        #[cfg(unix)]
+        let facut = std::os::unix::fs::symlink(&secrete, &legatura).is_ok();
+        #[cfg(windows)]
+        let facut = std::os::windows::fs::symlink_dir(&secrete, &legatura).is_ok();
+        if !facut {
+            let _ = std::fs::remove_dir_all(&base);
+            eprintln!("sarit: nu pot crea legaturi simbolice aici");
+            return;
+        }
+
+        let root = paths::normalize(&proiect.to_string_lossy());
+        let observer = Observer::new();
+        let broker = Broker::new(
+            &root,
+            BTreeMap::from([(CapabilityKind::FilesRead, targets(&["./date"]))]),
+            PolicyMode::Production,
+            Some(true),
+            observer,
+        );
+
+        // Ce are voie: un fisier obisnuit din `./date`.
+        assert!(broker.check(CapabilityKind::FilesRead, &paths::resolve(&root, "./date/cuminte.txt")).granted);
+        // Ce nu are voie: acelasi domeniu, dar prin legatura.
+        let prin_legatura = paths::resolve(&root, "./date/spre-secrete/parola.txt");
+        assert!(
+            !broker.check(CapabilityKind::FilesRead, &prin_legatura).granted,
+            "o legatura nu extinde domeniul acordat"
+        );
+
+        let _ = std::fs::remove_dir_all(&base);
     }
 
     #[test]

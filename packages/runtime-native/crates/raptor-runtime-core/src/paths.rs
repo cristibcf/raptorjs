@@ -1,16 +1,25 @@
 //! Normalizare si continere de cai.
 //!
-//! Aici traieste logica sensibila la securitate a capability broker-ului. Trei
+//! Aici traieste logica sensibila la securitate a capability broker-ului. Patru
 //! proprietati trebuie sa fie adevarate, altfel modelul de capabilitati cade:
 //!
-//! 1. rezolvarea este **lexicala**, facuta inainte de orice comparatie, deci
+//! 1. rezolvarea lexicala se face **inainte** de orice comparatie, deci
 //!    `./src/../secret` nu poate fi confundat cu ceva din `./src`;
 //! 2. `contains` compara pe segmente, deci `/proiect` nu contine `/proiect-privat`;
 //! 3. radacina sistemului de fisiere este punct fix, deci o cautare care urca in
-//!    arbore se opreste in loc sa cicleze.
+//!    arbore se opreste in loc sa cicleze;
+//! 4. **legaturile simbolice sunt urmarite** inainte de decizie (`contains_real`),
+//!    altfel un link pus in domeniul acordat ar scoate accesul in afara lui.
 //!
-//! Nu atingem sistemul de fisiere: normalizarea nu urmeaza legaturi simbolice si
-//! nu are nevoie ca fisierul sa existe.
+//! De aceea sunt doua niveluri:
+//!
+//! - [`normalize`] / [`contains`] sunt **lexicale** si nu ating discul. O cale nu
+//!   trebuie sa existe ca sa poata fi comparata, deci un refuz nu scurge
+//!   informatie despre ce fisiere exista.
+//! - [`real_path`] / [`contains_real`] rezolva legaturile. Astea le foloseste
+//!   brokerul (S6 din `SECURITY-AUDIT.md`).
+//!
+//! Aceeasi impartire, cu aceleasi nume, in `packages/runtime/src/paths.ts`.
 
 /// Pe Windows comparatia de cai ignora registrul literelor si accepta `\`.
 pub const CASE_INSENSITIVE: bool = cfg!(windows);
@@ -128,6 +137,68 @@ pub fn relative_to(root: &str, target: &str) -> String {
     format!("./{}", &target[skip..])
 }
 
+/// Forma canonica a unei cai **dupa** rezolvarea legaturilor simbolice.
+///
+/// `canonicalize` cere ca fisierul sa existe, iar brokerul trebuie sa poata
+/// decide si despre un fisier care urmeaza sa fie creat (`files.write`). Deci
+/// urcam pana la cel mai adanc parinte care chiar exista, il rezolvam pe acela,
+/// si lipim inapoi segmentele ramase. O scriere in `./date/link/nou.txt` ajunge
+/// astfel unde ajunge si `open`: prin link, nu pe langa el.
+///
+/// Cand nimic din cale nu exista - sau cand sistemul refuza sa ne spuna -
+/// ramanem la forma lexicala. Asta nu slabeste verificarea: o cale care nu
+/// exista nu poate fi un link catre altundeva, iar daca apare intre timp o
+/// prinde urmatorul apel.
+pub fn real_path(path: &str) -> String {
+    let normalized = normalize(path);
+    let mut suffix: Vec<String> = Vec::new();
+    let mut current = normalized.clone();
+
+    loop {
+        if let Ok(resolved) = std::fs::canonicalize(&current) {
+            let mut out = normalize(&strip_verbatim(&resolved.to_string_lossy()));
+            for segment in suffix.iter().rev() {
+                out = resolve(&out, segment);
+            }
+            return out;
+        }
+        let parent_path = parent(&current);
+        // Am ajuns la radacina fara sa gasim nimic existent: raspunsul lexical e
+        // tot ce avem, si e corect ca atare.
+        if parent_path == current {
+            return normalized;
+        }
+        let cut = if parent_path.ends_with('/') { parent_path.len() } else { parent_path.len() + 1 };
+        suffix.push(current[cut..].to_string());
+        current = parent_path;
+    }
+}
+
+/// `\\?\C:\x` -> `C:\x`. Pe Windows, `canonicalize` intoarce forma verbatim,
+/// care nu se compara cu nimic din ce vede restul programului.
+fn strip_verbatim(path: &str) -> String {
+    if let Some(rest) = path.strip_prefix(r"\\?\UNC\") {
+        return format!(r"\\{rest}");
+    }
+    path.strip_prefix(r"\\?\").unwrap_or(path).to_string()
+}
+
+/// `true` daca `target` este `scope` sau se afla strict sub el, **cu legaturile
+/// simbolice rezolvate de ambele parti**.
+///
+/// Domeniul se rezolva si el, nu doar tinta: pe macOS `/tmp` este un link catre
+/// `/private/tmp`, deci o comparatie intre un domeniu nerezolvat si o tinta
+/// rezolvata ar refuza accesul in propriul director.
+///
+/// **Cursa TOCTOU ramane, si trebuie spusa:** intre verificarea de aici si
+/// `open`-ul propriu-zis, cine poate scrie in domeniu poate inlocui un director
+/// cu o legatura. Inchiderea completa cere `openat2(RESOLVE_BENEATH)` pe Linux
+/// sau echivalentul lui. Ce se inchide aici e cazul real: un link **deja
+/// prezent** in domeniu nu mai scoate accesul afara.
+pub fn contains_real(scope: &str, target: &str) -> bool {
+    contains(&real_path(scope), &real_path(target))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -214,5 +285,76 @@ mod tests {
     fn pe_windows_registrul_literelor_nu_conteaza() {
         assert!(contains("C:/Proiect", "c:/proiect/src/a.ts"));
         assert_eq!(normalize("c:/proiect"), "C:/proiect");
+    }
+
+    /// Un teren cu o legatura reala pe disc, sau `None` daca sistemul nu ne lasa
+    /// sa o facem (Windows fara Developer Mode pentru symlink-uri).
+    fn teren_cu_legatura() -> Option<(std::path::PathBuf, String, String)> {
+        let base = std::env::temp_dir().join(format!("raptor-link-{}-{:?}", std::process::id(), std::thread::current().id()));
+        let _ = std::fs::remove_dir_all(&base);
+        let proiect = base.join("proiect");
+        let secrete = base.join("secrete");
+        std::fs::create_dir_all(proiect.join("date")).ok()?;
+        std::fs::create_dir_all(&secrete).ok()?;
+        std::fs::write(secrete.join("parola.txt"), "hunter2\n").ok()?;
+        std::fs::write(proiect.join("date").join("cuminte.txt"), "obisnuit\n").ok()?;
+
+        let legatura = proiect.join("date").join("spre-secrete");
+        #[cfg(unix)]
+        let facut = std::os::unix::fs::symlink(&secrete, &legatura).is_ok();
+        #[cfg(windows)]
+        let facut = std::os::windows::fs::symlink_dir(&secrete, &legatura).is_ok();
+
+        if !facut {
+            let _ = std::fs::remove_dir_all(&base);
+            return None;
+        }
+        Some((
+            base,
+            normalize(&proiect.to_string_lossy()),
+            normalize(&secrete.join("parola.txt").to_string_lossy()),
+        ))
+    }
+
+    #[test]
+    fn o_legatura_nu_extinde_domeniul() {
+        let Some((base, root, secret)) = teren_cu_legatura() else {
+            eprintln!("sarit: nu pot crea legaturi simbolice aici");
+            return;
+        };
+
+        let prin_legatura = format!("{root}/date/spre-secrete/parola.txt");
+        // Lexical calea chiar e sub radacina - de aici venea gaura (S6).
+        assert!(contains(&root, &prin_legatura), "lexical pare inauntru");
+        // Real, duce in alta parte.
+        assert!(!contains_real(&root, &prin_legatura), "dar ajunge in afara domeniului");
+        assert_eq!(real_path(&prin_legatura), secret);
+
+        // Un fisier obisnuit din acelasi director nu e afectat.
+        assert!(contains_real(&root, &format!("{root}/date/cuminte.txt")));
+
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn o_cale_inexistenta_se_rezolva_prin_parintele_ei() {
+        let Some((base, root, _secret)) = teren_cu_legatura() else {
+            eprintln!("sarit: nu pot crea legaturi simbolice aici");
+            return;
+        };
+
+        // Fisierul nu exista; parintele e o legatura. O scriere ar ajunge totusi
+        // dincolo de ea, deci verificarea trebuie sa vada asta dinainte.
+        let viitor = format!("{root}/date/spre-secrete/nou.txt");
+        assert!(real_path(&viitor).ends_with("/secrete/nou.txt"), "{}", real_path(&viitor));
+        assert!(!contains_real(&root, &viitor));
+
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn fara_nimic_pe_disc_ramane_forma_lexicala() {
+        let inexistent = normalize(&std::env::temp_dir().join("raptor-nu-exista/a/b.txt").to_string_lossy());
+        assert_eq!(real_path(&inexistent), inexistent);
     }
 }

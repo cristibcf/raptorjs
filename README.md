@@ -18,7 +18,7 @@ Totul rulează direct pe **Node ≥ 22** (TypeScript nativ prin type-stripping).
 
 ```bash
 pnpm install          # doar leagă workspace-ul (+ devDeps opționale)
-pnpm test             # 843 de teste (842 pass; 1 skip fără Rolldown instalat)
+pnpm test             # 852 de teste (850 pass; 2 sărite)
 pnpm typecheck        # tsc --noEmit pe tot
 
 pnpm demo:counter     # bindings DOM fine-grained (headless)
@@ -240,9 +240,10 @@ Vezi [`SPEC-RaptorWire-v0.2.md`](SPEC-RaptorWire-v0.2.md).
   Fără ele, criteriul „pornește o aplicație cu fereastră fără Node instalat" nu e atins — deși
   *binarul* rulează deja JS și TS fără Node.
 - **Minify în `@raptor/bundle`.** Pentru asta există calea opțională Rolldown/Oxc.
-- Trei findinguri de securitate deschise, numite în [SECURITY-AUDIT.md](SECURITY-AUDIT.md): symlink-uri
-  neurmărite la verificarea căilor, `Origin` neverificat la handshake-ul WebSocket, `@raptor/wire-client`
-  fără teste.
+- **Cursa TOCTOU la verificarea căilor.** Containerea urmărește acum legăturile simbolice, deci un link
+  deja prezent în domeniul acordat nu mai scoate accesul afară — dar între verificare și `open` cineva
+  care poate scrie în domeniu poate înlocui un director cu o legătură. Închiderea completă cere
+  `openat2(RESOLVE_BENEATH)`, la care Node nu dă acces. Vezi [SECURITY-AUDIT.md](SECURITY-AUDIT.md).
 
 ## Licență
 
