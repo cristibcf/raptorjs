@@ -8,7 +8,7 @@
  * nu poate raspunde. Binarul adevarat este `src/bin.ts`.
  */
 import { runOnce } from "./session.ts";
-import type { Terminal } from "@raptor/cli-host";
+import type { Terminal } from "@raptor/host/cli";
 
 interface Recorder {
   readonly terminal: Terminal;

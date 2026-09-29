@@ -11,8 +11,8 @@
  */
 import { createBridge, createMemoryChannel, requireHostManifest } from "@raptor/host";
 import type { HostBridge, HostManifest } from "@raptor/host";
-import { createMobileHost } from "@raptor/mobile";
-import type { MobileHost } from "@raptor/mobile";
+import { createMobileHost } from "@raptor/host/mobile";
+import type { MobileHost } from "@raptor/host/mobile";
 import { createShell } from "./app.ts";
 import type { Shell } from "./app.ts";
 

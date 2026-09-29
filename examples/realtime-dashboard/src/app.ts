@@ -3,7 +3,7 @@
  * testul e2e. Metrici (cpu/memory) ca signals server, plus o colectie "jobs" de
  * id-uri si obiecte "job:ID" actualizate prin patch-uri delta (whitepaper 24, 26.1).
  */
-import { raptorServer, type RaptorServer, type ReactiveStore } from "@raptor/server";
+import { raptorServer, type RaptorServer, type ReactiveStore } from "@raptor/wire/server";
 
 export const DASHBOARD_QUERY = "dashboard";
 export const DASHBOARD_PREFIXES = ["cpu", "memory", "jobs", "job:"];

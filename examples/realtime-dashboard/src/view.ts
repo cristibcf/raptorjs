@@ -3,8 +3,8 @@
  * clientului RaptorWire. Aceeasi componenta ruleaza headless (mini-dom) sau in
  * browser (Vite) - vezi src/main.tsx pentru varianta TSX.
  */
-import { render, mountChild, For } from "@raptor/dom";
-import { type RaptorClient } from "@raptor/wire-client";
+import { render, mountChild, For } from "raptorjs/dom";
+import { type RaptorClient } from "@raptor/wire/client";
 
 interface Job {
   name?: string;

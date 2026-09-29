@@ -7,8 +7,8 @@
  */
 import { createBridge, createMemoryChannel, requireHostManifest } from "@raptor/host";
 import type { HostBridge, HostManifest } from "@raptor/host";
-import { createDesktopHost } from "@raptor/desktop";
-import type { DesktopHost } from "@raptor/desktop";
+import { createDesktopHost } from "@raptor/host/desktop";
+import type { DesktopHost } from "@raptor/host/desktop";
 import { createShell } from "./app.ts";
 import type { Shell } from "./app.ts";
 

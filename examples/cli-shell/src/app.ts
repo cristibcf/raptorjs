@@ -10,7 +10,7 @@
  * avea loc, iar unealta **refuza si spune cum sa fie rulata**, in loc sa
  * presupuna "da" sau sa crape cu o stiva.
  */
-import { state } from "@raptor/core";
+import { state } from "raptorjs";
 import type { HostBridge } from "@raptor/host";
 
 export interface Note {

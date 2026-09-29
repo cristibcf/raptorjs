@@ -5,11 +5,10 @@
   "type": "module",
   "description": "Exemplu counter: reactivitate + bindings DOM fine-grained.",
   "dependencies": {
-    "@raptor/core": "workspace:*",
-    "@raptor/dom": "workspace:*"
+    "raptorjs": "workspace:*"
   },
   "devDependencies": {
-    "@raptor/bundle": "workspace:*"
+    "@raptor/engine": "workspace:*"
   },
   "scripts": {
     "demo": "node src/demo.ts",

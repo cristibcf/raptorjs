@@ -11,8 +11,8 @@
  * La fel ca pe desktop, nimic de platforma nu este importat aici: tot ce tine
  * de sistem intra si iese prin punte.
  */
-import { derived, state } from "@raptor/core";
-import { mountChild, applyProps } from "@raptor/dom";
+import { derived, state } from "raptorjs";
+import { mountChild, applyProps } from "raptorjs/dom";
 import type { HostBridge } from "@raptor/host";
 
 export interface ShellElement {

@@ -5,13 +5,11 @@
   "type": "module",
   "description": "Exemplu: aceeasi aplicatie RaptorJS ca desktop-shell si mobile-shell, cu browserul pe post de host (roadmap sectiunea 4: pentru tinta web, host-ul este browserul).",
   "dependencies": {
-    "@raptor/core": "workspace:*",
-    "@raptor/dom": "workspace:*",
-    "@raptor/host": "workspace:*",
-    "@raptor/web-host": "workspace:*"
+    "raptorjs": "workspace:*",
+    "@raptor/host": "workspace:*"
   },
   "devDependencies": {
-    "@raptor/bundle": "workspace:*"
+    "@raptor/engine": "workspace:*"
   },
   "scripts": {
     "demo": "node src/demo.ts",

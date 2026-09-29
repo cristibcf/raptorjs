@@ -12,8 +12,8 @@
  */
 import { createBridge, createMemoryChannel, requireHostManifest } from "@raptor/host";
 import type { HostBridge, HostManifest } from "@raptor/host";
-import { createWebHost, platformFromWindow } from "@raptor/web-host";
-import type { WebHost, WebPlatform } from "@raptor/web-host";
+import { createWebHost, platformFromWindow } from "@raptor/host/web";
+import type { WebHost, WebPlatform } from "@raptor/host/web";
 import { createShell } from "./app.ts";
 import type { Shell } from "./app.ts";
 

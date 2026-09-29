@@ -7,8 +7,8 @@
  * locala, un deep link venit din sistem, o comanda de meniu, un refuz de
  * capabilitate si oprirea curata - cu randarea fine-grained la fiecare pas.
  */
-import { installMiniDom, resetStats, stats } from "@raptor/dom/testing";
-import { render } from "@raptor/dom";
+import { installMiniDom, resetStats, stats } from "raptorjs/dom/testing";
+import { render } from "raptorjs/dom";
 import { createSession } from "./session.ts";
 
 const doc = installMiniDom();

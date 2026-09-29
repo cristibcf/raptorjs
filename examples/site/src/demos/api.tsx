@@ -4,9 +4,9 @@
  * primitiva - de obicei numarand ceva ce altfel nu s-ar vedea: de cate ori
  * ruleaza un calcul, cate noduri DOM se creeaza, cati octeti pleaca pe fir.
  */
-import { state, derived, effect, batch, untracked, For, Show, onCleanup } from "@raptor/dom";
-import { raptorServer } from "@raptor/server";
-import { createLoopback, RaptorClient } from "@raptor/wire-client";
+import { state, derived, effect, batch, untracked, For, Show, onCleanup } from "raptorjs/dom";
+import { raptorServer } from "@raptor/wire/server";
+import { createLoopback, RaptorClient } from "@raptor/wire/client";
 
 function Stat(props: { label: string; value: any }) {
   return (
@@ -16,7 +16,7 @@ function Stat(props: { label: string; value: any }) {
   );
 }
 
-/* ---------------------------------------------------------------- @raptor/core -- */
+/* ---------------------------------------------------------------- raptorjs -- */
 
 /** `state`: citire, set, update — si `peek`, care NU aboneaza. */
 export function ApiState() {
@@ -178,7 +178,7 @@ export function ApiBatch() {
   );
 }
 
-/* ----------------------------------------------------------------- @raptor/dom -- */
+/* ----------------------------------------------------------------- raptorjs/dom -- */
 
 /** `For`: cheie stabila — randurile existente NU se recreeaza. */
 export function ApiFor() {
@@ -256,7 +256,7 @@ export function ApiShow() {
   );
 }
 
-/* --------------------------------------------------------- @raptor/wire-client -- */
+/* --------------------------------------------------------- @raptor/wire/client -- */
 
 function todoServer() {
   const app = raptorServer({ build: "docs-demo" });

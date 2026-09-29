@@ -5,9 +5,8 @@
   "type": "module",
   "description": "Exemplu: aceeasi aplicatie ca desktop/mobile/web-shell, de data asta ca serviciu HTTP - roadmap etapa 3, 'Servicii platforma'.",
   "dependencies": {
-    "@raptor/core": "workspace:*",
-    "@raptor/host": "workspace:*",
-    "@raptor/service-host": "workspace:*"
+    "raptorjs": "workspace:*",
+    "@raptor/host": "workspace:*"
   },
   "scripts": {
     "demo": "node src/demo.ts",

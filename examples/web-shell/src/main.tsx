@@ -6,8 +6,8 @@
  * Interfata arata explicit ce poate si ce nu poate aplicatia pe host-ul curent -
  * exact informatia pe care `bridge.allows(...)` o da inainte de primul apel.
  */
-import { For, Show, render } from "@raptor/dom";
-import { state } from "@raptor/core";
+import { For, Show, render } from "raptorjs/dom";
+import { state } from "raptorjs";
 import { createBrowserSession } from "./session.ts";
 
 const session = createBrowserSession(window);

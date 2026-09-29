@@ -8,8 +8,8 @@
  * randare fine-grained) si ce se schimba: navigarea vine de la adaptor, exista
  * suspendare si reluare, iar ferestrele si subprocesele nu exista deloc.
  */
-import { installMiniDom, resetStats, stats } from "@raptor/dom/testing";
-import { render } from "@raptor/dom";
+import { installMiniDom, resetStats, stats } from "raptorjs/dom/testing";
+import { render } from "raptorjs/dom";
 import { createSession } from "./session.ts";
 
 const doc = installMiniDom();

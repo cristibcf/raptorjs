@@ -8,9 +8,8 @@
     "raptor-notes": "./src/bin.ts"
   },
   "dependencies": {
-    "@raptor/cli-host": "workspace:*",
-    "@raptor/core": "workspace:*",
-    "@raptor/host": "workspace:*"
+    "@raptor/host": "workspace:*",
+    "raptorjs": "workspace:*"
   },
   "scripts": {
     "demo": "node src/demo.ts",

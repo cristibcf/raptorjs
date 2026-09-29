@@ -6,8 +6,8 @@
  */
 import { createBridge, createMemoryChannel, requireHostManifest } from "@raptor/host";
 import type { HostBridge, HostManifest } from "@raptor/host";
-import { createCliHost, terminalFromProcess } from "@raptor/cli-host";
-import type { CliHost, ProcessLike, Terminal } from "@raptor/cli-host";
+import { createCliHost, terminalFromProcess } from "@raptor/host/cli";
+import type { CliHost, ProcessLike, Terminal } from "@raptor/host/cli";
 import { createCli } from "./app.ts";
 import type { Cli } from "./app.ts";
 

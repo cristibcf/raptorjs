@@ -12,7 +12,7 @@
  *  - notificarile pot fi refuzate de utilizator, nu doar de manifest;
  *  - subprocesele nu exista, iar meniurile nu au ce reprezenta.
  */
-import { derived, state } from "@raptor/core";
+import { derived, state } from "raptorjs";
 import type { HostBridge } from "@raptor/host";
 
 export interface Note {

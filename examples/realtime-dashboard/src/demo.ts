@@ -7,8 +7,8 @@
  * Demonstreaza: snapshot initial, operatii delta versionate, actualizari DOM
  * exacte si comparatia octetilor delta vs. re-trimiterea documentului ca JSON.
  */
-import { installMiniDom, stats, resetStats } from "@raptor/dom/testing";
-import { createLoopback, flushLoopback, RaptorClient } from "@raptor/wire-client";
+import { installMiniDom, stats, resetStats } from "raptorjs/dom/testing";
+import { createLoopback, flushLoopback, RaptorClient } from "@raptor/wire/client";
 import { buildDashboardApp, DASHBOARD_QUERY } from "./app.ts";
 import { renderDashboard } from "./view.ts";
 

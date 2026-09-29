@@ -6,7 +6,7 @@ import { RUNTIME_DEPENDENCIES, TEST_PASS } from "../content/stats.ts";
 import { SectionHead, highlight } from "../lib/ui.tsx";
 import { DemoCounter, DemoTodo, DemoRealtime } from "../demos/index.tsx";
 
-const HERO_SRC = `import { render, state, derived } from "@raptor/dom";
+const HERO_SRC = `import { render, state, derived } from "raptorjs/dom";
 
 function Counter() {
   const count = state(0);
@@ -277,7 +277,7 @@ export function HomeView() {
             on one model — and a codebase early enough that your issue can change the design.
           </p>
           <div class="cta" style="margin-top:0">
-            <span class="btn btn-primary" on:click={() => navigate("learn/quick-start")}>Start the tutorial</span>
+            <span class="btn btn-primary" on:click={() => navigate("tutorial")}>Start the tutorial</span>
             <span class="btn btn-ghost" on:click={() => navigate("playground")}>Open the playground</span>
           </div>
         </div>

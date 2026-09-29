@@ -5,8 +5,7 @@
   "description": "Spike-ul de arhitectura RaptorRuntime (spec sectiunea 14): demonstreaza lansare autonoma, modul TypeScript, refuz de permisiune si oprire curata.",
   "type": "module",
   "devDependencies": {
-    "@raptor/runtime": "workspace:*",
-    "@raptor/runtime-cli": "workspace:*"
+    "@raptor/runtime": "workspace:*"
   },
   "scripts": {
     "spike": "node ../../packages/runtime-cli/src/bin.ts run",

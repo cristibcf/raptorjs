@@ -1,7 +1,7 @@
 /**
  * Generat din `packages/ui/src`: numele exportului -> subpath-ul de import.
  *
- * Pagina de componente arata importul ADANC (`@raptor/ui/button`), nu cel din
+ * Pagina de componente arata importul ADANC (`raptorjs/ui/button`), nu cel din
  * barrel. Include si helperii cu litera mica (`undoRedo`, `field`, `validators`),
  * nu doar componentele: si ei au un modul propriu.
  */
@@ -407,8 +407,8 @@ export const COMPONENT_MODULE: Readonly<Record<string, string>> = {
   wizard: "advanced",
 };
 
-/** Linia de import de afisat pentru un export din @raptor/ui. */
+/** Linia de import de afisat pentru un export din raptorjs/ui. */
 export function importLine(name: string): string {
   const mod = COMPONENT_MODULE[name];
-  return `import { ${name} } from "@raptor/ui${mod ? "/" + mod : ""}"`;
+  return `import { ${name} } from "raptorjs/ui${mod ? "/" + mod : ""}"`;
 }

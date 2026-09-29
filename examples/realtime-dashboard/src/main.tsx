@@ -5,8 +5,8 @@
  *
  * Ruleaza:  cd examples/realtime-dashboard && pnpm install && pnpm dev
  */
-import { render, For } from "@raptor/dom";
-import { createLoopback, RaptorClient } from "@raptor/wire-client";
+import { render, For } from "raptorjs/dom";
+import { createLoopback, RaptorClient } from "@raptor/wire/client";
 import { buildDashboardApp, DASHBOARD_QUERY } from "./app.ts";
 
 function Dashboard(props: { client: RaptorClient }) {

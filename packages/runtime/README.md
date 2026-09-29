@@ -4,13 +4,13 @@ Implementarea specificatiei *RaptorRuntime Product and Architecture Specificatio
 pentru **milestone-ul 0 (architecture spike)**, plus fundatia milestone-ului 1.
 
 Pachetul nu porneste nimic de la sine si nu are dependente. Expune contractele pe
-care le consuma launcher-ul `@raptor/runtime-cli` si, mai tarziu, host-ul nativ.
+care le consuma launcher-ul `@raptor/runtime/cli` si, mai tarziu, host-ul nativ.
 
 ## Ce contine
 
 | Componenta (spec §5) | Modul | Stare |
 | --- | --- | --- |
-| Launcher | `@raptor/runtime-cli` | `run`, `test`, `init`, `pack`, `doctor`, `trace` |
+| Launcher | `@raptor/runtime/cli` | `run`, `test`, `init`, `pack`, `doctor`, `trace` |
 | Engine adapter | `src/engine-adapter.ts` | adaptor de bootstrap, cu izolare per izolat |
 | Module graph | `src/graph.ts` | graf static pentru `doctor` si `pack` |
 | Capability broker | `src/capabilities.ts` | granular, revocabil, delegare explicita |
@@ -72,6 +72,6 @@ pnpm test:runtime             # suitele de contract ale celor doua pachete
 ## Integrarea cu depozitul (spec §9)
 
 Aditiva, fara schimbari in pachetele existente: binarul se numeste
-`raptor-runtime`, nu `raptor`, iar `@raptor/run`, `@raptor/bundle` si
+`raptor-runtime`, nu `raptor`, iar `@raptor/engine/run`, `@raptor/engine/bundle` si
 `@raptor/engine` isi pastreaza comenzile si caile de import. Redenumirea vine
 doar dupa auditul de compatibilitate (§2, §13).

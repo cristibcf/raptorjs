@@ -15,19 +15,19 @@ Pachetele `@raptor/*` sunt **zero-dep**: nu importă nimic extern.
 
 - [Rulare rapidă](#rulare-rapidă)
 - [Harta pachetelor](#harta-pachetelor)
-- [@raptor/core — reactivitate fine-grained](#raptorcore--reactivitate-fine-grained)
-- [@raptor/dom — runtime DOM + control flow](#raptordom--runtime-dom--control-flow)
-- [@raptor/ui — componente reutilizabile](#raptorui--componente-reutilizabile)
-- [@raptor/bundle — bundler TSX propriu (fără Vite)](#raptorbundle--bundler-tsx-propriu-fără-vite)
-- [@raptor/wire-codec — primitive de codec](#raptorwire-codec--primitive-de-codec)
-- [@raptor/wire-core — opcodes, Document, protocol](#raptorwire-core--opcodes-document-protocol)
-- [@raptor/server — SDK server RaptorWire](#raptorserver--sdk-server-raptorwire)
-- [@raptor/wire-client — sesiune + replică reactivă](#raptorwire-client--sesiune--replică-reactivă)
+- [raptorjs — reactivitate fine-grained](#raptorcore--reactivitate-fine-grained)
+- [raptorjs/dom — runtime DOM + control flow](#raptordom--runtime-dom--control-flow)
+- [raptorjs/ui — componente reutilizabile](#raptorui--componente-reutilizabile)
+- [@raptor/engine/bundle — bundler TSX propriu (fără Vite)](#raptorbundle--bundler-tsx-propriu-fără-vite)
+- [@raptor/wire/codec — primitive de codec](#raptorwire-codec--primitive-de-codec)
+- [@raptor/wire — opcodes, Document, protocol](#raptorwire-core--opcodes-document-protocol)
+- [@raptor/wire/server — SDK server RaptorWire](#raptorserver--sdk-server-raptorwire)
+- [@raptor/wire/client — sesiune + replică reactivă](#raptorwire-client--sesiune--replică-reactivă)
 - [End-to-end: server ↔ RaptorWire ↔ client ↔ DOM](#end-to-end-server--raptorwire--client--dom)
-- [@raptor/compiler — parser `.raptor`, IR, graf semantic](#raptorcompiler--parser-raptor-ir-graf-semantic)
+- [@raptor/engine/compiler — parser `.raptor`, IR, graf semantic](#raptorcompiler--parser-raptor-ir-graf-semantic)
 - [@raptor/engine — build, optimize, codegen, HMR, CLI](#raptorengine--build-optimize-codegen-hmr-cli)
-- [@raptor/run — server runtime + SSR + dev server](#raptorrun--server-runtime--ssr--dev-server)
-- [@raptor/profile — telemetrie + PGO](#raptorprofile--telemetrie--pgo)
+- [@raptor/engine/run — server runtime + SSR + dev server](#raptorrun--server-runtime--ssr--dev-server)
+- [@raptor/engine/profile — telemetrie + PGO](#raptorprofile--telemetrie--pgo)
 - [@raptor/test — testare comportamentală autonomă](#raptortest--testare-comportamentală-autonomă)
 - [Formatul `.raptor`](#formatul-raptor)
 - [Referință CLI](#referință-cli)
@@ -55,25 +55,25 @@ pnpm demo:profile     # telemetrie → plan PGO → rebuild
 Ordinea de dependență (jos → sus). Poți folosi fiecare strat independent.
 
 ```
-@raptor/core ── reactivitate (signals)
-   └─ @raptor/dom ── bindings DOM + JSX
+raptorjs ── reactivitate (signals)
+   └─ raptorjs/dom ── bindings DOM + JSX
 
-@raptor/wire-codec ── varint / zig-zag / string
-   └─ @raptor/wire-core ── opcodes, Document, protocol
-        ├─ @raptor/server ── store autoritativ + query/mutation
-        └─ @raptor/wire-client ── sesiune + replică reactivă
+@raptor/wire/codec ── varint / zig-zag / string
+   └─ @raptor/wire ── opcodes, Document, protocol
+        ├─ @raptor/wire/server ── store autoritativ + query/mutation
+        └─ @raptor/wire/client ── sesiune + replică reactivă
 
-@raptor/compiler ── .raptor → IR → graf semantic
+@raptor/engine/compiler ── .raptor → IR → graf semantic
    └─ @raptor/engine ── optimize + codegen + HMR + CLI `raptor`
-        ├─ @raptor/run ── server runtime + SSR + dev server
-        └─ @raptor/profile ── telemetrie + planner PGO
+        ├─ @raptor/engine/run ── server runtime + SSR + dev server
+        └─ @raptor/engine/profile ── telemetrie + planner PGO
 
 @raptor/test ── testare comportamentală autonomă (independent)
 ```
 
 ---
 
-## @raptor/core — reactivitate fine-grained
+## raptorjs — reactivitate fine-grained
 
 Nucleul reactiv glitch-free. Semnalele sunt **accesori apelabili**: `count()` citește
 și înregistrează dependență; `count.set(v)` / `count.update(fn)` scriu.
@@ -85,7 +85,7 @@ Nucleul reactiv glitch-free. Semnalele sunt **accesori apelabili**: `count()` ci
 ### API esențial
 
 ```ts
-import { state, derived, effect, batch, untracked } from "@raptor/core";
+import { state, derived, effect, batch, untracked } from "raptorjs";
 
 // --- signal mutabil ---
 const count = state(0);
@@ -127,7 +127,7 @@ const point = state({ x: 0 }, { equal: (a, b) => a.x === b.x });
 ### Ownership și cleanup
 
 ```ts
-import { createRoot, onCleanup } from "@raptor/core";
+import { createRoot, onCleanup } from "raptorjs";
 
 createRoot((dispose) => {
   const s = state(0);
@@ -144,25 +144,25 @@ createRoot((dispose) => {
 
 ---
 
-## @raptor/dom — runtime DOM + control flow
+## raptorjs/dom — runtime DOM + control flow
 
 Output-ul compilerului: bindinguri DOM fine-grained + control flow. Re-exportă și
-primitivele din `@raptor/core` pentru ergonomie (nu mai importe separat).
+primitivele din `raptorjs` pentru ergonomie (nu mai importe separat).
 
 **Exportă:** `render`, `onMount`, `createElement`, `template`, `applyProps`,
 `mountChild`, `block`, `isBlock`, `disposeDetached`; control flow `For`, `Show`;
 JSX runtime `jsx`, `jsxs`, `Fragment`; builder hyperscript `R`; + tot din
-`@raptor/core`.
+`raptorjs`.
 
 ### Mini-DOM headless pentru teste
 
-`@raptor/dom/testing` oferă un DOM fals care **numără fiecare mutație** — util ca
+`raptorjs/dom/testing` oferă un DOM fals care **numără fiecare mutație** — util ca
 să dovedești că update-urile sunt fine-grained (0 noduri recreate).
 
 ```ts
-import { installMiniDom, stats, resetStats } from "@raptor/dom/testing";
-import { render, mountChild, applyProps } from "@raptor/dom";
-import { state, derived } from "@raptor/core";
+import { installMiniDom, stats, resetStats } from "raptorjs/dom/testing";
+import { render, mountChild, applyProps } from "raptorjs/dom";
+import { state, derived } from "raptorjs";
 
 const doc = installMiniDom();
 
@@ -201,7 +201,7 @@ stats.textUpdate;     // 1   (exact bindingul afectat)
 ### Control flow: `For` (keyed) și `Show`
 
 ```ts
-import { For, Show } from "@raptor/dom";
+import { For, Show } from "raptorjs/dom";
 
 // For keyed: reutilizează nodurile pentru itemii neschimbați (mutări DOM minime).
 For({
@@ -219,9 +219,9 @@ Show({
 
 ### JSX (varianta browser, `.tsx`)
 
-Scrii componente în JSX; le compilează [`@raptor/bundle`](#raptorbundle--bundler-tsx-propriu-fără-vite)
+Scrii componente în JSX; le compilează [`@raptor/engine/bundle`](#raptorbundle--bundler-tsx-propriu-fără-vite)
 (bundler propriu, fără Vite). Configurează `tsconfig` cu `jsxImportSource:
-"@raptor/dom"` doar pentru typecheck în editor. Apoi:
+"raptorjs/dom"` doar pentru typecheck în editor. Apoi:
 
 ```tsx
 function Counter() {
@@ -243,7 +243,7 @@ Util când codul e evaluat la runtime (playground, REPL, snippet-uri din baza de
 date) sau într-un proiect fără build step.
 
 ```ts
-import { R, state, render } from "@raptor/dom";
+import { R, state, render } from "raptorjs/dom";
 
 function Counter() {
   const count = state(0);
@@ -275,38 +275,38 @@ la fiecare apel.
 
 ---
 
-## @raptor/ui — componente reutilizabile
+## raptorjs/ui — componente reutilizabile
 
 Componente gata făcute peste runtime-ul fine-grained: `Table` și `DropdownMenu`.
 Zero dependențe runtime, construite cu `R` (deci fără build step) și testate
 împotriva mini-DOM-ului care numără mutațiile.
 
-**Importă adânc** (`@raptor/ui/button`), nu din barrel — vezi tabelul de mai jos;
+**Importă adânc** (`raptorjs/ui/button`), nu din barrel — vezi tabelul de mai jos;
 diferența e de 13× pe bundle.
 
 **Stilurile sunt separate și opționale.** Componentele pun doar clase (`rui-*`)
-și atribute ARIA; CSS-ul stă în `@raptor/ui/styles` și îl injectezi tu dacă vrei:
+și atribute ARIA; CSS-ul stă în `raptorjs/ui/styles` și îl injectezi tu dacă vrei:
 
 ```ts
-import { installStyles } from "@raptor/ui/styles";
+import { installStyles } from "raptorjs/ui/styles";
 installStyles();   // sau: importă RUI_CSS și pune-l în propriul bundle
 ```
 
 ### Importuri: barrel vs subpath
 
-`@raptor/ui` expune **36 de puncte de intrare**. De când RaptorBundle face
+`raptorjs/ui` expune **36 de puncte de intrare**. De când RaptorBundle face
 [tree-shaking](#tree-shaking), barrel-ul nu mai e scump:
 
 ```ts
-import { Button } from "@raptor/ui";          // 9 module, 39 KB
-import { Button } from "@raptor/ui/button";   // 8 module, 38 KB
+import { Button } from "raptorjs/ui";          // 9 module, 39 KB
+import { Button } from "raptorjs/ui/button";   // 8 module, 38 KB
 ```
 
 Fără tree-shaking (`--no-treeshake`, sau alt bundler care nu-l face), același
 barrel dă **58 de module și 527 KB**.
 
 **Regula practică:** importă adânc oricum. Tree-shaking-ul lucrează la nivel de
-modul, nu de declarație — `@raptor/ui/chart` aduce doar scale + Line/Area/Bar,
+modul, nu de declarație — `raptorjs/ui/chart` aduce doar scale + Line/Area/Bar,
 în timp ce un simbol luat din barrel poate ajunge într-un fișier care conține
 încă zece componente înrudite. Diferența e mică, dar reală, iar importul adânc
 spune și cititorului de unde vine componenta.
@@ -315,7 +315,7 @@ spune și cititorului de unde vine componenta.
 
 | Subpath | Ce conține |
 |---|---|
-| `@raptor/ui` | tot (barrel) |
+| `raptorjs/ui` | tot (barrel) |
 | `/styles` | `RUI_CSS`, `installStyles` |
 | `/primitives` | cele 21 de primitive headless |
 | `/button` | `Button`, `IconButton`, `ButtonGroup` |
@@ -344,12 +344,12 @@ spune și cititorului de unde vine componenta.
 | `/advanced` | `Kanban`, `Wizard`, `Menubar`, `HoverCard`, `Tour` |
 
 > **Notă de reorganizare:** `idle` și `networkStatus` au trecut în
-> `@raptor/ui/primitives` (acolo le e locul, sunt primitive fără randare),
+> `raptorjs/ui/primitives` (acolo le e locul, sunt primitive fără randare),
 > `FormSection` și `ValidationSummary` în `/form`, iar `DateTimePicker`,
 > `MonthPicker` și `YearPicker` în `/date`. Barrel-ul le exportă la fel ca
 > înainte, deci nimic nu se rupe.
 
-### Primitive headless (`@raptor/ui/primitives`)
+### Primitive headless (`raptorjs/ui/primitives`)
 
 Nu randează nimic și nu au CSS. Se atașează prin `ref` sau întorc semnale. Toate
 își scot singure listenerele globale la dispose — niciun handler nu supraviețuiește
@@ -375,7 +375,7 @@ componentei. Sunt fundația pentru restul bibliotecii: `Dialog` are nevoie de
 | `mediaQuery(q, fallback?)` | accesor | media query ca semnal |
 
 ```ts
-import { resizable, clickOutside, hotkeys } from "@raptor/ui";
+import { resizable, clickOutside, hotkeys } from "raptorjs/ui";
 
 function SplitPane() {
   const left = resizable({ axis: "x", initial: 240, min: 160, max: 520 });
@@ -432,7 +432,7 @@ Fiecare are un test care numără mutațiile DOM.
 | `DataGrid` | 50.000 de rânduri, 14 în DOM; derulare cu un rând → cel mult un rând nou |
 
 ```ts
-import { Progress, Slider, Sparkline, SplitPane, Combobox, DataGrid } from "@raptor/ui";
+import { Progress, Slider, Sparkline, SplitPane, Combobox, DataGrid } from "raptorjs/ui";
 
 const volume = state(40);
 Slider({ value: volume, min: 0, max: 100, step: 5, label: "Volum" });
@@ -474,7 +474,7 @@ acceptă dreptunghiuri date explicit, deci logica de flip/shift se testează fă
 layout real.
 
 > **SVG.** `Sparkline` și `CircularProgress` au cerut suport de namespace în
-> `@raptor/dom`: `document.createElement("svg")` produce în browser un element
+> `raptorjs/dom`: `document.createElement("svg")` produce în browser un element
 > HTML necunoscut, care nu randează nimic. `createElement` folosește acum
 > `createElementNS` pentru tagurile exclusiv SVG. Tagurile ambigue (`a`, `script`,
 > `style`, `title`) nu sunt tratate ca SVG — pentru ele dai namespace-ul explicit
@@ -492,7 +492,7 @@ import {
   Form, FormField, field, formGroup, validators,
   Dialog, ConfirmDialog, Popover, Tooltip,
   createToaster, Toaster, Tabs,
-} from "@raptor/ui";
+} from "raptorjs/ui";
 ```
 
 #### Formulare — validare derivată
@@ -936,8 +936,8 @@ logaritmice.
 ### `Table` — tabel sortabil
 
 ```ts
-import { Table, type Column } from "@raptor/ui";
-import { state, R, render } from "@raptor/dom";
+import { Table, type Column } from "raptorjs/ui";
+import { state, R, render } from "raptorjs/dom";
 
 interface Row { id: number; name: string; qty: number }
 const rows = state<readonly Row[]>([
@@ -975,7 +975,7 @@ render(() => Table({ rows: () => rows(), columns, empty: "Nimic aici" }), app);
 ### `DropdownMenu` — meniu cu tastatură
 
 ```ts
-import { DropdownMenu, menuItem, menuSeparator } from "@raptor/ui";
+import { DropdownMenu, menuItem, menuSeparator } from "raptorjs/ui";
 
 DropdownMenu({
   trigger: "Actions",
@@ -1003,10 +1003,10 @@ DropdownMenu({
 
 ---
 
-## @raptor/bundle — bundler TSX propriu (fără Vite)
+## @raptor/engine/bundle — bundler TSX propriu (fără Vite)
 
 Bundler-ul propriu al proiectului pentru varianta browser: transformă JSX către
-runtime-ul fine-grained `@raptor/dom`, rezolvă graful (inclusiv `exports` map către
+runtime-ul fine-grained `raptorjs/dom`, rezolvă graful (inclusiv `exports` map către
 sursa `.ts` a pachetelor `@raptor/*`) și emite un singur `bundle.js`. **Zero
 dependențe la runtime**; folosește compilatorul TypeScript doar ca primitivă de
 transform la build-time. Fără Vite / esbuild / Rolldown.
@@ -1060,7 +1060,7 @@ Măsurat pe o aplicație care folosește un singur `Button`, importat din barrel
 |---|---|---|
 | `--no-treeshake` | 58 | 527 499 B |
 | implicit | **9** | **39 029 B** |
-| import adânc (`@raptor/ui/button`) | 8 | 38 009 B |
+| import adânc (`raptorjs/ui/button`) | 8 | 38 009 B |
 
 **13,5× mai mic**, iar barrel-ul ajunge la 3% de importul adânc. Testele
 verifică nu doar dimensiunea, ci și că bundle-ul tăiat se evaluează și dă
@@ -1088,7 +1088,7 @@ original.
 de grafic dintr-un fișier care conține unsprezece, toate unsprezece rămân. Asta
 ar cere un graf de dependențe între declarații; granularitatea de modul acoperă
 cazul barrel-ului, care e cel care doare. De-asta importul adânc rămâne
-recomandat: `@raptor/ui/chart` aduce doar scale + Line/Area/Bar, nu și cele 11
+recomandat: `raptorjs/ui/chart` aduce doar scale + Line/Area/Bar, nu și cele 11
 tipuri din `chart-extra`.
 
 #### Siguranță
@@ -1127,14 +1127,14 @@ raptor-bundle dev src/main.tsx --root . --port 5173
     "dev": "raptor-bundle dev src/main.tsx --root . --port 5173",
     "build": "raptor-bundle build src/main.tsx --out dist/bundle.js --html index.html"
   },
-  "devDependencies": { "@raptor/bundle": "workspace:*" }
+  "devDependencies": { "@raptor/engine/bundle": "workspace:*" }
 }
 ```
 
 ### API din cod
 
 ```ts
-import { bundleApp, startDevServer, transpile } from "@raptor/bundle";
+import { bundleApp, startDevServer, transpile } from "@raptor/engine/bundle";
 
 // 1. build programatic → string cu registru de module + require lazy
 const { code, files } = bundleApp("/abs/path/src/main.tsx");
@@ -1143,7 +1143,7 @@ const { code, files } = bundleApp("/abs/path/src/main.tsx");
 // 2. dev server (returnează http.Server)
 startDevServer({ entry: "src/main.tsx", root: ".", port: 5173 });
 
-// 3. doar transformul (JSX → @raptor/dom/jsx-runtime, strip de tipuri)
+// 3. doar transformul (JSX → raptorjs/dom/jsx-runtime, strip de tipuri)
 const js = transpile("const x: number = 1; const el = <b>{x}</b>;", "m.tsx");
 ```
 
@@ -1161,7 +1161,7 @@ externii neatinși.
 
 ---
 
-## @raptor/wire-codec — primitive de codec
+## @raptor/wire/codec — primitive de codec
 
 Nivelul cel mai de jos: encodare binară compactă (whitepaper §12). Îl folosești
 direct doar dacă scrii un transport sau un codec propriu; altfel `wire-core` îl
@@ -1170,7 +1170,7 @@ direct doar dacă scrii un transport sau un codec propriu; altfel `wire-core` î
 **Exportă:** `Writer`, `Reader`.
 
 ```ts
-import { Writer, Reader } from "@raptor/wire-codec";
+import { Writer, Reader } from "@raptor/wire/codec";
 
 const w = new Writer();
 w.varint(300);          // varint LEB128 (numere mici = 1 byte)
@@ -1190,7 +1190,7 @@ r.bytes();    // Uint8Array [1,2,3]
 
 ---
 
-## @raptor/wire-core — opcodes, Document, protocol
+## @raptor/wire — opcodes, Document, protocol
 
 Inima protocolului **state-aware**: operații semantice delta peste un `Document`
 versionat, plus Reactive Address Space (RAS) și codec schema-aware.
@@ -1207,7 +1207,7 @@ Operațiile identifică ținta prin `handle` (obiectul) + `field` (câmpul). Fie
 `apply` întoarce un `Change` și crește `version`.
 
 ```ts
-import { Document } from "@raptor/wire-core";
+import { Document } from "@raptor/wire";
 
 const doc = new Document();
 doc.apply({ kind: "set",    handle: "job:1", field: "progress", value: 10 });
@@ -1232,7 +1232,7 @@ Numele de câmp se trimit o singură dată; pe hot path circulă un ID compact
 session-scoped.
 
 ```ts
-import { AddressBook } from "@raptor/wire-core";
+import { AddressBook } from "@raptor/wire";
 
 const book = new AddressBook();               // ID-uri compacte din 0x1000
 const { address, isNew } = book.assign("job:1.progress"); // alocă / refolosește ID
@@ -1249,7 +1249,7 @@ Tipuri de field: `bool`, `uint`, `int`, `float`, `string`, `percentage` (→ 1 b
 `money` (int scalat prin `scale`), `enum` (index din `values`).
 
 ```ts
-import { SchemaCodec } from "@raptor/wire-core";
+import { SchemaCodec } from "@raptor/wire";
 
 const codec = new SchemaCodec({
   progress: { type: "percentage" },
@@ -1260,7 +1260,7 @@ const codec = new SchemaCodec({
 
 ---
 
-## @raptor/server — SDK server RaptorWire
+## @raptor/wire/server — SDK server RaptorWire
 
 Store reactiv **autoritativ** + `query`/`mutation`/subscription. Serverul deține
 adevărul; clienții primesc snapshot + delta.
@@ -1272,7 +1272,7 @@ adevărul; clienții primesc snapshot + delta.
 ### Definirea unui server
 
 ```ts
-import { raptorServer, type RaptorServer, type ReactiveStore } from "@raptor/server";
+import { raptorServer, type RaptorServer, type ReactiveStore } from "@raptor/wire/server";
 
 export function buildDashboardApp(): RaptorServer {
   const app = raptorServer({ build: "dashboard-0.1.0" });
@@ -1331,17 +1331,17 @@ app.serve(link.server);   // leagă serverul de un transport (ex. loopback)
 
 ---
 
-## @raptor/wire-client — sesiune + replică reactivă
+## @raptor/wire/client — sesiune + replică reactivă
 
 Clientul: handshake, subscription, **replică reactivă** (fiecare handle e un
-signal `@raptor/core`), reconnect cu delta resync. Include transportul loopback
+signal `raptorjs`), reconnect cu delta resync. Include transportul loopback
 pentru rulare in-process (teste, demo-uri).
 
 **Exportă:** `RaptorClient` + `RaptorClientOptions`; transport `createLoopback`,
 `flushLoopback`, + tipurile `Transport`, `Loopback`, `LoopbackStats`.
 
 ```ts
-import { createLoopback, flushLoopback, RaptorClient } from "@raptor/wire-client";
+import { createLoopback, flushLoopback, RaptorClient } from "@raptor/wire/client";
 
 // 1. Transport loopback (client ↔ server in-process)
 const link = createLoopback();
@@ -1386,8 +1386,8 @@ await flushLoopback();
 Bucla completă din `examples/realtime-dashboard`, headless pe Node:
 
 ```ts
-import { installMiniDom, resetStats, stats } from "@raptor/dom/testing";
-import { createLoopback, flushLoopback, RaptorClient } from "@raptor/wire-client";
+import { installMiniDom, resetStats, stats } from "raptorjs/dom/testing";
+import { createLoopback, flushLoopback, RaptorClient } from "@raptor/wire/client";
 import { buildDashboardApp } from "./app.ts";
 
 const doc = installMiniDom();
@@ -1423,7 +1423,7 @@ link.stats.serverToClientBytes;   // delta RaptorWire (mult sub JSON full-resend
 
 ---
 
-## @raptor/compiler — parser `.raptor`, IR, graf semantic
+## @raptor/engine/compiler — parser `.raptor`, IR, graf semantic
 
 Nucleul semantic **stabil**, independent de bundler. Parsează `.raptor` în Raptor
 IR (cu stable IDs), construiește Semantic Application Graph și calculează diff-ul
@@ -1437,7 +1437,7 @@ pentru HMR.
 `ComponentPatch`, `WireChange`).
 
 ```ts
-import { parseModule, buildGraph, diffModules, serializeIR } from "@raptor/compiler";
+import { parseModule, buildGraph, diffModules, serializeIR } from "@raptor/engine/compiler";
 
 // 1. sursă .raptor → IR
 const ir = parseModule(source, "App.raptor");
@@ -1455,7 +1455,7 @@ diff.componentPatches;   // ce se poate patcha state-preserving
 diff.wireChanges;        // schimbări de schemă/RAS
 ```
 
-> Acest pachet e „creierul": `@raptor/engine`, `@raptor/run` și `@raptor/profile`
+> Acest pachet e „creierul": `@raptor/engine`, `@raptor/engine/run` și `@raptor/engine/profile`
 > consumă IR-ul și graful de aici. E deliberat separat de orice bundler.
 
 ---
@@ -1489,7 +1489,7 @@ console.log(analyzeReport(result));                    // raport lizibil
 console.log(formatOptimizationTrace(result.optimization)); // ce a eliminat DSE/Fusion
 console.log(inspectGraph(result.graph));               // dump graf semantic
 
-result.browser;        // cod browser generat (rulează pe @raptor/core + @raptor/dom)
+result.browser;        // cod browser generat (rulează pe raptorjs + raptorjs/dom)
 result.server.code;    // producers server
 result.server.producers;   // [{ address: "BTC.price", ... }]
 result.wire;           // manifest RAS (addresses cu schemă)
@@ -1542,7 +1542,7 @@ if (!cache.has(key)) cache.set(key, result);
 
 ---
 
-## @raptor/run — server runtime + SSR + dev server
+## @raptor/engine/run — server runtime + SSR + dev server
 
 Leagă `serverSignal` → store reactiv → RaptorWire → client **din același graf**,
 plus routing, SSR/resume, sesiuni, observability, și un dev server live (fs.watch
@@ -1557,8 +1557,8 @@ plus routing, SSR/resume, sesiuni, observability, și un dev server live (fs.wat
 
 ```ts
 import { buildModule } from "@raptor/engine";
-import { RaptorRuntime, renderDocument } from "@raptor/run";
-import { RaptorClient } from "@raptor/wire-client";
+import { RaptorRuntime, renderDocument } from "@raptor/engine/run";
+import { RaptorClient } from "@raptor/wire/client";
 
 const result = buildModule(source, "App.raptor");
 const runtime = RaptorRuntime.fromBuild(result, { initial: { "BTC.price": 60000 } });
@@ -1584,7 +1584,7 @@ runtime.shutdown();
 ### Server Node HTTP real
 
 ```ts
-import { createNodeServer, listen, closeServer } from "@raptor/run";
+import { createNodeServer, listen, closeServer } from "@raptor/engine/run";
 
 const server = createNodeServer(runtime);
 const { port } = await listen(server, 0);
@@ -1595,7 +1595,7 @@ await closeServer(server);
 ### Dev server live (HMR prin SSE)
 
 ```ts
-import { RaptorDevServer } from "@raptor/run";
+import { RaptorDevServer } from "@raptor/engine/run";
 
 const dev = new RaptorDevServer({ entry: "App.raptor" });
 // fs.watch → recompilare incrementală → diff → push HMR pe /  (SSE)
@@ -1606,7 +1606,7 @@ CLI echivalent: `pnpm raptor:dev examples/raptorengine-app/src/App.raptor`.
 
 ---
 
-## @raptor/profile — telemetrie + PGO
+## @raptor/engine/profile — telemetrie + PGO
 
 Colectează telemetrie runtime (frecvența signalelor, fan-out de derived, co-usage
 de rute, payload wire, DOM bursts) și emite un **plan de hints de strategie**
@@ -1624,8 +1624,8 @@ de rute, payload wire, DOM bursts) și emite un **plan de hints de strategie**
 
 ```ts
 import { buildModule } from "@raptor/engine";
-import { RaptorRuntime } from "@raptor/run";
-import { Profiler, runScenario, planFromProfile, serializeProfile } from "@raptor/profile";
+import { RaptorRuntime } from "@raptor/engine/run";
+import { Profiler, runScenario, planFromProfile, serializeProfile } from "@raptor/engine/profile";
 
 const result = buildModule(source, "App.raptor");
 const runtime = RaptorRuntime.fromBuild(result, { initial: { "BTC.price": 60000 } });
@@ -1786,7 +1786,7 @@ pnpm raptor analyze examples/raptorengine-app/src/App.raptor
 pnpm raptor toolchain          # detectează Rolldown/Oxc instalate
 ```
 
-### `raptor:run` (server runtime — `@raptor/run`)
+### `raptor:run` (server runtime — `@raptor/engine/run`)
 
 ```bash
 pnpm raptor:run info examples/raptorengine-app/src/App.raptor
@@ -1794,7 +1794,7 @@ pnpm raptor:run ssr  examples/raptorengine-app/src/App.raptor    # emite HTML SS
 pnpm raptor:dev      examples/raptorengine-app/src/App.raptor    # dev server live (HMR/SSE)
 ```
 
-### `raptor:profile` (PGO — `@raptor/profile`)
+### `raptor:profile` (PGO — `@raptor/engine/profile`)
 
 ```bash
 pnpm raptor:profile examples/raptorengine-app/src/App.raptor

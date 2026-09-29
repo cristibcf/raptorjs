@@ -5,8 +5,7 @@
   "type": "module",
   "description": "Exemplu: a sasea forma a aceleiasi aplicatii - un logger de senzor pe o placheta, cu watchdog, somn profund si periferice declarate.",
   "dependencies": {
-    "@raptor/core": "workspace:*",
-    "@raptor/device-host": "workspace:*",
+    "raptorjs": "workspace:*",
     "@raptor/host": "workspace:*"
   },
   "scripts": {

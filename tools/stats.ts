@@ -35,7 +35,7 @@ export interface Stats {
 function measureTests(): Pick<Stats, "tests" | "pass" | "skip" | "fail"> {
   const result = spawnSync(
     process.execPath,
-    ["--test", "packages/*/tests/*.test.ts", "examples/*/tests/*.test.ts"],
+    ["--test", "packages/*/tests/**/*.test.ts", "examples/*/tests/**/*.test.ts"],
     { cwd: ROOT, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
   );
   const output = `${result.stdout ?? ""}${result.stderr ?? ""}`;
@@ -73,9 +73,11 @@ function countComponents(): number {
 /**
  * Dependentele de runtime EXTERNE ale pachetelor publicate. Teza cere 0.
  *
- * Legaturile `@raptor/*` din workspace nu se numara: sunt acelasi proiect, nu
- * cod strain. Daca le-am numara, "zero dependente" ar arata ca 28 si cifra si-ar
- * pierde intelesul exact in locul in care conteaza.
+ * Legaturile din workspace nu se numara: sunt acelasi proiect, nu cod strain.
+ * Le recunoastem dupa versiunea `workspace:*`. `peerDependencies` (ex. compilatorul
+ * TypeScript, folosit doar la build de `@raptor/engine`) nu sunt dependente de
+ * runtime livrate, deci nu intra nici ele. Daca le-am numara, "zero dependente"
+ * ar arata altfel si cifra si-ar pierde intelesul exact in locul in care conteaza.
  */
 function countRuntimeDependencies(): readonly string[] {
   const external = new Set<string>();
@@ -83,19 +85,20 @@ function countRuntimeDependencies(): readonly string[] {
     const manifest = join(ROOT, "packages", name, "package.json");
     if (!existsSync(manifest)) continue;
     const json = JSON.parse(readFileSync(manifest, "utf8")) as { dependencies?: Record<string, string> };
-    for (const dep of Object.keys(json.dependencies ?? {})) {
-      if (!dep.startsWith("@raptor/")) external.add(dep);
+    for (const [dep, version] of Object.entries(json.dependencies ?? {})) {
+      if (version === "workspace:*") continue;
+      external.add(dep);
     }
   }
   return [...external].sort();
 }
 
-/** Punctele de intrare publice ale `@raptor/ui` (subpath exports). */
+/** Punctele de intrare UI publice: subpath-urile `./ui*` din `raptorjs`. */
 function countUiEntryPoints(): number {
-  const manifest = JSON.parse(readFileSync(join(ROOT, "packages", "ui", "package.json"), "utf8")) as {
+  const manifest = JSON.parse(readFileSync(join(ROOT, "packages", "raptorjs", "package.json"), "utf8")) as {
     exports?: Record<string, string>;
   };
-  return Object.keys(manifest.exports ?? {}).length;
+  return Object.keys(manifest.exports ?? {}).filter((k) => k === "./ui" || k.startsWith("./ui/")).length;
 }
 
 export function collect(): Stats {

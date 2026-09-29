@@ -11,7 +11,7 @@ platformă" din etapa 3 (§3); pentru `cli`, host-ul este **terminalul**, care
 dă argumentele, fluxurile de ieșire, Ctrl-C și codul de ieșire; iar pentru
 `embedded`, **firmware-ul plachetei**, care dă pini, magistrale și somn — și care,
 singurul dintre toate, nu are încredere în aplicație. Același contract e implementat
-și acolo ([`@raptor/web-host`](../packages/web-host)), cu o precizare care nu
+și acolo ([`@raptor/host/web`](../packages/web-host)), cu o precizare care nu
 trebuie pierdută: în browser puntea dă **portabilitate, nu izolare** — pagina și
 host-ul sunt același izolat, iar granița reală rămâne sandbox-ul de origine al
 browserului. Pe desktop și pe mobil, unde puntea traversează un proces, refuzul
@@ -24,13 +24,13 @@ host-ului chiar este o graniță de securitate.
 | Matricea de capabilități (§6) | **Implementată**, transcrisă ca date și testată rând cu rând | [`@raptor/host`](../packages/host) |
 | Manifestul graniței native `raptor.host.json` | **Implementat**: parser cu diagnostice cumulate, round-trip stabil | `packages/host/src/manifest.ts` |
 | Puntea JS ↔ host (protocol, transport, lifecycle) | **Implementată**, cu host de referință în proces | `packages/host/src/{protocol,bridge,host-server}.ts` |
-| Adaptor desktop (ferestre, meniuri, deep links, notificări, stocare, update) | **Implementat ca host de referință** | [`@raptor/desktop`](../packages/desktop) |
-| Adaptor mobile (navigare, stocare securizată, lifecycle, deep links, module opționale) | **Implementat ca host de referință** | [`@raptor/mobile`](../packages/mobile) |
-| Adaptor browser (History API, localStorage, Notification, Geolocation) | **Implementat**; portabilitate, nu izolare | [`@raptor/web-host`](../packages/web-host) |
-| Adaptor de serviciu (sockeți, configurație, sănătate, drenare) | **Implementat**, cu server `node:http` real | [`@raptor/service-host`](../packages/service-host) |
-| Adaptor de terminal (argv, fluxuri, TTY, confirmări, cod de ieșire) | **Implementat**, cu binar rulabil | [`@raptor/cli-host`](../packages/cli-host) |
-| Adaptor de plachetă (pini, magistrale, somn, watchdog, OTA) | **Implementat**, cu placă simulată | [`@raptor/device-host`](../packages/device-host) |
-| Împachetare + workflow de instalatoare | **Plan generat**, determinist, din care iese CI-ul | `packages/*/src/packaging.ts`, `@raptor/forge` |
+| Adaptor desktop (ferestre, meniuri, deep links, notificări, stocare, update) | **Implementat ca host de referință** | [`@raptor/host/desktop`](../packages/desktop) |
+| Adaptor mobile (navigare, stocare securizată, lifecycle, deep links, module opționale) | **Implementat ca host de referință** | [`@raptor/host/mobile`](../packages/mobile) |
+| Adaptor browser (History API, localStorage, Notification, Geolocation) | **Implementat**; portabilitate, nu izolare | [`@raptor/host/web`](../packages/web-host) |
+| Adaptor de serviciu (sockeți, configurație, sănătate, drenare) | **Implementat**, cu server `node:http` real | [`@raptor/host/service`](../packages/service-host) |
+| Adaptor de terminal (argv, fluxuri, TTY, confirmări, cod de ieșire) | **Implementat**, cu binar rulabil | [`@raptor/host/cli`](../packages/cli-host) |
+| Adaptor de plachetă (pini, magistrale, somn, watchdog, OTA) | **Implementat**, cu placă simulată | [`@raptor/host/device`](../packages/device-host) |
+| Împachetare + workflow de instalatoare | **Plan generat**, determinist, din care iese CI-ul | `packages/*/src/packaging.ts`, `@raptor/engine/forge` |
 | **Binarul nativ în Rust** — `doctor`/`init`/`pack` și **`run` cu motor QuickJS** | **Rulează fără Node** | [`packages/runtime-native`](../packages/runtime-native) |
 | Stripping TypeScript nativ, module `raptor:` ca funcții, WebView-urile native | **Nu există** | — |
 | **Comanda `raptor-package`** care construiește efectiv instalatoarele | **Nu există** | — |
@@ -124,7 +124,7 @@ dinspre host fără cerere.
 
 ```ts
 import { createBridge, createMemoryChannel } from "@raptor/host";
-import { createDesktopHost } from "@raptor/desktop";
+import { createDesktopHost } from "@raptor/host/desktop";
 
 const channel = createMemoryChannel();          // în producție: stdio / mesajele WebView-ului
 const host = createDesktopHost({ manifest, transport: channel.host });

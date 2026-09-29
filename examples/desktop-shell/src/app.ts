@@ -9,8 +9,8 @@
  * Reactivitatea ramane a RaptorJS: raspunsurile host-ului ajung in semnale, iar
  * legaturile fine-grained muta doar nodurile atinse.
  */
-import { derived, state } from "@raptor/core";
-import { mountChild, applyProps } from "@raptor/dom";
+import { derived, state } from "raptorjs";
+import { mountChild, applyProps } from "raptorjs/dom";
 import type { HostBridge } from "@raptor/host";
 
 export interface ShellElement {

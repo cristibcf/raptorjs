@@ -17,7 +17,7 @@ concreți de la zero la o pagină care rulează.
 Ai nevoie de realtime / stare partajată între clienți?
 │
 ├─ NU  → Calea A: RaptorJS pur (client-only)
-│         JSX + RaptorBundle + @raptor/dom. Reactivitate fine-grained, zero server.
+│         JSX + RaptorBundle + raptorjs/dom. Reactivitate fine-grained, zero server.
 │         Pornește de la: examples/counter
 │
 └─ DA  → Ai o singură pagină / feed simulat, sau vrei să rulezi acum?
@@ -36,7 +36,7 @@ Ai nevoie de realtime / stare partajată între clienți?
 ```
 
 **Recomandare pentru majoritatea aplicațiilor:** începe cu **Calea B** (server
-`@raptor/server` + client `@raptor/wire-client` peste loopback), pune-ți logica de
+`@raptor/wire/server` + client `@raptor/wire/client` peste loopback), pune-ți logica de
 domeniu în mutations/queries, leagă UI-ul cu `client.signal(...)`. Când ai nevoie
 de rețea reală, adaugi un adaptor `Transport` peste WebSocket — restul codului
 rămâne neschimbat. Treci la **Calea C** doar dacă vrei SSR/resume, HMR
@@ -48,28 +48,28 @@ state-preserving și optimizarea pe graf semantic.
 
 | Preocupare | Stare | Unde / cum |
 |---|---|---|
-| Reactivitate fine-grained | ✅ gata | `@raptor/core`, `@raptor/dom` |
-| Bindings DOM + control flow (`For`/`Show`) | ✅ gata | `@raptor/dom` |
-| Două suprafețe de autoring peste același runtime: JSX (compilat) și `R` (hyperscript, fără build step) | ✅ gata | `@raptor/dom` |
-| Componente reutilizabile (`Table`, `DropdownMenu`) cu stiluri separate | ✅ gata | `@raptor/ui` |
-| Primitive headless (Portal, focusTrap, resizable, virtualizer, sortable, hotkeys...) | ✅ gata | `@raptor/ui` |
-| Componente ⚡ cu teste de mutatii DOM (DataGrid virtualizat, Combobox, Slider, SplitPane, Sparkline, Progress) | ✅ gata | `@raptor/ui` |
-| Suport SVG in runtime (`createElementNS` pentru tagurile SVG) | ✅ gata | `@raptor/dom` |
-| Nucleu de formular (validare derivata) si overlay (Dialog/Popover/Tooltip/Toast) | ✅ gata | `@raptor/ui` |
-| Layout, tipografie, afisare, controale, primitive de stare (persistedState/undoRedo/selectionState) | ✅ gata | `@raptor/ui` |
-| Date/ora, navigare, fisiere, arbori si grafice de baza (139 componente: tot T1+T2) | ✅ gata | `@raptor/ui` |
-| T3: grafice specializate, editoare, media, QRCode (generator ISO 18004 propriu), Kanban, Wizard | ✅ gata | `@raptor/ui` |
-| 36 de puncte de intrare (subpath exports) | ✅ gata | `@raptor/ui` |
-| Tree-shaking pe sursa ESM, condus de exporturile cerute (barrel: 58 module → 9, 527 KB → 39 KB) | ✅ gata | `@raptor/bundle` |
-| JSX în browser | ✅ gata | `@raptor/bundle` (bundler propriu, zero-dep, fără Vite) |
-| Dev server + live-reload (client-only) | ✅ gata | `@raptor/bundle` `raptor-bundle dev` |
-| Protocol delta state-aware + RAS | ✅ gata | `@raptor/wire-core` |
-| Server autoritativ, query/mutation/subscription | ✅ gata | `@raptor/server` |
-| Client cu replică reactivă, reconnect delta | ✅ gata | `@raptor/wire-client` |
+| Reactivitate fine-grained | ✅ gata | `raptorjs`, `raptorjs/dom` |
+| Bindings DOM + control flow (`For`/`Show`) | ✅ gata | `raptorjs/dom` |
+| Două suprafețe de autoring peste același runtime: JSX (compilat) și `R` (hyperscript, fără build step) | ✅ gata | `raptorjs/dom` |
+| Componente reutilizabile (`Table`, `DropdownMenu`) cu stiluri separate | ✅ gata | `raptorjs/ui` |
+| Primitive headless (Portal, focusTrap, resizable, virtualizer, sortable, hotkeys...) | ✅ gata | `raptorjs/ui` |
+| Componente ⚡ cu teste de mutatii DOM (DataGrid virtualizat, Combobox, Slider, SplitPane, Sparkline, Progress) | ✅ gata | `raptorjs/ui` |
+| Suport SVG in runtime (`createElementNS` pentru tagurile SVG) | ✅ gata | `raptorjs/dom` |
+| Nucleu de formular (validare derivata) si overlay (Dialog/Popover/Tooltip/Toast) | ✅ gata | `raptorjs/ui` |
+| Layout, tipografie, afisare, controale, primitive de stare (persistedState/undoRedo/selectionState) | ✅ gata | `raptorjs/ui` |
+| Date/ora, navigare, fisiere, arbori si grafice de baza (139 componente: tot T1+T2) | ✅ gata | `raptorjs/ui` |
+| T3: grafice specializate, editoare, media, QRCode (generator ISO 18004 propriu), Kanban, Wizard | ✅ gata | `raptorjs/ui` |
+| 36 de puncte de intrare (subpath exports) | ✅ gata | `raptorjs/ui` |
+| Tree-shaking pe sursa ESM, condus de exporturile cerute (barrel: 58 module → 9, 527 KB → 39 KB) | ✅ gata | `@raptor/engine/bundle` |
+| JSX în browser | ✅ gata | `@raptor/engine/bundle` (bundler propriu, zero-dep, fără Vite) |
+| Dev server + live-reload (client-only) | ✅ gata | `@raptor/engine/bundle` `raptor-bundle dev` |
+| Protocol delta state-aware + RAS | ✅ gata | `@raptor/wire` |
+| Server autoritativ, query/mutation/subscription | ✅ gata | `@raptor/wire/server` |
+| Client cu replică reactivă, reconnect delta | ✅ gata | `@raptor/wire/client` |
 | Transport de rețea (WebSocket) | ✅ gata | `connectWebSocket` (client) + `serveOverWebSocket` (server), RFC 6455 propriu, zero-dep. Loopback rămâne pentru teste. |
-| SSR + resume | ✅ gata (Calea C) | `@raptor/run` |
-| Dev server + HMR state-preserving | ✅ gata (Calea C) | `@raptor/run`, `@raptor/engine` |
-| Routing | ✅ de bază | `@raptor/run` `matchRoute` |
+| SSR + resume | ✅ gata (Calea C) | `@raptor/engine/run` |
+| Dev server + HMR state-preserving | ✅ gata (Calea C) | `@raptor/engine/run`, `@raptor/engine` |
+| Routing | ✅ de bază | `@raptor/engine/run` `matchRoute` |
 | **Persistență (DB)** | ⚠️ **tu** | store-ul e in-memory; îl alimentezi din DB-ul tău în `mutation.run` |
 | **Autentificare / autorizare** | ⚠️ **tu** | hook-ul `authorize()` pe mutation + `QueryContext` — logica e a ta |
 | Optimizare pe graf semantic (DSE/Fusion) | ✅ gata (Calea C) | `@raptor/engine` |
@@ -89,16 +89,16 @@ partajat. E cea mai simplă și 100% gata.
 ```
 my-app/
 ├─ index.html            # <div id="app"></div> + <script type="module" src="/src/main.tsx">
-├─ tsconfig.json         # jsx: "react-jsx", jsxImportSource: "@raptor/dom"
-├─ package.json          # deps: @raptor/core, @raptor/dom ; devDep: @raptor/bundle
+├─ tsconfig.json         # jsx: "react-jsx", jsxImportSource: "raptorjs/dom"
+├─ package.json          # deps: raptorjs, raptorjs/dom ; devDep: @raptor/engine/bundle
 └─ src/
    ├─ main.tsx           # render(App, #app)
    ├─ components/        # componente .tsx
    └─ state/             # signals/deriveds partajate (state stores)
 ```
 
-Nu există fișier de config de bundler: `@raptor/bundle` are `jsxImportSource:
-"@raptor/dom"` încorporat. Nu există Vite, esbuild sau Rolldown în graful de
+Nu există fișier de config de bundler: `@raptor/engine/bundle` are `jsxImportSource:
+"raptorjs/dom"` încorporat. Nu există Vite, esbuild sau Rolldown în graful de
 dependențe.
 
 ### Cablare (exact ca `examples/counter`)
@@ -110,7 +110,7 @@ dependențe.
     "dev": "raptor-bundle dev src/main.tsx --root . --port 5173",
     "build": "raptor-bundle build src/main.tsx --out dist/bundle.js --html index.html"
   },
-  "devDependencies": { "@raptor/bundle": "workspace:*" }
+  "devDependencies": { "@raptor/engine/bundle": "workspace:*" }
 }
 ```
 
@@ -126,7 +126,7 @@ către bundle):
 {
   "compilerOptions": {
     "jsx": "react-jsx",
-    "jsxImportSource": "@raptor/dom",
+    "jsxImportSource": "raptorjs/dom",
     "allowImportingTsExtensions": true,
     "noEmit": true
   }
@@ -135,7 +135,7 @@ către bundle):
 
 `src/main.tsx`:
 ```tsx
-import { render, state, derived } from "@raptor/dom";
+import { render, state, derived } from "raptorjs/dom";
 
 function Counter() {
   const count = state(0);
@@ -159,7 +159,7 @@ statice). Vezi și [„Cum funcționează RaptorBundle"](#cum-funcționează-rap
 nevoie — nu există provider/context, e doar reactivitate.
 ```ts
 // src/state/cart.ts
-import { state, derived } from "@raptor/core";
+import { state, derived } from "raptorjs";
 export const items = state<CartItem[]>([]);
 export const total = derived(() => items().reduce((s, i) => s + i.price, 0));
 export const add = (i: CartItem) => items.update((xs) => [...xs, i]);
@@ -167,15 +167,15 @@ export const add = (i: CartItem) => items.update((xs) => [...xs, i]);
 
 ### Cum funcționează RaptorBundle
 
-`@raptor/bundle` e bundler-ul propriu al proiectului — înlocuiește complet Vite,
+`@raptor/engine/bundle` e bundler-ul propriu al proiectului — înlocuiește complet Vite,
 în spiritul zero-dep / compiler-centric al stack-ului. Are **zero dependențe la
 runtime**; folosește compilatorul TypeScript (deja în repo, ca `typescript`) doar
 ca primitivă de transform la build-time.
 
 Ce face, în ordine:
 1. **Transform** — fiecare `.tsx`/`.ts` e transformat: JSX → apeluri către
-   `@raptor/dom/jsx-runtime` (fine-grained, fără Virtual DOM), tipurile sunt șterse.
-2. **Rezolvare** — specifierele (`./x.ts`, `@raptor/dom`, `@raptor/dom/jsx-runtime`)
+   `raptorjs/dom/jsx-runtime` (fine-grained, fără Virtual DOM), tipurile sunt șterse.
+2. **Rezolvare** — specifierele (`./x.ts`, `raptorjs/dom`, `raptorjs/dom/jsx-runtime`)
    sunt rezolvate cu rezolverul Node, inclusiv `exports` map către sursa `.ts` a
    pachetelor `@raptor/*`.
 3. **Împachetare** — graful (închis și zero-dep) e strâns într-un singur fișier cu
@@ -213,13 +213,13 @@ de domeniu.**
 ```
 ┌─────────────────────────── același proces (v0.1) ───────────────────────────┐
 │                                                                              │
-│   @raptor/server                    Transport                @raptor/wire-client
+│   @raptor/wire/server                    Transport                @raptor/wire/client
 │   ┌───────────────┐   ops delta   ┌──────────┐   ops delta   ┌───────────────┐
 │   │ ReactiveStore │ ────────────▶ │ loopback │ ────────────▶ │ replică (signals)│
 │   │ (autoritativ) │ ◀──────────── │ (in-mem) │ ◀──────────── │  client.signal() │
 │   │ query/mutation│   mutații      └──────────┘   subscribe   └───────┬───────┘
 │   └───────────────┘                                                   │
-│         ▲                                              @raptor/dom     ▼
+│         ▲                                              raptorjs/dom     ▼
 │         │ store.setSignal/patch/append           mountChild / For / {signal}
 │    logica ta de domeniu                                    DOM fine-grained
 │    (DB, reguli, auth)                                                        │
@@ -232,7 +232,7 @@ de domeniu.**
 
 ```ts
 // server/app.ts
-import { raptorServer, type RaptorServer, type ReactiveStore } from "@raptor/server";
+import { raptorServer, type RaptorServer, type ReactiveStore } from "@raptor/wire/server";
 
 export function buildApp(): RaptorServer {
   const app = raptorServer({ build: "my-app-0.1.0" });
@@ -272,8 +272,8 @@ export function buildApp(): RaptorServer {
 
 ```tsx
 // client/main.tsx
-import { render, For } from "@raptor/dom";
-import { createLoopback, RaptorClient } from "@raptor/wire-client";
+import { render, For } from "raptorjs/dom";
+import { createLoopback, RaptorClient } from "@raptor/wire/client";
 import { buildApp } from "../server/app.ts";
 
 const app = buildApp();
@@ -314,7 +314,7 @@ trimite comanda; delta care se întoarce actualizează exact bindingurile afecta
 
 ```ts
 // shared/ws-transport.ts
-import { type Transport } from "@raptor/wire-client";
+import { type Transport } from "@raptor/wire/client";
 
 export function wsTransport(ws: WebSocket): Transport {
   ws.binaryType = "arraybuffer";
@@ -386,7 +386,7 @@ App.raptor ──buildModule──▶ { browser, server, wire, graph, manifest, 
 ```ts
 import { readFileSync } from "node:fs";
 import { buildModule } from "@raptor/engine";
-import { RaptorRuntime, renderDocument, createNodeServer, listen } from "@raptor/run";
+import { RaptorRuntime, renderDocument, createNodeServer, listen } from "@raptor/engine/run";
 
 const source = readFileSync("src/App.raptor", "utf8");
 const result = buildModule(source, "App.raptor");

@@ -8,8 +8,8 @@
  */
 import { createBridge, createMemoryChannel, requireHostManifest } from "@raptor/host";
 import type { HostBridge, HostManifest } from "@raptor/host";
-import { createServiceHost, nodeListeners } from "@raptor/service-host";
-import type { ListenerFactory, ServiceHost } from "@raptor/service-host";
+import { createServiceHost, nodeListeners } from "@raptor/host/service";
+import type { ListenerFactory, ServiceHost } from "@raptor/host/service";
 import { createService } from "./app.ts";
 import type { Service } from "./app.ts";
 

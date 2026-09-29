@@ -10,7 +10,7 @@
  * Rulat dupa `demo:desktop` si `demo:mobile`, arata a treia coloana a matricei.
  */
 import { createSession } from "./session.ts";
-import type { WebPlatform } from "@raptor/web-host";
+import type { WebPlatform } from "@raptor/host/web";
 
 const tick = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 5));
 

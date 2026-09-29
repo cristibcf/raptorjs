@@ -19,7 +19,7 @@ export const LESSONS: Lesson[] = [
       { t: "p", text: "Raptor is a compiler-centric UI + data stack built on one idea: when the compiler, runtime, network protocol and cache all share the same state graph, you can delete the redundant work between them. It has four pillars — [RaptorJS](/learn/state-and-reactivity) (execution), [RaptorWire](/learn/realtime-with-raptorwire) (communication), RaptorTest (verification) and RaptorEngine (build)." },
       { t: "h", text: "Your first component" },
       { t: "p", text: "A component is a plain function that returns DOM. There is no Virtual DOM: `state` creates a reactive signal, and reading it inside markup wires that exact text node to it." },
-      { t: "code", file: "Counter.tsx", code: `import { render, state, derived } from "@raptor/dom";
+      { t: "code", file: "Counter.tsx", code: `import { render, state, derived } from "raptorjs/dom";
 
 function Counter() {
   const count = state(0);
@@ -72,21 +72,21 @@ render(Counter, document.getElementById("app"));` },
       { t: "h", text: "Project layout" },
       { t: "code", file: "structure", code: `my-app/
 ├─ index.html            # <div id="app"></div> + <script src="/src/main.tsx">
-├─ tsconfig.json         # jsx: "react-jsx", jsxImportSource: "@raptor/dom"
-├─ package.json          # deps: @raptor/core, @raptor/dom; dev: @raptor/bundle
+├─ tsconfig.json         # jsx: "react-jsx", jsxImportSource: "raptorjs/dom"
+├─ package.json          # deps: raptorjs, raptorjs/dom; dev: @raptor/engine/bundle
 └─ src/
    └─ main.tsx           # render(App, #app)` },
       { t: "h", text: "Scripts" },
-      { t: "p", text: "There is no bundler config file — RaptorBundle has `jsxImportSource: \"@raptor/dom\"` built in." },
+      { t: "p", text: "There is no bundler config file — RaptorBundle has `jsxImportSource: \"raptorjs/dom\"` built in." },
       { t: "code", file: "package.json", code: `{
   "scripts": {
     "dev":   "raptor-bundle dev src/main.tsx --root . --port 5173",
     "build": "raptor-bundle build src/main.tsx --out dist/bundle.js --html index.html"
   },
-  "devDependencies": { "@raptor/bundle": "workspace:*" }
+  "devDependencies": { "@raptor/engine/bundle": "workspace:*" }
 }` },
       { t: "p", text: "`pnpm dev` starts a dev server with live-reload; `pnpm build` emits a single static `bundle.js` plus a rewritten `index.html`." },
-      { t: "note", kind: "info", title: "One tool, no config", text: "RaptorBundle transforms JSX to `@raptor/dom`'s runtime, resolves the module graph and emits one file — with zero runtime dependencies and no config file. See [Build & bundle](/learn/build-and-bundle)." },
+      { t: "note", kind: "info", title: "One tool, no config", text: "RaptorBundle transforms JSX to `raptorjs/dom`'s runtime, resolves the module graph and emits one file — with zero runtime dependencies and no config file. See [Build & bundle](/learn/build-and-bundle)." },
     ],
   },
   {
@@ -118,13 +118,13 @@ render(Counter, document.getElementById("app"));` },
       { t: "table",
         head: ["Capability", "State", "Where"],
         rows: [
-          ["Fine-grained reactivity", "Ready", "`@raptor/core`, `@raptor/dom`"],
-          ["DOM bindings and control flow (`For` / `Show`)", "Ready", "`@raptor/dom`"],
-          ["JSX *and* a no-build hyperscript surface (`R`)", "Ready", "`@raptor/dom` — same runtime, two ways to author"],
-          ["SVG in the runtime", "Ready", "`@raptor/dom` (`createElementNS`)"],
-          ["Component library with optional styles", "Ready", "`@raptor/ui` — see [Components](/components)"],
-          ["Headless primitives (portal, focus trap, virtualizer, sortable, hotkeys)", "Ready", "`@raptor/ui`"],
-          ["Form core with derived validation, overlays, date/time, charts", "Ready", "`@raptor/ui`, 36 entry points"],
+          ["Fine-grained reactivity", "Ready", "`raptorjs`, `raptorjs/dom`"],
+          ["DOM bindings and control flow (`For` / `Show`)", "Ready", "`raptorjs/dom`"],
+          ["JSX *and* a no-build hyperscript surface (`R`)", "Ready", "`raptorjs/dom` — same runtime, two ways to author"],
+          ["SVG in the runtime", "Ready", "`raptorjs/dom` (`createElementNS`)"],
+          ["Component library with optional styles", "Ready", "`raptorjs/ui` — see [Components](/components)"],
+          ["Headless primitives (portal, focus trap, virtualizer, sortable, hotkeys)", "Ready", "`raptorjs/ui`"],
+          ["Form core with derived validation, overlays, date/time, charts", "Ready", "`raptorjs/ui`, 36 entry points"],
         ],
       },
 
@@ -132,11 +132,11 @@ render(Counter, document.getElementById("app"));` },
       { t: "table",
         head: ["Capability", "State", "Where"],
         rows: [
-          ["JSX in the browser, no Vite or webpack", "Ready", "`@raptor/bundle`"],
+          ["JSX in the browser, no Vite or webpack", "Ready", "`@raptor/engine/bundle`"],
           ["Tree-shaking over ESM source", "Ready", "One `Button` out of the barrel: 58 modules → 9, 527 KB → 39 KB"],
           ["Dev server with live reload", "Ready", "`raptor-bundle dev`"],
           ["Semantic graph optimisation (dead-signal elimination, fusion)", "Ready", "`@raptor/engine`, for `.raptor` sources"],
-          ["State-preserving HMR", "Ready", "`@raptor/run`, `@raptor/engine`"],
+          ["State-preserving HMR", "Ready", "`@raptor/engine/run`, `@raptor/engine`"],
         ],
       },
 
@@ -144,13 +144,13 @@ render(Counter, document.getElementById("app"));` },
       { t: "table",
         head: ["Capability", "State", "Where"],
         rows: [
-          ["Delta protocol with a reactive address space", "Ready", "`@raptor/wire-core`"],
-          ["Authoritative server: query, mutation, subscription", "Ready", "`@raptor/server`"],
-          ["Client with a reactive replica and delta reconnect", "Ready", "`@raptor/wire-client`"],
+          ["Delta protocol with a reactive address space", "Ready", "`@raptor/wire`"],
+          ["Authoritative server: query, mutation, subscription", "Ready", "`@raptor/wire/server`"],
+          ["Client with a reactive replica and delta reconnect", "Ready", "`@raptor/wire/client`"],
           ["WebSocket transport", "Ready", "`connectWebSocket` + `serveOverWebSocket`, RFC 6455 in-package"],
           ["In-process transport for tests and demos", "Ready", "`createLoopback()`"],
-          ["Server rendering and resume", "Ready", "`@raptor/run`"],
-          ["Routing", "Basic", "`@raptor/run` `matchRoute` — no nested layouts, no data loaders"],
+          ["Server rendering and resume", "Ready", "`@raptor/engine/run`"],
+          ["Routing", "Basic", "`@raptor/engine/run` `matchRoute` — no nested layouts, no data loaders"],
         ],
       },
 
@@ -195,19 +195,19 @@ render(Counter, document.getElementById("app"));` },
       { t: "code", file: "package.json", code: `{
   "type": "module",
   "dependencies": {
-    "@raptor/core":        "workspace:*",
-    "@raptor/dom":         "workspace:*",
-    "@raptor/server":      "workspace:*",
-    "@raptor/wire-client": "workspace:*",
-    "@raptor/wire-core":   "workspace:*"
+    "raptorjs":        "workspace:*",
+    "raptorjs/dom":         "workspace:*",
+    "@raptor/wire/server":      "workspace:*",
+    "@raptor/wire/client": "workspace:*",
+    "@raptor/wire":   "workspace:*"
   },
-  "devDependencies": { "@raptor/bundle": "workspace:*" },
+  "devDependencies": { "@raptor/engine/bundle": "workspace:*" },
   "scripts": { "dev": "node src/server.ts" }
 }` },
 
       { t: "h", text: "2. The shared state" },
       { t: "p", text: "The server owns the truth. A todo is an object under the handle `todo:ID`; their order lives separately in the `order` collection. Each mutation produces operations, and those operations — not the list — are what travels." },
-      { t: "code", file: "src/app.ts", code: `import { raptorServer } from "@raptor/server";
+      { t: "code", file: "src/app.ts", code: `import { raptorServer } from "@raptor/wire/server";
 
 export const TODO_QUERY = "todos";
 export const TODO_PREFIXES = ["order", "todo:"];
@@ -247,8 +247,8 @@ export function buildTodoApp() {
       { t: "h", text: "3. One process serves both" },
       { t: "p", text: "The page and the protocol share a port. `serveOverWebSocket` attaches to an ordinary `node:http` server and turns every accepted upgrade into a RaptorWire connection." },
       { t: "code", file: "src/server.ts", code: `import { createServer } from "node:http";
-import { bundleApp, rewriteHtml } from "@raptor/bundle";
-import { serveOverWebSocket } from "@raptor/server";
+import { bundleApp, rewriteHtml } from "@raptor/engine/bundle";
+import { serveOverWebSocket } from "@raptor/wire/server";
 import { buildTodoApp } from "./app.ts";
 
 const app = buildTodoApp();
@@ -271,8 +271,8 @@ http.listen(5190);` },
 
       { t: "h", text: "4. The client holds no copy" },
       { t: "p", text: "This is the part that differs from a store. `client.signal(handle)` is not a getter over cached JSON — it *is* the state, and every binding in the markup subscribes to exactly one handle." },
-      { t: "code", file: "src/main.tsx", code: `import { render, state, For } from "@raptor/dom";
-import { RaptorClient, connectWebSocket } from "@raptor/wire-client";
+      { t: "code", file: "src/main.tsx", code: `import { render, state, For } from "raptorjs/dom";
+import { RaptorClient, connectWebSocket } from "@raptor/wire/client";
 import { TODO_QUERY } from "./app.ts";
 
 const client = new RaptorClient(await connectWebSocket(\`ws://\${location.host}/raptor\`));
@@ -346,7 +346,7 @@ function TodoApp() {
     intro: "Signals are the heart of RaptorJS: callable accessors that track who reads them.",
     blocks: [
       { t: "h", text: "state — a mutable signal" },
-      { t: "code", file: "core", code: `import { state } from "@raptor/core";
+      { t: "code", file: "core", code: `import { state } from "raptorjs";
 
 const count = state(0);
 count();                 // read (and register a dependency)
@@ -388,7 +388,7 @@ const label   = derived(() => \`count is \${count()}\`);` },
 </button>` },
       { t: "h", text: "For — keyed lists" },
       { t: "p", text: "`For` renders a reactive array and reuses nodes for unchanged items, so reordering moves the minimum number of DOM nodes." },
-      { t: "code", code: `import { For } from "@raptor/dom";
+      { t: "code", code: `import { For } from "raptorjs/dom";
 
 <ul>
   <For each={() => items()}>
@@ -396,7 +396,7 @@ const label   = derived(() => \`count is \${count()}\`);` },
   </For>
 </ul>` },
       { t: "h", text: "Show — conditional regions" },
-      { t: "code", code: `import { Show } from "@raptor/dom";
+      { t: "code", code: `import { Show } from "raptorjs/dom";
 
 <Show when={() => user()} fallback={<p>Signed out</p>}>
   <p>Welcome back</p>
@@ -415,7 +415,7 @@ const label   = derived(() => \`count is \${count()}\`);` },
       { t: "h", text: "The idea" },
       { t: "p", text: "Most realtime apps re-send whole JSON documents on every change. RaptorWire sends the operation instead — `SET`, `INC`, `APPEND`, `PATCH`, `MOVE` — applied on top of a base state both sides already know. An `INC` on one field is an order of magnitude smaller than re-serializing the object." },
       { t: "h", text: "Server: authoritative store" },
-      { t: "code", file: "server.ts", code: `import { raptorServer } from "@raptor/server";
+      { t: "code", file: "server.ts", code: `import { raptorServer } from "@raptor/wire/server";
 
 const app = raptorServer({ build: "app" });
 app.query("dashboard", { select: () => ["cpu", "memory", "jobs", "job:"] });
@@ -426,7 +426,7 @@ app.mutation("setProgress", {
 });` },
       { t: "h", text: "Client: a reactive replica" },
       { t: "p", text: "Each handle on the client is a signal. Subscribe once, then bind the DOM to `client.signal(name)` — deltas from the server update exactly the affected bindings." },
-      { t: "code", file: "client.tsx", code: `import { RaptorClient } from "@raptor/wire-client";
+      { t: "code", file: "client.tsx", code: `import { RaptorClient } from "@raptor/wire/client";
 
 const client = new RaptorClient(transport);
 await client.connect();
@@ -447,7 +447,7 @@ client.subscribe("dashboard");
       { t: "p", text: "RaptorBundle compiles the `.tsx` browser variant. It has zero runtime dependencies and uses the TypeScript compiler only as a build-time transform primitive." },
       { t: "h", text: "What it does" },
       { t: "list", items: [
-        "Transform — each module's JSX becomes calls to `@raptor/dom/jsx-runtime`; types are stripped.",
+        "Transform — each module's JSX becomes calls to `raptorjs/dom/jsx-runtime`; types are stripped.",
         "Resolve — specifiers (relative, and `@raptor/*` via their exports map to source `.ts`) are resolved with Node's resolver.",
         "Bundle — the closed, zero-dep graph is packed into one file with a lazy module registry.",
         "Dev — a `node:http` server serves `index.html`, rebuilds on request, and live-reloads via SSE on `fs.watch`.",
@@ -456,11 +456,11 @@ client.subscribe("dashboard");
       { t: "code", file: "terminal", code: `raptor-bundle build src/main.tsx --out dist/bundle.js --html index.html
 raptor-bundle dev   src/main.tsx --root . --port 5173` },
       { t: "h", text: "Programmatic API" },
-      { t: "code", code: `import { bundleApp, startDevServer } from "@raptor/bundle";
+      { t: "code", code: `import { bundleApp, startDevServer } from "@raptor/engine/bundle";
 
 const { code, files } = bundleApp("/abs/src/main.tsx");
 startDevServer({ entry: "src/main.tsx", root: ".", port: 5173 });` },
-      { t: "note", kind: "tip", title: "This very site", text: "Everything you're reading is a RaptorJS app compiled by RaptorBundle — the graph is 30 modules across @raptor/core, dom, wire-core, wire-client and server." },
+      { t: "note", kind: "tip", title: "This very site", text: "Everything you're reading is a RaptorJS app compiled by RaptorBundle — the graph is 30 modules across raptorjs, dom, wire-core, wire-client and server." },
     ],
   },
   {
@@ -712,7 +712,7 @@ const findings = rt.explore();   // Finding[] — each with a replayable capsule
         "The WebSocket handshake checks `Origin` and defaults to same-origin — a browser page on another site cannot open a connection. Pass `allowedOrigins` when your app is served from a different origin than the API.",
         "No schema validation on decode. `SchemaCodec` is optional; the generic value codec accepts any shape, so a mutation should validate its own input rather than trust it.",
         "The reactive address space is renegotiated per connection. The exact identifier format is still open.",
-        "`@raptor/ui` has not been reviewed for injection through props. The one HTML sink in the library is `RichTextEditor`, which does not sanitise and says so both in its source and on [its catalogue page](/components).",
+        "`raptorjs/ui` has not been reviewed for injection through props. The one HTML sink in the library is `RichTextEditor`, which does not sanitise and says so both in its source and on [its catalogue page](/components).",
         "No penetration testing.",
       ] },
       { t: "p", text: "The current state is in `SECURITY-AUDIT.md`; the report behind it, with a proof-of-concept per finding, is in `AUDIT-2026-09-24.md`. Both at the repository root." },
@@ -726,7 +726,7 @@ const findings = rt.explore();   // Finding[] — each with a replayable capsule
       "A declarative component format that compiles to browser code, server code and a wire manifest from one graph — and deletes the work nothing observes.",
     blocks: [
       { t: "p", text: "Everything else on this site uses JSX or the `R` builder, which are runtime surfaces: you write bindings and the runtime wires them at startup. RaptorEngine takes a different route. A `.raptor` file is parsed into an intermediate representation, turned into a semantic graph, optimised on that graph, and only then emitted — as browser code, server code and a wire manifest at once." },
-      { t: "note", kind: "warn", title: "This is the research edge", text: "JSX plus `@raptor/bundle` is the supported path and what the rest of these docs use. The `.raptor` pipeline works — every output on this page was produced by running it — but it is younger, and nothing on this site is built with it." },
+      { t: "note", kind: "warn", title: "This is the research edge", text: "JSX plus `@raptor/engine/bundle` is the supported path and what the rest of these docs use. The `.raptor` pipeline works — every output on this page was produced by running it — but it is younger, and nothing on this site is built with it." },
 
       { t: "h", text: "A component" },
       { t: "code", file: "App.raptor", code: `component App {
@@ -760,8 +760,8 @@ const findings = rt.explore();   // Finding[] — each with a replayable capsule
 ]` },
       { t: "p", text: "`unused` reaches no binding and no effect, so it is not emitted at all — dead-signal elimination. `label` has exactly one consumer, so it does not need to exist as a separate reactive node; its expression is inlined into the text binding that reads it. `doubled` has two consumers and survives as a real `derived`." },
       { t: "p", text: "Here is the emitted browser module, trimmed. There is no `label` and no `unused`:" },
-      { t: "code", file: "browser output", code: `import { state, derived } from "@raptor/core";
-import { createElement, applyProps, mountChild } from "@raptor/dom";
+      { t: "code", file: "browser output", code: `import { state, derived } from "raptorjs";
+import { createElement, applyProps, mountChild } from "raptorjs/dom";
 
 export function App() {
   const count = state(0);
@@ -798,12 +798,12 @@ out.optimization   // what was removed, and why
 
 # CLI
 pnpm raptor build` },
-      { t: "p", text: "`@raptor/compiler` holds the stable semantic core — parser, IR, graph, and the diff used for hot reload. `@raptor/engine` consumes it and adds the optimiser, code generation, caching and the CLI. They are separate packages so the semantic core does not depend on the build tooling." },
+      { t: "p", text: "`@raptor/engine/compiler` holds the stable semantic core — parser, IR, graph, and the diff used for hot reload. `@raptor/engine` consumes it and adds the optimiser, code generation, caching and the CLI. They are separate packages so the semantic core does not depend on the build tooling." },
 
       { t: "h", text: "Where this stands" },
       { t: "list", items: [
         "The pipeline runs end to end: parse, graph, optimise, emit browser + server + manifest.",
-        "Graph diffing for state-preserving hot reload is implemented in `@raptor/compiler`.",
+        "Graph diffing for state-preserving hot reload is implemented in `@raptor/engine/compiler`.",
         "No editor tooling — no syntax highlighting, no language server, no formatter.",
         "The expression language is small. It is not TypeScript, and it does not try to be.",
         "If you want to ship something today, use JSX. If you want to see where the architecture is going, this is it.",

@@ -7,6 +7,6 @@
 export const TEST_COUNT = 875;
 export const TEST_PASS = 873;
 export const TEST_SKIP = 2;
-export const PACKAGE_COUNT = 23;
+export const PACKAGE_COUNT = 6;
 export const CATALOG_COUNT = 211;
 export const RUNTIME_DEPENDENCIES = 0;

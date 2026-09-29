@@ -1,9 +1,9 @@
 /** Buttons and actions. */
-import { state } from "@raptor/dom";
-import { Button, ButtonGroup, IconButton } from "@raptor/ui/button";
-import { CloseButton, CopyButton, ToggleButton, ToggleGroup } from "@raptor/ui/controls";
-import { FloatingActionButton, SplitButton } from "@raptor/ui/layout-extra";
-import { menuItem, menuSeparator } from "@raptor/ui/menu";
+import { state } from "raptorjs/dom";
+import { Button, ButtonGroup, IconButton } from "raptorjs/ui/button";
+import { CloseButton, CopyButton, ToggleButton, ToggleGroup } from "raptorjs/ui/controls";
+import { FloatingActionButton, SplitButton } from "raptorjs/ui/layout-extra";
+import { menuItem, menuSeparator } from "raptorjs/ui/menu";
 import type { CatalogGroup } from "./types.ts";
 
 export const BUTTONS: CatalogGroup = {

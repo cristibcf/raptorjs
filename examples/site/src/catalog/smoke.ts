@@ -12,7 +12,7 @@
  * instant orice regresie — o componenta care arunca, un grafic care produce
  * `NaN`, un obiect ajuns stringificat in text.
  */
-import { mountChild } from "@raptor/dom";
+import { mountChild } from "raptorjs/dom";
 import { CATALOG } from "./index.ts";
 
 export interface DemoFailure {

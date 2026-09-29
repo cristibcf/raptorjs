@@ -3,8 +3,8 @@
  * fiecare binding din JSX se leaga la exact un semnal. Cand serverul difuzeaza
  * un PATCH pe "todo:3", se actualizeaza randul 3 - nu lista, nu componenta.
  */
-import { render, state, For, Show } from "@raptor/dom";
-import { RaptorClient, connectWebSocket } from "@raptor/wire-client";
+import { render, state, For, Show } from "raptorjs/dom";
+import { RaptorClient, connectWebSocket } from "@raptor/wire/client";
 import { TODO_QUERY, type Todo } from "./app.ts";
 
 const WIRE_URL = `ws://${location.host}/raptor`;

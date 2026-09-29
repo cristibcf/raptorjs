@@ -10,7 +10,7 @@
  *
  * Site-ul ocoleste asta construind fiecare demo in `untracked(...)`. Ocolul din
  * consumator e insa un semn ca problema e in biblioteca: oricine foloseste
- * `@raptor/ui` intr-un binding da peste ea fara sa stie de ce.
+ * `raptorjs/ui` intr-un binding da peste ea fara sa stie de ce.
  *
  * Masuram simptomul, nu cauza: montam demo-ul INAUNTRUL unui effect, apasam
  * primul buton din el, si vedem daca effect-ul s-a re-rulat.
@@ -18,8 +18,8 @@
  * Fisierul nu e cod de aplicatie - nimic nu-l importa, deci nu ajunge in
  * bundle-ul site-ului. E punctul de intrare pe care il da bundler-ul unui test.
  */
-import { effect, createRoot } from "@raptor/core";
-import { mountChild } from "@raptor/dom";
+import { effect, createRoot } from "raptorjs";
+import { mountChild } from "raptorjs/dom";
 import { CATALOG } from "./index.ts";
 
 export interface LeakReport {

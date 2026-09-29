@@ -13,8 +13,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { bundleApp } from "@raptor/bundle";
-import { installMiniDom } from "@raptor/dom/testing";
+import { bundleApp } from "@raptor/engine/bundle";
+import { installMiniDom } from "raptorjs/dom/testing";
 import type { SmokeReport } from "../src/catalog/smoke.ts";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -171,7 +171,7 @@ test("bundle-ul probei trece prin tree-shaking fără să piardă module necesar
  * era tastat intr-un input.
  *
  * Site-ul ocolea problema construind fiecare demo in `untracked(...)`. Ocolul a
- * fost scos si reparatia a intrat in biblioteca (`@raptor/ui` -> `isolate`);
+ * fost scos si reparatia a intrat in biblioteca (`raptorjs/ui` -> `isolate`);
  * testul asta e ce tine reparatia pe loc.
  */
 test("nicio componenta nu re-randa regiunea care o construieste", async () => {

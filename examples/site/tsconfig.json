@@ -4,7 +4,7 @@
     "noEmit": true,
     "allowImportingTsExtensions": true,
     "jsx": "react-jsx",
-    "jsxImportSource": "@raptor/dom"
+    "jsxImportSource": "raptorjs/dom"
   },
   "include": ["src"]
 }

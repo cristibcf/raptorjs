@@ -11,7 +11,7 @@
  * apelat direct, dar este exact drumul pe care il va face o cerere cand host-ul
  * va fi un proces separat - deci codul de aici nu se schimba atunci.
  */
-import { derived, state } from "@raptor/core";
+import { derived, state } from "raptorjs";
 import type { HostBridge } from "@raptor/host";
 
 export interface Note {

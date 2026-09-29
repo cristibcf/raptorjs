@@ -12,7 +12,7 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
 import { buildModule } from "@raptor/engine";
-import { installMiniDom, resetStats, stats, type MiniElement } from "@raptor/dom/testing";
+import { installMiniDom, resetStats, stats, type MiniElement } from "raptorjs/dom/testing";
 
 installMiniDom();
 const doc = (globalThis as unknown as { document: any }).document;
@@ -49,7 +49,7 @@ test("build: DSE elimina 'unused', fusion colapseaza 'label'", () => {
 
 test("e2e: codul generat ruleaza si produce DOM corect + reactivitate fine-grained", async () => {
   const mod = (await import(pathToFileURL(genFile).href)) as { App: () => MiniElement };
-  const { render } = await import("@raptor/dom");
+  const { render } = await import("raptorjs/dom");
 
   const root = doc.createElement("div") as MiniElement;
   render(mod.App, root);

@@ -17,7 +17,7 @@
  *  - **Scrierile in NVS se numara**, pentru ca uzeaza flash-ul: logger-ul
  *    salveaza doar cand valoarea chiar s-a schimbat destul.
  */
-import { derived, state } from "@raptor/core";
+import { derived, state } from "raptorjs";
 import type { HostBridge } from "@raptor/host";
 
 export interface Reading {

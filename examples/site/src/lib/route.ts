@@ -1,9 +1,9 @@
 /**
- * Nested hash routing via a signal (dogfoods @raptor/core). The whole path lives
+ * Nested hash routing via a signal (dogfoods raptorjs). The whole path lives
  * in one signal; `section()` / `sub()` derive the parts. Changing it re-binds
  * only the view region in the shell — no page re-render.
  */
-import { state, derived } from "@raptor/core";
+import { state, derived } from "raptorjs";
 
 function fromHash(): string {
   const h = decodeURIComponent(location.hash.replace(/^#\/?/, ""));

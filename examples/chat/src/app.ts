@@ -3,7 +3,7 @@
  * "messages". Operatii: APPEND la trimitere, PATCH pe status (sent ->
  * delivered -> read), REMOVE la stergere (whitepaper 26.2, Anexa A.3).
  */
-import { raptorServer, type RaptorServer } from "@raptor/server";
+import { raptorServer, type RaptorServer } from "@raptor/wire/server";
 
 export const CHAT_QUERY = "chat";
 export const CHAT_PREFIXES = ["messages", "message:"];

@@ -8,8 +8,8 @@
  */
 import { createBridge, createMemoryChannel, requireHostManifest } from "@raptor/host";
 import type { HostBridge, HostManifest } from "@raptor/host";
-import { createDeviceHost } from "@raptor/device-host";
-import type { Board, DeviceHost, PinDefinition } from "@raptor/device-host";
+import { createDeviceHost } from "@raptor/host/device";
+import type { Board, DeviceHost, PinDefinition } from "@raptor/host/device";
 import { createLogger } from "./app.ts";
 import type { Logger } from "./app.ts";
 

@@ -7,7 +7,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { runOnce } from "../src/session.ts";
-import type { Terminal } from "@raptor/cli-host";
+import type { Terminal } from "@raptor/host/cli";
 
 interface Run {
   readonly code: number;

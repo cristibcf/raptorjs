@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { installMiniDom, newStats, resetStats, stats } from "@raptor/dom/testing";
-import { render } from "@raptor/dom";
+import { installMiniDom, newStats, resetStats, stats } from "raptorjs/dom/testing";
+import { render } from "raptorjs/dom";
 import { createSession } from "../src/session.ts";
 import type { Session } from "../src/session.ts";
 

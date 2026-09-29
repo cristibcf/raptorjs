@@ -5,7 +5,7 @@
  *
  * Ruleaza:  cd examples/counter && pnpm install && pnpm dev
  */
-import { render, state, derived } from "@raptor/dom";
+import { render, state, derived } from "raptorjs/dom";
 
 function Counter() {
   const count = state(0);

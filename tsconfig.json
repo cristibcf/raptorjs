@@ -4,7 +4,7 @@
     "noEmit": true,
     "allowImportingTsExtensions": true,
     "jsx": "react-jsx",
-    "jsxImportSource": "@raptor/dom"
+    "jsxImportSource": "raptorjs/dom"
   },
   "include": [
     "packages/*/src/**/*.ts",
@@ -19,7 +19,7 @@
     "nu pot sta in acelasi program fara sa se contopeasca."
   ],
   "exclude": [
-    "packages/runtime/src/raptor-modules.native.d.ts",
+    "packages/runtime/src/core/raptor-modules.native.d.ts",
     "examples/native-hello/**",
     "examples/native-server/**"
   ]

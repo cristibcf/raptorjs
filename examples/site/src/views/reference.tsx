@@ -3,13 +3,17 @@
  * format ca sectiunea Components — demo care ruleaza, import, semnatura,
  * parametri, exemplu, note.
  */
-import { untracked } from "@raptor/dom";
+import { untracked } from "raptorjs/dom";
 import { sub, navigate } from "../lib/route.ts";
 import { Code, inline } from "../lib/ui.tsx";
 import { API_DEMOS } from "../demos/api.tsx";
 import { REF_PACKAGES, PACKAGE_ROUTES, type RefPackage, type ApiEntry } from "../content/reference.ts";
 
 const current = (): RefPackage | null => REF_PACKAGES.find((p) => p.slug === sub()) ?? null;
+
+/** Cele 6 pachete publicate; intrarile de referinta se grupeaza sub ele dupa prefixul numelui. */
+const PACKAGE_GROUPS = ["raptorjs", "@raptor/wire", "@raptor/engine", "@raptor/runtime", "@raptor/host", "@raptor/test"] as const;
+const groupOf = (name: string): string => PACKAGE_GROUPS.find((g) => name.startsWith(g)) ?? PACKAGE_GROUPS[0];
 
 function Sidebar() {
   return (
@@ -22,17 +26,25 @@ function Sidebar() {
           Which package?
         </span>
       </div>
-      <div class="side-group">
-        <div class="side-title">Packages</div>
-        {REF_PACKAGES.map((p) => (
-          <span
-            class={() => "side-item" + (current()?.slug === p.slug ? " active" : "")}
-            on:click={() => navigate("reference/" + p.slug)}
-          >
-            {p.name}
-          </span>
-        ))}
-      </div>
+      {PACKAGE_GROUPS.map((g) => {
+        const items = REF_PACKAGES.filter((p) => groupOf(p.name) === g).sort((a, b) =>
+          a.name === g ? -1 : b.name === g ? 1 : a.name.localeCompare(b.name),
+        );
+        return (
+          <div class="side-group">
+            <div class="side-title" style="font-family:var(--mono)">{g}</div>
+            {items.map((p) => (
+              <span
+                class={() => "side-item" + (current()?.slug === p.slug ? " active" : "")}
+                on:click={() => navigate("reference/" + p.slug)}
+                style="padding-left:18px"
+              >
+                {p.name === g ? "overview" : p.name.slice(g.length)}
+              </span>
+            ))}
+          </div>
+        );
+      })}
     </aside>
   );
 }
@@ -162,7 +174,7 @@ function Index() {
         </div>
         <div>
           {inline(
-            "Start with `@raptor/dom`. It is the DOM runtime, and it re-exports the reactive primitives too, " +
+            "Start with `raptorjs/dom`. It is the DOM runtime, and it re-exports the reactive primitives too, " +
               "so a first app needs one import and you can add realtime or the component library later without " +
               "moving any of them. The [Quick start](/learn/quick-start) assumes exactly that.",
           )}

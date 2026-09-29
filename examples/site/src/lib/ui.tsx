@@ -1,9 +1,9 @@
 /**
  * UI toolkit for the site (RaptorJS, fine-grained). Pure functions returning real
  * DOM nodes, plus a content-block renderer used by the Learn/Reference pages.
- * The Playground builds UI without a JSX compiler via `R` from @raptor/dom.
+ * The Playground builds UI without a JSX compiler via `R` from raptorjs/dom.
  */
-import { state } from "@raptor/dom";
+import { state } from "raptorjs/dom";
 import { navigate } from "./route.ts";
 
 export function slug(text: string): string {

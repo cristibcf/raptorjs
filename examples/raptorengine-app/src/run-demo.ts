@@ -9,8 +9,8 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { buildModule } from "@raptor/engine";
-import { RaptorRuntime, renderDocument } from "@raptor/run";
-import { RaptorClient } from "@raptor/wire-client";
+import { RaptorRuntime, renderDocument } from "@raptor/engine/run";
+import { RaptorClient } from "@raptor/wire/client";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const source = readFileSync(join(here, "App.raptor"), "utf8");

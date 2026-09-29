@@ -14,6 +14,6 @@
     "noEmit": true,
     "allowImportingTsExtensions": true
   },
-  "files": ["packages/runtime/src/raptor-modules.native.d.ts"],
+  "files": ["packages/runtime/src/core/raptor-modules.native.d.ts"],
   "include": ["examples/native-hello/src/**/*.ts", "examples/native-server/src/**/*.ts"]
 }

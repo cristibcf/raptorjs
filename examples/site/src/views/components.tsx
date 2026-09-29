@@ -1,11 +1,11 @@
 /**
- * Components: the @raptor/ui catalog. Sidebar of groups, one page per component
+ * Components: the raptorjs/ui catalog. Sidebar of groups, one page per component
  * with a live demo built by the shipped component itself, its source, and props.
  *
  * Everything here is data-driven from `src/catalog` — the routes, the sidebar,
  * the index page and prev/next all come from the same array.
  */
-import { effect } from "@raptor/core";
+import { effect } from "raptorjs";
 import { sub, navigate } from "../lib/route.ts";
 import { importLine } from "../catalog/modules.ts";
 import { Code, inline } from "../lib/ui.tsx";
@@ -139,7 +139,7 @@ function Detail(c: ComponentDoc) {
       {/* Built plainly, on purpose. This used to need an `untracked(...)`
           wrapper, because eleven components subscribed whatever computation
           built them and re-rendered this whole page on their first click. That
-          is fixed in the library now (`@raptor/ui` -> `isolate`), and building
+          is fixed in the library now (`raptorjs/ui` -> `isolate`), and building
           the demo without the workaround is what keeps it fixed: if a component
           starts leaking again, the catalogue test sees it. */}
       <div class="cmp-stage">{c.demo()}</div>
@@ -203,12 +203,12 @@ function Index() {
   return (
     <article class="prose pane-enter">
       <div class="crumbs">
-        <b>Components</b> / @raptor/ui
+        <b>Components</b> / raptorjs/ui
       </div>
       <h1>Components</h1>
       <p class="intro">
         {inline(
-          "`@raptor/ui` is built on the same fine-grained bindings as everything else: no component " +
+          "`raptorjs/ui` is built on the same fine-grained bindings as everything else: no component " +
             "re-renders, every dynamic piece is a binding that touches exactly one attribute, text node or row. " +
             "Styles are optional and separate — the components only set `rui-*` classes and ARIA attributes.",
         )}
@@ -235,7 +235,7 @@ function Index() {
           {inline(
             "Components are plain functions returning real DOM, so JSX is optional: call `Button({ ... })` " +
               "directly, or use `<Button />` if you compile JSX. For the stylesheet, call `installStyles()` " +
-              "from `@raptor/ui/styles` once at startup.",
+              "from `raptorjs/ui/styles` once at startup.",
           )}
         </div>
       </div>

@@ -7,7 +7,7 @@
  * Fisierul asta nu stie nimic despre transport - se foloseste identic peste
  * WebSocket (src/server.ts) sau peste loopback (in teste).
  */
-import { raptorServer, type RaptorServer } from "@raptor/server";
+import { raptorServer, type RaptorServer } from "@raptor/wire/server";
 
 export const TODO_QUERY = "todos";
 
