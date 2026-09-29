@@ -4,9 +4,39 @@
  * broker, iar `exit` merge prin oprirea curata a runtime-ului.
  */
 import { spawn as spawnChild } from "node:child_process";
+import { existsSync } from "node:fs";
+import { delimiter, isAbsolute, join } from "node:path";
 import type { HostContext } from "../context.ts";
 import { CapabilityError, RaptorError } from "../errors.ts";
 import { containsPath, resolvePath } from "../paths.ts";
+
+/**
+ * Rezolva o comanda la o cale absoluta prin PATH-ul HOST-ului, inainte de spawn.
+ *
+ * Mediul copilului e restrictionat intentionat: nu contine `PATH` decat daca
+ * aplicatia l-a cerut explicit prin `env.read`. Pe Linux, `spawn` cauta binarul
+ * in PATH-ul COPILULUI, deci o comanda permisa ca "node" ar da `ENOENT` desi
+ * exista pe host (pe Windows libuv cauta in PATH-ul parintelui, de aici
+ * diferenta). Comanda e deja autorizata de broker pe nume; a gasi binarul e o
+ * treaba separata de ce mediu vede copilul, iar setarea lui `PATH` pe copil e
+ * oricum refuzata. Daca nu o gasim, o lasam asa: `spawn` va da acelasi `ENOENT`,
+ * corect pentru o comanda care chiar lipseste.
+ */
+function resolveOnHostPath(command: string): string {
+  if (isAbsolute(command) || command.includes("/") || command.includes("\\")) return command;
+  const dirs = (process.env["PATH"] ?? "").split(delimiter).filter(Boolean);
+  const exts =
+    process.platform === "win32"
+      ? (process.env["PATHEXT"] ?? ".COM;.EXE;.BAT;.CMD").split(";").filter(Boolean)
+      : [""];
+  for (const dir of dirs) {
+    for (const ext of exts) {
+      const candidate = join(dir, command + ext);
+      if (existsSync(candidate)) return candidate;
+    }
+  }
+  return command;
+}
 
 /**
  * Variabile de mediu care fac un proces sa incarce cod inainte sa ajunga la
@@ -158,7 +188,7 @@ export function createProcess(host: HostContext, source: NodeJS.ProcessEnv = pro
       return await host.tasks.spawn<SpawnResult>(
         (context) =>
           new Promise<SpawnResult>((resolve, reject) => {
-            const child = spawnChild(command, [...(options.args ?? [])], {
+            const child = spawnChild(resolveOnHostPath(command), [...(options.args ?? [])], {
               cwd,
               env: childEnv,
               shell: false,
