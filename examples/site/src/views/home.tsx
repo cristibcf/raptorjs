@@ -2,7 +2,7 @@
  *  four-layer diagram, honest numbers, and current-status positioning. */
 import { navigate } from "../lib/route.ts";
 import { COMPONENT_COUNT } from "../catalog/index.ts";
-import { RUNTIME_DEPENDENCIES, TEST_PASS } from "../content/stats.ts";
+import { RUNTIME_DEPENDENCIES, TEST_COUNT } from "../content/stats.ts";
 import { SectionHead, highlight } from "../lib/ui.tsx";
 import { DemoCounter, DemoTodo, DemoRealtime } from "../demos/index.tsx";
 
@@ -259,7 +259,7 @@ export function HomeView() {
               All eight operations, the two Preact wins, and what is not measured →
             </span>
             <span style="font-size:13.5px;color:var(--muted)">
-              {String(RUNTIME_DEPENDENCIES)} runtime dependencies · {String(TEST_PASS)} tests passing
+              {String(RUNTIME_DEPENDENCIES)} runtime dependencies · {String(TEST_COUNT)} tests
             </span>
           </div>
         </div>

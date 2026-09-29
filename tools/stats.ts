@@ -122,8 +122,6 @@ function renderSiteStats(stats: Stats): string {
  * cuiva. \`pnpm stats --check\` pica in CI daca fisierul a ramas in urma.
  */
 export const TEST_COUNT = ${stats.tests};
-export const TEST_PASS = ${stats.pass};
-export const TEST_SKIP = ${stats.skip};
 export const PACKAGE_COUNT = ${stats.packages};
 export const CATALOG_COUNT = ${stats.components};
 export const RUNTIME_DEPENDENCIES = ${stats.runtimeDependencies.length};
@@ -136,11 +134,11 @@ const README_CATALOG = /\*\*\d+ de intrări în catalog\*\*/;
 const README_ENTRIES = /\*\*\d+ de puncte de intrare\*\*/;
 
 function renderReadme(current: string, stats: Stats): string {
-  // Fara motiv scris: testele sar din motive diferite (Rolldown neinstalat,
-  // symlink-uri de fisier indisponibile pe Windows) si fiecare si-l tipareste pe
-  // al lui. Un motiv unic scris aici ar fi gresit de indata ce apare al doilea.
-  const suffix = stats.skip > 0 ? `; ${stats.skip} sărite` : "";
-  const line = `pnpm test             # ${stats.tests} de teste (${stats.pass} pass${suffix})`;
+  // Doar totalul: cate teste trec vs se sar variaza intre platforme (symlink-uri
+  // de fisier ruleaza pe Linux dar se sar pe Windows, Rolldown lipseste unde nu e
+  // instalat), deci un numar de `pass`/`skip` fixat aici ar face `stats:check` sa
+  // pice pe cealalta platforma. Totalul si zero-esecuri sunt stabile peste tot.
+  const line = `pnpm test             # ${stats.tests} de teste`;
   if (!README_TEST_LINE.test(current)) throw new Error("nu am gasit linia 'pnpm test' in README.md");
   if (!README_CATALOG.test(current)) throw new Error("nu am gasit numarul de intrari de catalog in README.md");
   if (!README_ENTRIES.test(current)) throw new Error("nu am gasit numarul de puncte de intrare in README.md");
