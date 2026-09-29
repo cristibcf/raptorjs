@@ -40,7 +40,10 @@ function measureTests(): Pick<Stats, "tests" | "pass" | "skip" | "fail"> {
   );
   const output = `${result.stdout ?? ""}${result.stderr ?? ""}`;
   const read = (label: string): number => {
-    const match = output.match(new RegExp(`^\\u2139 ${label} (\\d+)$`, "m"));
+    // `node --test` isi schimba reporter-ul dupa versiune si dupa TTY: piped, Node
+    // 24 scoate spec (`ℹ tests 875`) iar Node 22 scoate TAP (`# tests 875`).
+    // Prindem ambele prefixe, altfel `stats:check` pica pe una dintre platforme.
+    const match = output.match(new RegExp(`^(?:\\u2139|#) ${label} (\\d+)$`, "m"));
     if (!match) throw new Error(`nu am gasit linia de sumar '${label}' in iesirea lui node --test`);
     return Number(match[1]);
   };
