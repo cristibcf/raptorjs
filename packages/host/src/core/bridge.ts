@@ -153,6 +153,11 @@ export function createBridge(options: BridgeOptions): HostBridge {
       const promise = new Promise<T>((resolve, reject) => {
         const entry: Pending = { method, resolve: resolve as (value: unknown) => void, reject, timer: null };
         if (timeoutMs > 0) {
+          // Fara `unref`: un apel in zbor tine event loop-ul viu pana se rezolva
+          // sau expira (cel mult `timeoutMs`). Cu `unref`, un `await call()` pe un
+          // loop altfel inactiv ar iesi fara ca promisiunea sa se rezolve vreodata
+          // - nici raspuns, nici timeout. Timer-ul e oricum sters la raspuns si la
+          // `dispose`, deci nu ramane nimic in urma.
           entry.timer = setTimeout(() => {
             pending.delete(id);
             reject(
@@ -162,9 +167,6 @@ export function createBridge(options: BridgeOptions): HostBridge {
               }),
             );
           }, timeoutMs);
-          if (typeof (entry.timer as { unref?: () => void }).unref === "function") {
-            (entry.timer as { unref: () => void }).unref();
-          }
         }
         pending.set(id, entry);
       });
