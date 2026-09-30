@@ -1,5 +1,10 @@
 # RaptorJS + RaptorWire + RaptorTest + RaptorEngine
 
+[![npm](https://img.shields.io/npm/v/@raptorstack/raptorjs?logo=npm&label=%40raptorstack%2Fraptorjs)](https://www.npmjs.com/package/@raptorstack/raptorjs)
+[![CI](https://github.com/cristibcf/raptorjs/actions/workflows/ci.yml/badge.svg)](https://github.com/cristibcf/raptorjs/actions/workflows/ci.yml)
+[![license](https://img.shields.io/npm/l/@raptorstack/raptorjs)](LICENSE)
+[![runtime deps](https://img.shields.io/badge/runtime%20deps-0-brightgreen)](#run-it-now-zero-build-zero-runtime-dependencies)
+
 MVP implementation of the Raptor ecosystem described in the whitepapers under [`design/`](design/).
 Four pillars: **execution**, **communication**, **verification**, **compilation/build**.
 
@@ -11,6 +16,36 @@ Four pillars: **execution**, **communication**, **verification**, **compilation/
 > Thesis (whitepaper §1): the advantage does not come from a performance trick, but from **eliminating redundant work** between the compiler, runtime, serialization, cache and UI — because every layer knows the same schema and the same state graph.
 
 Direction for v0.2: **reactive end-to-end** — `DB → reactive query → server signal → RaptorWire op → client signal → DOM binding`.
+
+## Install from npm
+
+The six packages are published under the [`@raptorstack`](https://www.npmjs.com/org/raptorstack) scope (**0 runtime dependencies**):
+
+```bash
+npm install @raptorstack/raptorjs     # reactivity + DOM + UI (the framework)
+npm install @raptorstack/wire         # state-aware binary protocol
+npm install @raptorstack/host         # host contract + platform adapters
+npm install -D @raptorstack/engine    # compiler, bundler, dev/server runtime (CLI: raptor, raptor-create, …)
+npm install -D @raptorstack/runtime   # runtime contracts + launcher (CLI: raptor-runtime)
+npm install -D @raptorstack/test      # autonomous behavioral testing
+```
+
+A minimal counter — fine-grained, no Virtual DOM:
+
+```ts
+import { state, derived, render } from "@raptorstack/raptorjs";
+import { R } from "@raptorstack/raptorjs/dom";
+
+function Counter() {
+  const count = state(0);
+  const doubled = derived(() => count() * 2);
+  return R.button({ "on:click": () => count.update((n) => n + 1) }, () => `${count()} · doubled ${doubled()}`);
+}
+
+render(Counter, document.getElementById("app")!);
+```
+
+Subpaths expose the internal granularity: `@raptorstack/raptorjs/dom`, `@raptorstack/raptorjs/ui` (components), `@raptorstack/wire/client`, `@raptorstack/wire/server`, `@raptorstack/engine/bundle`, `@raptorstack/host/web`, … — see the [package table](#architecture-monorepo) below.
 
 ## Run it now (zero build, zero runtime dependencies)
 
