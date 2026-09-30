@@ -1,0 +1,51 @@
+# Release automat: la un tag `vX.Y.Z`, publica cele 6 pachete pe npm si creeaza
+# un GitHub Release cu note generate din commit-uri.
+#
+# Necesita un singur secret in repo (Settings -> Secrets and variables -> Actions):
+#   NPM_TOKEN  = un token npm de tip "Automation" (bypaseaza 2FA in CI),
+#               generat pe npmjs.com -> Access Tokens -> Generate New Token -> Automation.
+#
+# Flux: pnpm bump patch  ->  git commit  ->  git tag vX.Y.Z  ->  git push --tags
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write # pentru a crea GitHub Release-ul
+
+jobs:
+  release:
+    name: Publish npm + GitHub Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # istoric complet pentru --generate-notes
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck:node
+
+      - name: Publish to npm
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > "$HOME/.npmrc"
+          pnpm -r --filter "./packages/*" publish --access public --no-git-checks
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: GitHub Release
+        run: gh release create "${GITHUB_REF_NAME}" --title "${GITHUB_REF_NAME}" --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}
