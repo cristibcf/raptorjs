@@ -1,6 +1,6 @@
 {
   "name": "@raptorstack/host",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Raptor host contract plus platform adapters: web, desktop, mobile, CLI, service and device.",
   "author": "cristibcf (https://github.com/cristibcf)",
   "homepage": "https://github.com/cristibcf/raptorjs/tree/main/packages/host#readme",

@@ -1,6 +1,6 @@
 {
   "name": "@raptorstack/engine",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "RaptorEngine: compiler, semantic optimizer, bundler, profiler, server runtime and project generator.",
   "author": "cristibcf (https://github.com/cristibcf)",
   "homepage": "https://github.com/cristibcf/raptorjs/tree/main/packages/engine#readme",
