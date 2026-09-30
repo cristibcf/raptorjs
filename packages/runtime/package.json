@@ -1,19 +1,52 @@
 {
   "name": "@raptor/runtime",
   "version": "0.1.0",
-  "description": "RaptorRuntime host contracts (spec sectiunile 5-9): manifest, capability broker, task fabric, telemetrie, adaptor de motor si modulele `raptor:`. Fara CLI, fara dependente.",
+  "description": "RaptorRuntime: host contracts, capability broker and standalone launcher CLI.",
+  "author": "cristibcf (https://github.com/cristibcf)",
+  "homepage": "https://github.com/cristibcf/raptorjs/tree/main/packages/runtime#readme",
+  "bugs": "https://github.com/cristibcf/raptorjs/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cristibcf/raptorjs.git",
+    "directory": "packages/runtime"
+  },
   "type": "module",
   "sideEffects": false,
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./cli": "./src/cli/index.ts"
   },
   "types": "./src/index.ts",
+  "bin": {
+    "raptor-runtime": "./src/cli/bin.ts"
+  },
   "scripts": {
-    "test": "node --test tests/*.test.ts"
+    "test": "node --test \"tests/**/*.test.ts\"",
+    "build": "tsc -p tsconfig.build.json",
+    "prepack": "tsc -p tsconfig.build.json"
   },
   "license": "MIT",
   "files": [
+    "dist",
     "src",
     "LICENSE"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./cli": {
+        "types": "./dist/cli/index.d.ts",
+        "default": "./dist/cli/index.js"
+      }
+    },
+    "bin": {
+      "raptor-runtime": "./dist/cli/bin.js"
+    }
+  }
 }

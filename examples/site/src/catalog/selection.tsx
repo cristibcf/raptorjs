@@ -1,12 +1,12 @@
 /** Selection input. */
-import { state, derived } from "@raptor/dom";
-import { Combobox } from "@raptor/ui/combobox";
-import { CheckboxGroup, NativeSelect, SegmentedControl } from "@raptor/ui/controls";
-import { Autocomplete, MultiSelect } from "@raptor/ui/data-views";
-import { Checkbox, RadioGroup, Switch } from "@raptor/ui/input";
-import { Cascader, ColorPicker, ColorSwatchPicker, type OptionNode, Rating, TransferList, TreeSelect } from "@raptor/ui/input-extra";
-import { Select } from "@raptor/ui/select";
-import { RangeSlider, Slider } from "@raptor/ui/slider";
+import { state, derived } from "raptorjs/dom";
+import { Combobox } from "raptorjs/ui/combobox";
+import { CheckboxGroup, NativeSelect, SegmentedControl } from "raptorjs/ui/controls";
+import { Autocomplete, MultiSelect } from "raptorjs/ui/data-views";
+import { Checkbox, RadioGroup, Switch } from "raptorjs/ui/input";
+import { Cascader, ColorPicker, ColorSwatchPicker, type OptionNode, Rating, TransferList, TreeSelect } from "raptorjs/ui/input-extra";
+import { Select } from "raptorjs/ui/select";
+import { RangeSlider, Slider } from "raptorjs/ui/slider";
 import type { CatalogGroup } from "./types.ts";
 
 interface Pkg {
@@ -14,15 +14,15 @@ interface Pkg {
   name: string;
 }
 const PACKAGES: Pkg[] = [
-  { id: "core", name: "@raptor/core" },
-  { id: "dom", name: "@raptor/dom" },
-  { id: "wire-core", name: "@raptor/wire-core" },
-  { id: "wire-client", name: "@raptor/wire-client" },
-  { id: "server", name: "@raptor/server" },
-  { id: "compiler", name: "@raptor/compiler" },
+  { id: "core", name: "raptorjs" },
+  { id: "dom", name: "raptorjs/dom" },
+  { id: "wire-core", name: "@raptor/wire" },
+  { id: "wire-client", name: "@raptor/wire/client" },
+  { id: "server", name: "@raptor/wire/server" },
+  { id: "compiler", name: "@raptor/engine/compiler" },
   { id: "engine", name: "@raptor/engine" },
-  { id: "bundle", name: "@raptor/bundle" },
-  { id: "ui", name: "@raptor/ui" },
+  { id: "bundle", name: "@raptor/engine/bundle" },
+  { id: "ui", name: "raptorjs/ui" },
 ];
 
 const TREE: OptionNode[] = [

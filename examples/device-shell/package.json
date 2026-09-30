@@ -3,10 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Exemplu: a sasea forma a aceleiasi aplicatii - un logger de senzor pe o placheta, cu watchdog, somn profund si periferice declarate.",
+  "description": "Example: the sixth form of the same app - a sensor logger on a board, with a watchdog, deep sleep and declared peripherals.",
   "dependencies": {
-    "@raptor/core": "workspace:*",
-    "@raptor/device-host": "workspace:*",
+    "raptorjs": "workspace:*",
     "@raptor/host": "workspace:*"
   },
   "scripts": {

@@ -1,23 +1,23 @@
 /**
- * Legarea aplicatiei de host-ul mobil.
+ * Wiring the app to the mobile host.
  *
- * In productie, capatul `host` este bridge-ul nativ Android/iOS si capatul `app`
- * este WebView-ul. Aici amandoua sunt in proces, ca demo-ul si testele sa ruleze
- * fara SDK de platforma - contractul dintre ele fiind acelasi.
+ * In production, the `host` end is the native Android/iOS bridge and the `app`
+ * end is the WebView. Here both are in-process, so the demo and the tests run
+ * without a platform SDK - the contract between them being the same.
  *
- * Modulele native optionale se monteaza tot aici, si doar daca manifestul le
- * declara: `capturePhoto` sau `readLocation` lipsa inseamna o instalare pe care
- * acele functii pur si simplu nu exista.
+ * The optional native modules are mounted here too, and only if the manifest
+ * declares them: a missing `capturePhoto` or `readLocation` means an installation
+ * on which those features simply do not exist.
  */
 import { createBridge, createMemoryChannel, requireHostManifest } from "@raptor/host";
 import type { HostBridge, HostManifest } from "@raptor/host";
-import { createMobileHost } from "@raptor/mobile";
-import type { MobileHost } from "@raptor/mobile";
+import { createMobileHost } from "@raptor/host/mobile";
+import type { MobileHost } from "@raptor/host/mobile";
 import { createShell } from "./app.ts";
 import type { Shell } from "./app.ts";
 
 export interface SessionOptions {
-  /** Modulele optionale acordate acestei instalari. */
+  /** The optional modules granted to this installation. */
   readonly capabilities?: readonly string[];
   /** Keychain (iOS) / EncryptedSharedPreferences (Android). */
   readonly secureStore?: Map<string, string>;
@@ -43,8 +43,8 @@ export function manifestFor(capabilities: readonly string[]): HostManifest {
       capabilities,
       allowedOrigins: ["https://api.raptor.example"],
       deepLinkSchemes: ["raptor-shell"],
-      // Fara `window`: pe mobil navigarea apartine adaptorului (sectiunea 6).
-      // Fara `update.feed`: distributia vine din magazin.
+      // No `window`: on mobile navigation belongs to the adapter (section 6).
+      // No `update.feed`: distribution comes from the store.
       update: { feed: null, channel: "stable" },
     }),
   );
@@ -61,13 +61,13 @@ export function createSession(options: SessionOptions = {}): Session {
     transport: channel.host,
     ...(options.secureStore ? { secureStore: options.secureStore } : {}),
     ...(options.initialRoute ? { initialRoute: options.initialRoute } : {}),
-    // Montat doar daca instalarea are voie sa il foloseasca.
+    // Mounted only if the installation is allowed to use it.
     ...(manifest.capabilities.includes("device.camera")
       ? {
           capturePhoto: async () => ({
             mimeType: "image/jpeg",
             byteLength: 2048,
-            handle: `foto-${++photoCounter}`,
+            handle: `photo-${++photoCounter}`,
           }),
         }
       : {}),
@@ -86,7 +86,7 @@ export function createSession(options: SessionOptions = {}): Session {
     bridge,
     shell: createShell(bridge),
     close(): void {
-      bridge.dispose("sesiune incheiata");
+      bridge.dispose("session ended");
       host.close();
     },
   };

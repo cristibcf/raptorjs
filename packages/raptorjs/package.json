@@ -1,0 +1,241 @@
+{
+  "name": "raptorjs",
+  "version": "0.1.0",
+  "description": "RaptorJS: fine-grained reactivity, DOM runtime and UI components.",
+  "author": "cristibcf (https://github.com/cristibcf)",
+  "homepage": "https://github.com/cristibcf/raptorjs/tree/main/packages/raptorjs#readme",
+  "bugs": "https://github.com/cristibcf/raptorjs/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cristibcf/raptorjs.git",
+    "directory": "packages/raptorjs"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./dom": "./src/dom/index.ts",
+    "./dom/jsx-runtime": "./src/dom/jsx-runtime.ts",
+    "./dom/jsx-dev-runtime": "./src/dom/jsx-runtime.ts",
+    "./dom/testing": "./src/dom/testing/mini-dom.ts",
+    "./ui": "./src/ui/index.ts",
+    "./ui/styles": "./src/ui/styles.ts",
+    "./ui/primitives": "./src/ui/primitives/index.ts",
+    "./ui/button": "./src/ui/button.ts",
+    "./ui/input": "./src/ui/input.ts",
+    "./ui/input-extra": "./src/ui/input-extra.ts",
+    "./ui/controls": "./src/ui/controls.ts",
+    "./ui/select": "./src/ui/select.ts",
+    "./ui/combobox": "./src/ui/combobox.ts",
+    "./ui/form": "./src/ui/form.ts",
+    "./ui/layout": "./src/ui/layout.ts",
+    "./ui/layout-extra": "./src/ui/layout-extra.ts",
+    "./ui/typography": "./src/ui/typography.ts",
+    "./ui/display": "./src/ui/display.ts",
+    "./ui/disclosure": "./src/ui/disclosure.ts",
+    "./ui/table": "./src/ui/table.ts",
+    "./ui/data-grid": "./src/ui/data-grid.ts",
+    "./ui/data-views": "./src/ui/data-views.ts",
+    "./ui/menu": "./src/ui/menu.ts",
+    "./ui/tabs": "./src/ui/tabs.ts",
+    "./ui/overlay": "./src/ui/overlay.ts",
+    "./ui/overlay-extra": "./src/ui/overlay-extra.ts",
+    "./ui/toast": "./src/ui/toast.ts",
+    "./ui/navigation": "./src/ui/navigation.ts",
+    "./ui/date": "./src/ui/date.ts",
+    "./ui/files": "./src/ui/files.ts",
+    "./ui/progress": "./src/ui/progress.ts",
+    "./ui/slider": "./src/ui/slider.ts",
+    "./ui/sparkline": "./src/ui/sparkline.ts",
+    "./ui/split-pane": "./src/ui/split-pane.ts",
+    "./ui/chart": "./src/ui/chart.ts",
+    "./ui/chart-extra": "./src/ui/chart-extra.ts",
+    "./ui/editors": "./src/ui/editors.ts",
+    "./ui/media": "./src/ui/media.ts",
+    "./ui/qrcode": "./src/ui/qrcode.ts",
+    "./ui/advanced": "./src/ui/advanced.ts"
+  },
+  "types": "./src/index.ts",
+  "scripts": {
+    "test": "node --test \"tests/**/*.test.ts\"",
+    "build": "tsc -p tsconfig.build.json",
+    "prepack": "tsc -p tsconfig.build.json"
+  },
+  "license": "MIT",
+  "files": [
+    "dist",
+    "src",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./dom": {
+        "types": "./dist/dom/index.d.ts",
+        "default": "./dist/dom/index.js"
+      },
+      "./dom/jsx-runtime": {
+        "types": "./dist/dom/jsx-runtime.d.ts",
+        "default": "./dist/dom/jsx-runtime.js"
+      },
+      "./dom/jsx-dev-runtime": {
+        "types": "./dist/dom/jsx-runtime.d.ts",
+        "default": "./dist/dom/jsx-runtime.js"
+      },
+      "./dom/testing": {
+        "types": "./dist/dom/testing/mini-dom.d.ts",
+        "default": "./dist/dom/testing/mini-dom.js"
+      },
+      "./ui": {
+        "types": "./dist/ui/index.d.ts",
+        "default": "./dist/ui/index.js"
+      },
+      "./ui/styles": {
+        "types": "./dist/ui/styles.d.ts",
+        "default": "./dist/ui/styles.js"
+      },
+      "./ui/primitives": {
+        "types": "./dist/ui/primitives/index.d.ts",
+        "default": "./dist/ui/primitives/index.js"
+      },
+      "./ui/button": {
+        "types": "./dist/ui/button.d.ts",
+        "default": "./dist/ui/button.js"
+      },
+      "./ui/input": {
+        "types": "./dist/ui/input.d.ts",
+        "default": "./dist/ui/input.js"
+      },
+      "./ui/input-extra": {
+        "types": "./dist/ui/input-extra.d.ts",
+        "default": "./dist/ui/input-extra.js"
+      },
+      "./ui/controls": {
+        "types": "./dist/ui/controls.d.ts",
+        "default": "./dist/ui/controls.js"
+      },
+      "./ui/select": {
+        "types": "./dist/ui/select.d.ts",
+        "default": "./dist/ui/select.js"
+      },
+      "./ui/combobox": {
+        "types": "./dist/ui/combobox.d.ts",
+        "default": "./dist/ui/combobox.js"
+      },
+      "./ui/form": {
+        "types": "./dist/ui/form.d.ts",
+        "default": "./dist/ui/form.js"
+      },
+      "./ui/layout": {
+        "types": "./dist/ui/layout.d.ts",
+        "default": "./dist/ui/layout.js"
+      },
+      "./ui/layout-extra": {
+        "types": "./dist/ui/layout-extra.d.ts",
+        "default": "./dist/ui/layout-extra.js"
+      },
+      "./ui/typography": {
+        "types": "./dist/ui/typography.d.ts",
+        "default": "./dist/ui/typography.js"
+      },
+      "./ui/display": {
+        "types": "./dist/ui/display.d.ts",
+        "default": "./dist/ui/display.js"
+      },
+      "./ui/disclosure": {
+        "types": "./dist/ui/disclosure.d.ts",
+        "default": "./dist/ui/disclosure.js"
+      },
+      "./ui/table": {
+        "types": "./dist/ui/table.d.ts",
+        "default": "./dist/ui/table.js"
+      },
+      "./ui/data-grid": {
+        "types": "./dist/ui/data-grid.d.ts",
+        "default": "./dist/ui/data-grid.js"
+      },
+      "./ui/data-views": {
+        "types": "./dist/ui/data-views.d.ts",
+        "default": "./dist/ui/data-views.js"
+      },
+      "./ui/menu": {
+        "types": "./dist/ui/menu.d.ts",
+        "default": "./dist/ui/menu.js"
+      },
+      "./ui/tabs": {
+        "types": "./dist/ui/tabs.d.ts",
+        "default": "./dist/ui/tabs.js"
+      },
+      "./ui/overlay": {
+        "types": "./dist/ui/overlay.d.ts",
+        "default": "./dist/ui/overlay.js"
+      },
+      "./ui/overlay-extra": {
+        "types": "./dist/ui/overlay-extra.d.ts",
+        "default": "./dist/ui/overlay-extra.js"
+      },
+      "./ui/toast": {
+        "types": "./dist/ui/toast.d.ts",
+        "default": "./dist/ui/toast.js"
+      },
+      "./ui/navigation": {
+        "types": "./dist/ui/navigation.d.ts",
+        "default": "./dist/ui/navigation.js"
+      },
+      "./ui/date": {
+        "types": "./dist/ui/date.d.ts",
+        "default": "./dist/ui/date.js"
+      },
+      "./ui/files": {
+        "types": "./dist/ui/files.d.ts",
+        "default": "./dist/ui/files.js"
+      },
+      "./ui/progress": {
+        "types": "./dist/ui/progress.d.ts",
+        "default": "./dist/ui/progress.js"
+      },
+      "./ui/slider": {
+        "types": "./dist/ui/slider.d.ts",
+        "default": "./dist/ui/slider.js"
+      },
+      "./ui/sparkline": {
+        "types": "./dist/ui/sparkline.d.ts",
+        "default": "./dist/ui/sparkline.js"
+      },
+      "./ui/split-pane": {
+        "types": "./dist/ui/split-pane.d.ts",
+        "default": "./dist/ui/split-pane.js"
+      },
+      "./ui/chart": {
+        "types": "./dist/ui/chart.d.ts",
+        "default": "./dist/ui/chart.js"
+      },
+      "./ui/chart-extra": {
+        "types": "./dist/ui/chart-extra.d.ts",
+        "default": "./dist/ui/chart-extra.js"
+      },
+      "./ui/editors": {
+        "types": "./dist/ui/editors.d.ts",
+        "default": "./dist/ui/editors.js"
+      },
+      "./ui/media": {
+        "types": "./dist/ui/media.d.ts",
+        "default": "./dist/ui/media.js"
+      },
+      "./ui/qrcode": {
+        "types": "./dist/ui/qrcode.d.ts",
+        "default": "./dist/ui/qrcode.js"
+      },
+      "./ui/advanced": {
+        "types": "./dist/ui/advanced.d.ts",
+        "default": "./dist/ui/advanced.js"
+      }
+    }
+  }
+}

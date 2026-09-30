@@ -1,18 +1,18 @@
 /**
- * Aceeasi aplicatie RaptorJS, de data asta intr-un host mobil.
+ * The same RaptorJS application, this time inside a mobile host.
  *
- * Perechea ei de desktop este `examples/desktop-shell`. Diferenta care conteaza
- * nu este ca lipsesc ferestrele, ci **cine conduce navigarea**: pe telefon,
- * ruta apartine adaptorului. Aplicatia nu cere ecrane si nu isi tine singura
- * stiva - primeste `navigation.changed` si se randeaza in consecinta, exact ca
- * pentru orice alt semnal. Asa gestul de back al sistemului, care nu trece
- * niciodata prin JavaScript, ramane corect.
+ * Its desktop counterpart is `examples/desktop-shell`. The difference that
+ * matters is not that windows are missing, but **who drives navigation**: on the
+ * phone, the route belongs to the adapter. The app does not request screens and
+ * does not keep its own stack - it receives `navigation.changed` and renders
+ * accordingly, exactly as for any other signal. That way the system's back
+ * gesture, which never goes through JavaScript, stays correct.
  *
- * La fel ca pe desktop, nimic de platforma nu este importat aici: tot ce tine
- * de sistem intra si iese prin punte.
+ * Just like on desktop, nothing platform-specific is imported here: everything
+ * system-related enters and leaves through the bridge.
  */
-import { derived, state } from "@raptor/core";
-import { mountChild, applyProps } from "@raptor/dom";
+import { derived, state } from "raptorjs";
+import { mountChild, applyProps } from "raptorjs/dom";
 import type { HostBridge } from "@raptor/host";
 
 export interface ShellElement {
@@ -27,7 +27,7 @@ export interface ShellDocument {
 
 export interface Note {
   readonly text: string;
-  /** Referinta opaca catre poza atasata; octetii raman la host. */
+  /** Opaque reference to the attached photo; the bytes stay at the host. */
   readonly photo: string | null;
 }
 
@@ -37,10 +37,10 @@ export interface Shell {
   readonly notes: () => readonly Note[];
   readonly lifecycle: () => string;
   readonly lastLink: () => string | null;
-  /** Citeste notele salvate; apelat o data la pornire. */
+  /** Reads the saved notes; called once at startup. */
   start(): Promise<void>;
   addNote(text: string): Promise<void>;
-  /** Ataseaza o poza ultimei note; `false` daca modulul nu e pe instalarea asta. */
+  /** Attaches a photo to the last note; `false` if the module is not on this install. */
   attachPhoto(): Promise<boolean>;
   announce(text: string): Promise<boolean>;
   view(document: ShellDocument): ShellElement;
@@ -55,7 +55,7 @@ export function createShell(bridge: HostBridge): Shell {
   const lifecycle = state("launching");
   const lastLink = state<string | null>(null);
 
-  // Ruta este un semnal ca oricare altul, alimentat de adaptor.
+  // The route is a signal like any other, fed by the adapter.
   bridge.on("navigation.changed", (payload) => {
     route.set(String(payload["route"]));
   });
@@ -67,8 +67,8 @@ export function createShell(bridge: HostBridge): Shell {
   });
 
   const persist = async (next: readonly Note[]): Promise<void> => {
-    // Scriem in magazinul securizat inainte sa publicam: daca host-ul refuza,
-    // starea aplicatiei nu ramane sa spuna altceva decat discul.
+    // Write to the secure store before publishing: if the host rejects, the app
+    // state is never left saying something different from the disk.
     await bridge.call("storage.set", { key: NOTES_KEY, value: JSON.stringify(next) });
     notes.set(next);
   };
@@ -81,9 +81,9 @@ export function createShell(bridge: HostBridge): Shell {
     lastLink: () => lastLink(),
 
     async start(): Promise<void> {
-      // La pornire nu s-a vazut niciun `navigation.changed`, deci ecranul curent
-      // se cere o data: adaptorul poate porni pe alta ruta decat radacina, de
-      // exemplu dupa un deep link care a deschis aplicatia.
+      // At startup no `navigation.changed` was seen yet, so the current screen
+      // is requested once: the adapter may start on a route other than the root,
+      // for example after a deep link that opened the app.
       const current = await bridge.call<{ route: string }>("navigation.current");
       route.set(current.route);
 
@@ -120,24 +120,24 @@ export function createShell(bridge: HostBridge): Shell {
       root.appendChild(heading);
 
       const screen = document.createElement("p");
-      mountChild(screen as never, () => `ecran: ${route()}`, null);
+      mountChild(screen as never, () => `screen: ${route()}`, null);
       root.appendChild(screen);
 
       const status = document.createElement("p");
       const summary = derived(() => {
         const withPhoto = notes().filter((note) => note.photo !== null).length;
-        return `stare: ${lifecycle()} - ${notes().length} note, ${withPhoto} cu poza`;
+        return `status: ${lifecycle()} - ${notes().length} notes, ${withPhoto} with photo`;
       });
       mountChild(status as never, () => summary(), null);
       root.appendChild(status);
 
       const link = document.createElement("p");
-      mountChild(link as never, () => lastLink() ?? "niciun deep link", null);
+      mountChild(link as never, () => lastLink() ?? "no deep link", null);
       root.appendChild(link);
 
       const button = document.createElement("button");
-      applyProps(button as never, { "on:click": () => void shell.addNote(`nota ${notes().length + 1}`) });
-      mountChild(button as never, "Adauga nota", null);
+      applyProps(button as never, { "on:click": () => void shell.addNote(`note ${notes().length + 1}`) });
+      mountChild(button as never, "Add note", null);
       root.appendChild(button);
 
       return root;

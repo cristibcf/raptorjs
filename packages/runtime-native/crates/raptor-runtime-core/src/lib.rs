@@ -10,11 +10,11 @@ pub mod manifest;
 pub mod modules;
 pub mod observe;
 pub mod paths;
-/// Motorul QuickJS; disponibil doar cu `--features quickjs`, ca build-ul
-/// implicit sa ramana fara nicio dependenta externa.
+/// The QuickJS engine; available only with `--features quickjs`, so the default
+/// build stays free of any external dependency.
 #[cfg(feature = "quickjs")]
 pub mod quickjs;
 pub mod tasks;
-/// Eliminarea tipurilor TypeScript. Refuza explicit fara `--features typescript`,
-/// ca sa nu existe o cale prin care `.ts` esueaza tacut.
+/// TypeScript type stripping. Refuses explicitly without `--features typescript`,
+/// so there is no path by which `.ts` fails silently.
 pub mod typescript;

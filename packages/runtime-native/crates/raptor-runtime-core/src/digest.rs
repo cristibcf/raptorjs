@@ -1,9 +1,9 @@
-//! SHA-256 si base64, implementate direct din specificatiile publice
+//! SHA-256 and base64, implemented directly from the public specifications
 //! (FIPS 180-4, RFC 4648).
 //!
-//! Sunt aici pentru ca lockfile-ul cere integritate in forma `sha256-<base64>`
-//! (spec sectiunea 8), iar aducerea unei dependente pentru doua functii bine
-//! definite ar adauga o poarta de revizuire (sectiunea 12) fara niciun castig.
+//! They live here because the lockfile requires integrity in the form
+//! `sha256-<base64>` (spec section 8), and pulling in a dependency for two
+//! well-defined functions would add a review gate (section 12) for no gain.
 
 const K: [u32; 64] = [
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
@@ -22,7 +22,7 @@ const INITIAL: [u32; 8] =
 pub fn sha256(input: &[u8]) -> [u8; 32] {
     let mut state = INITIAL;
 
-    // Padding: bitul 1, apoi zerouri, apoi lungimea in biti pe 64 de biti (BE).
+    // Padding: the 1 bit, then zeros, then the length in bits as 64 bits (BE).
     let mut message = input.to_vec();
     let bit_length = (input.len() as u64).wrapping_mul(8);
     message.push(0x80);
@@ -101,7 +101,7 @@ pub fn hex(input: &[u8]) -> String {
     input.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
-/// Forma folosita in lockfile: `sha256-<base64>`.
+/// The form used in the lockfile: `sha256-<base64>`.
 pub fn integrity(input: &[u8]) -> String {
     format!("sha256-{}", base64(&sha256(input)))
 }
@@ -112,7 +112,7 @@ mod tests {
 
     #[test]
     fn vectorii_din_specificatie_se_reproduc_exact() {
-        // FIPS 180-4, exemplele publice.
+        // FIPS 180-4, the public examples.
         assert_eq!(hex(&sha256(b"")), "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
         assert_eq!(hex(&sha256(b"abc")), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
         assert_eq!(
@@ -132,11 +132,11 @@ mod tests {
 
     #[test]
     fn padding_ul_este_corect_exact_la_limita_de_bloc() {
-        // 55, 56 si 64 de octeti acopera cazurile in care padding-ul umple
-        // blocul curent sau cere unul nou.
+        // 55, 56 and 64 bytes cover the cases where the padding fills the
+        // current block or requires a new one.
         for length in [55usize, 56, 57, 63, 64, 65] {
             let input = vec![b'x'; length];
-            assert_eq!(sha256(&input).len(), 32, "lungimea {length}");
+            assert_eq!(sha256(&input).len(), 32, "length {length}");
         }
         assert_eq!(
             hex(&sha256(&[b'x'; 56])),
@@ -164,8 +164,8 @@ mod tests {
 
     #[test]
     fn integritatea_este_identica_cu_cea_din_implementarea_typescript() {
-        // `createHash("sha256").update("abc").digest("base64")` produce exact
-        // acest text; lockfile-urile celor doua implementari trebuie sa coincida.
+        // `createHash("sha256").update("abc").digest("base64")` produces exactly
+        // this text; the lockfiles of the two implementations must coincide.
         assert_eq!(integrity(b"abc"), "sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=");
     }
 }

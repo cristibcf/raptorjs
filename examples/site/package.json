@@ -3,17 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Site de prezentare + documentatie construit CU stack-ul Raptor (RaptorJS + RaptorWire), compilat cu RaptorBundle.",
+  "description": "Presentation + documentation site built WITH the Raptor stack (RaptorJS + RaptorWire), compiled with RaptorBundle.",
   "dependencies": {
-    "@raptor/core": "workspace:*",
-    "@raptor/dom": "workspace:*",
-    "@raptor/ui": "workspace:*",
-    "@raptor/wire-core": "workspace:*",
-    "@raptor/wire-client": "workspace:*",
-    "@raptor/server": "workspace:*"
+    "raptorjs": "workspace:*",
+    "@raptor/wire": "workspace:*"
   },
   "devDependencies": {
-    "@raptor/bundle": "workspace:*"
+    "@raptor/engine": "workspace:*"
   },
   "scripts": {
     "dev": "raptor-bundle dev src/main.tsx --root . --port 5180",

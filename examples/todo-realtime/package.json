@@ -3,16 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Todo realtime end-to-end: server RaptorWire peste WebSocket, client reactiv, un singur proces.",
+  "description": "End-to-end realtime todo: RaptorWire server over WebSocket, reactive client, a single process.",
   "dependencies": {
-    "@raptor/core": "workspace:*",
-    "@raptor/dom": "workspace:*",
-    "@raptor/server": "workspace:*",
-    "@raptor/wire-client": "workspace:*",
-    "@raptor/wire-core": "workspace:*"
+    "raptorjs": "workspace:*",
+    "@raptor/wire": "workspace:*"
   },
   "devDependencies": {
-    "@raptor/bundle": "workspace:*"
+    "@raptor/engine": "workspace:*"
   },
   "scripts": {
     "dev": "node src/server.ts",

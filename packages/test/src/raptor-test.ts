@@ -1,11 +1,12 @@
 /**
- * RaptorTest - orchestratorul ciclului autonom (whitepaper §4, §28):
+ * RaptorTest - the orchestrator of the autonomous cycle (whitepaper §4, §28):
  * observe -> infer -> synthesize -> explore -> verify -> replay.
  *
- * Conduce aplicatia (AppHarness) peste un RaptorTwin stateful, cu timp virtual
- * si network schedule controlabile. Descopera secvente de actiuni (BFS ghidat
- * de coverage), le combina cu scenarii de retea (RaptorChaos), verifica
- * invariante (RaptorOracle) si produce capsule deterministe minimizate.
+ * Drives the application (AppHarness) over a stateful RaptorTwin, with
+ * controllable virtual time and network schedule. Discovers action sequences
+ * (coverage-guided BFS), combines them with network scenarios (RaptorChaos),
+ * checks invariants (RaptorOracle) and produces minimized deterministic
+ * capsules.
  */
 import { VirtualClock } from "./clock.ts";
 import { EventLog } from "./probe.ts";
@@ -30,7 +31,7 @@ import {
   type NetworkSchedule,
 } from "./types.ts";
 
-/** Timp virtual scurs intre doua actiuni consecutive (click gap). */
+/** Virtual time elapsed between two consecutive actions (click gap). */
 const THINK_TIME = 10;
 
 export interface RaptorTestConfig {
@@ -76,7 +77,7 @@ export class RaptorTest {
     this.seed = config.seed ?? 1;
   }
 
-  /** Ruleaza o secventa de actiuni sub un network schedule, de la zero. */
+  /** Run a sequence of actions under a network schedule, from scratch. */
   runScenario(actionLog: string[], schedule: NetworkSchedule): ScenarioResult {
     const clock = new VirtualClock();
     const log = new EventLog(clock);
@@ -97,8 +98,8 @@ export class RaptorTest {
       const action = before.actions.find((a) => idOf(a) === actionId);
       log.append("action", { actionId });
       this.harness.perform(actionId, ctx);
-      // Think-time intre actiuni: NU se stabilizeaza complet, ca sa surprindem
-      // race-uri (ex. navigare imediata cat un request e in zbor - RT-184).
+      // Think-time between actions: does NOT stabilize fully, so we catch races
+      // (e.g. an immediate navigation while a request is in flight - RT-184).
       clock.advance(THINK_TIME);
       const after = this.harness.currentState();
       this.coverage.mark("uiStates", `${after.route}|${stateId(after.facts)}`);
@@ -108,7 +109,7 @@ export class RaptorTest {
         this.coverage.mark("transitions", `${edge.from}->${stateId(after.facts)}`);
       }
     }
-    // Stabilizeaza reteaua la final (drenare completa a timpului virtual).
+    // Stabilize the network at the end (full drain of virtual time).
     clock.runUntilIdle();
 
     const ui = this.harness.currentState();
@@ -123,7 +124,7 @@ export class RaptorTest {
     return { ui, events: log, failure, routes };
   }
 
-  /** Explorare BFS ghidata de coverage: secvente de actiuni accesibile. */
+  /** Coverage-guided BFS exploration: reachable action sequences. */
   discover(): string[][] {
     const sequences: string[][] = [];
     const expanded = new Set<string>();
@@ -145,11 +146,11 @@ export class RaptorTest {
     return sequences;
   }
 
-  /** Ciclul complet: descopera secvente, aplica chaos, verifica, capsuleaza. */
+  /** The full cycle: discover sequences, apply chaos, verify, capsule. */
   explore(): Finding[] {
     const sequences = this.discover();
 
-    // Rute observate pe toate secventele (pentru chaos context-aware).
+    // Routes observed across all sequences (for context-aware chaos).
     const routeMap = new Map<string, RouteInfo>();
     for (const seq of sequences) {
       const { routes } = this.runScenario(seq, defaultSchedule());
@@ -182,14 +183,14 @@ export class RaptorTest {
     return findings;
   }
 
-  /** Reproduce o capsula; intoarce daca acelasi oracle esueaza identic. */
+  /** Reproduce a capsule; returns whether the same oracle fails identically. */
   replay(capsule: Capsule): { reproduced: boolean; ui: AppState; detail: string } {
     const { failure, ui } = this.runScenario(capsule.actionLog, capsule.networkSchedule);
     const reproduced = failure !== null && failure.name === capsule.failedOracle;
     return { reproduced, ui, detail: failure?.detail ?? "" };
   }
 
-  /** Delta debugging: cea mai scurta secventa care pastreaza acelasi failure. */
+  /** Delta debugging: the shortest sequence that preserves the same failure. */
   minimize(capsule: Capsule): Capsule {
     let actions = capsule.actionLog.slice();
     let changed = true;

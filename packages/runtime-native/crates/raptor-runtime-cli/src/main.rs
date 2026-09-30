@@ -1,11 +1,11 @@
-//! Binarul `raptor-runtime` - host-ul nativ RaptorRuntime.
+//! The `raptor-runtime` binary - the native RaptorRuntime host.
 //!
-//! Numele executabilului ramane `raptor-runtime`, nu `raptor`, pana la auditul
-//! de compatibilitate (spec sectiunile 2 si 13): in depozit exista deja
-//! `raptor`, `raptor-run` si `raptor-bundle`, si nu le suprascriem.
+//! The executable name stays `raptor-runtime`, not `raptor`, until the
+//! compatibility audit (spec sections 2 and 13): the repository already has
+//! `raptor`, `raptor-run` and `raptor-bundle`, and we don't overwrite them.
 //!
-//! Suprafata de comanda este aceeasi cu a launcher-ului TypeScript, ca migrarea
-//! sa nu schimbe nimic pentru utilizator.
+//! The command surface is the same as the TypeScript launcher's, so the
+//! migration changes nothing for the user.
 
 mod args;
 mod commands;
@@ -15,28 +15,28 @@ use raptor_runtime_core::host::RUNTIME_VERSION;
 use raptor_runtime_core::json;
 
 const USAGE: &str = "\
-RaptorRuntime (host nativ)
+RaptorRuntime (native host)
 
-  raptor-runtime doctor                  verifica manifest, politici si graf static
-  raptor-runtime init [director]         creeaza un proiect nou
-  raptor-runtime pack [--out dir]        ambaleaza o unitate reproductibila cu lockfile
-  raptor-runtime explain <cap> [tinta]   spune daca un acces ar fi permis, fara sa ruleze nimic
-  raptor-runtime run [-- args...]        porneste runtime-ul (cere motor JavaScript)
-  raptor-runtime test                    ruleaza testele proiectului (cere motor JavaScript)
-  raptor-runtime trace                   scrie urmarire OpenTelemetry (cere motor JavaScript)
+  raptor-runtime doctor                  check manifest, policies and static graph
+  raptor-runtime init [dir]              create a new project
+  raptor-runtime pack [--out dir]        package a reproducible unit with a lockfile
+  raptor-runtime explain <cap> [target]  say whether an access would be allowed, without running anything
+  raptor-runtime run [-- args...]        start the runtime (requires a JavaScript engine)
+  raptor-runtime test                    run the project's tests (requires a JavaScript engine)
+  raptor-runtime trace                   write OpenTelemetry tracing (requires a JavaScript engine)
 
-  --policy development|production        suprascrie politica din manifest
-  --cwd <cale>                           porneste din alt director
-  --json                                 iesire structurata pentru automatizare
+  --policy development|production        override the policy from the manifest
+  --cwd <path>                           start from another directory
+  --json                                 structured output for automation
   --version, --help
 
-Coduri de iesire: 0 succes, 1 eroare, 2 utilizare gresita, 3 nu in acest milestone.";
+Exit codes: 0 success, 1 error, 2 wrong usage, 3 not in this milestone.";
 
 fn dispatch(parsed: &args::Args) -> Outcome {
     if parsed.has("version") || parsed.command.as_deref() == Some("version") {
         return Outcome {
             code: EXIT_OK,
-            text: format!("raptor-runtime {RUNTIME_VERSION} (nativ)"),
+            text: format!("raptor-runtime {RUNTIME_VERSION} (native)"),
             data: json::Json::from_pairs([
                 ("version", json::Json::string(RUNTIME_VERSION)),
                 ("host", json::Json::string("native")),
@@ -62,7 +62,7 @@ fn dispatch(parsed: &args::Args) -> Outcome {
         Some(command) if parsed.has("help") => {
             return Outcome {
                 code: EXIT_OK,
-                text: format!("{USAGE}\n\n(ajutor pentru '{command}': vezi lista de mai sus)"),
+                text: format!("{USAGE}\n\n(help for '{command}': see the list above)"),
                 data: json::Json::object(),
             }
         }
@@ -76,16 +76,16 @@ fn dispatch(parsed: &args::Args) -> Outcome {
             None => {
                 return Outcome {
                     code: EXIT_USAGE,
-                    text: format!("politica necunoscuta: {value} (asteptat development sau production)"),
+                    text: format!("unknown policy: {value} (expected development or production)"),
                     data: json::Json::from_pairs([("flag", json::Json::string("policy"))]),
                 }
             }
         },
     };
 
-    // `--cwd` se rezolva fata de directorul procesului, nu fata de radacina.
-    // Altfel `--cwd examples/app` - forma pe care o scrie oricine - cauta
-    // manifestul in `/examples/app` si raporteaza ca proiectul nu exista.
+    // `--cwd` resolves against the process directory, not against the root.
+    // Otherwise `--cwd examples/app` - the form everyone writes - looks for
+    // the manifest in `/examples/app` and reports that the project doesn't exist.
     let process_cwd =
         std::env::current_dir().ok().and_then(|path| path.to_str().map(str::to_string)).unwrap_or_else(|| ".".to_string());
     let cwd = match parsed.flag("cwd") {
@@ -107,12 +107,12 @@ fn dispatch(parsed: &args::Args) -> Outcome {
         "pack" => commands::pack(&input),
         "explain" => commands::explain(&input),
         "run" => commands::run(&input),
-        "test" => Ok(commands::not_yet("test", "un motor JavaScript care sa evalueze fisierele *.test.ts")),
-        "trace" => Ok(commands::not_yet("trace", "o rulare reala, deci un motor JavaScript")),
+        "test" => Ok(commands::not_yet("test", "a JavaScript engine to evaluate the *.test.ts files")),
+        "trace" => Ok(commands::not_yet("trace", "a real run, hence a JavaScript engine")),
         other => {
             return Outcome {
                 code: EXIT_USAGE,
-                text: format!("comanda necunoscuta: {other}\n\n{USAGE}"),
+                text: format!("unknown command: {other}\n\n{USAGE}"),
                 data: json::Json::from_pairs([("command", json::Json::string(other))]),
             }
         }

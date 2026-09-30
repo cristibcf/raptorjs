@@ -1,226 +1,227 @@
-# Securitate — Raptor
+# Security — Raptor
 
-Starea curentă a modelului de securitate și a tuturor findingurilor. Trei
-runde de audit, **25 findinguri**, toate închise. Ultima revizuire:
-**2026-09-24 (runda 3)**.
+The current state of the security model and of all findings. Three
+rounds of audit, **25 findings**, all closed. Last review:
+**2026-09-24 (round 3)**.
 
-Rapoartele de audit, cu metoda și proof-of-concept-urile:
+The audit reports, with the method and the proof-of-concepts:
 
-- [`AUDIT-2026-09-24.md`](AUDIT-2026-09-24.md) — audit complet (cod, documentație,
-  conținut de site, runtime nativ). 24 de pachete + crate-ul Rust.
-- Auditul din 2026-09-21 acoperea ~10 pachete. Findingurile lui sunt în tabelul
-  de mai jos (#1–#3); restul documentului a fost absorbit aici.
+- [`AUDIT-2026-09-24.md`](AUDIT-2026-09-24.md) — full audit (code, documentation,
+  site content, native runtime). 24 packages + the Rust crate.
+- The 2026-09-21 audit covered ~10 packages. Its findings are in the table
+  below (#1–#3); the rest of the document has been absorbed here.
 
-## Suprafețele de securitate, pe scurt
+## The security surfaces, in brief
 
-Proiectul are **trei** granițe distincte. Se confundă ușor, și fiecare are alt
-nivel de maturitate.
+The project has **three** distinct boundaries. They are easily confused, and each has a different
+level of maturity.
 
-| Graniță | Ce apără | Stare |
+| Boundary | What it protects | State |
 |---|---|---|
-| **RaptorWire** (`wire-core`, `server`, `wire-client`) | starea locală față de un peer de pe fir | auditată de două ori; transportul WebSocket verifică `Origin` din 2026-09-24 |
-| **Capability broker** (`runtime`, `runtime-cli`) | sistemul gazdă față de codul aplicației | auditată 2026-09-24; **pe motorul de bootstrap e consultativă**, vezi mai jos |
-| **Puntea de host** (`host` + cele șase adaptoare) | sistemul de operare față de aplicație | contract + verificare dublă; în browser dă portabilitate, nu izolare |
+| **RaptorWire** (`wire-core`, `server`, `wire-client`) | local state against a peer on the wire | audited twice; the WebSocket transport verifies `Origin` since 2026-09-24 |
+| **Capability broker** (`runtime`, `runtime-cli`) | the host system against application code | audited 2026-09-24; **on the bootstrap engine it is advisory**, see below |
+| **The host bridge** (`host` + the six adapters) | the operating system against the application | contract + double verification; in the browser it provides portability, not isolation |
 
-### Precizarea care nu trebuie pierdută
+### The clarification that must not be lost
 
-Pe **motorul de bootstrap** (Node), capability broker-ul este **consultativ, nu
-o graniță**. Codul de aplicație poate scrie `import fs from "node:fs"` și ajunge
-la disc fără ca brokerul să fie întrebat. Granița reală apartine host-ului nativ
-în Rust, unde `node:*` pur și simplu nu există.
+On the **bootstrap engine** (Node), the capability broker is **advisory, not
+a boundary**. Application code can write `import fs from "node:fs"` and reach
+the disk without the broker being consulted. The real boundary belongs to the native host
+in Rust, where `node:*` simply does not exist.
 
-Până atunci apărarea stă în unelte, nu în motor:
-`raptor-runtime doctor` raportează fiecare ocol, iar `raptor-runtime run`
-**refuză să pornească** în politica `production` și scrie ocolul în jurnalul de
-audit în `development` (`packages/runtime-cli/src/bypass.ts`).
+Until then, the defense lives in the tooling, not in the engine:
+`raptor-runtime doctor` reports every bypass, and `raptor-runtime run`
+**refuses to start** under the `production` policy and writes the bypass to the
+audit log under `development` (`packages/runtime-cli/src/bypass.ts`).
 
-## Findinguri
+## Findings
 
-| # | Finding | Severitate | Stare | Regresie |
+| # | Finding | Severity | State | Regression |
 |---|---|---|---|---|
-| 1 | Prototype pollution la decodarea datelor de pe fir (CWE-1321) | Medie | ✅ reparat 2026-09-21 | `wire-core/tests/security.test.ts` |
-| 2 | Prefix matching fără delimitator → expunere de handle-uri vecine | Medie | ✅ reparat 2026-09-21 | `server/tests/store.test.ts` |
-| 3 | Clientul nu era fail-closed la frame-uri corupte | Scăzută | ✅ reparat 2026-09-21 | `wire-client/tests/client.test.ts` (adăugată 2026-09-24) |
-| S1 | `process.spawn`: `env` și `cwd` treceau pe lângă broker → execuție de cod arbitrar | **Ridicată** | ✅ reparat 2026-09-24 | `runtime/tests/escapes.test.ts` |
-| S2 | `net.fetch` nu re-verifica destinația după redirect → SSRF | **Ridicată** | ✅ reparat 2026-09-24 | `runtime/tests/escapes.test.ts` |
-| S3 | Dev-server RaptorBundle: prefix fără delimitator + bind pe toate interfețele | Medie | ✅ reparat 2026-09-24 | `bundle/tests/dev-server-scope.test.ts` |
-| S4 | `serve` deschidea porturi fără capability, în TS și în Rust | Medie | ✅ reparat 2026-09-24 | `runtime/tests/escapes.test.ts`, `modules.rs` |
-| S5 | Ocolul prin `node:` era raportat doar de `doctor`, nu și de `run` | Medie | ✅ reparat 2026-09-24 | `runtime-cli/tests/bypass.test.ts` |
-| S6 | Containerea de căi e pur lexicală (symlink) | Medie | ✅ reparat 2026-09-24 | `runtime/tests/symlinks.test.ts`, `paths.rs`, `capabilities.rs` |
-| S7 | WebSocket fără verificare de `Origin`, fără cotă de conexiuni | Scăzută-Medie | ✅ reparat 2026-09-24 | `server/tests/websocket-origin.test.ts` |
-| S8 | `spawn`: buffere nemărginite, oprire fără escaladare | Scăzută | ✅ reparat 2026-09-24 | `runtime/tests/escapes.test.ts` |
-| S9 | `plain()` din puntea de host e superficial | Scăzută | ✅ reparat 2026-09-24 | `host/tests/bridge.test.ts` |
-| S10 | `@raptor/wire-client` nu are niciun test | Scăzută | ✅ reparat 2026-09-24 | 11 teste în `wire-client/tests/client.test.ts` |
-| R1 | Gate-ul anti-ocol se evită cu un `import()` calculat | **Ridicată** | ✅ reparat (runda 2) | `runtime-cli/tests/bypass.test.ts` |
-| R2 | Verificarea ocolurilor era fail-open când graful nu se putea construi | Medie | ✅ reparat (runda 2) | `runtime-cli/tests/bypass.test.ts` |
-| R3 | Lista de variabile care încarcă cod era incompletă; a apărut `env.set` | Medie | ✅ reparat (runda 2) | `runtime/tests/escapes.test.ts` |
-| R4 | `Authorization` / `Cookie` treceau la altă gazdă după un redirect | Medie | ✅ reparat (runda 2) | `runtime/tests/escapes.test.ts` |
-| R5 | `sanitize` recursiv fără limită de adâncime | Scăzută | ✅ reparat (runda 2) | `host/tests/bridge.test.ts` |
-| U7 | `javascript:` / `vbscript:` / `data:text/html` treceau în `href`, `src`, `formaction` | Medie | ✅ reparat (runda 3) | `dom/tests/url-schemes.test.ts` |
+| 1 | Prototype pollution when decoding data off the wire (CWE-1321) | Medium | ✅ fixed 2026-09-21 | `wire-core/tests/security.test.ts` |
+| 2 | Prefix matching without a delimiter → exposure of neighboring handles | Medium | ✅ fixed 2026-09-21 | `server/tests/store.test.ts` |
+| 3 | The client was not fail-closed on corrupt frames | Low | ✅ fixed 2026-09-21 | `wire-client/tests/client.test.ts` (added 2026-09-24) |
+| S1 | `process.spawn`: `env` and `cwd` bypassed the broker → arbitrary code execution | **High** | ✅ fixed 2026-09-24 | `runtime/tests/escapes.test.ts` |
+| S2 | `net.fetch` did not re-verify the destination after a redirect → SSRF | **High** | ✅ fixed 2026-09-24 | `runtime/tests/escapes.test.ts` |
+| S3 | RaptorBundle dev-server: prefix without a delimiter + bind on all interfaces | Medium | ✅ fixed 2026-09-24 | `bundle/tests/dev-server-scope.test.ts` |
+| S4 | `serve` opened ports without a capability, in TS and in Rust | Medium | ✅ fixed 2026-09-24 | `runtime/tests/escapes.test.ts`, `modules.rs` |
+| S5 | The `node:` bypass was reported only by `doctor`, not by `run` | Medium | ✅ fixed 2026-09-24 | `runtime-cli/tests/bypass.test.ts` |
+| S6 | Path containment is purely lexical (symlink) | Medium | ✅ fixed 2026-09-24 | `runtime/tests/symlinks.test.ts`, `paths.rs`, `capabilities.rs` |
+| S7 | WebSocket without `Origin` verification, without a connection quota | Low-Medium | ✅ fixed 2026-09-24 | `server/tests/websocket-origin.test.ts` |
+| S8 | `spawn`: unbounded buffers, stop without escalation | Low | ✅ fixed 2026-09-24 | `runtime/tests/escapes.test.ts` |
+| S9 | `plain()` from the host bridge is shallow | Low | ✅ fixed 2026-09-24 | `host/tests/bridge.test.ts` |
+| S10 | `@raptor/wire-client` has no tests at all | Low | ✅ fixed 2026-09-24 | 11 tests in `wire-client/tests/client.test.ts` |
+| R1 | The anti-bypass gate is evaded with a computed `import()` | **High** | ✅ fixed (round 2) | `runtime-cli/tests/bypass.test.ts` |
+| R2 | The bypass check was fail-open when the graph could not be built | Medium | ✅ fixed (round 2) | `runtime-cli/tests/bypass.test.ts` |
+| R3 | The list of variables that load code was incomplete; `env.set` appeared | Medium | ✅ fixed (round 2) | `runtime/tests/escapes.test.ts` |
+| R4 | `Authorization` / `Cookie` carried over to another host after a redirect | Medium | ✅ fixed (round 2) | `runtime/tests/escapes.test.ts` |
+| R5 | Recursive `sanitize` without a depth limit | Low | ✅ fixed (round 2) | `host/tests/bridge.test.ts` |
+| U7 | `javascript:` / `vbscript:` / `data:text/html` passed through in `href`, `src`, `formaction` | Medium | ✅ fixed (round 3) | `dom/tests/url-schemes.test.ts` |
 
-### Cele trei findinguri din 2026-09-21
+### The three findings from 2026-09-21
 
-**#1 — Prototype pollution la decodare.** O cheie `__proto__` venită de pe fir
-era scrisă cu `obj[key] = value`, invocând setter-ul de prototip. Fix: helper
-`setOwn()` (`wire-core/safe.ts`) prin `Object.defineProperty` — scrie mereu o
-proprietate proprie.
+**#1 — Prototype pollution on decode.** A `__proto__` key coming off the wire
+was written with `obj[key] = value`, invoking the prototype setter. Fix: the
+`setOwn()` helper (`wire-core/safe.ts`) via `Object.defineProperty` — always writes an
+own property.
 
-**#2 — Prefix matching fără delimitator.** `handle.startsWith(prefix)` fără
-graniță: un query autorizat pe `"cpu"` expunea și `"cpuSecret"`. Fix: un prefix
-expune copii doar dacă se termină cu delimitator (`:`, `/`, `.`).
+**#2 — Prefix matching without a delimiter.** `handle.startsWith(prefix)` without
+a boundary: a query authorized on `"cpu"` also exposed `"cpuSecret"`. Fix: a prefix
+exposes children only if it ends with a delimiter (`:`, `/`, `.`).
 
-**#3 — Client nu era fail-closed.** Un frame invalid arunca o excepție
-necontrolată în microtask. Fix: `try/catch` în `bindTransport`.
+**#3 — Client was not fail-closed.** An invalid frame threw an uncaught
+exception in a microtask. Fix: `try/catch` in `bindTransport`.
 
-### Findingurile din 2026-09-24
+### The findings from 2026-09-24
 
-Descrierea completă, cu proof-of-concept-ul fiecăruia, e în
-[`AUDIT-2026-09-24.md`](AUDIT-2026-09-24.md) §1. Pe scurt, ce s-a schimbat în cod:
+The complete description, with the proof-of-concept for each, is in
+[`AUDIT-2026-09-24.md`](AUDIT-2026-09-24.md) §1. In short, what changed in the code:
 
-- **S1 + R3** — a seta mediul unui copil cere capabilitatea **`env.set`**,
-  separată de `env.read` și implicit goală: a citi o variabilă îți spune ceva,
-  a o seta pentru un copil poate schimba ce cod rulează acel copil. Peste ea,
-  un blocklist de variabile care încarcă cod (`NODE_OPTIONS`, `NODE_PATH`,
+- **S1 + R3** — setting a child's environment requires the **`env.set`** capability,
+  separate from `env.read` and empty by default: reading a variable tells you something,
+  setting it for a child can change what code that child runs. On top of it,
+  a blocklist of variables that load code (`NODE_OPTIONS`, `NODE_PATH`,
   `LD_*`, `DYLD_*`, `JAVA_TOOL_OPTIONS`, `CLASSPATH`, `RUBYOPT`, `PYTHON*`,
-  `BASH_ENV`, `GIT_SSH_COMMAND`, `PATH`, …) refuzate **chiar și cu `env.set`
-  acordată**. Un `cwd` din afara proiectului cere `files.read` pe acea cale.
-- **S2 + R4** — `redirect: "manual"` plus `broker.require` pe fiecare salt, cu
-  limită de salturi; iar la un salt către altă destinație pleacă fără
-  `Authorization`, `Cookie` și `Proxy-Authorization`. Clientul HTTP nativ nu
-  urmărea redirect-uri deloc, deci era deja corect.
-- **S3** — containere pe segmente (`resolveAsset`), decodarea căii, refuz pe
-  fișiere ascunse și pe surse, `listen` implicit pe `127.0.0.1` cu `--host`
-  pentru expunere explicită.
-- **S4** — `net.listen` a intrat în vocabularul de capabilități, în TS și în
-  Rust, cu ținta `gazdă:port` potrivită de aceeași funcție ca `net.connect`.
-  Verificarea se face **înainte** de `bind`.
-- **S5 + R1 + R2** — regula stă într-un singur loc (`runtime-cli/src/bypass.ts`)
-  și o folosesc și `doctor`, și `run`. Contractul ei nu e „lista de ocoluri", ci
-  *ce știu* și *ce nu pot ști*: un `import()` cu specificator calculat, sau un
-  graf care nu poate fi construit, înseamnă **absența unei dovezi**, iar în
-  regim strict absența dovezii nu e suficientă.
-- **S8** — fluxurile copilului sunt plafonate la 8 MB, cu `truncated` în
-  rezultat; `abort` escaladează la SIGKILL după 2 s.
+  `BASH_ENV`, `GIT_SSH_COMMAND`, `PATH`, …) rejected **even with `env.set`
+  granted**. A `cwd` outside the project requires `files.read` on that path.
+- **S2 + R4** — `redirect: "manual"` plus `broker.require` on every hop, with
+  a hop limit; and on a hop to another destination it leaves without
+  `Authorization`, `Cookie` and `Proxy-Authorization`. The native HTTP client did not
+  follow redirects at all, so it was already correct.
+- **S3** — segment-based containment (`resolveAsset`), path decoding, refusal on
+  hidden files and on sources, `listen` defaulting to `127.0.0.1` with `--host`
+  for explicit exposure.
+- **S4** — `net.listen` entered the capability vocabulary, in TS and in
+  Rust, with the `host:port` target matched by the same function as `net.connect`.
+  The check is done **before** `bind`.
+- **S5 + R1 + R2** — the rule lives in a single place (`runtime-cli/src/bypass.ts`)
+  and both `doctor` and `run` use it. Its contract is not "the list of bypasses", but
+  *what I know* and *what I cannot know*: an `import()` with a computed
+  specifier, or a graph that cannot be built, means **the absence of a proof**, and in
+  strict mode the absence of proof is not enough.
+- **S8** — the child's streams are capped at 8 MB, with `truncated` in the
+  result; `abort` escalates to SIGKILL after 2 s.
 
-## Ce rămâne deschis
+## What remains open
 
-**Niciun finding de securitate.** Toate cele 18 sunt închise, fiecare cu un test
-de regresie.
+**No security findings.** All 18 are closed, each with a regression
+test.
 
-Rămân deschise, numite în [`AUDIT-2026-09-24.md`](AUDIT-2026-09-24.md):
-`@raptor/test` e cel mai puțin testat pachet din repo (R9); `parseCapsule`
-validează două câmpuri dintr-un format proiectat ca artefact partajabil (R10);
-iar `@raptor/ui` a fost verificat pe două axe — scurgere reactivă și injecție
-prin `href` — dar **nu** pe corectitudinea ARIA, curățarea ascultătorilor
-globali sau navigarea la tastatură per componentă (runda 3).
+Still open, named in [`AUDIT-2026-09-24.md`](AUDIT-2026-09-24.md):
+`@raptor/test` is the least tested package in the repo (R9); `parseCapsule`
+validates two fields of a format designed as a shareable artifact (R10);
+and `@raptor/ui` was checked on two axes — reactive leakage and injection
+through `href` — but **not** on ARIA correctness, cleanup of global
+listeners, or per-component keyboard navigation (round 3).
 
-Separat de securitate, runda 3 a găsit **cinci defecte de corectitudine în
-pilonul de compilare** — trei dintre ele făceau compilatorul să emită cod care
-aruncă sau care calculează altceva decât scrie în sursă. Sunt descrise în
-raport (U1-U5) și au regresii în `engine/tests/optimizer-safety.test.ts`; nu
-apar în tabelul de mai sus fiindcă nu sunt găuri de securitate, dar lovesc
-direct în afirmația „adaptive strategies, not adaptive correctness".
-Ce rămâne sunt limitele asumate de mai jos — care sunt alegeri, nu scăpări — și
-o cursă pe care nici S6 nu o închide complet, descrisă imediat.
+Separately from security, round 3 found **five correctness defects in the
+compilation pillar** — three of them made the compiler emit code that
+throws or that computes something other than what the source says. They are described in
+the report (U1-U5) and have regressions in `engine/tests/optimizer-safety.test.ts`; they do
+not appear in the table above because they are not security holes, but they hit
+directly at the claim "adaptive strategies, not adaptive correctness".
+What remains are the assumed limits below — which are choices, not oversights — and
+a race that not even S6 fully closes, described just below.
 
-### Lecția rundei a doua
+### The lesson of the second round
 
-A doua trecere a căutat anume în **reparațiile primei**, și a găsit cinci
-findinguri acolo — inclusiv unul (R1) care ocolea aproape complet o reparație
-proaspătă. O reparație este o afirmație despre cod; afirmațiile se auditează la
-rândul lor. Trei dintre cele cinci erau în cod scris cu o zi înainte.
+The second pass looked specifically in **the fixes of the first**, and found five
+findings there — including one (R1) that bypassed a fresh fix almost
+completely. A fix is a claim about the code; claims are audited in
+turn. Three of the five were in code written a day earlier.
 
-### S6 — symlink, și ce anume s-a închis
+### S6 — symlink, and what exactly was closed
 
-`packages/runtime/src/paths.ts` și `crates/.../paths.rs` au acum **două**
-niveluri, cu aceleași nume de ambele părți:
+`packages/runtime/src/paths.ts` and `crates/.../paths.rs` now have **two**
+levels, with the same names on both sides:
 
-- `containsPath` — pur lexical, nu atinge discul. Pentru diagnostice și teste,
-  unde răspunsul nu trebuie să depindă de ce există pe disc.
-- `realPath` / `containsPathReal` — rezolvă legăturile. Astea le folosește
-  brokerul.
+- `containsPath` — purely lexical, does not touch the disk. For diagnostics and tests,
+  where the answer must not depend on what exists on disk.
+- `realPath` / `containsPathReal` — resolve the links. These are what the
+  broker uses.
 
-`realPath` funcționează și pentru o cale care **nu există încă** — necesar,
-fiindcă `files.write` decide despre un fișier care urmează să fie creat: urcă la
-cel mai adânc părinte care chiar există, îl rezolvă, și lipește înapoi
-segmentele rămase. O scriere în `./date/link/nou.txt` ajunge astfel unde ajunge
-și `open`: prin link, nu pe lângă el.
+`realPath` works even for a path that **does not exist yet** — necessary,
+because `files.write` decides about a file that is about to be created: it climbs to
+the deepest parent that actually exists, resolves it, and glues back
+the remaining segments. A write to `./date/link/nou.txt` thus ends up where
+`open` ends up: through the link, not around it.
 
-Domeniul se rezolvă și el, nu doar ținta — altfel pe macOS, unde `/tmp` este un
-link către `/private/tmp`, accesul în propriul director ar fi refuzat.
+The scope is resolved as well, not just the target — otherwise on macOS, where `/tmp` is a
+link to `/private/tmp`, access within one's own directory would be denied.
 
-Un refuz poartă acum și `resolved`: **unde ajungea de fapt calea**, când diferă
-de cea cerută. Un jurnal care arată doar `./date/spre-parola` și nu și
-`/tmp/secrete/parola.txt` spune adevărul și totuși induce în eroare.
+A refusal now also carries `resolved`: **where the path actually ended up**, when it differs
+from the one requested. A log that shows only `./date/spre-parola` and not
+`/tmp/secrete/parola.txt` tells the truth and yet is misleading.
 
-**Ce NU se închide: cursa TOCTOU.** Între verificare și `open`-ul propriu-zis,
-cine poate scrie în domeniu poate înlocui un director cu o legătură. Închiderea
-completă cere `openat2(RESOLVE_BENEATH)` pe Linux sau echivalentul lui, la care
-Node nu dă acces. Ce s-a închis este cazul real: un link **deja prezent** în
-domeniu nu mai scoate accesul afară.
+**What is NOT closed: the TOCTOU race.** Between the check and the actual `open`,
+whoever can write in the scope can replace a directory with a link. Closing it
+completely requires `openat2(RESOLVE_BENEATH)` on Linux or its equivalent, which
+Node does not expose. What was closed is the real case: a link **already present** in
+the scope no longer takes access outside.
 
-Testele construiesc legături reale pe disc. Pe Windows un symlink obișnuit cere
-Developer Mode, dar o **joncțiune** de director nu cere nimic și e rezolvată de
-`realpath` la fel — deci cazul principal se verifică peste tot, iar cel cu
-legătură către un fișier se sare cu motivul scris când nu se poate construi.
+The tests build real links on disk. On Windows an ordinary symlink requires
+Developer Mode, but a directory **junction** requires nothing and is resolved by
+`realpath` the same way — so the main case is verified everywhere, while the one with
+a link to a file is skipped with the reason written when it cannot be built.
 
-### Cum s-au închis celelalte
+### How the others were closed
 
-**S7 — WebSocket.** `serveOverWebSocket` verifică acum `Origin` înainte de
-`101`, implicit **doar same-origin** (autoritatea din `Origin` comparată cu
-`Host`, nu șirul). O listă explicită de origini o înlocuiește; `"any"`
-dezactivează verificarea, scris în litere ca să nu se întâmple din neatenție. O
-cerere fără `Origin` trece — nu vine dintr-un browser, deci nu poartă autoritate
-ambientală. Plus un plafon de conexiuni (implicit 1024) care răspunde 503 în loc
-să atârne.
+**S7 — WebSocket.** `serveOverWebSocket` now verifies `Origin` before
+`101`, defaulting to **same-origin only** (the authority from `Origin` compared with
+`Host`, not the string). An explicit list of origins replaces it; `"any"`
+disables the check, spelled out in letters so it does not happen by inattention. A
+request without `Origin` passes — it does not come from a browser, so it carries no
+ambient authority. Plus a connection cap (default 1024) that responds 503 instead
+of hanging.
 
-Restul parser-ului RFC 6455 era deja solid: mască obligatorie, plafoane de 16 MB
-pe cadru și pe mesajul reasamblat, opcode necunoscut → închidere.
+The rest of the RFC 6455 parser was already solid: mandatory mask, caps of 16 MB
+per frame and per reassembled message, unknown opcode → close.
 
-**S9 — `plain()`** curăță acum recursiv, inclusiv prin array-uri. Testul verifică
-nu doar că cheile au dispărut, ci și că un `Object.assign({}, …)` peste oricare
-sub-obiect nu atinge prototipul — care era mecanismul real de exploatare.
+**S9 — `plain()`** now cleans recursively, including through arrays. The test verifies
+not only that the keys disappeared, but also that an `Object.assign({}, …)` over any
+sub-object does not touch the prototype — which was the real exploitation mechanism.
 
-**S10 — `wire-client`** are 11 teste, scrise peste un server fals care poate
-trimite și ce un server cinstit n-ar trimite niciodată. Fixul #3 (fail-closed)
-are în sfârșit o regresie, iar testul verifică și că sesiunea rămâne utilizabilă
-după un cadru aruncat.
+**S10 — `wire-client`** has 11 tests, written against a fake server that can
+also send what an honest server would never send. Fix #3 (fail-closed)
+finally has a regression, and the test also verifies that the session stays usable
+after a dropped frame.
 
-## Limite asumate, nu bug-uri
+## Assumed limits, not bugs
 
-- **Fără TLS**, nicăieri: nici în transportul RaptorWire, nici în clientul HTTP
-  nativ (unde `https://` trece de verificarea de capabilitate și apoi **eșuează
-  limpede**, în loc să coboare tăcut la `http`). Terminarea TLS se face în față.
-- **Fără rate limiting.** Există un plafon de conexiuni simultane pe WebSocket
-  (implicit 1024), dar nicio limită de rată: un client care se reconectează în
-  buclă rămâne problema aplicației.
-- **Fără validare de schemă la decodare.** `SchemaCodec` e opțional; codec-ul
-  generic acceptă orice formă, deci o mutație trebuie să-și valideze intrarea.
-- **`@raptor/ui` nu a fost revizuit pentru injecție prin props.** Singurul sink
-  de HTML din bibliotecă este `RichTextEditor`, care **nu sanitizează** și o
-  spune atât în sursă cât și pe pagina lui din catalog.
-- **RAS e session-scoped**; formatul exact al identificatorilor rămâne deschis.
-- **Fără penetration testing.**
+- **No TLS**, anywhere: neither in the RaptorWire transport, nor in the native HTTP
+  client (where `https://` passes the capability check and then **fails
+  clearly**, instead of silently downgrading to `http`). TLS termination is done
+  in front.
+- **No rate limiting.** There is a cap on simultaneous connections on WebSocket
+  (default 1024), but no rate limit: a client that reconnects in
+  a loop remains the application's problem.
+- **No schema validation on decode.** `SchemaCodec` is optional; the generic
+  codec accepts any shape, so a mutation must validate its input.
+- **`@raptor/ui` has not been reviewed for injection through props.** The only HTML
+  sink in the library is `RichTextEditor`, which **does not sanitize** and says so
+  both in the source and on its catalog page.
+- **RAS is session-scoped**; the exact format of the identifiers remains open.
+- **No penetration testing.**
 
-## Standarde verificate (2026-09-24)
+## Standards verified (2026-09-24)
 
-- **Zero dependențe runtime externe** — măsurat, nu afirmat: `pnpm stats`
-  numără dependențele non-`@raptor/*` ale pachetelor publicate și dă 0.
-  `typescript`/`@types/node` sunt devDependencies.
-- **Fără `eval` sau constructor `Function` în `packages/*/src`.** Apar doar în
-  teste și în Playground-ul site-ului, care rulează deliberat codul scris de
-  vizitator, în pagina lui.
-- **Acces la sistem, unde este:** 9 din 24 de pachete importă
+- **Zero external runtime dependencies** — measured, not asserted: `pnpm stats`
+  counts the non-`@raptor/*` dependencies of the published packages and yields 0.
+  `typescript`/`@types/node` are devDependencies.
+- **No `eval` or `Function` constructor in `packages/*/src`.** They appear only in
+  tests and in the site's Playground, which deliberately runs the code written by the
+  visitor, in their own page.
+- **System access, where it is:** 9 of 24 packages import
   `node:fs`/`http`/`net`/`child_process` — `bundle`, `engine`, `forge`,
-  `profile`, `run`, `runtime`, `runtime-cli`, `server`, `service-host`. Sunt
-  unelte de build și runtime-uri, nu biblioteci de aplicație; nucleul reactiv și
-  stratul wire nu ating sistemul.
-- **Fără secrete în cod.**
-- **Determinism:** nucleul reactiv nu folosește `Math.random` sau ceas de perete
-   — ceea ce face posibil replay-ul din RaptorTest.
-- **Margini:** `Reader` verifică limitele bufferului, `varint` respinge valori
-  prea mari, cadrele WebSocket sunt plafonate la 16 MB, `VirtualClock` are
-  `maxSteps`, explorarea RaptorTest are `maxDepth`, iar fluxurile unui proces
-  copil sunt plafonate la 8 MB.
-- **Autorizare:** hook-uri `authorize` per query/mutation; operațiile merg doar
-  server → client, deci un client nu poate injecta stare în replica altuia.
+  `profile`, `run`, `runtime`, `runtime-cli`, `server`, `service-host`. They are
+  build tools and runtimes, not application libraries; the reactive core and the
+  wire layer do not touch the system.
+- **No secrets in the code.**
+- **Determinism:** the reactive core does not use `Math.random` or the wall clock
+   — which is what makes replay from RaptorTest possible.
+- **Bounds:** `Reader` checks the buffer bounds, `varint` rejects values
+  that are too large, WebSocket frames are capped at 16 MB, `VirtualClock` has
+  `maxSteps`, RaptorTest exploration has `maxDepth`, and the streams of a child
+  process are capped at 8 MB.
+- **Authorization:** `authorize` hooks per query/mutation; operations go only
+  server → client, so a client cannot inject state into another's replica.

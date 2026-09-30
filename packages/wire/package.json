@@ -1,0 +1,59 @@
+{
+  "name": "@raptor/wire",
+  "version": "0.1.0",
+  "description": "RaptorWire: state-aware binary protocol - codec, core document model, client replica and server SDK.",
+  "author": "cristibcf (https://github.com/cristibcf)",
+  "homepage": "https://github.com/cristibcf/raptorjs/tree/main/packages/wire#readme",
+  "bugs": "https://github.com/cristibcf/raptorjs/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cristibcf/raptorjs.git",
+    "directory": "packages/wire"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./codec": "./src/codec/index.ts",
+    "./client": "./src/client/index.ts",
+    "./server": "./src/server/index.ts"
+  },
+  "types": "./src/index.ts",
+  "dependencies": {
+    "raptorjs": "workspace:*"
+  },
+  "scripts": {
+    "test": "node --test \"tests/**/*.test.ts\"",
+    "build": "tsc -p tsconfig.build.json",
+    "prepack": "tsc -p tsconfig.build.json"
+  },
+  "license": "MIT",
+  "files": [
+    "dist",
+    "src",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./codec": {
+        "types": "./dist/codec/index.d.ts",
+        "default": "./dist/codec/index.js"
+      },
+      "./client": {
+        "types": "./dist/client/index.d.ts",
+        "default": "./dist/client/index.js"
+      },
+      "./server": {
+        "types": "./dist/server/index.d.ts",
+        "default": "./dist/server/index.js"
+      }
+    }
+  }
+}

@@ -1,20 +1,20 @@
 /**
- * Legarea serviciului de host.
+ * Wiring the service to the host.
  *
- * Portul si configuratia vin din afara aplicatiei - aici din `SessionOptions`,
- * in productie din supervizor (unitatea systemd, manifestul de deployment,
- * variabilele de mediu ale containerului). Aplicatia le cere pe nume si nu are
- * cum sa le aleaga singura.
+ * The port and configuration come from outside the app - here from
+ * `SessionOptions`, in production from the supervisor (the systemd unit, the
+ * deployment manifest, the container's environment variables). The app requests
+ * them by name and has no way to choose them itself.
  */
 import { createBridge, createMemoryChannel, requireHostManifest } from "@raptor/host";
 import type { HostBridge, HostManifest } from "@raptor/host";
-import { createServiceHost, nodeListeners } from "@raptor/service-host";
-import type { ListenerFactory, ServiceHost } from "@raptor/service-host";
+import { createServiceHost, nodeListeners } from "@raptor/host/service";
+import type { ListenerFactory, ServiceHost } from "@raptor/host/service";
 import { createService } from "./app.ts";
 import type { Service } from "./app.ts";
 
 export interface SessionOptions {
-  /** Porturile alocate de deployment, pe nume. `0` = port liber, pentru teste. */
+  /** The ports allocated by the deployment, by name. `0` = free port, for tests. */
   readonly ports?: Readonly<Record<string, number>>;
   readonly config?: Readonly<Record<string, string>>;
   readonly storage?: Map<string, string>;
@@ -73,7 +73,7 @@ export function createSession(options: SessionOptions = {}): Session {
     service: createService(bridge),
     async close(): Promise<void> {
       await host.close();
-      bridge.dispose("sesiune incheiata");
+      bridge.dispose("session ended");
     },
   };
 }

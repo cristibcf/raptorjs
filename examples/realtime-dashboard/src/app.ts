@@ -1,9 +1,9 @@
 /**
- * Definitia serverului pentru dashboard-ul realtime, reutilizata de demo si de
- * testul e2e. Metrici (cpu/memory) ca signals server, plus o colectie "jobs" de
- * id-uri si obiecte "job:ID" actualizate prin patch-uri delta (whitepaper 24, 26.1).
+ * The server definition for the realtime dashboard, reused by the demo and the
+ * e2e test. Metrics (cpu/memory) as server signals, plus a "jobs" collection of
+ * ids and "job:ID" objects updated through delta patches (whitepaper 24, 26.1).
  */
-import { raptorServer, type RaptorServer, type ReactiveStore } from "@raptor/server";
+import { raptorServer, type RaptorServer, type ReactiveStore } from "@raptor/wire/server";
 
 export const DASHBOARD_QUERY = "dashboard";
 export const DASHBOARD_PREFIXES = ["cpu", "memory", "jobs", "job:"];
@@ -20,7 +20,7 @@ export function buildDashboardApp(): RaptorServer {
   const app = raptorServer({ build: "dashboard-0.1.0" });
 
   app.query(DASHBOARD_QUERY, {
-    // Proiectia expusa clientului: metrici + lista + obiectele de job.
+    // The projection exposed to the client: metrics + list + job objects.
     select: () => DASHBOARD_PREFIXES,
   });
 
@@ -36,13 +36,13 @@ export function buildDashboardApp(): RaptorServer {
   app.mutation("setProgress", {
     run: ({ input, store }) => {
       const { id, progress } = input as { id: number; progress: number };
-      // Un singur field patch -> delta minim pe fir.
+      // A single field patch -> minimal delta on the wire.
       store.patch(`job:${id}`, { progress });
       return { id, progress };
     },
   });
 
-  // Seed initial.
+  // Initial seed.
   const store = app.store;
   store.setSignal("cpu", 12);
   store.setSignal("memory", 40);

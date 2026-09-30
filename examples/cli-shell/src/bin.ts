@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 /**
- * Binarul real.
+ * The real binary.
  *
- * Singurul loc din exemplu care atinge `process` - si nici aici nu o face codul
- * uneltei, ci adaptorul: `terminalFromProcess` traduce procesul intr-un terminal,
- * iar `process.exitCode` ia valoarea ceruta prin `cli.exit`.
+ * The only place in the example that touches `process` - and even here it is not
+ * the tool's code that does it, but the adapter: `terminalFromProcess` translates
+ * the process into a terminal, and `process.exitCode` takes the value requested
+ * through `cli.exit`.
  *
- * Notele se pastreaza intre rulari intr-un fisier din directorul de configuratie
- * al uneltei, incarcat inainte si scris dupa - stocarea host-ului este in memorie
- * tocmai ca persistenta sa fie o decizie a celui care monteaza host-ul.
+ * The notes are kept between runs in a file in the tool's configuration directory,
+ * loaded before and written after - the host's storage is in memory precisely so
+ * that persistence is a decision of whoever mounts the host.
  */
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";

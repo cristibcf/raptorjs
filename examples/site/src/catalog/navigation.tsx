@@ -1,12 +1,12 @@
 /** Navigation. */
-import { state, R } from "@raptor/dom";
-import { Menubar } from "@raptor/ui/advanced";
-import { Button } from "@raptor/ui/button";
-import { type Command, CommandPalette } from "@raptor/ui/data-views";
-import { BottomNavigation, Dock, SkipNav } from "@raptor/ui/layout-extra";
-import { menuItem, menuSeparator } from "@raptor/ui/menu";
-import { Anchor, Breadcrumbs, type NavItem, Navbar, NavigationMenu, Pagination, SidebarNav, Stepper } from "@raptor/ui/navigation";
-import { Tabs } from "@raptor/ui/tabs";
+import { state, R } from "raptorjs/dom";
+import { Menubar } from "raptorjs/ui/advanced";
+import { Button } from "raptorjs/ui/button";
+import { type Command, CommandPalette } from "raptorjs/ui/data-views";
+import { BottomNavigation, Dock, SkipNav } from "raptorjs/ui/layout-extra";
+import { menuItem, menuSeparator } from "raptorjs/ui/menu";
+import { Anchor, Breadcrumbs, type NavItem, Navbar, NavigationMenu, Pagination, SidebarNav, Stepper } from "raptorjs/ui/navigation";
+import { Tabs } from "raptorjs/ui/tabs";
 import type { CatalogGroup } from "./types.ts";
 
 /** Fixed-position components are contained by a transformed ancestor. */

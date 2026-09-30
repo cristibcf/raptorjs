@@ -1,15 +1,19 @@
 /**
- * Reference: index „ce pachet imi trebuie?" + pagina per pachet, cu acelasi
- * format ca sectiunea Components — demo care ruleaza, import, semnatura,
- * parametri, exemplu, note.
+ * Reference: a "which package do I need?" index + a page per package, in the same
+ * format as the Components section — a running demo, import, signature,
+ * parameters, example, notes.
  */
-import { untracked } from "@raptor/dom";
+import { untracked } from "raptorjs/dom";
 import { sub, navigate } from "../lib/route.ts";
 import { Code, inline } from "../lib/ui.tsx";
 import { API_DEMOS } from "../demos/api.tsx";
 import { REF_PACKAGES, PACKAGE_ROUTES, type RefPackage, type ApiEntry } from "../content/reference.ts";
 
 const current = (): RefPackage | null => REF_PACKAGES.find((p) => p.slug === sub()) ?? null;
+
+/** The 6 published packages; the reference entries group under them by their name prefix. */
+const PACKAGE_GROUPS = ["raptorjs", "@raptor/wire", "@raptor/engine", "@raptor/runtime", "@raptor/host", "@raptor/test"] as const;
+const groupOf = (name: string): string => PACKAGE_GROUPS.find((g) => name.startsWith(g)) ?? PACKAGE_GROUPS[0];
 
 function Sidebar() {
   return (
@@ -22,28 +26,36 @@ function Sidebar() {
           Which package?
         </span>
       </div>
-      <div class="side-group">
-        <div class="side-title">Packages</div>
-        {REF_PACKAGES.map((p) => (
-          <span
-            class={() => "side-item" + (current()?.slug === p.slug ? " active" : "")}
-            on:click={() => navigate("reference/" + p.slug)}
-          >
-            {p.name}
-          </span>
-        ))}
-      </div>
+      {PACKAGE_GROUPS.map((g) => {
+        const items = REF_PACKAGES.filter((p) => groupOf(p.name) === g).sort((a, b) =>
+          a.name === g ? -1 : b.name === g ? 1 : a.name.localeCompare(b.name),
+        );
+        return (
+          <div class="side-group">
+            <div class="side-title" style="font-family:var(--mono)">{g}</div>
+            {items.map((p) => (
+              <span
+                class={() => "side-item" + (current()?.slug === p.slug ? " active" : "")}
+                on:click={() => navigate("reference/" + p.slug)}
+                style="padding-left:18px"
+              >
+                {p.name === g ? "overview" : p.name.slice(g.length)}
+              </span>
+            ))}
+          </div>
+        );
+      })}
     </aside>
   );
 }
 
 /**
- * Numele importabil al unei intrari, sau `null` daca nu e unul.
+ * The importable name of an entry, or `null` if it is not one.
  *
- * `state` -> `state`; `raptor-bundle (CLI)` -> `raptor-bundle`, care nu e
- * identificator, deci `null`; `raptor.runtime.json` la fel. Regula e simpla
- * dinadins: daca dupa curatare nu ramane un identificator JS, nu inventam o
- * linie de import.
+ * `state` -> `state`; `raptor-bundle (CLI)` -> `raptor-bundle`, which is not an
+ * identifier, so `null`; `raptor.runtime.json` likewise. The rule is deliberately
+ * simple: if after cleanup no JS identifier remains, we do not invent an
+ * import line.
  */
 function importableSymbol(name: string): string | null {
   const bare = name.replace(/\s*\(.*\)$/, "").trim();
@@ -64,15 +76,15 @@ function Entry(props: { e: ApiEntry; pkg: string }) {
           <div class="api-live">
             Live<span class="cmp-live">running in this page</span>
           </div>
-          {/* Untracked ca la Components: o componenta care citeste un semnal in
-              timp ce se construieste nu trebuie sa aboneze bindingul paginii. */}
+          {/* Untracked, as in Components: a component that reads a signal while
+              it is being built must not subscribe the page's binding. */}
           <div class="cmp-stage">{untracked(() => makeDemo())}</div>
         </div>
       ) : null}
 
-      {/* Linia de import se arata doar cand intrarea CHIAR e un simbol
-          importabil. Intrarile care descriu un fisier de manifest, un spatiu de
-          nume sau un binar produceau altfel text care nu se compileaza
+      {/* The import line is shown only when the entry REALLY is an importable
+          symbol. Entries that describe a manifest file, a namespace or a binary
+          otherwise produced text that does not compile
           (`import { raptor: modules } from ...`). */}
       {importableSymbol(e.name) !== null ? (
         <div class="api-import">
@@ -162,7 +174,7 @@ function Index() {
         </div>
         <div>
           {inline(
-            "Start with `@raptor/dom`. It is the DOM runtime, and it re-exports the reactive primitives too, " +
+            "Start with `raptorjs/dom`. It is the DOM runtime, and it re-exports the reactive primitives too, " +
               "so a first app needs one import and you can add realtime or the component library later without " +
               "moving any of them. The [Quick start](/learn/quick-start) assumes exactly that.",
           )}

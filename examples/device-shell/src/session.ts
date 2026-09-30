@@ -1,21 +1,21 @@
 /**
- * Legarea logger-ului de placheta.
+ * Wiring the logger to the board.
  *
- * Harta de hardware - ce pini, ce magistrale, ce adrese - vine din afara
- * aplicatiei, ca portul la serviciu si ca lista de comenzi la desktop. Pinul 2
- * este LED-ul, pinul 5 butonul (intrare), iar senzorul sta la 0x48 pe i2c0.
- * Tot ce nu e pe lista nu se poate atinge.
+ * The hardware map - which pins, which buses, which addresses - comes from
+ * outside the app, like the port for the service and the command list for the
+ * desktop. Pin 2 is the LED, pin 5 the button (input), and the sensor sits at
+ * 0x48 on i2c0. Anything not on the list cannot be touched.
  */
 import { createBridge, createMemoryChannel, requireHostManifest } from "@raptor/host";
 import type { HostBridge, HostManifest } from "@raptor/host";
-import { createDeviceHost } from "@raptor/device-host";
-import type { Board, DeviceHost, PinDefinition } from "@raptor/device-host";
+import { createDeviceHost } from "@raptor/host/device";
+import type { Board, DeviceHost, PinDefinition } from "@raptor/host/device";
 import { createLogger } from "./app.ts";
 import type { Logger } from "./app.ts";
 
 export const PINS: readonly PinDefinition[] = [
-  { pin: 2, direction: "out", label: "led-activitate" },
-  { pin: 5, direction: "in", label: "buton-utilizator" },
+  { pin: 2, direction: "out", label: "activity-led" },
+  { pin: 5, direction: "in", label: "user-button" },
 ];
 
 export const BUSES = [{ bus: "i2c0", addresses: [0x48] }] as const;
@@ -83,16 +83,16 @@ export function createSession(options: SessionOptions): Session {
     logger: createLogger(bridge),
     close(): void {
       host.close();
-      bridge.dispose("sesiune incheiata");
+      bridge.dispose("session ended");
     },
   };
 }
 
 /**
- * O placheta simulata, cu un senzor care urca incet.
+ * A simulated board, with a sensor that rises slowly.
  *
- * Firmware-ul real ar implementa aceeasi interfata peste registrele chipului;
- * aplicatia nu vede diferenta.
+ * The real firmware would implement the same interface over the chip's registers;
+ * the app sees no difference.
  */
 export function simulatedBoard(
   options: { readonly start?: number; readonly step?: number; readonly blockSleep?: boolean } = {},
@@ -100,7 +100,7 @@ export function simulatedBoard(
   readonly writes: Array<{ pin: number; value: boolean }>;
   readonly resets: string[];
   readonly sleeps: number[];
-  /** Termina somnul in curs; are efect doar cu `blockSleep`. */
+  /** Ends the current sleep; only has an effect with `blockSleep`. */
   finishSleep(): void;
 } {
   const writes: Array<{ pin: number; value: boolean }> = [];
@@ -134,8 +134,8 @@ export function simulatedBoard(
     },
     sleep: async (durationMs) => {
       sleeps.push(durationMs);
-      // Fara `blockSleep`, somnul se termina in aceeasi microtask - ceea ce este
-      // comod pentru demo, dar face invizibil tot ce se intampla *in timpul* lui.
+      // Without `blockSleep`, the sleep ends in the same microtask - which is
+      // convenient for the demo, but makes everything that happens *during* it invisible.
       if (!options.blockSleep) return "timer";
       return await new Promise<"timer" | "external">((resolve) => {
         release = resolve;

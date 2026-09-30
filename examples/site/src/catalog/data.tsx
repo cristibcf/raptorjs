@@ -1,10 +1,10 @@
 /** Data display. */
-import { state, R } from "@raptor/dom";
-import { Kanban, type KanbanCard } from "@raptor/ui/advanced";
-import { Button } from "@raptor/ui/button";
-import { DataGrid } from "@raptor/ui/data-grid";
-import { ListView, TreeView } from "@raptor/ui/data-views";
-import { Accordion, Collapsible } from "@raptor/ui/disclosure";
+import { state, R } from "raptorjs/dom";
+import { Kanban, type KanbanCard } from "raptorjs/ui/advanced";
+import { Button } from "raptorjs/ui/button";
+import { DataGrid } from "raptorjs/ui/data-grid";
+import { ListView, TreeView } from "raptorjs/ui/data-views";
+import { Accordion, Collapsible } from "raptorjs/ui/disclosure";
 import {
   Avatar,
   AvatarGroup,
@@ -16,10 +16,10 @@ import {
   Stat,
   Tag,
   Timeline,
-} from "@raptor/ui/display";
-import { ComparisonTable, DiffViewer, JsonViewer } from "@raptor/ui/editors";
-import { Carousel, Gallery } from "@raptor/ui/media";
-import { Table } from "@raptor/ui/table";
+} from "raptorjs/ui/display";
+import { ComparisonTable, DiffViewer, JsonViewer } from "raptorjs/ui/editors";
+import { Carousel, Gallery } from "raptorjs/ui/media";
+import { Table } from "raptorjs/ui/table";
 import { SAMPLE_IMAGES, BROKEN_IMAGE } from "./sample.ts";
 import type { CatalogGroup } from "./types.ts";
 
@@ -30,11 +30,11 @@ interface Row {
   size: number;
 }
 const ROWS: Row[] = [
-  { id: 1, pkg: "@raptor/core", tests: 31, size: 6.2 },
-  { id: 2, pkg: "@raptor/dom", tests: 24, size: 8.8 },
-  { id: 3, pkg: "@raptor/wire-core", tests: 38, size: 11.4 },
-  { id: 4, pkg: "@raptor/server", tests: 12, size: 4.1 },
-  { id: 5, pkg: "@raptor/ui", tests: 46, size: 22.9 },
+  { id: 1, pkg: "raptorjs", tests: 31, size: 6.2 },
+  { id: 2, pkg: "raptorjs/dom", tests: 24, size: 8.8 },
+  { id: 3, pkg: "@raptor/wire", tests: 38, size: 11.4 },
+  { id: 4, pkg: "@raptor/wire/server", tests: 12, size: 4.1 },
+  { id: 5, pkg: "raptorjs/ui", tests: 46, size: 22.9 },
 ];
 
 

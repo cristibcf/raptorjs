@@ -1,25 +1,88 @@
 {
   "name": "@raptor/engine",
   "version": "0.1.0",
-  "description": "RaptorEngine: CLI unificat, optimizer semantic (DSE, Dependency Fusion), codegen multi-target (browser/server/wire), Stateful Reactive HMR, caching, build manifest (whitepaper RaptorEngine v0.1).",
+  "description": "RaptorEngine: compiler, semantic optimizer, bundler, profiler, server runtime and project generator.",
+  "author": "cristibcf (https://github.com/cristibcf)",
+  "homepage": "https://github.com/cristibcf/raptorjs/tree/main/packages/engine#readme",
+  "bugs": "https://github.com/cristibcf/raptorjs/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cristibcf/raptorjs.git",
+    "directory": "packages/engine"
+  },
   "type": "module",
   "sideEffects": false,
   "exports": {
-    ".": "./src/index.ts"
-  },
-  "bin": {
-    "raptor": "./src/bin.ts"
+    ".": "./src/index.ts",
+    "./compiler": "./src/compiler/index.ts",
+    "./bundle": "./src/bundle/index.ts",
+    "./profile": "./src/profile/index.ts",
+    "./run": "./src/run/index.ts",
+    "./forge": "./src/forge/index.ts"
   },
   "types": "./src/index.ts",
+  "bin": {
+    "raptor": "./src/engine/bin.ts",
+    "raptor-bundle": "./src/bundle/bin.ts",
+    "raptor-profile": "./src/profile/bin.ts",
+    "raptor-run": "./src/run/bin.ts",
+    "raptor-create": "./src/forge/bin.ts"
+  },
   "dependencies": {
-    "@raptor/compiler": "workspace:*"
+    "@raptor/wire": "workspace:*",
+    "@raptor/host": "workspace:*",
+    "@raptor/runtime": "workspace:*"
+  },
+  "peerDependencies": {
+    "typescript": "^5.7.0"
   },
   "scripts": {
-    "test": "node --test tests/*.test.ts"
+    "test": "node --test \"tests/**/*.test.ts\"",
+    "build": "tsc -p tsconfig.build.json",
+    "prepack": "tsc -p tsconfig.build.json"
   },
   "license": "MIT",
   "files": [
+    "dist",
     "src",
     "LICENSE"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./compiler": {
+        "types": "./dist/compiler/index.d.ts",
+        "default": "./dist/compiler/index.js"
+      },
+      "./bundle": {
+        "types": "./dist/bundle/index.d.ts",
+        "default": "./dist/bundle/index.js"
+      },
+      "./profile": {
+        "types": "./dist/profile/index.d.ts",
+        "default": "./dist/profile/index.js"
+      },
+      "./run": {
+        "types": "./dist/run/index.d.ts",
+        "default": "./dist/run/index.js"
+      },
+      "./forge": {
+        "types": "./dist/forge/index.d.ts",
+        "default": "./dist/forge/index.js"
+      }
+    },
+    "bin": {
+      "raptor": "./dist/engine/bin.js",
+      "raptor-bundle": "./dist/bundle/bin.js",
+      "raptor-profile": "./dist/profile/bin.js",
+      "raptor-run": "./dist/run/bin.js",
+      "raptor-create": "./dist/forge/bin.js"
+    }
+  }
 }

@@ -1,14 +1,14 @@
 /**
- * Demo: o aplicatie RaptorJS pornita de un host desktop.
+ * Demo: a RaptorJS application launched by a desktop host.
  *
  *   node examples/desktop-shell/src/demo.ts
  *
- * Arata, in ordine: pornirea ferestrei si a meniului, o scriere in stocarea
- * locala, un deep link venit din sistem, o comanda de meniu, un refuz de
- * capabilitate si oprirea curata - cu randarea fine-grained la fiecare pas.
+ * Shows, in order: opening the window and the menu, a write to local storage,
+ * a deep link coming from the system, a menu command, a capability denial and
+ * a clean shutdown - with fine-grained rendering at every step.
  */
-import { installMiniDom, resetStats, stats } from "@raptor/dom/testing";
-import { render } from "@raptor/dom";
+import { installMiniDom, resetStats, stats } from "raptorjs/dom/testing";
+import { render } from "raptorjs/dom";
 import { createSession } from "./session.ts";
 
 const doc = installMiniDom();
@@ -20,48 +20,48 @@ const session = createSession({ capabilities: ["device.notifications"], storage 
 const root = doc.createElement("div");
 render(() => session.shell.view(doc as never) as never, root);
 
-console.log("=== RaptorJS pe un host desktop ===\n");
+console.log("=== RaptorJS on a desktop host ===\n");
 
 await session.shell.start();
 session.host.lifecycle.to("ready");
 session.host.lifecycle.to("foreground");
 await tick();
 
-console.log("Dupa pornire:", root.toHTML());
-console.log("  fereastra :", session.host.windows[0]?.title, `${session.host.windows[0]?.width}x${session.host.windows[0]?.height}`);
-console.log("  meniu     :", session.host.menu.map((item) => item.label).join(", "));
+console.log("After startup:", root.toHTML());
+console.log("  window :", session.host.windows[0]?.title, `${session.host.windows[0]?.width}x${session.host.windows[0]?.height}`);
+console.log("  menu   :", session.host.menu.map((item) => item.label).join(", "));
 
 resetStats();
 
-await session.shell.addNote("cumpara lapte");
-await session.shell.announce("nota salvata");
+await session.shell.addNote("buy milk");
+await session.shell.announce("note saved");
 await tick();
 
-console.log("\nDupa o nota:", root.toHTML());
-console.log("  titlul ferestrei :", session.host.windows[0]?.title);
-console.log("  stocare locala   :", storage.get("notes"));
-console.log("  notificari       :", session.host.notifications.map((entry) => entry.body).join(", "));
+console.log("\nAfter one note:", root.toHTML());
+console.log("  window title  :", session.host.windows[0]?.title);
+console.log("  local storage :", storage.get("notes"));
+console.log("  notifications :", session.host.notifications.map((entry) => entry.body).join(", "));
 
 session.host.deliverDeepLink("raptor-shell://nota/42");
 session.host.invokeMenu("note.new");
 await tick();
 await tick();
 
-console.log("\nDupa deep link si comanda de meniu:", root.toHTML());
+console.log("\nAfter deep link and menu command:", root.toHTML());
 
 try {
   await session.bridge.call("camera.capture");
 } catch (error) {
-  console.log("\nRefuz asteptat:", (error as { code: string }).code);
+  console.log("\nExpected denial:", (error as { code: string }).code);
 }
 
 session.host.lifecycle.to("background");
 await tick();
-console.log("Dupa trecerea in fundal:", root.toHTML());
+console.log("After moving to background:", root.toHTML());
 
-console.log("\nMutatii DOM de la prima nota incoace:");
-console.log(`  elemente noi create : ${stats.createElement}   (asteptat: 0)`);
-console.log(`  actualizari de text : ${stats.textUpdate}`);
-console.log("\n-> Aplicatia nu a importat nimic de platforma: totul a trecut prin punte.");
+console.log("\nDOM mutations since the first note:");
+console.log(`  new elements created : ${stats.createElement}   (expected: 0)`);
+console.log(`  text updates         : ${stats.textUpdate}`);
+console.log("\n-> The app imported nothing platform-specific: everything went through the bridge.");
 
 session.close();

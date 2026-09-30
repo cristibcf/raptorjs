@@ -1,42 +1,42 @@
 # RaptorJS + RaptorWire + RaptorTest + RaptorEngine
 
-Implementare MVP a ecosistemului Raptor descris în whitepaper-urile din [`design/`](design/).
-Patru piloni: **execuție**, **comunicare**, **verificare**, **compilare/build**.
+MVP implementation of the Raptor ecosystem described in the whitepapers under [`design/`](design/).
+Four pillars: **execution**, **communication**, **verification**, **compilation/build**.
 
-- **RaptorJS** — framework/compiler TypeScript compiler-centric cu **reactivitate fine-grained** (signals): o schimbare de stare propagă direct către binding-ul DOM afectat, fără Virtual DOM și fără re-render de componentă. *(execuție)*
-- **RaptorWire** — protocol binar **state-aware**: după snapshot-ul inițial, rețeaua transportă **operații semantice** (`SET`, `INC`, `APPEND`, `PATCH`, `MOVE`, ...) peste o stare de bază cunoscută, nu documente re-serializate. *(comunicare)*
-- **RaptorTest** — testare comportamentală **autonomă** + backend digital twin: descoperă singur comportamentul aplicației, sintetizează un backend fals stateful și explorează spațiul de stări (observe → infer → synthesize → explore → verify → replay). *(verificare)*
-- **RaptorEngine** — platforma **semantic-aware** de build/dev/runtime: parsează `.raptor` într-un **Raptor IR** cu stable IDs, construiește **Semantic Application Graph** și optimizează pe el (Dead Signal Elimination, Dependency Fusion), generează **browser + server + wire dintr-un singur graf**, cu **Stateful Reactive HMR** (patch state-preserving) și caching reproductibil. *(compilare/build)*
+- **RaptorJS** — a compiler-centric TypeScript framework/compiler with **fine-grained reactivity** (signals): a state change propagates directly to the affected DOM binding, with no Virtual DOM and no component re-render. *(execution)*
+- **RaptorWire** — a **state-aware** binary protocol: after the initial snapshot, the network carries **semantic operations** (`SET`, `INC`, `APPEND`, `PATCH`, `MOVE`, ...) over a known base state, not re-serialized documents. *(communication)*
+- **RaptorTest** — **autonomous** behavioral testing + a digital-twin backend: it discovers the application's behavior on its own, synthesizes a stateful fake backend, and explores the state space (observe → infer → synthesize → explore → verify → replay). *(verification)*
+- **RaptorEngine** — the **semantic-aware** build/dev/runtime platform: it parses `.raptor` into a **Raptor IR** with stable IDs, builds a **Semantic Application Graph** and optimizes over it (Dead Signal Elimination, Dependency Fusion), generates **browser + server + wire from a single graph**, with **Stateful Reactive HMR** (state-preserving patch) and reproducible caching. *(compilation/build)*
 
-> Teza (whitepaper §1): avantajul nu vine dintr-un truc de performanță, ci din **eliminarea muncii redundante** dintre compiler, runtime, serializare, cache și UI — pentru că fiecare strat cunoaște aceeași schemă și același graf de stare.
+> Thesis (whitepaper §1): the advantage does not come from a performance trick, but from **eliminating redundant work** between the compiler, runtime, serialization, cache and UI — because every layer knows the same schema and the same state graph.
 
-Direcția v0.2: **reactive end-to-end** — `DB → reactive query → server signal → RaptorWire op → client signal → binding DOM`.
+Direction for v0.2: **reactive end-to-end** — `DB → reactive query → server signal → RaptorWire op → client signal → DOM binding`.
 
-## Rulează acum (zero build, zero dependențe runtime)
+## Run it now (zero build, zero runtime dependencies)
 
-Totul rulează direct pe **Node ≥ 22** (TypeScript nativ prin type-stripping). Nu e nevoie de bundler pentru demo-uri sau teste.
+Everything runs directly on **Node ≥ 22** (native TypeScript via type-stripping). No bundler is needed for the demos or tests.
 
 ```bash
-pnpm install          # doar leagă workspace-ul (+ devDeps opționale)
-pnpm test             # 875 de teste (873 pass; 2 sărite)
-pnpm typecheck        # tsc --noEmit pe tot
+pnpm install          # only links the workspace (+ optional devDeps)
+pnpm test             # 875 tests
+pnpm typecheck        # tsc --noEmit over everything
 
-pnpm demo:counter     # bindings DOM fine-grained (headless)
-pnpm demo:dashboard   # MVP end-to-end: server ↔ RaptorWire ↔ client ↔ DOM
-pnpm demo:chat        # stare partajată între 2 clienți (APPEND/PATCH/REMOVE)
-pnpm demo:raptortest  # descoperă autonom bug-uri (stale-read RT-184 + fault)
+pnpm demo:counter     # fine-grained DOM bindings (headless)
+pnpm demo:dashboard   # end-to-end MVP: server ↔ RaptorWire ↔ client ↔ DOM
+pnpm demo:chat        # state shared between 2 clients (APPEND/PATCH/REMOVE)
+pnpm demo:raptortest  # autonomously discovers bugs (stale-read RT-184 + fault)
 pnpm demo:engine      # RaptorEngine: .raptor → IR → optimize → codegen → HMR
-pnpm demo:run         # RaptorRun: SSR + server signal ↔ RaptorWire ↔ client reactiv
-pnpm demo:profile     # RaptorProfile: telemetrie → plan PGO → rebuild profile-guided
-pnpm demo:desktop     # o aplicație RaptorJS într-un host desktop nativ (punte de capabilități)
-pnpm demo:mobile      # aceeași aplicație într-un host mobil: navigarea vine de la adaptor
-pnpm demo:web-host    # aceeași aplicație cu browserul pe post de host (headless)
-pnpm demo:service     # aceeași aplicație ca serviciu HTTP: sockeți, config, drenare la SIGTERM
-pnpm demo:cli         # aceeași aplicație ca unealtă CLI: argv, TTY, confirmări, coduri de ieșire
-pnpm demo:device      # pe o plachetă: pini și magistrale declarate, somn, watchdog care resetează
+pnpm demo:run         # RaptorRun: SSR + server signal ↔ RaptorWire ↔ reactive client
+pnpm demo:profile     # RaptorProfile: telemetry → PGO plan → profile-guided rebuild
+pnpm demo:desktop     # a RaptorJS app inside a native desktop host (capability bridge)
+pnpm demo:mobile      # the same app inside a mobile host: navigation comes from the adapter
+pnpm demo:web-host    # the same app with the browser acting as the host (headless)
+pnpm demo:service     # the same app as an HTTP service: sockets, config, drain on SIGTERM
+pnpm demo:cli         # the same app as a CLI tool: argv, TTY, confirmations, exit codes
+pnpm demo:device      # on a board: declared pins and buses, sleep, a watchdog that resets
 ```
 
-CLI-ul `raptor` (whitepaper RaptorEngine §5, Appendix A):
+The `raptor` CLI (RaptorEngine whitepaper §5, Appendix A):
 
 ```bash
 pnpm raptor build   examples/raptorengine-app/src/App.raptor --report
@@ -44,207 +44,190 @@ pnpm raptor inspect graph examples/raptorengine-app/src/App.raptor
 pnpm raptor analyze examples/raptorengine-app/src/App.raptor
 pnpm raptor:run info examples/raptorengine-app/src/App.raptor    # RaptorRun (server runtime)
 pnpm raptor:run ssr  examples/raptorengine-app/src/App.raptor    # SSR HTML
-pnpm raptor toolchain                                            # detectează Rolldown/Oxc
-pnpm raptor:dev examples/raptorengine-app/src/App.raptor         # server live: fs.watch → HMR (SSE)
+pnpm raptor toolchain                                            # detects Rolldown/Oxc
+pnpm raptor:dev examples/raptorengine-app/src/App.raptor         # live server: fs.watch → HMR (SSE)
 ```
 
-**RaptorRuntime** — runtime de aplicație cu capabilități declarate, și un binar nativ care rulează
-JavaScript și TypeScript **fără Node instalat**:
+**RaptorRuntime** — an application runtime with declared capabilities, and a native binary that runs
+JavaScript and TypeScript **without Node installed**:
 
 ```bash
-pnpm raptor:runtime init exemplu-app      # proiect nou cu raptor.runtime.json
-pnpm raptor:runtime doctor                # manifest, politici, graf static, ocoluri de broker
-pnpm raptor:runtime run                   # rulează cu capabilitățile declarate
-pnpm raptor:runtime pack                  # unitate reproductibilă cu lockfile
+pnpm raptor:runtime init exemplu-app      # new project with raptor.runtime.json
+pnpm raptor:runtime doctor                # manifest, policies, static graph, broker bypasses
+pnpm raptor:runtime run                   # runs with the declared capabilities
+pnpm raptor:runtime pack                  # reproducible unit with a lockfile
 
-pnpm native -- build --features full      # binarul Rust (prin WSL, vezi nota de mediu)
-pnpm native:test                          # testele Rust (implicit si cu toate feature-urile)
+pnpm native -- build --features full      # the Rust binary (via WSL, see the environment note)
+pnpm native:test                          # the Rust tests (default and with all features)
 ```
 
-Ce refuză, concret: cu `files.read: ["./src"]` în manifest, o citire din `./src` reușește, iar una
-din `../../package.json` primește `raptor:capability/denied` — deși fișierul există pe disc.
-Cu `--policy production`, un `import` de `node:fs` **oprește pornirea**, pentru că pe motorul de
-bootstrap ar ocoli brokerul cu totul (vezi [SECURITY-AUDIT.md](SECURITY-AUDIT.md)).
+What it denies, concretely: with `files.read: ["./src"]` in the manifest, a read from `./src` succeeds, while one
+from `../../package.json` gets `raptor:capability/denied` — even though the file exists on disk.
+With `--policy production`, an `import` of `node:fs` **stops startup**, because on the bootstrap
+engine it would bypass the broker entirely (see [SECURITY-AUDIT.md](SECURITY-AUDIT.md)).
 
-Proiecte noi, pentru web și pentru host-uri native (vezi [`docs/NATIVE-HOSTS.md`](docs/NATIVE-HOSTS.md)):
+New projects, for the web and for native hosts (see [`docs/NATIVE-HOSTS.md`](docs/NATIVE-HOSTS.md)):
 
 ```bash
 pnpm raptor:create targets                                       # web, desktop, mobile
 pnpm raptor:create "Notes Desk" --target desktop --bundle-id com.exemplu.notite
 ```
 
-Engine-ul low-level **Rolldown/Oxc** este opțional (whitepaper §37 „progressive ownership"): nu e
-dependență de workspace, se detectează dinamic la runtime, iar fără el build-ul cade grațios pe
-engine-ul naiv zero-dep. Integrarea reală (izolată, ca `benchmarks/`) se verifică cu:
+The low-level **Rolldown/Oxc** engine is optional (whitepaper §37 "progressive ownership"): it is not a
+workspace dependency, it is detected dynamically at runtime, and without it the build falls back gracefully to the
+naive zero-dep engine. The real integration (isolated, like `benchmarks/`) is verified with:
 
 ```bash
 cd integrations/rolldown && npm install && npm run verify
-# semantic RaptorEngine → Rolldown bundle → Oxc minify (ex. 955B naiv → 463B minificat)
+# semantic RaptorEngine → Rolldown bundle → Oxc minify (e.g. 955B naive → 463B minified)
 ```
 
-Exemplu de ieșire din `demo:dashboard` (cifre **măsurate din run**, nu marketing — whitepaper P8 / §25.2):
+Example output from `demo:dashboard` (numbers **measured from the run**, not marketing — whitepaper P8 / §25.2):
 
 ```
 tick 1: RaptorWire 39B  |  JSON full-resend 123B
 ...
-Reducere: 68.3%
-reconnect: 0 snapshot-uri noi, cpu recuperat prin delta   (automatic delta resync)
-Nume de field repetate pe hot path: 0 (Reactive Address Space)
+Reduction: 68.3%
+reconnect: 0 new snapshots, cpu recovered via delta   (automatic delta resync)
+Repeated field names on the hot path: 0 (Reactive Address Space)
 ```
 
-### Variante browser (TSX, prin RaptorBundle — fără Vite)
+### Browser variants (TSX, via RaptorBundle — no Vite)
 
-`examples/counter` și `examples/realtime-dashboard` au și o variantă `.tsx` care folosește
-API-ul developerului din whitepaper §9 (JSX + `on:click` + `{signal}`), compilată de
-**RaptorBundle**, bundler-ul propriu zero-dep (nu Vite/esbuild):
+`examples/counter` and `examples/realtime-dashboard` also have a `.tsx` variant that uses the
+developer API from whitepaper §9 (JSX + `on:click` + `{signal}`), compiled by
+**RaptorBundle**, the project's own zero-dep bundler (not Vite/esbuild):
 
 ```bash
-pnpm dev:counter      # sau: cd examples/counter && pnpm dev  (live-reload, :5173)
-pnpm dev:dashboard    # dashboard realtime în browser
-pnpm dev:web-shell    # web-shell in browser real: History API, localStorage, notificări
-cd examples/counter && pnpm build   # emite dist/bundle.js + dist/index.html (static)
+pnpm dev:counter      # or: cd examples/counter && pnpm dev  (live-reload, :5173)
+pnpm dev:dashboard    # realtime dashboard in the browser
+pnpm dev:web-shell    # web-shell in a real browser: History API, localStorage, notifications
+cd examples/counter && pnpm build   # emits dist/bundle.js + dist/index.html (static)
 ```
 
-## Arhitectură (monorepo)
+## Architecture (monorepo)
 
-| Pachet | Rol | Whitepaper |
+| Package | Role | Whitepaper |
 |---|---|---|
-| [`@raptor/core`](packages/core) | Reactivitate: `state`, `derived`, `effect`, `batch`, `untracked`, ownership. Graf glitch-free, memo lazy, effects eager. | §6, §7 |
-| [`@raptor/dom`](packages/dom) | Runtime DOM fine-grained + **jsx-runtime** (output-ul compilerului). `For` keyed, `Show`, builder hyperscript `R` (același runtime, fără build step). Include un mini-DOM headless pentru teste. | §6, §9 |
-| [`@raptor/ui`](packages/ui) | Bibliotecă de componente peste bindingurile fine-grained. Roadmap-ul de 200 e la **198 implementate** (rămân `PdfViewer` și `Map`, care nu se pot face onest zero-dependency); catalogul site-ului are **211 de intrări în catalog** (componente, primitive și rețete documentate). Layout si tipografie, formular complet, overlay, date (`DataGrid` virtualizat, `TreeView`, `Kanban`), navigare, fisiere, **15 tipuri de grafic**, editoare (RichText/Code/JSON/Diff), media (playere, `Lightbox`, `QRCode` cu generator ISO 18004 propriu) si 19 primitive headless. Componentele-cheie vin cu teste care numara mutatiile DOM. Stiluri separate, zero dependențe, **36 de puncte de intrare**. Vezi [ROADMAP](packages/ui/ROADMAP.md). | §6, §9 |
-| [`@raptor/bundle`](packages/bundle) | **RaptorBundle**: bundler TSX/ESM propriu (zero-dep runtime). JSX → `@raptor/dom`, rezolvă graful, **tree-shaking pe sursa ESM** (un `Button` din barrel: 58 module → 9), emite un `bundle.js`; dev server cu live-reload. Înlocuiește Vite/esbuild. | §9 |
-| [`@raptor/wire-codec`](packages/wire-codec) | Primitive codec: varint, zig-zag, float64, string/bytes length-prefixed. | §12 |
-| [`@raptor/wire-core`](packages/wire-core) | Opcodes, `Document` versionat, snapshot, protocol de mesaje, **Reactive Address Space**, **adaptive encoding**. | §11–14, §31 |
-| [`@raptor/server`](packages/server) | SDK server: store reactiv autoritativ, `query`/`mutation`/subscription, snapshot+delta, op-log pentru resync, server WebSocket propriu (`serveOverWebSocket`, RFC 6455). | §24 |
-| [`@raptor/wire-client`](packages/wire-client) | Sesiune, replică reactivă (fiecare handle = un semnal), transporturi loopback și WebSocket (`connectWebSocket`), reconnect cu delta resync. | §14, §15, §17 |
-| [`@raptor/test`](packages/test) | **RaptorTest**: VirtualClock, RaptorProbe, Semantic UI, Behavior Graph, RaptorTwin (backend digital twin), Explorer, Oracle, Chaos, Replay, Coverage. | RaptorTest §6–§21 |
-| [`@raptor/compiler`](packages/compiler) | **RaptorEngine** (nucleu): parser `.raptor`, **Raptor IR** (Appendix C), Semantic Application Graph, graph diff pentru HMR. Independent de bundler. | RaptorEngine §6–§9, §11 |
-| [`@raptor/engine`](packages/engine) | **RaptorEngine** (orchestrare): optimizer (DSE, Fusion), codegen browser/server/wire, Stateful Reactive HMR, caching reproductibil, build manifest, CLI `raptor`. | RaptorEngine §5, §13–§18, §21, §34 |
-| [`@raptor/run`](packages/run) | **RaptorRun** (server runtime): leagă `serverSignal`→store reactiv→RaptorWire→client din același graf; routing + SSR/resume, sesiuni, observability, targets Node/memory. | RaptorEngine §19–§21 |
-| [`@raptor/profile`](packages/profile) | **RaptorProfile** (PGO): telemetrie runtime (signal freq, derived fan-out, route co-usage, wire payload, DOM bursts) + build planner care emite hints de **strategie** (chunk folding, preload, batch, encoding), niciodată de corectitudine. | RaptorEngine §22–§24 |
-| [`@raptor/runtime`](packages/runtime) | **RaptorRuntime** (nucleu): runtime de aplicație cu **capabilități ca funcție de produs**. Spațiul de nume `raptor:` (`files`, `net`, `serve`, `process`, `kv`, `observe`, `capabilities`, `tasks`), capability broker cu țintă per cale / `gazdă:port` / variabilă / comandă, revocare la runtime și delegare explicită, fabrică de task-uri cu deadline, observabilitate structurată, adaptor de motor. Pe motorul de bootstrap brokerul e **consultativ** — vezi [SECURITY-AUDIT](SECURITY-AUDIT.md). | RaptorRuntime §5–§7 |
-| [`@raptor/runtime-cli`](packages/runtime-cli) | `raptor-runtime`: `init`, `run`, `doctor`, `test`, `pack` (unitate reproductibilă cu lockfile), `trace` (urmărire compatibilă OpenTelemetry). `doctor` și `run` raportează importurile care ocolesc brokerul, cu aceeași regulă. | RaptorRuntime §4, §8 |
-| [`packages/runtime-native`](packages/runtime-native) | **Binarul nativ, în Rust**: rulează JavaScript **și TypeScript fără Node instalat**. Motor QuickJS în spatele unui `EngineAdapter` (`--features quickjs`), TypeScript transformat cu oxc (`--features typescript`), modulele `raptor:` ca funcții native, HTTP/1.1 propriu peste `std::net` (client + server). Build implicit **zero dependențe** (964 KB); complet 4,4 MB. Vezi [nota de mediu](#note). | RaptorRuntime §3, §13 |
-| [`@raptor/host`](packages/host) | Contractul comun al host-urilor native: matricea de capabilități, manifestul `raptor.host.json`, puntea JS↔host (cereri corelate + evenimente), mașina de lifecycle și planul de împachetare. Fără cod de platformă. | Roadmap §6 |
-| [`@raptor/desktop`](packages/desktop) | **Raptor Desktop Adapter**: back-end-uri WebView (WebView2 / WKWebView / WebKitGTK), ferestre, meniuri, deep links, notificări, stocare locală, actualizări și semnare; host de referință + formate de instalator (msi, nsis, dmg, deb, AppImage). | Roadmap §6–§8 |
-| [`@raptor/mobile`](packages/mobile) | **Raptor Mobile Adapter**: bridge minimal Android/iOS — navigare controlată de adaptor, stocare securizată (Keychain / EncryptedSharedPreferences), lifecycle, deep links; module native opționale, fiecare cu capabilitatea lui. | Roadmap §6–§8 |
-| [`@raptor/web-host`](packages/web-host) | Browserul ca host Raptor: același contract peste History API, `localStorage`, Notification și Geolocation, ca aceeași aplicație să ruleze nemodificată pe toate trei țintele. Aici puntea dă **portabilitate, nu izolare**. | Roadmap §4 |
-| [`@raptor/service-host`](packages/service-host) | Supervizorul de proces ca host: sockeți de ascultare (aplicația nu deschide porturi), configurație și secrete, semnal de sănătate și **drenare** la SIGTERM — rândul „Servicii platformă" din etapa 3. | Roadmap §3 |
-| [`@raptor/cli-host`](packages/cli-host) | Terminalul ca host: argumente, fluxuri, lățime și culoare, Ctrl-C și cod de ieșire. Fără terminal interactiv, o confirmare este **refuzată, nu presupusă**. | Roadmap §4 |
-| [`@raptor/device-host`](packages/device-host) | Firmware-ul unei plachete ca host: pini și magistrale declarate *per instanță*, somn profund, OTA cu rollback și un **watchdog** care resetează aplicația blocată. Singurul host care nu are încredere în aplicație. | derivat |
-| [`@raptor/forge`](packages/forge) | **RaptorForge**: `raptor-create` pentru web/desktop/mobile — generează `raptor.runtime.json` valid, granița nativă `raptor.host.json`, descriptorul de împachetare și workflow-ul de instalatoare, toate din aceeași sursă. | Roadmap §5, §8 |
+| [`raptorjs`](packages/raptorjs) | **Application framework** (reactivity + DOM + UI). Root: `state`, `derived`, `effect`, `batch`, `untracked`, ownership — glitch-free graph, lazy memo, eager effects. **`raptorjs/dom`**: fine-grained DOM runtime + **jsx-runtime**, keyed `For`, `Show`, `R` hyperscript, headless mini-DOM (`raptorjs/dom/testing`). **`raptorjs/ui`**: a component library over the fine-grained bindings — **198 implemented** (the site catalog has **211 catalog entries**), layout/typography, forms, overlay, data (virtualized `DataGrid`, `TreeView`, `Kanban`), **15 chart types**, editors, media (own `QRCode`), 19 headless primitives; separate styles, **36 entry points**. Zero dependencies. See [UI ROADMAP](packages/raptorjs/src/ui/ROADMAP.md). | §6, §7, §9 |
+| [`@raptor/wire`](packages/wire) | **RaptorWire** (state-aware binary protocol). Root: opcodes, versioned `Document`, snapshot, message protocol, **Reactive Address Space**, **adaptive encoding**. **`/codec`**: varint, zig-zag, float64, length-prefixed string/bytes primitives. **`/server`**: authoritative reactive store SDK, `query`/`mutation`/subscription, snapshot+delta, op-log, own WebSocket server (RFC 6455). **`/client`**: session, reactive replica (each handle = one signal), loopback + WebSocket transports, reconnect with delta resync. | §11–17, §24, §31 |
+| [`@raptor/engine`](packages/engine) | **RaptorEngine**. Root: optimizer (DSE, Fusion), browser/server/wire codegen, Stateful Reactive HMR, reproducible caching, build manifest, `raptor` CLI. **`/compiler`**: `.raptor` parser, **Raptor IR**, Semantic Application Graph, graph diff. **`/bundle`**: **RaptorBundle** — own TSX/ESM bundler, tree-shaking on ESM source, dev server (`raptor-bundle`). **`/run`**: **RaptorRun** — server runtime, routing + SSR/resume (`raptor-run`). **`/profile`**: **RaptorProfile** — PGO, strategy hints (`raptor-profile`). **`/forge`**: **RaptorForge** — project generator (`raptor-create`). | RaptorEngine §5–§24, §34 |
+| [`@raptor/runtime`](packages/runtime) | **RaptorRuntime**. Root: an application runtime with **capabilities as a product function**, the `raptor:` namespace (`files`, `net`, `serve`, `process`, `kv`, `observe`, `capabilities`, `tasks`), a capability broker with a target per path / `host:port` / variable / command, explicit revocation and delegation, a task factory with deadlines, structured observability, an engine adapter. **`/cli`**: the `raptor-runtime` launcher — `init`, `run`, `doctor`, `test`, `pack` (reproducible unit), `trace` (OpenTelemetry). On the bootstrap engine the broker is **advisory** — see [SECURITY-AUDIT](SECURITY-AUDIT.md). | RaptorRuntime §4–§8 |
+| [`@raptor/host`](packages/host) | **The host contract + platform adapters**. Root: the capability matrix, the `raptor.host.json` manifest, the JS↔host bridge (correlated requests + events), the lifecycle machine and the packaging plan. **`/web`** (History/`localStorage`/Notification/Geolocation), **`/desktop`** (WebView2/WKWebView/WebKitGTK, menus, deep links, msi/nsis/dmg/deb/AppImage installers), **`/mobile`** (Android/iOS, secure storage, optional native modules), **`/service`** (supervisor, listening sockets, SIGTERM **drain**), **`/cli`** (terminal, confirmation refusal with no TTY), **`/device`** (firmware, declared pins, OTA with rollback, **watchdog**). | Roadmap §3–§8 |
+| [`@raptor/test`](packages/test) | **RaptorTest**: VirtualClock, RaptorProbe, Semantic UI, Behavior Graph, RaptorTwin (digital-twin backend), Explorer, Oracle, Chaos, Replay, Coverage. | RaptorTest §6–§21 |
+| [`packages/runtime-native`](packages/runtime-native) | **The native binary, in Rust** (not published to npm): runs JavaScript **and TypeScript without Node installed**. QuickJS engine (`--features quickjs`), TypeScript transformed with oxc (`--features typescript`), the `raptor:` modules as native functions, own HTTP/1.1 over `std::net`. Default build is **zero dependencies** (964 KB); full build 4.4 MB. See the [environment note](#notes). | RaptorRuntime §3, §13 |
 
-Exemple: [`counter`](examples/counter), [`realtime-dashboard`](examples/realtime-dashboard) (MVP headline), [`chat`](examples/chat), [`raptortest-crud`](examples/raptortest-crud) (descoperire autonomă de bug-uri), [`raptorengine-app`](examples/raptorengine-app) (compilare end-to-end: `.raptor` → cod care rulează pe runtime-ul real), [`site`](examples/site) (**site de prezentare + documentație construit CU stack-ul Raptor**: UI RaptorJS, demo realtime RaptorWire în pagină, compilat cu RaptorBundle — `pnpm dev:site`), [`desktop-shell`](examples/desktop-shell) (**o aplicație RaptorJS care rulează într-un host desktop nativ**: fereastră, meniu, stocare locală, deep links și notificări, toate prin puntea de capabilități — `pnpm demo:desktop`), [`mobile-shell`](examples/mobile-shell) (**aceeași aplicație, host mobil**: navigare condusă de adaptor, stocare securizată, suspendare și reluare, module native opționale — `pnpm demo:mobile`), [`web-shell`](examples/web-shell) (**a treia oară aceeași aplicație, cu browserul pe post de host**: History API și butonul de back, `localStorage`, notificări cu permisiune — `pnpm dev:web-shell`), [`service-shell`](examples/service-shell) (**a patra oară, ca serviciu HTTP**: server real `node:http`, configurație de la supervizor, drenare curată — `pnpm demo:service`), [`cli-shell`](examples/cli-shell) (**a cincea oară, ca unealtă de linie de comanda**: `raptor-notes add/list/clear`, cu refuz de confirmare când nu există terminal — `pnpm demo:cli`), [`device-shell`](examples/device-shell) (**a șasea, pe o plachetă**: logger de senzor cu LED, I2C, somn între citiri și watchdog — `pnpm demo:device`), [`native-hello`](examples/native-hello) (**TypeScript rulat de binarul nativ**, fără Node și fără tsc: tipuri, generice, interfețe — plus dovada că refuzul de capabilitate chiar blochează un fișier care există), [`native-server`](examples/native-server) (**un server HTTP scris în TypeScript care răspunde la `curl` real**, pe binarul nativ).
+Examples: [`counter`](examples/counter), [`realtime-dashboard`](examples/realtime-dashboard) (headline MVP), [`chat`](examples/chat), [`raptortest-crud`](examples/raptortest-crud) (autonomous bug discovery), [`raptorengine-app`](examples/raptorengine-app) (end-to-end compilation: `.raptor` → code that runs on the real runtime), [`site`](examples/site) (**a presentation + documentation site built WITH the Raptor stack**: RaptorJS UI, a RaptorWire realtime demo in the page, compiled with RaptorBundle — `pnpm dev:site`), [`desktop-shell`](examples/desktop-shell) (**a RaptorJS app running inside a native desktop host**: window, menu, local storage, deep links and notifications, all through the capability bridge — `pnpm demo:desktop`), [`mobile-shell`](examples/mobile-shell) (**the same app, a mobile host**: adapter-driven navigation, secure storage, suspend and resume, optional native modules — `pnpm demo:mobile`), [`web-shell`](examples/web-shell) (**the same app a third time, with the browser acting as the host**: History API and the back button, `localStorage`, notifications with permission — `pnpm dev:web-shell`), [`service-shell`](examples/service-shell) (**a fourth time, as an HTTP service**: a real `node:http` server, configuration from the supervisor, clean drain — `pnpm demo:service`), [`cli-shell`](examples/cli-shell) (**a fifth time, as a command-line tool**: `raptor-notes add/list/clear`, refusing to confirm when there is no terminal — `pnpm demo:cli`), [`device-shell`](examples/device-shell) (**a sixth time, on a board**: a sensor logger with an LED, I2C, sleep between reads and a watchdog — `pnpm demo:device`), [`native-hello`](examples/native-hello) (**TypeScript run by the native binary**, without Node and without tsc: types, generics, interfaces — plus proof that a capability denial really blocks a file that exists), [`native-server`](examples/native-server) (**an HTTP server written in TypeScript that answers a real `curl`**, on the native binary).
 
-> `@raptor/test` mapează structura de pachete din whitepaper-ul RaptorTest (§32: probe, semantic-ui, behavior-graph, twin-core, explorer, oracle, chaos, replay, coverage) într-un singur pachet, ca submodule.
+> `@raptor/test` maps the package structure from the RaptorTest whitepaper (§32: probe, semantic-ui, behavior-graph, twin-core, explorer, oracle, chaos, replay, coverage) into a single package, as submodules.
 
-## Ce demonstrează (mapat pe whitepaper)
+## What it demonstrates (mapped to the whitepaper)
 
-**RaptorJS — fine-grained (§6):** un click actualizează **exact** un text-node; zero elemente
-recreate, zero componente re-executate. `For` reutilizează nodurile la reordonare (mutări minime).
-Verificat prin `mini-dom` care numără fiecare mutație (vezi `demo:counter` și testele dom).
+**RaptorJS — fine-grained (§6):** a click updates **exactly** one text node; zero elements
+recreated, zero components re-executed. `For` reuses nodes on reorder (minimal moves).
+Verified through `mini-dom`, which counts every mutation (see `demo:counter` and the dom tests).
 
-**RaptorWire — state-aware (§13):** operații delta pe un `Document` versionat. Testul-teză arată
-că un `INC` pe un field e de >10× mai mic decât re-serializarea obiectului ca JSON.
+**RaptorWire — state-aware (§13):** delta operations over a versioned `Document`. The thesis test shows
+that an `INC` on a field is >10× smaller than re-serializing the object as JSON.
 
-**MVP end-to-end (§28, M1–M8):** `realtime-dashboard` leagă totul: handshake → snapshot →
-operații delta versionate → semnale client → binding DOM exact, cu măsurarea octeților.
+**End-to-end MVP (§28, M1–M8):** `realtime-dashboard` ties it all together: handshake → snapshot →
+versioned delta operations → client signals → exact DOM binding, with byte measurement.
 
-**RaptorTest — verificare autonomă (RaptorTest §4, §28, §31):** `demo:raptortest` rulează ciclul
-`observe → infer → synthesize → explore → verify → replay` peste o aplicație cart CRUD, **fără
-teste scrise de mână**. Descoperă singur secvențe de acțiuni (BFS ghidat de coverage), sintetizează
-un backend digital twin stateful, injectează scenarii de rețea (RaptorChaos) și verifică invariante
-(RaptorOracle). Găsește autonom:
-- **bug-ul stale-read RT-184** (Anexa A): `Add to cart` → navigare imediată → un `GET /cart` întârziat suprascrie UI-ul cu starea veche (UI arată 0, serverul are 1). Minimizat la 2 acțiuni, reprodus determinist dintr-o capsulă `.raptorcap`.
-- un **bug de robustețe**: la `POST 500`, aplicația citește orbește `.count` dintr-un răspuns de eroare.
+**RaptorTest — autonomous verification (RaptorTest §4, §28, §31):** `demo:raptortest` runs the
+`observe → infer → synthesize → explore → verify → replay` cycle over a CRUD cart application, **with no
+hand-written tests**. It discovers action sequences on its own (coverage-guided BFS), synthesizes
+a stateful digital-twin backend, injects network scenarios (RaptorChaos) and checks invariants
+(RaptorOracle). It autonomously finds:
+- the **stale-read bug RT-184** (Appendix A): `Add to cart` → immediate navigation → a delayed `GET /cart` overwrites the UI with the old state (UI shows 0, the server has 1). Minimized to 2 actions, reproduced deterministically from a `.raptorcap` capsule.
+- a **robustness bug**: on `POST 500`, the application blindly reads `.count` from an error response.
 
-Totul e determinist prin **timp virtual** (`VirtualClock` = scheduler discret de evenimente): aceeași
-capsulă produce identic aceeași execuție (whitepaper §14, §20).
+Everything is deterministic through **virtual time** (`VirtualClock` = a discrete event scheduler): the same
+capsule produces exactly the same execution (whitepaper §14, §20).
 
-### Nou în v0.2
+### New in v0.2
 
-| Feature | Unde | Whitepaper |
+| Feature | Where | Whitepaper |
 |---|---|---|
-| **Reactive Address Space** — ID-uri compacte, session-scoped, pe hot path (numele de field trimis o singură dată) | `AddressBook`, `encodeOpsFrame`/`decodeOpsFrame` | §5.2, §5.3 |
-| **Network transaction / single DOM commit** — batch atomic aplicat cu un singur commit UI | flag `atomic` pe `OpsBatch`, `batch()` pe client | §5.4, §16.1 |
-| **Automatic delta resync** — reconnect fără full resend (op-log + `resume(sinceVersion)`) | `ReactiveStore.resyncSince`, `RaptorClient.resume` | §14.3 |
-| **Adaptive encoding** — codec schema-aware (percentage→1B, money→scaled int, enum→index) | `SchemaCodec` | §13.2 |
-| **Performance budgets** — verificate ca teste (0 field names repetate, 1 commit/frame atomic, 0 snapshot la reconnect eligibil) | `examples/realtime-dashboard/tests/v2.test.ts` | §25.2 |
+| **Reactive Address Space** — compact, session-scoped IDs on the hot path (a field name sent only once) | `AddressBook`, `encodeOpsFrame`/`decodeOpsFrame` | §5.2, §5.3 |
+| **Network transaction / single DOM commit** — an atomic batch applied with a single UI commit | `atomic` flag on `OpsBatch`, `batch()` on the client | §5.4, §16.1 |
+| **Automatic delta resync** — reconnect without full resend (op-log + `resume(sinceVersion)`) | `ReactiveStore.resyncSince`, `RaptorClient.resume` | §14.3 |
+| **Adaptive encoding** — schema-aware codec (percentage→1B, money→scaled int, enum→index) | `SchemaCodec` | §13.2 |
+| **Performance budgets** — verified as tests (0 repeated field names, 1 atomic commit/frame, 0 snapshots on eligible reconnect) | `examples/realtime-dashboard/tests/v2.test.ts` | §25.2 |
 
-### RaptorEngine (whitepaper separat: `RaptorEngine_Build_Runtime_Platform`)
+### RaptorEngine (separate whitepaper: `RaptorEngine_Build_Runtime_Platform`)
 
-Al patrulea pilon: platforma de build/dev/runtime care **deține semantica** aplicației, nu doar
-modulele. Engine-ul low-level (bundling/minify) rămâne un adapter schimbabil în spatele unei
-interfețe mici (§37 "progressive ownership") — în v0.1 e un engine naiv; teza e că optimizarea
-valoroasă se face pe **graful semantic**, ceva ce un bundler generic nu poate face.
+The fourth pillar: the build/dev/runtime platform that **owns the application's semantics**, not just the
+modules. The low-level engine (bundling/minify) remains a swappable adapter behind a small
+interface (§37 "progressive ownership") — in v0.1 it is a naive engine; the thesis is that the
+valuable optimization is done on the **semantic graph**, something a generic bundler cannot do.
 
-| Capabilitate | Unde | Whitepaper |
+| Capability | Where | Whitepaper |
 |---|---|---|
-| **Raptor IR + stable IDs** — componenta descompusă în signals/deriveds/bindings/effects/wire, serializabilă pentru cache | `@raptor/compiler` `ir.ts`, `parser.ts`, `expr.ts` | §7, Appendix C |
+| **Raptor IR + stable IDs** — the component decomposed into signals/deriveds/bindings/effects/wire, serializable for caching | `@raptor/engine/compiler` `ir.ts`, `parser.ts`, `expr.ts` | §7, Appendix C |
 | **Semantic Application Graph** — module→component→signal→derived→DOM binding, serverSignal→schema→RAS | `graph.ts` (`buildGraph`, liveness) | §8 |
-| **Dead Signal Elimination** — elimină reactive fără drum spre un output observabil (nu doar variabile nefolosite textual) | `@raptor/engine` `optimize.ts` (`runDSE`) | §14.1 |
-| **Dependency Fusion** — colapsează un derived cu consumator unic; **blocată la `@debug`** | `optimize.ts` (`fuseComponent`) | §14.2, §24 |
-| **Codegen multi-target dintr-un graf** — browser (rulează pe `@raptor/core`+`@raptor/dom`), server producers, wire schema + RAS manifest | `codegen.ts` | §9, §15 |
-| **Stateful Reactive HMR** — graph diff → patch state-preserving; fallback explicit la remount cu motiv | `@raptor/compiler` `diff.ts`, `@raptor/engine` `dev.ts` | §11, §12 |
-| **Caching reproductibil** — cache key = source + compiler version + profile + target + schema compat | `cache.ts`, `manifest.ts` (Appendix B) | §21 |
-| **Build profiles + chunking** — `realtime` izolează componentele cu server signals în chunk separat | `config.ts`, `build.ts` | §16, §18 |
-| **Inspect/analyze** — dump graf, invalidation trace (blast radius), optimization trace | `inspect.ts`, CLI `raptor inspect/analyze` | §12, §27, §5 |
-| **RaptorRun** — server runtime: `serverSignal`→store→RaptorWire→client, SSR/resume, sesiuni, observability, target Node HTTP real + memory | `@raptor/run` `runtime.ts`, `ssr.ts`, `router.ts`, `node.ts` | §19–§21 |
-| **RaptorDev live server** — `fs.watch` → recompilare incrementală → diff → HMR push prin SSE + refresh SSR; client HMR care face swap pe `#raptor-root` | `@raptor/run` `dev-server.ts`, CLI `raptor:dev` | §10–§12 |
-| **RaptorProfile** — telemetrie tehnică + build planner PGO; **adaptive strategies, nu adaptive correctness** (§24): ce nu apare în profil e păstrat, nu eliminat | `@raptor/profile` `collector.ts`, `scenario.ts`, `planner.ts` | §22–§24 |
-| **Rolldown/Oxc** — engine low-level real prin seam-ul `LowLevelEngine` (bundle + tree-shake + minify), detectat dinamic, opțional, fallback naiv zero-dep | `@raptor/engine` `lowlevel.ts`, `buildModuleAsync`, `integrations/rolldown` | §2, §37 |
+| **Dead Signal Elimination** — removes reactives with no path to an observable output (not just textually unused variables) | `@raptor/engine` `optimize.ts` (`runDSE`) | §14.1 |
+| **Dependency Fusion** — collapses a derived with a single consumer; **blocked at `@debug`** | `optimize.ts` (`fuseComponent`) | §14.2, §24 |
+| **Multi-target codegen from one graph** — browser (runs on `raptorjs`+`raptorjs/dom`), server producers, wire schema + RAS manifest | `codegen.ts` | §9, §15 |
+| **Stateful Reactive HMR** — graph diff → state-preserving patch; explicit fallback to remount with a reason | `@raptor/engine/compiler` `diff.ts`, `@raptor/engine` `dev.ts` | §11, §12 |
+| **Reproducible caching** — cache key = source + compiler version + profile + target + schema compat | `cache.ts`, `manifest.ts` (Appendix B) | §21 |
+| **Build profiles + chunking** — `realtime` isolates components with server signals into a separate chunk | `config.ts`, `build.ts` | §16, §18 |
+| **Inspect/analyze** — graph dump, invalidation trace (blast radius), optimization trace | `inspect.ts`, CLI `raptor inspect/analyze` | §12, §27, §5 |
+| **RaptorRun** — server runtime: `serverSignal`→store→RaptorWire→client, SSR/resume, sessions, observability, real Node HTTP target + memory | `@raptor/engine/run` `runtime.ts`, `ssr.ts`, `router.ts`, `node.ts` | §19–§21 |
+| **RaptorDev live server** — `fs.watch` → incremental recompilation → diff → HMR push via SSE + SSR refresh; HMR client that swaps on `#raptor-root` | `@raptor/engine/run` `dev-server.ts`, CLI `raptor:dev` | §10–§12 |
+| **RaptorProfile** — technical telemetry + PGO build planner; **adaptive strategies, not adaptive correctness** (§24): what does not appear in the profile is kept, not removed | `@raptor/engine/profile` `collector.ts`, `scenario.ts`, `planner.ts` | §22–§24 |
+| **Rolldown/Oxc** — a real low-level engine through the `LowLevelEngine` seam (bundle + tree-shake + minify), detected dynamically, optional, naive zero-dep fallback | `@raptor/engine` `lowlevel.ts`, `buildModuleAsync`, `integrations/rolldown` | §2, §37 |
 
-**Demonstrat end-to-end** (`examples/raptorengine-app`): sursa `.raptor` e compilată, iar codul
-browser **generat rulează pe runtime-ul real** (mini-dom), cu update-uri fine-grained verificate
-(0 elemente recreate la click). DSE elimină `unused`, Fusion colapsează `label`, `price` devine o
-adresă RAS `0x18A1` cu schemă `money` — totul dintr-un singur graf. **RaptorRun** (`pnpm demo:run`)
-închide bucla: același graf → SSR pe server (cu valoarea live a `price`) + un client RaptorWire care
-urmărește reactiv update-urile produse de server (`produce("BTC.price", …)` → semnal client), plus un
-server Node HTTP real testat cu `fetch`.
+**Demonstrated end-to-end** (`examples/raptorengine-app`): the `.raptor` source is compiled, and the
+generated browser code **runs on the real runtime** (mini-dom), with verified fine-grained updates
+(0 elements recreated on click). DSE removes `unused`, Fusion collapses `label`, `price` becomes a
+RAS address `0x18A1` with a `money` schema — all from a single graph. **RaptorRun** (`pnpm demo:run`)
+closes the loop: the same graph → SSR on the server (with the live value of `price`) + a RaptorWire client that
+reactively tracks the updates produced by the server (`produce("BTC.price", …)` → client signal), plus a
+real Node HTTP server tested with `fetch`.
 
 ## Status
 
-Prototip conform whitepaper §0: arhitectură propusă, nu produs. Toate țintele de performanță
-sunt **bugete de design validate experimental**, nu comparații de marketing. Cifrele wire sunt
-măsurate local; comparațiile cu React/Preact/Solid sunt în [`benchmarks/`](benchmarks) — inclusiv
-microbenchmark-ul de signals, **unde RaptorJS pierde** față de `@preact/signals-core`.
-Vezi [`SPEC-RaptorWire-v0.2.md`](SPEC-RaptorWire-v0.2.md).
+A prototype per whitepaper §0: proposed architecture, not a product. All the performance targets
+are **design budgets validated experimentally**, not marketing comparisons. The wire numbers are
+measured locally; the comparisons with React/Preact/Solid are in [`benchmarks/`](benchmarks) — including
+the signals microbenchmark, **where RaptorJS loses** to `@preact/signals-core`.
+See [`SPEC-RaptorWire-v0.2.md`](SPEC-RaptorWire-v0.2.md).
 
-### Note
+### Notes
 
-- **Zero dependențe runtime.** `typescript`/`@types/node` sunt doar pentru typecheck și pentru
-  transformul de build al `@raptor/bundle`. Codul de producție al pachetelor nu importă nimic extern.
-  **Nu există Vite/esbuild** în graful de dependențe: varianta browser e compilată de `@raptor/bundle`.
-- **Rolldown/Oxc sunt opționale** și izolate în `integrations/rolldown` (în afara pnpm-workspace, ca
-  `benchmarks/`), detectate dinamic la runtime. Pachetele `@raptor/*` rămân zero-dep; `raptor build`
-  cade grațios pe engine-ul naiv când nu sunt instalate (whitepaper §37).
-- Pentru variantele browser: `pnpm dev:counter` / `pnpm dev:dashboard` (dev server RaptorBundle cu
-  live-reload) sau `pnpm build` în directorul exemplului (emite `dist/bundle.js` static). Fără toolchain extern.
-- Convenție de cod: **sintaxă TS erasabilă** (fără `enum`/`namespace`-runtime/parameter properties)
-  ca să ruleze nativ pe Node. Binarul nativ acceptă un **superset**: oxc transformă și `enum`/`namespace`,
-  deci cod care merge nativ poate să nu meargă sub `node --experimental-strip-types`.
-- **Build-ul Rust pe Windows**: `rustc.exe` nu pornește când **Smart App Control** e activ
-  (`0xC0E90002`, la încărcarea `rustc_driver-*.dll`). `cargo.exe` merge, ceea ce induce în eroare.
-  Reinstalarea toolchain-ului nu rezolvă. Soluția folosită aici: build în **WSL2 Ubuntu**, prin
-  `pnpm native` / `pnpm native:test`. A **nu** se dezactiva Smart App Control — e ireversibil fără
-  reinstalare de Windows.
+- **Zero runtime dependencies.** `typescript`/`@types/node` are only for typecheck and for
+  the build transform of `@raptor/engine/bundle`. The production code of the packages imports nothing external.
+  **There is no Vite/esbuild** in the dependency graph: the browser variant is compiled by `@raptor/engine/bundle`.
+- **Rolldown/Oxc are optional** and isolated in `integrations/rolldown` (outside the pnpm workspace, like
+  `benchmarks/`), detected dynamically at runtime. The `@raptor/*` packages stay zero-dep; `raptor build`
+  falls back gracefully to the naive engine when they are not installed (whitepaper §37).
+- For the browser variants: `pnpm dev:counter` / `pnpm dev:dashboard` (RaptorBundle dev server with
+  live-reload) or `pnpm build` in the example's directory (emits a static `dist/bundle.js`). No external toolchain.
+- Code convention: **erasable TS syntax** (no `enum`/runtime-`namespace`/parameter properties)
+  so it runs natively on Node. The native binary accepts a **superset**: oxc also transforms `enum`/`namespace`,
+  so code that works natively may not work under `node --experimental-strip-types`.
+- **The Rust build on Windows**: `rustc.exe` won't start when **Smart App Control** is enabled
+  (`0xC0E90002`, while loading `rustc_driver-*.dll`). `cargo.exe` works, which is misleading.
+  Reinstalling the toolchain does not fix it. The workaround used here: build in **WSL2 Ubuntu**, via
+  `pnpm native` / `pnpm native:test`. Do **not** disable Smart App Control — it is irreversible without
+  a Windows reinstall.
 
-### Ce NU e făcut (ca să nu fie prezentat ca făcut)
+### What is NOT done (so it isn't presented as done)
 
-- **Buclă de evenimente și promisiuni în binarul nativ.** Fără ele nu există `fetch` asincron și nici
-  forma `serve({ fetch })`; bucla de acceptare aparține aplicației, deliberat și documentat.
-- **TLS**, nicăieri. `https://` trece de verificarea de capabilitate și apoi eșuează limpede, în loc
-  să coboare tăcut la `http`.
-- **`tasks`, `test` și `trace` legate la izolatul nativ** — există în runtime-ul TS, sunt `pending` în cel nativ.
-- **Shell-ul nativ complet** (WebView2/WKWebView/WebKitGTK + launcher) și comanda `raptor-package`.
-  Fără ele, criteriul „pornește o aplicație cu fereastră fără Node instalat" nu e atins — deși
-  *binarul* rulează deja JS și TS fără Node.
-- **Minify în `@raptor/bundle`.** Pentru asta există calea opțională Rolldown/Oxc.
-- **Cursa TOCTOU la verificarea căilor.** Containerea urmărește acum legăturile simbolice, deci un link
-  deja prezent în domeniul acordat nu mai scoate accesul afară — dar între verificare și `open` cineva
-  care poate scrie în domeniu poate înlocui un director cu o legătură. Închiderea completă cere
-  `openat2(RESOLVE_BENEATH)`, la care Node nu dă acces. Vezi [SECURITY-AUDIT.md](SECURITY-AUDIT.md).
+- **An event loop and promises in the native binary.** Without them there is no async `fetch` and no
+  `serve({ fetch })` form; the accept loop belongs to the application, deliberately and by documentation.
+- **TLS**, anywhere. `https://` passes the capability check and then fails clearly, instead of
+  silently downgrading to `http`.
+- **`tasks`, `test` and `trace` wired to the native isolate** — they exist in the TS runtime, they are `pending` in the native one.
+- **The full native shell** (WebView2/WKWebView/WebKitGTK + launcher) and the `raptor-package` command.
+  Without them, the criterion "start a windowed app without Node installed" is not met — even though
+  the *binary* already runs JS and TS without Node.
+- **Minify in `@raptor/engine/bundle`.** For that there is the optional Rolldown/Oxc path.
+- **The TOCTOU race in path checking.** The container now follows symbolic links, so a link
+  already present in the granted scope no longer leaks access out — but between the check and `open`, someone
+  who can write into the scope can replace a directory with a link. Closing this fully requires
+  `openat2(RESOLVE_BENEATH)`, which Node does not expose. See [SECURITY-AUDIT.md](SECURITY-AUDIT.md).
 
-## Licență
+## License
 
-MIT — vezi [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE).

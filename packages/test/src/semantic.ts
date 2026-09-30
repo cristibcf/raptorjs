@@ -1,27 +1,27 @@
 /**
- * Semantic UI Model (whitepaper §8): nodurile sunt identificate prin rol,
- * nume accesibil, context si efect - nu prin selectori CSS/XPath fragili.
- * Self-healing devine o problema de re-identificare semantica, vizibila si
- * auditabila (nu ascunsa).
+ * Semantic UI Model (whitepaper §8): nodes are identified by role, accessible
+ * name, context and effect - not by fragile CSS/XPath selectors. Self-healing
+ * becomes a problem of semantic re-identification, visible and auditable (not
+ * hidden).
  */
 import { type SemanticNode } from "./types.ts";
 
-/** Identitate stabila a unui nod: rol + context + efect (numele poate varia). */
+/** Stable identity of a node: role + context + effect (the name may vary). */
 export function semanticId(node: SemanticNode): string {
   return `${node.role}#${node.context.join(">")}#${node.actionEffect ?? ""}#${node.name}`;
 }
 
-/** ID-ul de actiune folosit in action log / capsule (stabil, semantic). */
+/** The action ID used in the action log / capsule (stable, semantic). */
 export function actionId(node: SemanticNode): string {
   return `${node.role}:${node.name}:${node.context.join(">")}`;
 }
 
-/** Cheie de identitate rezistenta la schimbari cosmetice de nume. */
+/** An identity key resistant to cosmetic name changes. */
 export function stableKey(node: SemanticNode): string {
   return `${node.role}#${node.context.join(">")}#${node.actionEffect ?? ""}`;
 }
 
-/** Scor de similaritate 0..1 pentru re-identificare (self-heal). */
+/** Similarity score 0..1 for re-identification (self-heal). */
 export function semanticSimilarity(a: SemanticNode, b: SemanticNode): number {
   let score = 0;
   if (a.role === b.role) score += 0.35;
@@ -35,9 +35,9 @@ export function semanticSimilarity(a: SemanticNode, b: SemanticNode): number {
 }
 
 /**
- * Re-identifica un nod cunoscut intr-o lista noua. Intoarce potrivirea plus un
- * flag `healed` cand identificarea s-a facut prin similaritate (nume schimbat),
- * ca sistemul sa poata RAPORTA remaparea, nu sa o ascunda.
+ * Re-identify a known node in a new list. Returns the match plus a `healed`
+ * flag when identification was done by similarity (name changed), so the system
+ * can REPORT the remapping, not hide it.
  */
 export function reidentify(
   target: SemanticNode,

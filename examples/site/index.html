@@ -357,6 +357,68 @@
         nav.links { order: 3; width: 100%; flex-wrap: wrap; gap: 2px 4px; }
         .nav-link { padding: 6px 9px; font-size: 13.5px; }
       }
+
+      /* ---- Search (nav) ---- */
+      .search { position: relative; display: flex; align-items: center; gap: 6px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; }
+      .search:focus-within { border-color: var(--accent); }
+      .search-ic { color: var(--faint); font-size: 14px; }
+      .search-input { border: 0; background: transparent; outline: none; font-family: var(--sans); font-size: 13px; color: var(--text); width: 150px; }
+      .search-input::placeholder { color: var(--faint); }
+      .search-slash { font-family: var(--mono); font-size: 11px; color: var(--faint); border: 1px solid var(--border-strong); border-radius: 4px; padding: 0 5px; line-height: 16px; }
+      .search:focus-within .search-slash { display: none; }
+      .search-panel { position: absolute; top: calc(100% + 7px); right: 0; width: 340px; max-height: 60vh; overflow-y: auto; background: #fff; border: 1px solid var(--border-strong); border-radius: 9px; box-shadow: 0 12px 34px rgba(20,24,31,0.12); padding: 6px; z-index: 60; }
+      .search-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border-radius: 6px; cursor: pointer; }
+      .search-item:hover { background: var(--accent-soft); }
+      .search-title { font-size: 13.5px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .search-kind { font-family: var(--mono); font-size: 10.5px; color: var(--faint); text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
+      .search-empty { padding: 12px; color: var(--faint); font-size: 13px; text-align: center; }
+
+      /* ---- Tutorial ---- */
+      .tut { display: grid; grid-template-columns: 210px 1fr; gap: 30px; margin-top: 26px; align-items: start; }
+      .tut-steps { display: flex; flex-direction: column; gap: 2px; position: sticky; top: 84px; }
+      .tut-step { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 7px; cursor: pointer; color: var(--dim); font-size: 14px; }
+      .tut-step:hover { background: var(--sunken); color: var(--text); }
+      .tut-step.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+      .tut-n { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--border-strong); font-family: var(--mono); font-size: 11px; color: var(--faint); flex: none; }
+      .tut-step.active .tut-n { border-color: var(--accent); color: var(--accent); }
+      .tut-step.done .tut-n { background: var(--green); border-color: var(--green); color: #fff; }
+      .tut-lead p { margin: 0 0 12px; color: var(--muted); }
+      .tut-points { margin: 0 0 20px; padding-left: 18px; color: var(--dim); line-height: 1.85; font-size: 14px; }
+      .tut-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; }
+
+      /* ---- Showcase ---- */
+      .show-group { margin-top: 34px; }
+      .show-gtitle { font-size: 20px; margin: 0; }
+      .showcase-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; margin-top: 16px; }
+      .show-card { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; display: flex; flex-direction: column; transition: border-color 0.15s; }
+      .show-card:hover { border-color: var(--border-strong); }
+      .show-card h3 { margin: 0 0 6px; font-size: 16px; }
+      .show-card p { margin: 0 0 12px; color: var(--dim); font-size: 14px; line-height: 1.6; flex: 1; }
+      .show-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+      .tag2 { font-family: var(--mono); font-size: 11px; color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-soft-border); border-radius: 5px; padding: 2px 7px; }
+      .run-cmd { display: flex; align-items: center; gap: 9px; font-family: var(--mono); font-size: 12.5px; color: var(--muted); background: var(--sunken); border: 1px solid var(--border); border-radius: 6px; padding: 8px 11px; cursor: pointer; }
+      .run-cmd:hover { border-color: var(--faint); }
+      .run-cmd .d { color: var(--faint); }
+      .run-text { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .run-copy { color: var(--faint); font-size: 11px; }
+
+      /* ---- Changelog ---- */
+      .changelog { margin-top: 30px; }
+      .rel { display: grid; grid-template-columns: 160px 1fr; gap: 24px; padding: 26px 0; border-top: 1px solid var(--border); }
+      .rel:first-child { border-top: 0; }
+      .rel-meta { position: sticky; top: 84px; align-self: start; }
+      .rel-ver { display: inline-block; font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--text); }
+      .rel-ver.unreleased { color: var(--green); }
+      .rel-date { display: block; font-family: var(--mono); font-size: 12px; color: var(--faint); margin-top: 4px; }
+      .rel-title { margin: 0 0 10px; font-size: 20px; }
+
+      @media (max-width: 780px) {
+        .tut { grid-template-columns: 1fr; }
+        .tut-steps { flex-direction: row; flex-wrap: wrap; position: static; }
+        .rel { grid-template-columns: 1fr; gap: 8px; }
+        .rel-meta { position: static; }
+        .search-input { width: 110px; }
+      }
     </style>
   </head>
   <body>

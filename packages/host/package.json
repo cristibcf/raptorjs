@@ -1,19 +1,71 @@
 {
   "name": "@raptor/host",
   "version": "0.1.0",
-  "description": "Contractul comun al host-urilor native Raptor (roadmap sectiunea 6): matricea de capabilitati, manifestul raptor.host.json, puntea JS<->host, masina de lifecycle si descriptorii de impachetare. Fara implementare de platforma, fara dependente.",
+  "description": "Raptor host contract plus platform adapters: web, desktop, mobile, CLI, service and device.",
+  "author": "cristibcf (https://github.com/cristibcf)",
+  "homepage": "https://github.com/cristibcf/raptorjs/tree/main/packages/host#readme",
+  "bugs": "https://github.com/cristibcf/raptorjs/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cristibcf/raptorjs.git",
+    "directory": "packages/host"
+  },
   "type": "module",
   "sideEffects": false,
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./web": "./src/web/index.ts",
+    "./desktop": "./src/desktop/index.ts",
+    "./mobile": "./src/mobile/index.ts",
+    "./cli": "./src/cli/index.ts",
+    "./service": "./src/service/index.ts",
+    "./device": "./src/device/index.ts"
   },
   "types": "./src/index.ts",
   "scripts": {
-    "test": "node --test tests/*.test.ts"
+    "test": "node --test \"tests/**/*.test.ts\"",
+    "build": "tsc -p tsconfig.build.json",
+    "prepack": "tsc -p tsconfig.build.json"
   },
   "license": "MIT",
   "files": [
+    "dist",
     "src",
     "LICENSE"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./web": {
+        "types": "./dist/web/index.d.ts",
+        "default": "./dist/web/index.js"
+      },
+      "./desktop": {
+        "types": "./dist/desktop/index.d.ts",
+        "default": "./dist/desktop/index.js"
+      },
+      "./mobile": {
+        "types": "./dist/mobile/index.d.ts",
+        "default": "./dist/mobile/index.js"
+      },
+      "./cli": {
+        "types": "./dist/cli/index.d.ts",
+        "default": "./dist/cli/index.js"
+      },
+      "./service": {
+        "types": "./dist/service/index.d.ts",
+        "default": "./dist/service/index.js"
+      },
+      "./device": {
+        "types": "./dist/device/index.d.ts",
+        "default": "./dist/device/index.js"
+      }
+    }
+  }
 }

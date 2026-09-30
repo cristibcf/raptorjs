@@ -1,11 +1,11 @@
-//! Manifestul `raptor.runtime.json` (spec sectiunile 7 si 8).
+//! The `raptor.runtime.json` manifest (spec sections 7 and 8).
 //!
-//! Schema este identica cu cea a implementarii TypeScript - acelasi fisier
-//! trebuie sa fie acceptat de ambele, altfel migrarea la host-ul nativ nu este
-//! o migrare, ci o rescriere.
+//! The schema is identical to the one in the TypeScript implementation - the
+//! same file must be accepted by both, otherwise migrating to the native host
+//! is not a migration but a rewrite.
 //!
-//! Parserul nu se opreste la prima problema: aduna toate neregulile, ca `doctor`
-//! sa le poata raporta intr-un singur diagnostic.
+//! The parser does not stop at the first problem: it collects every irregularity
+//! so that `doctor` can report them all in a single diagnostic.
 
 use crate::error::{ErrorCode, RaptorError, Result};
 use crate::json::{self, Json};
@@ -18,10 +18,10 @@ pub enum CapabilityKind {
     FilesRead,
     FilesWrite,
     NetConnect,
-    /// A deschide un port de ascultare. Aceeasi forma de tinta ca `NetConnect`
-    /// (`gazda:port`, cu `*` acceptat), deci `127.0.0.1:*` inseamna "doar
-    /// local, orice port". Exista pentru ca `serve.listen` lega porturi cu
-    /// manifestul gol (audit 2026-09-24, S4).
+    /// Opening a listening port. Same target form as `NetConnect`
+    /// (`host:port`, with `*` accepted), so `127.0.0.1:*` means "local
+    /// only, any port". It exists because `serve.listen` bound ports with
+    /// an empty manifest (audit 2026-09-24, S4).
     NetListen,
     EnvRead,
     ProcessSpawn,
@@ -58,7 +58,7 @@ impl CapabilityKind {
         CAPABILITY_KINDS.into_iter().find(|kind| kind.as_str() == text)
     }
 
-    /// Capabilitatile ambientale sunt boolean; restul poarta o lista de tinte.
+    /// Ambient capabilities are boolean; the rest carry a list of targets.
     pub fn is_ambient(self) -> bool {
         matches!(self, CapabilityKind::ClockReal | CapabilityKind::CryptoRandom)
     }
@@ -72,9 +72,9 @@ impl std::fmt::Display for CapabilityKind {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Grant {
-    /// Tinte declarate: cai, `gazda:port`, nume de variabile sau comenzi.
+    /// Declared targets: paths, `host:port`, variable names, or commands.
     Targets(Vec<String>),
-    /// Capabilitate ambientala, pornita sau oprita explicit.
+    /// Ambient capability, explicitly turned on or off.
     Ambient(bool),
 }
 
@@ -152,7 +152,7 @@ fn read_capabilities(raw: Option<&Json>, issues: &mut Vec<Issue>) -> BTreeMap<Ca
     let mut out = BTreeMap::new();
     let Some(value) = raw else { return out };
     let Some(map) = value.as_object() else {
-        issues.push(Issue::new("capabilities", "trebuie sa fie un obiect"));
+        issues.push(Issue::new("capabilities", "must be an object"));
         return out;
     };
 
@@ -161,7 +161,7 @@ fn read_capabilities(raw: Option<&Json>, issues: &mut Vec<Issue>) -> BTreeMap<Ca
             let valid: Vec<&str> = CAPABILITY_KINDS.iter().map(|k| k.as_str()).collect();
             issues.push(Issue::new(
                 format!("capabilities.{key}"),
-                format!("capability necunoscuta (valide: {})", valid.join(", ")),
+                format!("unknown capability (valid: {})", valid.join(", ")),
             ));
             continue;
         };
@@ -171,7 +171,7 @@ fn read_capabilities(raw: Option<&Json>, issues: &mut Vec<Issue>) -> BTreeMap<Ca
                 Some(flag) => {
                     out.insert(kind, Grant::Ambient(flag));
                 }
-                None => issues.push(Issue::new(format!("capabilities.{key}"), "trebuie sa fie boolean")),
+                None => issues.push(Issue::new(format!("capabilities.{key}"), "must be a boolean")),
             }
             continue;
         }
@@ -181,7 +181,7 @@ fn read_capabilities(raw: Option<&Json>, issues: &mut Vec<Issue>) -> BTreeMap<Ca
                 let targets = items.iter().filter_map(|item| item.as_str().map(str::to_string)).collect();
                 out.insert(kind, Grant::Targets(targets));
             }
-            _ => issues.push(Issue::new(format!("capabilities.{key}"), "trebuie sa fie o lista de siruri")),
+            _ => issues.push(Issue::new(format!("capabilities.{key}"), "must be a list of strings")),
         }
     }
     out
@@ -190,7 +190,7 @@ fn read_capabilities(raw: Option<&Json>, issues: &mut Vec<Issue>) -> BTreeMap<Ca
 fn read_dependencies(raw: Option<&Json>, issues: &mut Vec<Issue>) -> Vec<Dependency> {
     let Some(value) = raw else { return Vec::new() };
     let Some(map) = value.as_object() else {
-        issues.push(Issue::new("dependencies", "trebuie sa fie un obiect nume -> specificatie"));
+        issues.push(Issue::new("dependencies", "must be an object of name -> spec"));
         return Vec::new();
     };
 
@@ -214,11 +214,11 @@ fn read_dependencies(raw: Option<&Json>, issues: &mut Vec<Issue>) -> Vec<Depende
             }),
             None => issues.push(Issue::new(
                 format!("dependencies.{name}"),
-                "cere un sir de versiune sau { range, integrity?, origin? }",
+                "requires a version string or { range, integrity?, origin? }",
             )),
         }
     }
-    // `BTreeMap` le da deja sortate dupa nume; lockfile-ul se bazeaza pe asta.
+    // `BTreeMap` already yields them sorted by name; the lockfile relies on that.
     out
 }
 
@@ -228,7 +228,7 @@ pub fn parse(source: &str) -> ParseOutcome {
         Err(error) => {
             return ParseOutcome {
                 manifest: None,
-                issues: vec![Issue::new("", format!("JSON invalid: {error}"))],
+                issues: vec![Issue::new("", format!("invalid JSON: {error}"))],
             }
         }
     };
@@ -236,7 +236,7 @@ pub fn parse(source: &str) -> ParseOutcome {
     let Some(object) = raw.as_object() else {
         return ParseOutcome {
             manifest: None,
-            issues: vec![Issue::new("", "manifestul trebuie sa fie un obiect JSON")],
+            issues: vec![Issue::new("", "the manifest must be a JSON object")],
         };
     };
 
@@ -244,7 +244,7 @@ pub fn parse(source: &str) -> ParseOutcome {
 
     let name = object.get("name").and_then(Json::as_str).map(str::to_string);
     if name.is_none() {
-        issues.push(Issue::new("name", "camp obligatoriu (sir)"));
+        issues.push(Issue::new("name", "required field (string)"));
     }
 
     let version = match object.get("version") {
@@ -252,7 +252,7 @@ pub fn parse(source: &str) -> ParseOutcome {
         Some(value) => match value.as_str() {
             Some(text) => text.to_string(),
             None => {
-                issues.push(Issue::new("version", "trebuie sa fie un sir"));
+                issues.push(Issue::new("version", "must be a string"));
                 "0.0.0".to_string()
             }
         },
@@ -260,7 +260,7 @@ pub fn parse(source: &str) -> ParseOutcome {
 
     let entry = object.get("entry").and_then(Json::as_str).map(str::to_string);
     if entry.is_none() {
-        issues.push(Issue::new("entry", "camp obligatoriu: modulul de pornire"));
+        issues.push(Issue::new("entry", "required field: the entry module"));
     }
 
     let policy = match object.get("policy") {
@@ -268,7 +268,7 @@ pub fn parse(source: &str) -> ParseOutcome {
         Some(value) => match value.as_str().and_then(PolicyMode::parse) {
             Some(mode) => mode,
             None => {
-                issues.push(Issue::new("policy", "trebuie sa fie 'development' sau 'production'"));
+                issues.push(Issue::new("policy", "must be 'development' or 'production'"));
                 PolicyMode::Development
             }
         },
@@ -277,13 +277,13 @@ pub fn parse(source: &str) -> ParseOutcome {
     let mut raptor_runtime = "*".to_string();
     if let Some(engines) = object.get("engines") {
         match engines.as_object() {
-            None => issues.push(Issue::new("engines", "trebuie sa fie un obiect")),
+            None => issues.push(Issue::new("engines", "must be an object")),
             Some(map) => {
                 if let Some(value) = map.get("raptorRuntime") {
                     match value.as_str() {
                         Some(text) => raptor_runtime = text.to_string(),
                         None => issues
-                            .push(Issue::new("engines.raptorRuntime", "trebuie sa fie un sir de versiune")),
+                            .push(Issue::new("engines.raptorRuntime", "must be a version string")),
                     }
                 }
             }
@@ -297,7 +297,7 @@ pub fn parse(source: &str) -> ParseOutcome {
     let mut default_deadline_ms = None;
     if let Some(tasks) = object.get("tasks") {
         match tasks.as_object() {
-            None => issues.push(Issue::new("tasks", "trebuie sa fie un obiect")),
+            None => issues.push(Issue::new("tasks", "must be an object")),
             Some(map) => {
                 if let Some(value) = map.get("maxConcurrent") {
                     match value.as_number() {
@@ -305,7 +305,7 @@ pub fn parse(source: &str) -> ParseOutcome {
                             max_concurrent = number as usize
                         }
                         _ => {
-                            issues.push(Issue::new("tasks.maxConcurrent", "trebuie sa fie un intreg pozitiv"))
+                            issues.push(Issue::new("tasks.maxConcurrent", "must be a positive integer"))
                         }
                     }
                 }
@@ -315,7 +315,7 @@ pub fn parse(source: &str) -> ParseOutcome {
                         Some(number) if number > 0.0 => default_deadline_ms = Some(number as u64),
                         _ => issues.push(Issue::new(
                             "tasks.defaultDeadlineMs",
-                            "trebuie sa fie un numar pozitiv sau null",
+                            "must be a positive number or null",
                         )),
                     },
                 }
@@ -342,21 +342,21 @@ pub fn parse(source: &str) -> ParseOutcome {
     }
 }
 
-/// Varianta care esueaza; folosita dupa ce diagnosticele au fost raportate.
+/// The failing variant; used after diagnostics have been reported.
 pub fn require(source: &str) -> Result<Manifest> {
     let outcome = parse(source);
     match outcome.manifest {
         Some(manifest) => Ok(manifest),
         None => {
             let rendered: Vec<String> = outcome.issues.iter().map(Issue::render).collect();
-            Err(RaptorError::new(ErrorCode::ManifestInvalid, format!("{MANIFEST_FILENAME} este invalid"))
+            Err(RaptorError::new(ErrorCode::ManifestInvalid, format!("{MANIFEST_FILENAME} is invalid"))
                 .with("issues", rendered.join("; ")))
         }
     }
 }
 
 impl Manifest {
-    /// Capabilitatile in forma JSON, pentru diagnostice si pentru bundle.
+    /// Capabilities in JSON form, for diagnostics and for the bundle.
     pub fn capabilities_json(&self) -> Json {
         let mut out = Json::object();
         for (kind, grant) in &self.capabilities {
@@ -406,13 +406,13 @@ mod tests {
 
     #[test]
     fn manifestul_minim_cere_doar_nume_si_punct_de_intrare() {
-        let manifest = require(r#"{"name":"app","entry":"./src/main.ts"}"#).expect("manifest valid");
+        let manifest = require(r#"{"name":"app","entry":"./src/main.ts"}"#).expect("valid manifest");
         assert_eq!(manifest.name, "app");
         assert_eq!(manifest.version, "0.0.0");
         assert_eq!(manifest.policy, PolicyMode::Development);
         assert_eq!(manifest.max_concurrent, 64);
         assert_eq!(manifest.default_deadline_ms, None);
-        assert!(manifest.capabilities.is_empty(), "implicit nu se acorda nimic");
+        assert!(manifest.capabilities.is_empty(), "nothing is granted by default");
     }
 
     #[test]
@@ -423,7 +423,7 @@ mod tests {
         let rendered: Vec<String> = outcome.issues.iter().map(Issue::render).collect();
         let joined = rendered.join("\n");
         for expected in ["name", "entry", "policy", "files.zbor", "tasks.maxConcurrent"] {
-            assert!(joined.contains(expected), "lipseste '{expected}' din:\n{joined}");
+            assert!(joined.contains(expected), "missing '{expected}' from:\n{joined}");
         }
     }
 
@@ -432,7 +432,7 @@ mod tests {
         let manifest = require(
             r#"{"name":"a","entry":"./m.ts","capabilities":{"files.read":["./src"],"clock.real":false}}"#,
         )
-        .expect("manifest valid");
+        .expect("valid manifest");
         assert_eq!(
             manifest.capabilities.get(&CapabilityKind::FilesRead),
             Some(&Grant::Targets(vec!["./src".to_string()]))
@@ -440,7 +440,7 @@ mod tests {
         assert_eq!(manifest.capabilities.get(&CapabilityKind::ClockReal), Some(&Grant::Ambient(false)));
 
         let bad = parse(r#"{"name":"a","entry":"./m.ts","capabilities":{"files.read":true}}"#);
-        assert!(bad.manifest.is_none(), "o capability cu tinta nu accepta boolean");
+        assert!(bad.manifest.is_none(), "a targeted capability does not accept a boolean");
     }
 
     #[test]
@@ -449,7 +449,7 @@ mod tests {
             let value = if kind.is_ambient() { "true".to_string() } else { "[\"x\"]".to_string() };
             let source =
                 format!(r#"{{"name":"a","entry":"./m.ts","capabilities":{{"{}":{value}}}}}"#, kind.as_str());
-            let manifest = require(&source).unwrap_or_else(|error| panic!("{kind} respinsa: {error}"));
+            let manifest = require(&source).unwrap_or_else(|error| panic!("{kind} rejected: {error}"));
             assert!(manifest.capabilities.contains_key(&kind));
         }
     }
@@ -459,18 +459,18 @@ mod tests {
         let manifest = require(
             r#"{"name":"a","entry":"./m.ts","dependencies":{"zod":"^3.0.0","left-pad":{"range":"1.0.0","integrity":"sha256-x","origin":"npm"}}}"#,
         )
-        .expect("manifest valid");
+        .expect("valid manifest");
         assert_eq!(manifest.dependencies.len(), 2);
-        assert_eq!(manifest.dependencies[0].name, "left-pad", "dependintele raman sortate");
+        assert_eq!(manifest.dependencies[0].name, "left-pad", "dependencies stay sorted");
         assert_eq!(manifest.dependencies[0].integrity.as_deref(), Some("sha256-x"));
         assert_eq!(manifest.dependencies[1].integrity, None);
     }
 
     #[test]
     fn manifestul_invalid_produce_o_eroare_raptor_cu_toate_diagnosticele() {
-        let error = require("{}").expect_err("manifest invalid");
+        let error = require("{}").expect_err("invalid manifest");
         assert_eq!(error.code, ErrorCode::ManifestInvalid);
-        let issues = error.detail.get("issues").expect("diagnosticele calatoresc cu eroarea");
+        let issues = error.detail.get("issues").expect("diagnostics travel with the error");
         assert!(issues.contains("name") && issues.contains("entry"));
     }
 
@@ -478,7 +478,7 @@ mod tests {
     fn json_ul_invalid_nu_este_confundat_cu_un_manifest_gol() {
         let outcome = parse("{ nu e json }");
         assert!(outcome.manifest.is_none());
-        assert!(outcome.issues[0].message.contains("JSON invalid"));
+        assert!(outcome.issues[0].message.contains("invalid JSON"));
     }
 
     #[test]
@@ -486,10 +486,10 @@ mod tests {
         let manifest = require(
             r#"{"name":"a","version":"1.2.3","entry":"./m.ts","policy":"production","capabilities":{"net.connect":["api.example.com:443"]}}"#,
         )
-        .expect("manifest valid");
+        .expect("valid manifest");
         let text = json::to_string_pretty(&manifest.to_json());
         assert_eq!(text, json::to_string_pretty(&manifest.to_json()));
-        let round_trip = require(&text).expect("manifestul serializat ramane valid");
+        let round_trip = require(&text).expect("the serialized manifest stays valid");
         assert_eq!(round_trip, manifest);
     }
 }

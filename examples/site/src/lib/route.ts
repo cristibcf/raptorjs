@@ -1,9 +1,9 @@
 /**
- * Nested hash routing via a signal (dogfoods @raptor/core). The whole path lives
+ * Nested hash routing via a signal (dogfoods raptorjs). The whole path lives
  * in one signal; `section()` / `sub()` derive the parts. Changing it re-binds
  * only the view region in the shell — no page re-render.
  */
-import { state, derived } from "@raptor/core";
+import { state, derived } from "raptorjs";
 
 function fromHash(): string {
   const h = decodeURIComponent(location.hash.replace(/^#\/?/, ""));
@@ -20,16 +20,16 @@ export function navigate(p: string): void {
 }
 
 /**
- * Sectiunea si restul caii sunt `derived`, NU functii simple.
+ * The section and the rest of the path are `derived`, NOT plain functions.
  *
- * Conteaza: o functie care citeste `path()` isi face abonatul dependent de
- * INTREAGA cale, deci regiunea din shell care face `switch (section())` s-ar
- * re-executa la fiecare navigare - inclusiv intre doua componente din aceeasi
- * sectiune - si ar reconstrui tot ecranul (sidebar cu tot cu scroll-ul lui).
+ * It matters: a function that reads `path()` makes its subscriber depend on the
+ * WHOLE path, so the region in the shell that does `switch (section())` would
+ * re-run on every navigation - including between two components in the same
+ * section - and would rebuild the whole screen (sidebar and its scroll along with it).
  *
- * Ca `derived`, valoarea e memoizata si comparata: cand treci de la
- * `components/button` la `components/slider`, `section` ramane "components" si
- * nu notifica pe nimeni. Se schimba doar regiunea care depinde de `sub`.
+ * As a `derived`, the value is memoised and compared: when you go from
+ * `components/button` to `components/slider`, `section` stays "components" and
+ * notifies no one. Only the region that depends on `sub` changes.
  */
 const sectionMemo = derived(() => path().split("/")[0] || "home");
 const subMemo = derived(() => path().split("/").slice(1).join("/"));

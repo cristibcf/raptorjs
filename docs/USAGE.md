@@ -1,178 +1,178 @@
-# RaptorJS / RaptorWire / RaptorTest / RaptorEngine — ghid de utilizare
+# RaptorJS / RaptorWire / RaptorTest / RaptorEngine — usage guide
 
-Documentație de utilizare, pachet cu pachet, cu exemple **rulabile** extrase din
-demo-urile reale (`examples/`). README-ul descrie *arhitectura*; acest ghid arată
-*cum se folosește fiecare API*.
+Usage documentation, package by package, with **runnable** examples pulled from
+the real demos (`examples/`). The README describes the *architecture*; this guide
+shows *how to use each API*.
 
-Toate exemplele rulează direct pe **Node ≥ 22** (TypeScript nativ prin type-stripping).
-Pachetele `@raptor/*` sunt **zero-dep**: nu importă nimic extern.
+All the examples run directly on **Node ≥ 22** (native TypeScript via type-stripping).
+The `@raptor/*` packages are **zero-dep**: they import nothing external.
 
-> Convenție de cod obligatorie: **sintaxă TS erasabilă** — fără `enum` runtime, fără
-> `namespace` cu valori, fără parameter properties. Folosește `const X = { ... } as const`
-> și `type`/`interface`. Altfel codul nu rulează nativ pe Node.
+> Mandatory code convention: **erasable TS syntax** — no runtime `enum`, no
+> `namespace` with values, no parameter properties. Use `const X = { ... } as const`
+> and `type`/`interface`. Otherwise the code doesn't run natively on Node.
 
-## Cuprins
+## Contents
 
-- [Rulare rapidă](#rulare-rapidă)
-- [Harta pachetelor](#harta-pachetelor)
-- [@raptor/core — reactivitate fine-grained](#raptorcore--reactivitate-fine-grained)
-- [@raptor/dom — runtime DOM + control flow](#raptordom--runtime-dom--control-flow)
-- [@raptor/ui — componente reutilizabile](#raptorui--componente-reutilizabile)
-- [@raptor/bundle — bundler TSX propriu (fără Vite)](#raptorbundle--bundler-tsx-propriu-fără-vite)
-- [@raptor/wire-codec — primitive de codec](#raptorwire-codec--primitive-de-codec)
-- [@raptor/wire-core — opcodes, Document, protocol](#raptorwire-core--opcodes-document-protocol)
-- [@raptor/server — SDK server RaptorWire](#raptorserver--sdk-server-raptorwire)
-- [@raptor/wire-client — sesiune + replică reactivă](#raptorwire-client--sesiune--replică-reactivă)
+- [Quick start](#quick-start)
+- [Package map](#package-map)
+- [raptorjs — fine-grained reactivity](#raptorjs--fine-grained-reactivity)
+- [raptorjs/dom — DOM runtime + control flow](#raptorjsdom--dom-runtime--control-flow)
+- [raptorjs/ui — reusable components](#raptorjsui--reusable-components)
+- [@raptor/engine/bundle — own TSX bundler (no Vite)](#raptorenginebundle--own-tsx-bundler-no-vite)
+- [@raptor/wire/codec — codec primitives](#raptorwirecodec--codec-primitives)
+- [@raptor/wire — opcodes, Document, protocol](#raptorwire--opcodes-document-protocol)
+- [@raptor/wire/server — RaptorWire server SDK](#raptorwireserver--raptorwire-server-sdk)
+- [@raptor/wire/client — session + reactive replica](#raptorwireclient--session--reactive-replica)
 - [End-to-end: server ↔ RaptorWire ↔ client ↔ DOM](#end-to-end-server--raptorwire--client--dom)
-- [@raptor/compiler — parser `.raptor`, IR, graf semantic](#raptorcompiler--parser-raptor-ir-graf-semantic)
+- [@raptor/engine/compiler — `.raptor` parser, IR, semantic graph](#raptorenginecompiler--raptor-parser-ir-semantic-graph)
 - [@raptor/engine — build, optimize, codegen, HMR, CLI](#raptorengine--build-optimize-codegen-hmr-cli)
-- [@raptor/run — server runtime + SSR + dev server](#raptorrun--server-runtime--ssr--dev-server)
-- [@raptor/profile — telemetrie + PGO](#raptorprofile--telemetrie--pgo)
-- [@raptor/test — testare comportamentală autonomă](#raptortest--testare-comportamentală-autonomă)
-- [Formatul `.raptor`](#formatul-raptor)
-- [Referință CLI](#referință-cli)
+- [@raptor/engine/run — server runtime + SSR + dev server](#raptorenginerun--server-runtime--ssr--dev-server)
+- [@raptor/engine/profile — telemetry + PGO](#raptorengineprofile--telemetry--pgo)
+- [@raptor/test — autonomous behavioral testing](#raptortest--autonomous-behavioral-testing)
+- [The `.raptor` format](#the-raptor-format)
+- [CLI reference](#cli-reference)
 
 ---
 
-## Rulare rapidă
+## Quick start
 
 ```bash
-pnpm install          # leagă workspace-ul (+ devDeps opționale)
-pnpm test             # rulează toată suita de teste
-pnpm typecheck        # tsc --noEmit pe tot monorepo-ul
+pnpm install          # links the workspace (+ optional devDeps)
+pnpm test             # runs the whole test suite
+pnpm typecheck        # tsc --noEmit over the whole monorepo
 
-pnpm demo:counter     # bindings DOM fine-grained (headless)
+pnpm demo:counter     # fine-grained DOM bindings (headless)
 pnpm demo:dashboard   # server ↔ RaptorWire ↔ client ↔ DOM
-pnpm demo:chat        # stare partajată între 2 clienți
-pnpm demo:raptortest  # descoperă autonom bug-uri
+pnpm demo:chat        # shared state between 2 clients
+pnpm demo:raptortest  # autonomously discovers bugs
 pnpm demo:engine      # .raptor → IR → optimize → codegen → HMR
-pnpm demo:run         # SSR + server signal ↔ RaptorWire ↔ client reactiv
-pnpm demo:profile     # telemetrie → plan PGO → rebuild
+pnpm demo:run         # SSR + server signal ↔ RaptorWire ↔ reactive client
+pnpm demo:profile     # telemetry → PGO plan → rebuild
 ```
 
-## Harta pachetelor
+## Package map
 
-Ordinea de dependență (jos → sus). Poți folosi fiecare strat independent.
+Dependency order (bottom → top). You can use each layer independently.
 
 ```
-@raptor/core ── reactivitate (signals)
-   └─ @raptor/dom ── bindings DOM + JSX
+raptorjs ── reactivity (signals)
+   └─ raptorjs/dom ── DOM bindings + JSX
 
-@raptor/wire-codec ── varint / zig-zag / string
-   └─ @raptor/wire-core ── opcodes, Document, protocol
-        ├─ @raptor/server ── store autoritativ + query/mutation
-        └─ @raptor/wire-client ── sesiune + replică reactivă
+@raptor/wire/codec ── varint / zig-zag / string
+   └─ @raptor/wire ── opcodes, Document, protocol
+        ├─ @raptor/wire/server ── authoritative store + query/mutation
+        └─ @raptor/wire/client ── session + reactive replica
 
-@raptor/compiler ── .raptor → IR → graf semantic
+@raptor/engine/compiler ── .raptor → IR → semantic graph
    └─ @raptor/engine ── optimize + codegen + HMR + CLI `raptor`
-        ├─ @raptor/run ── server runtime + SSR + dev server
-        └─ @raptor/profile ── telemetrie + planner PGO
+        ├─ @raptor/engine/run ── server runtime + SSR + dev server
+        └─ @raptor/engine/profile ── telemetry + PGO planner
 
-@raptor/test ── testare comportamentală autonomă (independent)
+@raptor/test ── autonomous behavioral testing (independent)
 ```
 
 ---
 
-## @raptor/core — reactivitate fine-grained
+## raptorjs — fine-grained reactivity
 
-Nucleul reactiv glitch-free. Semnalele sunt **accesori apelabili**: `count()` citește
-și înregistrează dependență; `count.set(v)` / `count.update(fn)` scriu.
+The glitch-free reactive core. Signals are **callable accessors**: `count()` reads
+and registers a dependency; `count.set(v)` / `count.update(fn)` write.
 
-**Exportă:** `state`, `derived`, `memo` (alias pt. `derived`), `effect`, `batch`,
-`untracked`, `createRoot`, `onCleanup`, `getOwner`, `runWithOwner` + tipurile
+**Exports:** `state`, `derived`, `memo` (alias for `derived`), `effect`, `batch`,
+`untracked`, `createRoot`, `onCleanup`, `getOwner`, `runWithOwner` + the types
 `State`, `Derived`, `Accessor`, `Dispose`, `StateOptions`.
 
-### API esențial
+### Essential API
 
 ```ts
-import { state, derived, effect, batch, untracked } from "@raptor/core";
+import { state, derived, effect, batch, untracked } from "raptorjs";
 
-// --- signal mutabil ---
+// --- mutable signal ---
 const count = state(0);
-count();                     // 0   (citește + înregistrează dependență)
-count.set(5);                // scrie
-count.update((n) => n + 1);  // 6   (scrie în funcție de valoarea anterioară)
-count.peek();                // 6   (citește FĂRĂ a înregistra dependență)
+count();                     // 0   (reads + registers a dependency)
+count.set(5);                // writes
+count.update((n) => n + 1);  // 6   (writes based on the previous value)
+count.peek();                // 6   (reads WITHOUT registering a dependency)
 
-// --- derived (memo lazy, read-only) ---
+// --- derived (lazy memo, read-only) ---
 const doubled = derived(() => count() * 2);
 doubled();                   // 12
 
-// --- effect (eager: rulează acum + la fiecare schimbare de dependență) ---
+// --- effect (eager: runs now + on every dependency change) ---
 const dispose = effect(() => {
   console.log("count =", count());
 });
-count.set(10);               // effect-ul re-rulează automat
-dispose();                   // oprește effect-ul
+count.set(10);               // the effect re-runs automatically
+dispose();                   // stops the effect
 
-// --- batch: grupează scrieri, effects rulează O SINGURĂ dată la final ---
+// --- batch: groups writes, effects run ONLY ONCE at the end ---
 batch(() => {
   count.set(1);
   count.set(2);
-});                          // effect-ul rulează o dată, cu valoarea finală
+});                          // the effect runs once, with the final value
 
-// --- untracked: citește fără a crea dependență ---
+// --- untracked: reads without creating a dependency ---
 const snapshot = untracked(() => count());
 ```
 
-### Comparator de egalitate
+### Equality comparator
 
 ```ts
-// `equal: false` forțează notificarea la fiecare set, chiar dacă valoarea e egală.
+// `equal: false` forces a notification on every set, even if the value is equal.
 const forced = state(0, { equal: false });
-// comparator custom (ex. pentru obiecte):
+// custom comparator (e.g. for objects):
 const point = state({ x: 0 }, { equal: (a, b) => a.x === b.x });
 ```
 
-### Ownership și cleanup
+### Ownership and cleanup
 
 ```ts
-import { createRoot, onCleanup } from "@raptor/core";
+import { createRoot, onCleanup } from "raptorjs";
 
 createRoot((dispose) => {
   const s = state(0);
   effect(() => console.log(s()));
-  onCleanup(() => console.log("cleanup!"));  // rulează la dispose()
+  onCleanup(() => console.log("cleanup!"));  // runs on dispose()
   // ...
-  dispose();  // dispune tot arborele reactiv creat în acest root
+  dispose();  // disposes the entire reactive tree created in this root
 });
 ```
 
-> **Model mental (whitepaper §6):** graful e *glitch-free* — un `derived` nu se
-> vede niciodată într-o stare intermediară inconsistentă. `derived`-urile sunt
-> **lazy** (se recalculează la citire), `effect`-urile sunt **eager**.
+> **Mental model (whitepaper §6):** the graph is *glitch-free* — a `derived` is
+> never seen in an inconsistent intermediate state. `derived`s are
+> **lazy** (they recompute on read), `effect`s are **eager**.
 
 ---
 
-## @raptor/dom — runtime DOM + control flow
+## raptorjs/dom — DOM runtime + control flow
 
-Output-ul compilerului: bindinguri DOM fine-grained + control flow. Re-exportă și
-primitivele din `@raptor/core` pentru ergonomie (nu mai importe separat).
+The compiler's output: fine-grained DOM bindings + control flow. It also re-exports
+the primitives from `raptorjs` for ergonomics (no need to import them separately).
 
-**Exportă:** `render`, `onMount`, `createElement`, `template`, `applyProps`,
+**Exports:** `render`, `onMount`, `createElement`, `template`, `applyProps`,
 `mountChild`, `block`, `isBlock`, `disposeDetached`; control flow `For`, `Show`;
-JSX runtime `jsx`, `jsxs`, `Fragment`; builder hyperscript `R`; + tot din
-`@raptor/core`.
+JSX runtime `jsx`, `jsxs`, `Fragment`; the hyperscript builder `R`; + everything from
+`raptorjs`.
 
-### Mini-DOM headless pentru teste
+### Headless mini-DOM for tests
 
-`@raptor/dom/testing` oferă un DOM fals care **numără fiecare mutație** — util ca
-să dovedești că update-urile sunt fine-grained (0 noduri recreate).
+`raptorjs/dom/testing` provides a fake DOM that **counts every mutation** — useful to
+prove that updates are fine-grained (0 nodes recreated).
 
 ```ts
-import { installMiniDom, stats, resetStats } from "@raptor/dom/testing";
-import { render, mountChild, applyProps } from "@raptor/dom";
-import { state, derived } from "@raptor/core";
+import { installMiniDom, stats, resetStats } from "raptorjs/dom/testing";
+import { render, mountChild, applyProps } from "raptorjs/dom";
+import { state, derived } from "raptorjs";
 
 const doc = installMiniDom();
 
 function Counter() {
   const count = state(0);
-  const parity = derived(() => (count() % 2 === 0 ? "par" : "impar"));
+  const parity = derived(() => (count() % 2 === 0 ? "even" : "odd"));
 
   const section = doc.createElement("section");
   const h2 = doc.createElement("h2");
-  mountChild(h2, () => count(), null);           // text-node legat fine-grained
+  mountChild(h2, () => count(), null);           // fine-grained bound text-node
   section.appendChild(h2);
 
   const button = doc.createElement("button");
@@ -188,40 +188,40 @@ render(Counter, root);
 resetStats();
 root.querySelector("button").click();
 
-// Dovada fine-grained: doar text-node mutat, zero elemente noi.
+// Fine-grained proof: only the text-node mutated, zero new elements.
 stats.createElement;  // 0
-stats.textUpdate;     // 1   (exact bindingul afectat)
+stats.textUpdate;     // 1   (exactly the affected binding)
 ```
 
-- `mountChild(parent, child, anchor)` — montează un copil. `child` poate fi text
-  static (`"+1"`), un accesor (`() => count()` → text-node reactiv), sau un `Block`.
-- `applyProps(el, props)` — aplică atribute și handlere. `on:click` etc. sunt
-  event bindings; atributele reactive primesc un accesor.
+- `mountChild(parent, child, anchor)` — mounts a child. `child` can be static text
+  (`"+1"`), an accessor (`() => count()` → reactive text-node), or a `Block`.
+- `applyProps(el, props)` — applies attributes and handlers. `on:click` etc. are
+  event bindings; reactive attributes take an accessor.
 
-### Control flow: `For` (keyed) și `Show`
+### Control flow: `For` (keyed) and `Show`
 
 ```ts
-import { For, Show } from "@raptor/dom";
+import { For, Show } from "raptorjs/dom";
 
-// For keyed: reutilizează nodurile pentru itemii neschimbați (mutări DOM minime).
+// Keyed For: reuses nodes for unchanged items (minimal DOM mutations).
 For({
   each: () => items(),                       // Accessor<readonly T[]>
   children: (item, index) => renderRow(item), // (item, index) => Child
 });
 
-// Show: montează `children` când `when` e truthy, altfel `fallback`.
+// Show: mounts `children` when `when` is truthy, otherwise `fallback`.
 Show({
   when: () => isVisible(),   // Accessor<unknown>
   children: renderPanel(),   // Child
-  fallback: renderEmpty(),   // opțional
+  fallback: renderEmpty(),   // optional
 });
 ```
 
-### JSX (varianta browser, `.tsx`)
+### JSX (browser variant, `.tsx`)
 
-Scrii componente în JSX; le compilează [`@raptor/bundle`](#raptorbundle--bundler-tsx-propriu-fără-vite)
-(bundler propriu, fără Vite). Configurează `tsconfig` cu `jsxImportSource:
-"@raptor/dom"` doar pentru typecheck în editor. Apoi:
+You write components in JSX; [`@raptor/engine/bundle`](#raptorenginebundle--own-tsx-bundler-no-vite)
+compiles them (own bundler, no Vite). Configure `tsconfig` with `jsxImportSource:
+"raptorjs/dom"` only for typecheck in the editor. Then:
 
 ```tsx
 function Counter() {
@@ -235,15 +235,15 @@ function Counter() {
 render(Counter, document.getElementById("app"));
 ```
 
-### `R` — hyperscript, aceleași bindinguri fără build step
+### `R` — hyperscript, the same bindings with no build step
 
-`R` construiește exact ce construiește JSX — noduri DOM reale, cu bindinguri
-fine-grained — dar e cod JavaScript obișnuit, deci nu are nevoie de compilator.
-Util când codul e evaluat la runtime (playground, REPL, snippet-uri din baza de
-date) sau într-un proiect fără build step.
+`R` builds exactly what JSX builds — real DOM nodes, with fine-grained bindings —
+but it's ordinary JavaScript code, so it doesn't need a compiler. Useful when the
+code is evaluated at runtime (playground, REPL, snippets from the database) or in a
+project without a build step.
 
 ```ts
-import { R, state, render } from "@raptor/dom";
+import { R, state, render } from "raptorjs/dom";
 
 function Counter() {
   const count = state(0);
@@ -255,69 +255,69 @@ function Counter() {
 render(Counter, document.getElementById("app"));
 ```
 
-Echivalentul JSX al aceluiași arbore compilează în aceleași apeluri de runtime;
-diferența e doar de sintaxă, nu de comportament sau de performanță.
+The JSX equivalent of the same tree compiles into the same runtime calls; the
+difference is only syntax, not behavior or performance.
 
-- **`R.<tag>(props?, ...children)`** — primul argument e `props` doar dacă e un
-  obiect simplu. Orice altceva (string, number, nod, accesor, array, `Block`) e
-  copil, deci `R.p("text")` și `R.p({ class: "x" }, "text")` merg amândouă.
-- **`R(Component, props?, ...children)`** — apelul direct montează o componentă;
-  copiii ajung în `props.children`.
-- **Reactivitatea se exprimă la fel ca în JSX**: o *funcție* e un binding, o
-  valoare e statică. `R.div(count())` scrie valoarea o dată și nu se mai schimbă;
-  `R.div(() => count())` leagă un text-node de semnal. Același lucru pentru
-  atribute: `{ style: () => ... }` se re-evaluează, `{ style: "..." }` nu.
-- `For` și `Show` se folosesc identic — întorc `Block`-uri, care sunt copii valizi:
+- **`R.<tag>(props?, ...children)`** — the first argument is `props` only if it's a
+  plain object. Anything else (string, number, node, accessor, array, `Block`) is a
+  child, so `R.p("text")` and `R.p({ class: "x" }, "text")` both work.
+- **`R(Component, props?, ...children)`** — the direct call mounts a component; the
+  children end up in `props.children`.
+- **Reactivity is expressed the same way as in JSX**: a *function* is a binding, a
+  value is static. `R.div(count())` writes the value once and never changes;
+  `R.div(() => count())` binds a text-node to the signal. The same for attributes:
+  `{ style: () => ... }` re-evaluates, `{ style: "..." }` doesn't.
+- `For` and `Show` are used identically — they return `Block`s, which are valid children:
   `R.ul(For({ each: () => items(), children: (x) => R.li(x.name) }))`.
 
-Builder-ul per tag e memoizat (`R.div === R.div`), deci `R` nu alocă nimic în plus
-la fiecare apel.
+The per-tag builder is memoized (`R.div === R.div`), so `R` allocates nothing extra
+on each call.
 
 ---
 
-## @raptor/ui — componente reutilizabile
+## raptorjs/ui — reusable components
 
-Componente gata făcute peste runtime-ul fine-grained: `Table` și `DropdownMenu`.
-Zero dependențe runtime, construite cu `R` (deci fără build step) și testate
-împotriva mini-DOM-ului care numără mutațiile.
+Ready-made components over the fine-grained runtime: `Table` and `DropdownMenu`.
+Zero runtime dependencies, built with `R` (so no build step) and tested against the
+mini-DOM that counts mutations.
 
-**Importă adânc** (`@raptor/ui/button`), nu din barrel — vezi tabelul de mai jos;
-diferența e de 13× pe bundle.
+**Import deep** (`raptorjs/ui/button`), not from the barrel — see the table below;
+the difference is 13× on the bundle.
 
-**Stilurile sunt separate și opționale.** Componentele pun doar clase (`rui-*`)
-și atribute ARIA; CSS-ul stă în `@raptor/ui/styles` și îl injectezi tu dacă vrei:
-
-```ts
-import { installStyles } from "@raptor/ui/styles";
-installStyles();   // sau: importă RUI_CSS și pune-l în propriul bundle
-```
-
-### Importuri: barrel vs subpath
-
-`@raptor/ui` expune **36 de puncte de intrare**. De când RaptorBundle face
-[tree-shaking](#tree-shaking), barrel-ul nu mai e scump:
+**Styles are separate and optional.** The components only set classes (`rui-*`)
+and ARIA attributes; the CSS lives in `raptorjs/ui/styles` and you inject it yourself if you want:
 
 ```ts
-import { Button } from "@raptor/ui";          // 9 module, 39 KB
-import { Button } from "@raptor/ui/button";   // 8 module, 38 KB
+import { installStyles } from "raptorjs/ui/styles";
+installStyles();   // or: import RUI_CSS and put it in your own bundle
 ```
 
-Fără tree-shaking (`--no-treeshake`, sau alt bundler care nu-l face), același
-barrel dă **58 de module și 527 KB**.
+### Imports: barrel vs subpath
 
-**Regula practică:** importă adânc oricum. Tree-shaking-ul lucrează la nivel de
-modul, nu de declarație — `@raptor/ui/chart` aduce doar scale + Line/Area/Bar,
-în timp ce un simbol luat din barrel poate ajunge într-un fișier care conține
-încă zece componente înrudite. Diferența e mică, dar reală, iar importul adânc
-spune și cititorului de unde vine componenta.
+`raptorjs/ui` exposes **36 entry points**. Since RaptorBundle does
+[tree-shaking](#tree-shaking), the barrel is no longer expensive:
 
-#### Harta punctelor de intrare
+```ts
+import { Button } from "raptorjs/ui";          // 9 modules, 39 KB
+import { Button } from "raptorjs/ui/button";   // 8 modules, 38 KB
+```
 
-| Subpath | Ce conține |
+Without tree-shaking (`--no-treeshake`, or another bundler that doesn't do it), the
+same barrel gives **58 modules and 527 KB**.
+
+**Rule of thumb:** import deep anyway. Tree-shaking works at the module level, not
+the declaration level — `raptorjs/ui/chart` brings only scale + Line/Area/Bar,
+whereas a symbol taken from the barrel can land in a file that contains ten more
+related components. The difference is small, but real, and the deep import also
+tells the reader where the component comes from.
+
+#### Entry-point map
+
+| Subpath | Contains |
 |---|---|
-| `@raptor/ui` | tot (barrel) |
+| `raptorjs/ui` | everything (barrel) |
 | `/styles` | `RUI_CSS`, `installStyles` |
-| `/primitives` | cele 21 de primitive headless |
+| `/primitives` | the 21 headless primitives |
 | `/button` | `Button`, `IconButton`, `ButtonGroup` |
 | `/input` | `Input`, `Textarea`, `Checkbox`, `Switch`, `RadioGroup` |
 | `/controls` | `NumberInput`, `PinInput`, `SearchInput`, `TagsInput`, `SegmentedControl`… |
@@ -328,54 +328,54 @@ spune și cititorului de unde vine componenta.
 | `/typography` | `Text`, `Heading`, `Link`, `CodeBlock`, `Mark` |
 | `/display` | `Card`, `Badge`, `Avatar`, `Alert`, `Skeleton`, `Timeline` |
 | `/disclosure` | `Collapsible`, `Accordion` |
-| `/table`, `/data-grid` | `Table` / `DataGrid` virtualizat |
+| `/table`, `/data-grid` | `Table` / virtualized `DataGrid` |
 | `/data-views` | `TreeView`, `ListView`, `MultiSelect`, `Autocomplete`, `CommandPalette` |
 | `/menu`, `/tabs` | `DropdownMenu` / `Tabs` |
 | `/overlay`, `/overlay-extra` | `Dialog`, `Popover`, `Tooltip` / `Drawer`, `ContextMenu`, `Backdrop`, `ErrorBoundary` |
 | `/toast` | `createToaster`, `Toaster` |
 | `/navigation` | `Breadcrumbs`, `Pagination`, `Stepper`, `Navbar`, `AppShell` |
-| `/date` | `Calendar`, `DatePicker`, `TimePicker`, `MonthPicker` + utilitarele de dată |
+| `/date` | `Calendar`, `DatePicker`, `TimePicker`, `MonthPicker` + the date utilities |
 | `/files` | `FileInput`, `Dropzone`, `FileList`, `validateFiles` |
-| `/progress`, `/slider`, `/sparkline`, `/split-pane` | componentele ⚡ mici |
-| `/chart`, `/chart-extra` | scale + Line/Area/Bar / celelalte 11 tipuri |
+| `/progress`, `/slider`, `/sparkline`, `/split-pane` | the small ⚡ components |
+| `/chart`, `/chart-extra` | scale + Line/Area/Bar / the other 11 types |
 | `/editors` | `RichTextEditor`, `CodeEditor`, `JsonViewer`, `DiffViewer` |
-| `/media` | `Carousel`, `Lightbox`, playere, `Waveform` |
-| `/qrcode` | `QRCode` + codificatorul |
+| `/media` | `Carousel`, `Lightbox`, players, `Waveform` |
+| `/qrcode` | `QRCode` + the encoder |
 | `/advanced` | `Kanban`, `Wizard`, `Menubar`, `HoverCard`, `Tour` |
 
-> **Notă de reorganizare:** `idle` și `networkStatus` au trecut în
-> `@raptor/ui/primitives` (acolo le e locul, sunt primitive fără randare),
-> `FormSection` și `ValidationSummary` în `/form`, iar `DateTimePicker`,
-> `MonthPicker` și `YearPicker` în `/date`. Barrel-ul le exportă la fel ca
-> înainte, deci nimic nu se rupe.
+> **Reorganization note:** `idle` and `networkStatus` moved into
+> `raptorjs/ui/primitives` (that's where they belong, they're primitives with no
+> rendering), `FormSection` and `ValidationSummary` into `/form`, and `DateTimePicker`,
+> `MonthPicker` and `YearPicker` into `/date`. The barrel exports them just as
+> before, so nothing breaks.
 
-### Primitive headless (`@raptor/ui/primitives`)
+### Headless primitives (`raptorjs/ui/primitives`)
 
-Nu randează nimic și nu au CSS. Se atașează prin `ref` sau întorc semnale. Toate
-își scot singure listenerele globale la dispose — niciun handler nu supraviețuiește
-componentei. Sunt fundația pentru restul bibliotecii: `Dialog` are nevoie de
-`Portal` + `focusTrap`, `Popover` de `clickOutside`, `DataGrid` de `virtualizer`.
+They render nothing and have no CSS. They attach via `ref` or return signals. They
+all remove their global listeners themselves on dispose — no handler outlives the
+component. They are the foundation for the rest of the library: `Dialog` needs
+`Portal` + `focusTrap`, `Popover` needs `clickOutside`, `DataGrid` needs `virtualizer`.
 
-| Primitivă | Formă | Ce face |
+| Primitive | Form | What it does |
 |---|---|---|
-| `Portal` | componentă | montează conținutul în alt nod (implicit `document.body`) |
-| `focusTrap()` | ref | ține focusul înăuntru, ciclează Tab, îl restaurează la ieșire |
-| `clickOutside(fn, opt?)` | ref | rulează `fn` la click în afară; `ignore` și `enabled` |
-| `VisuallyHidden(...)` | componentă | ascuns vizual, prezent pentru screen reader |
-| `Transition` | componentă | ține nodul montat pe durata ieșirii |
-| `draggable(opt?)` | `{ ref, dragging, delta }` | drag cu pointer events, axă și prag |
-| `droppable(payload, opt)` | `{ ref, over }` | zonă de drop cu filtru `accepts` |
-| `sortable({ items })` | `{ item, dragging, over, move }` | reordonare care mută nodurile |
-| `resizable(opt?)` | `{ handle, size, style, nudge, ... }` | redimensionare prin drag + tastatură |
-| `virtualizer(opt)` | `{ ref, indices, itemStyle, ... }` | fereastră peste zeci de mii de rânduri |
-| `infiniteScroll(opt)` | `{ ref, loading, load }` | încărcare la capăt, fără suprapuneri |
-| `intersects(opt?)` | `{ ref, visible, trigger }` | vizibilitate ca semnal |
-| `clipboard(ms?)` | `{ copy, copied, error, reset }` | copiere cu stare temporară |
-| `hotkeys(map, opt?)` | efect | scurtături; `mod` = Cmd/Ctrl, sărite în input-uri |
-| `mediaQuery(q, fallback?)` | accesor | media query ca semnal |
+| `Portal` | component | mounts the content in another node (default `document.body`) |
+| `focusTrap()` | ref | keeps focus inside, cycles Tab, restores it on exit |
+| `clickOutside(fn, opt?)` | ref | runs `fn` on an outside click; `ignore` and `enabled` |
+| `VisuallyHidden(...)` | component | visually hidden, present for the screen reader |
+| `Transition` | component | keeps the node mounted for the duration of the exit |
+| `draggable(opt?)` | `{ ref, dragging, delta }` | drag with pointer events, axis and threshold |
+| `droppable(payload, opt)` | `{ ref, over }` | drop zone with an `accepts` filter |
+| `sortable({ items })` | `{ item, dragging, over, move }` | reordering that moves the nodes |
+| `resizable(opt?)` | `{ handle, size, style, nudge, ... }` | resize by drag + keyboard |
+| `virtualizer(opt)` | `{ ref, indices, itemStyle, ... }` | a window over tens of thousands of rows |
+| `infiniteScroll(opt)` | `{ ref, loading, load }` | load at the end, without overlaps |
+| `intersects(opt?)` | `{ ref, visible, trigger }` | visibility as a signal |
+| `clipboard(ms?)` | `{ copy, copied, error, reset }` | copy with a temporary state |
+| `hotkeys(map, opt?)` | effect | shortcuts; `mod` = Cmd/Ctrl, skipped in inputs |
+| `mediaQuery(q, fallback?)` | accessor | media query as a signal |
 
 ```ts
-import { resizable, clickOutside, hotkeys } from "@raptor/ui";
+import { resizable, clickOutside, hotkeys } from "raptorjs/ui";
 
 function SplitPane() {
   const left = resizable({ axis: "x", initial: 240, min: 160, max: 520 });
@@ -384,21 +384,21 @@ function SplitPane() {
   return R.div({ style: "display:flex" },
     R.aside({ style: () => left.style() }, "sidebar"),
     R.div({ class: "rui-resize-handle", ref: left.handle }),
-    R.main("conținut"));
+    R.main("content"));
 }
 ```
 
-**De ce `resizable` e componenta-teză.** Un drag produce `pointermove` la
-60–120Hz. Testul din `packages/ui/tests/primitives.test.ts` trage 60 de
-evenimente și verifică: `stats.createElement === 0`, `stats.createText === 0`,
-`stats.setAttribute === 60` — exact o scriere de atribut pe frame, niciun nod
-atins. Într-un framework cu VDOM fiecare eveniment ar declanșa un re-render și
-o reconciliere.
+**Why `resizable` is the thesis component.** A drag produces `pointermove` at
+60–120Hz. The test in `packages/ui/tests/primitives.test.ts` fires 60 events and
+checks: `stats.createElement === 0`, `stats.createText === 0`,
+`stats.setAttribute === 60` — exactly one attribute write per frame, no node
+touched. In a framework with a VDOM every event would trigger a re-render and a
+reconciliation.
 
-**`virtualizer` întoarce indici, nu obiecte.** `For` e keyed pe identitatea
-valorii; un obiect `{index, start, size}` nou la fiecare recalcul ar fi o cheie
-nouă, deci fereastra s-ar reconstrui la fiecare pixel de scroll — exact opusul
-scopului. Numerele sunt primitive, deci indicele 5 e aceeași cheie mereu:
+**`virtualizer` returns indices, not objects.** `For` is keyed on value identity; a
+new `{index, start, size}` object on each recompute would be a new key, so the
+window would rebuild on every scroll pixel — exactly the opposite of the goal.
+Numbers are primitives, so index 5 is always the same key:
 
 ```ts
 const v = virtualizer({ count: () => rows().length, itemSize: 32 });
@@ -409,82 +409,81 @@ R.div({ ref: v.ref, style: "overflow:auto;height:400px" },
           children: (i) => R.div({ style: v.itemStyle(i) }, rows()[i].name) })));
 ```
 
-Testul verifică: cu 10.000 de rânduri sunt randate 7, iar un scroll de exact un
-rând creează **cel mult un element nou**, nu 7.
+The test checks: with 10,000 rows only 7 are rendered, and a scroll of exactly one
+row creates **at most one new element**, not 7.
 
-> Primitivele care depind de API-uri de browser (`matchMedia`,
-> `IntersectionObserver`, `navigator.clipboard`, `focus()`) funcționează și
-> acolo unde acestea lipsesc — cad pe un fallback și expun un `trigger()` /
-> `load()` manual, ca logica să rămână testabilă fără layout real.
+> The primitives that depend on browser APIs (`matchMedia`,
+> `IntersectionObserver`, `navigator.clipboard`, `focus()`) work even
+> where those are missing — they fall back and expose a manual `trigger()` /
+> `load()`, so the logic stays testable without real layout.
 
-### Valul 2 — componentele ⚡
+### Wave 2 — the ⚡ components
 
-Componente unde fine-grained nu e o preferință de stil, ci un raport măsurabil.
-Fiecare are un test care numără mutațiile DOM.
+Components where fine-grained isn't a style preference but a measurable ratio. Each
+has a test that counts DOM mutations.
 
-| Componentă | Teza, verificată în test |
+| Component | The thesis, verified in the test |
 |---|---|
-| `Progress` | 100 de pași → 0 noduri, exact 200 de scrieri de atribut (lățime + `aria-valuenow`) |
-| `Slider` / `RangeSlider` | drag de 60 de frame-uri → 0 noduri create |
-| `SplitPane` | drag de 60 de frame-uri → 0 noduri create |
-| `Sparkline` | 200 de tick-uri de date live → 0 noduri, exact 200 de rescrieri ale lui `d` |
-| `Combobox` | filtrare la tastare → opțiunile rămase își păstrează nodurile |
-| `DataGrid` | 50.000 de rânduri, 14 în DOM; derulare cu un rând → cel mult un rând nou |
+| `Progress` | 100 steps → 0 nodes, exactly 200 attribute writes (width + `aria-valuenow`) |
+| `Slider` / `RangeSlider` | a 60-frame drag → 0 nodes created |
+| `SplitPane` | a 60-frame drag → 0 nodes created |
+| `Sparkline` | 200 live-data ticks → 0 nodes, exactly 200 rewrites of `d` |
+| `Combobox` | filtering as you type → the remaining options keep their nodes |
+| `DataGrid` | 50,000 rows, 14 in the DOM; scrolling by one row → at most one new row |
 
 ```ts
-import { Progress, Slider, Sparkline, SplitPane, Combobox, DataGrid } from "@raptor/ui";
+import { Progress, Slider, Sparkline, SplitPane, Combobox, DataGrid } from "raptorjs/ui";
 
 const volume = state(40);
-Slider({ value: volume, min: 0, max: 100, step: 5, label: "Volum" });
+Slider({ value: volume, min: 0, max: 100, step: 5, label: "Volume" });
 
 Progress({ value: () => uploaded(), max: 100, caption: true });
 
 Sparkline({ data: () => history(), width: 120, height: 32, area: true, lastPoint: true });
 ```
 
-**`Slider`** ține valoarea într-un semnal pe care îl deții tu. Tastatură completă
-(săgeți cu `step`, `PageUp`/`PageDown` cu 10%, `Home`/`End`), ARIA `role="slider"`
-cu `aria-valuenow`/`aria-valuetext`. `RangeSlider` are două mânere care nu se
-depășesc. Geometria pistei vine din `getBoundingClientRect`, dar `setTrack(start, size)`
-o poate împinge din afară — de aceea cuantizarea și plafonarea sunt testabile fără
-layout real.
+**`Slider`** keeps the value in a signal you own. Full keyboard (arrows by `step`,
+`PageUp`/`PageDown` by 10%, `Home`/`End`), ARIA `role="slider"` with
+`aria-valuenow`/`aria-valuetext`. `RangeSlider` has two handles that don't cross
+over. The track geometry comes from `getBoundingClientRect`, but `setTrack(start, size)`
+can push it in from outside — which is why quantization and clamping are testable
+without real layout.
 
-**`DataGrid`** nu folosește `<table>`: un tabel real nu poate fi virtualizat corect,
-fiindcă rândurile poziționate absolut strică layout-ul de tabel. Folosește grid cu
-roluri ARIA de tabel (`role="grid"`, `columnheader`, `gridcell`, `aria-rowcount`),
-ca toate grid-urile virtualizate serioase. Coloanele se redimensionează prin
-`resizable` — tragerea rescrie un singur `grid-template-columns`.
+**`DataGrid`** doesn't use `<table>`: a real table can't be virtualized correctly,
+because absolutely-positioned rows break the table layout. It uses a grid with ARIA
+table roles (`role="grid"`, `columnheader`, `gridcell`, `aria-rowcount`), like all
+serious virtualized grids. Columns resize via `resizable` — dragging rewrites a
+single `grid-template-columns`.
 
-**`Combobox`** urmează pattern-ul ARIA combobox: focusul rămâne în input (ca să
-poți scrie mai departe), iar opțiunea evidențiată e semnalată prin
-`aria-activedescendant`. Poziționarea listei trece prin `positioner`.
+**`Combobox`** follows the ARIA combobox pattern: focus stays in the input (so you
+can keep typing), and the highlighted option is signaled via
+`aria-activedescendant`. The list's positioning goes through `positioner`.
 
-### `positioner` — poziționare fără tăiere la margine
+### `positioner` — positioning without clipping at the edge
 
 ```ts
 const pos = positioner({ placement: "bottom-start", flip: true, shift: true });
-R.button({ ref: pos.reference }, "deschide");
-R.div({ ref: pos.floating, style: () => pos.style() }, "conținut");
+R.button({ ref: pos.reference }, "open");
+R.div({ ref: pos.floating, style: () => pos.style() }, "content");
 ```
 
-`flip` întoarce plasamentul pe partea opusă când nu încape, `shift` îl glisează pe
-axa secundară cât să rămână în ecran. Rezultatul e un semnal, deci repoziționarea
-rescrie un singur atribut de stil. `update({ reference, floating, viewport })`
-acceptă dreptunghiuri date explicit, deci logica de flip/shift se testează fără
-layout real.
+`flip` moves the placement to the opposite side when it doesn't fit, `shift` slides
+it along the secondary axis just enough to stay on screen. The result is a signal,
+so repositioning rewrites a single style attribute. `update({ reference, floating, viewport })`
+accepts explicitly-given rectangles, so the flip/shift logic is tested without
+real layout.
 
-> **SVG.** `Sparkline` și `CircularProgress` au cerut suport de namespace în
-> `@raptor/dom`: `document.createElement("svg")` produce în browser un element
-> HTML necunoscut, care nu randează nimic. `createElement` folosește acum
-> `createElementNS` pentru tagurile exclusiv SVG. Tagurile ambigue (`a`, `script`,
-> `style`, `title`) nu sunt tratate ca SVG — pentru ele dai namespace-ul explicit
-> ca al doilea argument.
+> **SVG.** `Sparkline` and `CircularProgress` required namespace support in
+> `raptorjs/dom`: `document.createElement("svg")` produces an unknown HTML element
+> in the browser, which renders nothing. `createElement` now uses
+> `createElementNS` for SVG-only tags. Ambiguous tags (`a`, `script`,
+> `style`, `title`) are not treated as SVG — for those you give the namespace explicitly
+> as the second argument.
 
-### Valul 3 — nucleul de formular și overlay
+### Wave 3 — the form core and overlays
 
-Componentele pe care le are orice aplicație. Nu toate sunt teze de performanță;
-valoarea lor e în detaliile de accesibilitate și comportament pe care fiecare
-proiect le rescrie prost.
+The components every application has. Not all are performance theses; their value
+is in the accessibility and behavior details that every project rewrites badly.
 
 ```ts
 import {
@@ -492,14 +491,14 @@ import {
   Form, FormField, field, formGroup, validators,
   Dialog, ConfirmDialog, Popover, Tooltip,
   createToaster, Toaster, Tabs,
-} from "@raptor/ui";
+} from "raptorjs/ui";
 ```
 
-#### Formulare — validare derivată
+#### Forms — derived validation
 
 ```ts
 const email = field("", { validate: [validators.required(), validators.email()], label: "Email" });
-const pass  = field("", { validate: validators.minLength(8), label: "Parolă" });
+const pass  = field("", { validate: validators.minLength(8), label: "Password" });
 const group = formGroup([email, pass]);
 
 Form({
@@ -508,84 +507,84 @@ Form({
   children: [
     FormField({ field: email, label: "Email", required: true,
                 children: Input({ value: email.value, id: email.id }) }),
-    FormField({ field: pass, label: "Parolă",
+    FormField({ field: pass, label: "Password",
                 children: Input({ value: pass.value, id: pass.id, type: "password" }) }),
-    Button({ type: "submit", children: "Creează cont" }),
+    Button({ type: "submit", children: "Create account" }),
   ],
 });
 ```
 
-Fiecare regulă e un `derived` peste semnalul câmpului. Nu există „ciclu de
-validare" de declanșat, iar o tastare recalculează doar erorile care depind de
-acel câmp. **Teza, verificată în test:** un formular cu 30 de câmpuri, o tastare
-într-unul singur → `createElement === 0` și exact **un** text-node atins.
+Each rule is a `derived` over the field's signal. There's no "validation cycle" to
+trigger, and a keystroke recomputes only the errors that depend on that field.
+**The thesis, verified in the test:** a form with 30 fields, one keystroke in a
+single one → `createElement === 0` and exactly **one** text-node touched.
 
-- Eroarea apare după prima ieșire din câmp (`validateOnBlur`, implicit `true`) —
-  altfel formularul e roșu înainte să fi scris ceva.
-- Submit-ul pe un grup invalid marchează toate câmpurile ca atinse și nu rulează.
-- `ErrorMessage` stă montat permanent cu `aria-live="polite"`. Dacă ar apărea
-  odată cu textul, multe screen readere n-ar anunța nimic.
+- The error appears after the first blur from the field (`validateOnBlur`, default
+  `true`) — otherwise the form is red before you've typed anything.
+- Submitting an invalid group marks all fields as touched and doesn't run.
+- `ErrorMessage` stays permanently mounted with `aria-live="polite"`. If it appeared
+  together with the text, many screen readers would announce nothing.
 
-#### Overlay-uri
+#### Overlays
 
-`Dialog`, `Popover` și `Tooltip` sunt montate prin `Portal`, deci nu le taie
-`overflow` sau `z-index`-ul unui părinte. Când sunt închise **nu există noduri**
-pentru ele.
+`Dialog`, `Popover` and `Tooltip` are mounted through `Portal`, so a parent's
+`overflow` or `z-index` doesn't clip them. When they're closed **there are no nodes**
+for them.
 
-- `Dialog`: `focusTrap`, `aria-modal`, Escape, click pe fundal. **Scroll lock-ul
-  are contor**, nu flag: cu două dialoguri suprapuse, închiderea celui de
-  deasupra nu redă scroll-ul cât timp cel de dedesubt e deschis.
-- `Tooltip` apare la **focus**, nu doar la hover — altfel e invizibil pentru cine
-  navighează la tastatură. Escape îl ascunde chiar dacă pointerul e deasupra
-  (cerință WCAG). Legat prin `aria-describedby`, nu `aria-label`: un tooltip
-  descrie, nu înlocuiește numele elementului.
-- `Popover` și `Select` folosesc `positioner`, deci nu se taie la marginea
-  ecranului. `DropdownMenu` a fost mutat și el pe `positioner`.
+- `Dialog`: `focusTrap`, `aria-modal`, Escape, click on the backdrop. **The scroll
+  lock is counted**, not a flag: with two stacked dialogs, closing the top one
+  doesn't restore scrolling while the one underneath is open.
+- `Tooltip` appears on **focus**, not just on hover — otherwise it's invisible to
+  anyone navigating by keyboard. Escape hides it even if the pointer is over it
+  (a WCAG requirement). Linked via `aria-describedby`, not `aria-label`: a tooltip
+  describes, it doesn't replace the element's name.
+- `Popover` and `Select` use `positioner`, so they don't get clipped at the screen
+  edge. `DropdownMenu` was moved onto `positioner` too.
 
-#### Toast-uri
+#### Toasts
 
 ```ts
 const toaster = createToaster({ duration: 4000, max: 5 });
 Toaster({ toaster, position: "bottom-right" });
 
-toaster.success("Salvat");
-toaster.push({ message: "Șters", key: "delete", action: { label: "Anulează", onClick: undo } });
+toaster.success("Saved");
+toaster.push({ message: "Deleted", key: "delete", action: { label: "Undo", onClick: undo } });
 ```
 
-Magazinul e al tău, componenta doar îl randează — poți anunța ceva dintr-un
-handler de rețea, fără context de componentă. Cronometrele se pun în pauză la
-hover: altfel un mesaj citit pe jumătate dispare exact când întinzi mâna după
-butonul de acțiune. `key` deduplică în loc să stivuiască același mesaj.
-`aria-live="polite"`, nu `assertive` — un toast nu trebuie să întrerupă cititorul
-în mijlocul propoziției; erorile critice merg în `Dialog`.
+The store is yours, the component just renders it — you can announce something from
+a network handler, without a component context. The timers pause on hover:
+otherwise a half-read message disappears exactly when you reach for the action
+button. `key` deduplicates instead of stacking the same message.
+`aria-live="polite"`, not `assertive` — a toast shouldn't interrupt the reader
+mid-sentence; critical errors go in a `Dialog`.
 
-#### Controale
+#### Controls
 
-- `Checkbox` acoperă `indeterminate`, care **nu e atribut HTML ci proprietate
-  DOM** — setat ca atribut n-ar avea niciun efect, iar arborele de accesibilitate
-  ar minți. Componenta setează proprietatea și `aria-checked="mixed"`.
-- `Switch` are `role="switch"`, nu checkbox stilizat: un comutator comunică
-  „pornește acum", nu „bifează pentru mai târziu".
-- `RadioGroup` și `Tabs` folosesc **roving tabindex**: un singur element al
-  grupului e în ordinea de Tab, săgețile mută înăuntru. Un set de 8 taburi nu
-  trebuie să coste 8 apăsări de Tab ca să-l depășești.
-- `Select` are typeahead (tastezi „pi" și sari la „Piersică"), fără de care o
-  listă de 200 de țări e inutilizabilă la tastatură.
-- `Button` e implicit `type="button"`, nu `submit`. Un `onClick` care întoarce o
-  promisiune pune butonul singur în `loading` și blochează clickurile — bug-ul
-  clasic al dublei trimiteri.
+- `Checkbox` covers `indeterminate`, which **is not an HTML attribute but a DOM
+  property** — set as an attribute it would have no effect, and the accessibility
+  tree would lie. The component sets the property and `aria-checked="mixed"`.
+- `Switch` has `role="switch"`, not a styled checkbox: a switch communicates
+  "turn on now", not "check for later".
+- `RadioGroup` and `Tabs` use a **roving tabindex**: only one element of the group
+  is in the Tab order, the arrows move within it. A set of 8 tabs shouldn't cost 8
+  Tab presses to get past.
+- `Select` has typeahead (you type "pe" and jump to "Peach"), without which a list
+  of 200 countries is unusable by keyboard.
+- `Button` defaults to `type="button"`, not `submit`. An `onClick` that returns a
+  promise puts the button into `loading` by itself and blocks clicks — the classic
+  double-submit bug.
 
 #### Tabs
 
-`activation: "manual"` (implicit) mută focusul cu săgețile fără să schimbe
-panoul; Enter/Space confirmă. Contează când panourile încarcă date. Panourile
-inactive rămân în DOM cu `hidden`, deci Ctrl+F le găsește și nu pierzi starea
-din ele. `lazy: true` construiește un panou la prima activare și îl ține montat.
+`activation: "manual"` (default) moves focus with the arrows without switching the
+panel; Enter/Space confirms. It matters when the panels load data. Inactive panels
+stay in the DOM with `hidden`, so Ctrl+F finds them and you don't lose their state.
+`lazy: true` builds a panel on first activation and keeps it mounted.
 
-### Valul 4 — layout, tipografie, afișare, controale
+### Wave 4 — layout, typography, display, controls
 
-Tranșa cea mai mare ca număr și cea mai mică ca dificultate. Puține sunt teze de
-performanță; valoarea lor e în detaliile pe care fiecare proiect le rescrie prost.
+The largest batch by count and the smallest by difficulty. Few are performance
+theses; their value is in the details that every project rewrites badly.
 
 #### Layout
 
@@ -594,350 +593,345 @@ performanță; valoarea lor e în detaliile pe care fiecare proiect le rescrie p
 
 ```ts
 Stack({ gap: 4, children: [
-  Group({ gap: 2, justify: "between", children: [Heading({ level: 2, children: "Proiecte" }), Button({ children: "Nou" })] }),
+  Group({ gap: 2, justify: "between", children: [Heading({ level: 2, children: "Projects" }), Button({ children: "New" })] }),
   SimpleGrid({ minColumnWidth: "240px", children: projects().map(card) }),
 ]})
 ```
 
-Spațierea e o **scară de trepte** (`0..8` → 0, 2, 4, 8, 12, 16, 24, 32, 48px), nu
-pixeli liberi. O scară mică ținută cu disciplină arată mai bine decât valori
-alese ad-hoc, iar `gap: 4` e mai ușor de citit decât `gap: 12px`.
+Spacing is a **step scale** (`0..8` → 0, 2, 4, 8, 12, 16, 24, 32, 48px), not free
+pixels. A small scale kept with discipline looks better than ad-hoc values, and
+`gap: 4` is easier to read than `gap: 12px`.
 
-`SimpleGrid` rezolvă responsive-ul fără media queries — `auto-fill` + `minmax`
-într-o singură declarație. `ScrollArea` primește `tabindex="0"`, fiindcă o zonă
-derulabilă trebuie să fie parcurgibilă de la tastatură (WCAG 2.1.1).
+`SimpleGrid` solves responsiveness without media queries — `auto-fill` + `minmax`
+in a single declaration. `ScrollArea` gets `tabindex="0"`, because a scrollable
+area must be navigable by keyboard (WCAG 2.1.1).
 
-> Props-urile suplimentare trec prin `attrs`, nu printr-un index signature.
-> Motivul e tipizarea: cu `[key: string]: unknown`, `Omit<FlexProps, "direction">`
-> ar șterge **toți** membrii declarați (`keyof T` devine `string`), iar
-> `StackProps` ar pierde `gap`, `align` și restul.
+> Extra props go through `attrs`, not through an index signature.
+> The reason is typing: with `[key: string]: unknown`, `Omit<FlexProps, "direction">`
+> would erase **all** declared members (`keyof T` becomes `string`), and
+> `StackProps` would lose `gap`, `align` and the rest.
 
-#### Tipografie
+#### Typography
 
 `Text`, `Heading`, `Link`, `Code`, `CodeBlock`, `Kbd`, `TextList`, `Truncate`,
 `Blockquote`, `Mark`.
 
-**`Heading` separă nivelul semantic de mărimea vizuală.** `level` alege tagul
-(`h1`..`h6`), `size` alege cum arată. Fără separarea asta oamenii sar de la `h2`
-la `h4` doar ca să obțină text mai mic, iar structura documentului devine de
-necitit pentru un screen reader.
+**`Heading` separates the semantic level from the visual size.** `level` picks the
+tag (`h1`..`h6`), `size` picks how it looks. Without that separation people jump
+from `h2` to `h4` just to get smaller text, and the document structure becomes
+unreadable for a screen reader.
 
-`Link` extern primește `rel="noopener noreferrer"` automat, iar `onNavigate`
-lasă Ctrl/Cmd+click și click-mijloc în seama browserului. `Mark` evidențiază
-potrivirile case-insensitive **păstrând textul original** — evidențierea nu
-trebuie să schimbe ce citește utilizatorul.
+An external `Link` gets `rel="noopener noreferrer"` automatically, and `onNavigate`
+leaves Ctrl/Cmd+click and middle-click to the browser. `Mark` highlights
+case-insensitive matches **keeping the original text** — highlighting must not
+change what the user reads.
 
-#### Afișare
+#### Display
 
 `Card`, `Badge`, `Tag`, `Avatar`, `AvatarGroup`, `Stat`, `DescriptionList`,
 `Alert`, `Callout`, `Banner`, `EmptyState`, `Result`, `Spinner`, `Skeleton`,
 `LoadingOverlay`, `Timeline`, `Image`.
 
-Ce rezolvă, concret:
+What it solves, concretely:
 
-- `Card` cu `onClick` primește `role="button"` **și** handler de Enter/Space — un
-  `div` cu rol de buton nu răspunde singur la tastatură.
-- `Badge` cu număr cere `label`: „3" singur nu spune nimic la screen reader. Un
-  badge-punct fără etichetă e marcat `aria-hidden`, fiind pur decorativ.
-- `Avatar` pune numele **o singură dată**, pe container; imaginea și inițialele
-  de dedesubt sunt decorative, altfel ar fi citite de două ori.
-- `Stat` are `invertDelta`: la majoritatea metricilor creșterea e bună, la churn
-  nu e.
-- `Alert` folosește `role="alert"` doar pentru erori; restul sunt `status`, ca să
-  nu întrerupă cititorul.
-- `Skeleton` e `aria-hidden` — un placeholder nu are ce anunța. Starea de
-  încărcare se comunică din containerul cu `aria-busy`, ceea ce face
-  `LoadingOverlay`.
-- Animațiile de `Skeleton` și `Spinner` se opresc la `prefers-reduced-motion`.
+- `Card` with `onClick` gets `role="button"` **and** an Enter/Space handler — a
+  `div` with a button role doesn't respond to the keyboard on its own.
+- A `Badge` with a number requires `label`: "3" alone says nothing to a screen
+  reader. A dot-badge without a label is marked `aria-hidden`, being purely decorative.
+- `Avatar` puts the name **once**, on the container; the image and the initials
+  underneath are decorative, otherwise they'd be read twice.
+- `Stat` has `invertDelta`: for most metrics an increase is good, for churn it isn't.
+- `Alert` uses `role="alert"` only for errors; the rest are `status`, so as not to
+  interrupt the reader.
+- `Skeleton` is `aria-hidden` — a placeholder has nothing to announce. The loading
+  state is communicated from the container with `aria-busy`, which is what
+  `LoadingOverlay` does.
+- The `Skeleton` and `Spinner` animations stop at `prefers-reduced-motion`.
 
 #### Disclosure
 
-`Collapsible` și `Accordion` nu folosesc `<details>`: acela nu poate fi animat și
-nu permite modul „un singur panou deschis". Conținutul rămâne în DOM cu `hidden`
-(deci Ctrl+F îl găsește și nu pierzi starea din el); `unmount: true` îl
-demontează când chiar vrei asta.
+`Collapsible` and `Accordion` don't use `<details>`: that can't be animated and
+doesn't allow the "single panel open" mode. The content stays in the DOM with
+`hidden` (so Ctrl+F finds it and you don't lose its state); `unmount: true`
+unmounts it when you really want that.
 
-Titlul unei secțiuni de `Accordion` e un **heading cu buton înăuntru**, nu un
-buton stilizat ca titlu: așa apare în lista de titluri a screen readerului și
-rămâne acționabil.
+The title of an `Accordion` section is a **heading with a button inside**, not a
+button styled as a title: that way it appears in the screen reader's list of titles
+and stays actionable.
 
-#### Controale, runda a doua
+#### Controls, round two
 
 `NumberInput`, `PasswordInput`, `SearchInput`, `PinInput`, `TagsInput`,
 `Editable`, `NativeSelect`, `CheckboxGroup`, `SegmentedControl`, `ToggleButton`,
 `ToggleGroup`, `CloseButton`, `CopyButton`, `InputGroup`, `Fieldset`,
 `HelperText`.
 
-- **`NumberInput` nu produce `0.30000000000000004`.** Rotunjește la precizia
-  pasului. Și nu plafonează în timpul tastării — ai bloca scrierea lui `-` sau
-  `0.` — ci la `blur`.
-- **`PinInput` acceptă un cod lipit întreg.** Utilizatorul copiază `123456` din
-  SMS și îl lipește în prima casetă; fără tratarea lui `paste` ar primi un `1`.
-- **`SearchInput` debounce-uiește** (250ms implicit), Enter caută imediat,
-  Escape golește.
-- `PasswordInput`: eticheta butonului descrie **acțiunea** („Arată parola"), nu
-  starea — altfel utilizatorul nu știe ce se întâmplă dacă apasă.
-- `TagsInput`: virgulă/Enter confirmă, Backspace pe input gol șterge ultimul tag,
-  iar ce e în curs de scriere se confirmă la `blur` în loc să se piardă.
-- `CheckboxGroup` cu `selectAll` expune `aria-checked="mixed"` pentru starea
-  parțială.
+- **`NumberInput` doesn't produce `0.30000000000000004`.** It rounds to the step's
+  precision. And it doesn't clamp while typing — you'd block typing `-` or `0.` —
+  but on `blur`.
+- **`PinInput` accepts a whole pasted code.** The user copies `123456` from an SMS
+  and pastes it into the first box; without handling `paste` they'd get a `1`.
+- **`SearchInput` debounces** (250ms default), Enter searches immediately,
+  Escape clears.
+- `PasswordInput`: the button's label describes the **action** ("Show password"),
+  not the state — otherwise the user doesn't know what happens if they press it.
+- `TagsInput`: comma/Enter confirms, Backspace on an empty input deletes the last
+  tag, and whatever is being typed is confirmed on `blur` instead of being lost.
+- `CheckboxGroup` with `selectAll` exposes `aria-checked="mixed"` for the partial state.
 
-#### Primitive de stare
+#### State primitives
 
 ```ts
-const theme = persistedState("theme", "light");     // se salvează singur
-const doc = undoRedo(initialDoc, { limit: 100 });   // istoric mărginit
+const theme = persistedState("theme", "light");     // saves itself
+const doc = undoRedo(initialDoc, { limit: 100 });   // bounded history
 const sel = selectionState({ items: () => rows() }); // click/Ctrl/Shift
 ```
 
-Sunt aici fiindcă fiecare aplicație le rescrie, de fiecare dată cu aceleași trei
-bug-uri:
+They're here because every application rewrites them, each time with the same three
+bugs:
 
-- **`persistedState`** nu aruncă în mod privat sau cu cookies blocate — accesul
-  la `localStorage` poate el însuși să arunce, nu doar citirea. O valoare coruptă
-  cade pe `initial` în loc să pice aplicația. Sincronizează între file prin
-  evenimentul `storage`.
-- **`undoRedo`** are limită obligatorie, nu opțională: un editor lăsat deschis o
-  zi cu istoric nelimitat ține în memorie fiecare stare intermediară. `replace()`
-  modifică fără intrare nouă, pentru mijlocul unui drag.
-- **`selectionState`** tratează cazul în care ancora a dispărut după o filtrare:
-  Shift+click cade pe click simplu în loc să selecteze un interval aiurea.
+- **`persistedState`** doesn't throw in private mode or with cookies blocked —
+  accessing `localStorage` can itself throw, not just reading. A corrupt value
+  falls back to `initial` instead of crashing the app. It syncs across tabs via the
+  `storage` event.
+- **`undoRedo`** has a mandatory limit, not an optional one: an editor left open for
+  a day with unlimited history keeps every intermediate state in memory. `replace()`
+  modifies without a new entry, for the middle of a drag.
+- **`selectionState`** handles the case where the anchor disappeared after a filter:
+  Shift+click falls back to a plain click instead of selecting a nonsensical range.
 
-### Valul 5 — date, navigare, fișiere, arbori, grafice
+### Wave 5 — dates, navigation, files, trees, charts
 
-Ultimele 30 de componente T1/T2. Cu asta, T1 și T2 sunt complete.
+The last 30 T1/T2 components. With this, T1 and T2 are complete.
 
-#### Date și oră
+#### Date and time
 
-`Calendar`, `DatePicker`, `DateRangePicker`, `TimePicker` — plus utilitarele
-`addDays`, `addMonths`, `parseIso`, `monthGrid`, `daysInMonth`, exportate și
-testabile separat.
+`Calendar`, `DatePicker`, `DateRangePicker`, `TimePicker` — plus the utilities
+`addDays`, `addMonths`, `parseIso`, `monthGrid`, `daysInMonth`, exported and
+testable separately.
 
-**Zero dependințe: fără date-fns, fără luxon.** Formatarea și numele zilelor vin
-din `Intl`, care e în runtime, nu în `node_modules`.
+**Zero dependencies: no date-fns, no luxon.** Formatting and day names come
+from `Intl`, which is in the runtime, not in `node_modules`.
 
 ```ts
 const date = state<CalendarDate | null>(null);
 DatePicker({ value: date, min: today(), locale: "ro-RO" });
 ```
 
-Capcana evitată peste tot: **`new Date("2026-03-15")` e parsată ca UTC** și,
-într-un fus la vest de Greenwich, dă 14 martie. Lucrăm cu triplete `{y, m, d}` și
-construim `Date` doar prin `new Date(y, m, d)`, care e local. Aritmetica pe zile
-nu folosește niciodată `+ 86400000` — o zi nu are mereu 24h. Testele acoperă
-trecerile de lună, anii bisecți și `31 ianuarie + 1 lună = 28/29 februarie`.
+The trap avoided everywhere: **`new Date("2026-03-15")` is parsed as UTC** and,
+in a timezone west of Greenwich, gives March 14. We work with `{y, m, d}` triples
+and build `Date` only via `new Date(y, m, d)`, which is local. Day arithmetic never
+uses `+ 86400000` — a day isn't always 24h. The tests cover month rollovers, leap
+years and `January 31 + 1 month = February 28/29`.
 
-`DatePicker` acceptă și tastare directă. Text invalid **restaurează** valoarea
-anterioară în loc să o șteargă tacit. `TimePicker` folosește segmente separate,
-nu `<input type="time">` (care arată diferit în fiecare browser și nu poate fi
-stilizat); fiecare segment e un `spinbutton` care ciclează la capete.
+`DatePicker` also accepts direct typing. Invalid text **restores** the previous
+value instead of silently clearing it. `TimePicker` uses separate segments, not
+`<input type="time">` (which looks different in every browser and can't be styled);
+each segment is a `spinbutton` that wraps around at the ends.
 
-#### Navigare
+#### Navigation
 
 `Breadcrumbs`, `Pagination`, `Stepper`, `Anchor`, `Navbar`, `NavigationMenu`,
 `SidebarNav`, `Sidebar`, `AppShell`.
 
-Regula comună: **navigarea e o listă de linkuri**, nu `div`-uri cu `onClick`. Un
-`nav` cu `ul`/`li` și `aria-current` spune unui screen reader câte elemente sunt
-și unde te afli.
+The common rule: **navigation is a list of links**, not `div`s with `onClick`. A
+`nav` with `ul`/`li` and `aria-current` tells a screen reader how many items there
+are and where you are.
 
-- `paginationRange(page, total, siblings)` e exportată separat — e partea în care
-  se greșește și e ușor de testat. Pune elipsă doar când se sar **cel puțin
-  două** pagini; altfel afișează numărul.
-- `Breadcrumbs`: ultimul element nu e link, e locul unde te afli deja.
-- `Stepper`: nu poți sări înainte, fiindcă pașii următori pot depinde de ce
-  completezi acum.
-- `Anchor` (scroll-spy) nu folosește `IntersectionObserver` cu `threshold`, care
-  dă rezultate greșite pentru secțiuni mai înalte decât ecranul: compară pozițiile
-  față de o linie la `offset` px de sus.
-- `NavigationMenu` deschide submeniul la hover **și** la focus; închiderea are o
-  mică întârziere, altfel drumul cu mouse-ul de la buton la submeniu îl închide.
-- `AppShell` expune un `<main id="rui-main">` pentru link-ul „sari la conținut".
+- `paginationRange(page, total, siblings)` is exported separately — it's the part
+  people get wrong and it's easy to test. It puts an ellipsis only when **at least
+  two** pages are skipped; otherwise it shows the number.
+- `Breadcrumbs`: the last item isn't a link, it's where you already are.
+- `Stepper`: you can't jump ahead, because the next steps may depend on what you
+  fill in now.
+- `Anchor` (scroll-spy) doesn't use `IntersectionObserver` with a `threshold`, which
+  gives wrong results for sections taller than the screen: it compares positions
+  against a line `offset` px from the top.
+- `NavigationMenu` opens the submenu on hover **and** on focus; closing has a
+  small delay, otherwise the mouse path from the button to the submenu would close it.
+- `AppShell` exposes a `<main id="rui-main">` for the "skip to content" link.
 
-#### Arbori și liste
+#### Trees and lists
 
 `TreeView`, `ListView`, `MultiSelect`, `Autocomplete`, `CommandPalette`.
 
-`TreeView` urmează pattern-ul ARIA tree: săgeata dreapta expandează sau coboară
-la primul copil, stânga colapsează sau urcă la părinte, `*` expandează toți
-frații. Doar un nod e tabbable — Tab iese din tot arborele, nu trece prin cele
-400 de noduri. Suportă încărcare lazy și nu reîncarcă ce a adus deja.
+`TreeView` follows the ARIA tree pattern: the right arrow expands or descends to
+the first child, the left collapses or goes up to the parent, `*` expands all
+siblings. Only one node is tabbable — Tab exits the whole tree, it doesn't step
+through all 400 nodes. It supports lazy loading and doesn't reload what it already brought.
 
-**`Autocomplete` rezolvă cursa dintre cereri.** Dacă tastezi „ab" apoi „abc",
-răspunsul pentru „ab" poate sosi *după* cel pentru „abc" și îl suprascrie.
-Fiecare cerere primește un număr de ordine și doar cea mai recentă are voie să
-scrie rezultatele — există test care livrează răspunsurile în ordine inversă.
+**`Autocomplete` solves the race between requests.** If you type "ab" then "abc",
+the response for "ab" may arrive *after* the one for "abc" and overwrite it.
+Each request gets a sequence number and only the most recent one is allowed to
+write the results — there's a test that delivers the responses in reverse order.
 
-`MultiSelect` ține chipurile **în afara** inputului: un chip pus într-un input e
-inaccesibil (nu poate fi buton) și se rupe la scroll orizontal.
+`MultiSelect` keeps the chips **outside** the input: a chip placed inside an input
+is inaccessible (it can't be a button) and breaks on horizontal scroll.
 
-`CommandPalette` nu înregistrează singură `mod+k` — ți-o legi tu cu `hotkeys`, ca
-să nu-ți fure scurtătura fără să știi. Filtrarea resetează selecția, altfel ai
-putea rula comanda greșită.
+`CommandPalette` doesn't register `mod+k` by itself — you bind it yourself with
+`hotkeys`, so it doesn't steal your shortcut without you knowing. Filtering resets
+the selection, otherwise you could run the wrong command.
 
-#### Fișiere
+#### Files
 
-`FileInput`, `Dropzone`, `FileList` — cu `validateFiles`, `matchesAccept` și
-`formatSize` exportate separat.
+`FileInput`, `Dropzone`, `FileList` — with `validateFiles`, `matchesAccept` and
+`formatSize` exported separately.
 
-Validarea e **aceeași funcție** pentru dialogul de selecție și pentru drag & drop.
-Altfel ajungi cu două seturi de reguli care diverg. Limita de număr se aplică
-*după* filtrele de tip și mărime, ca un fișier respins să nu consume un loc.
+Validation is **the same function** for the file-picker dialog and for drag & drop.
+Otherwise you end up with two sets of rules that diverge. The count limit is applied
+*after* the type and size filters, so a rejected file doesn't consume a slot.
 
-`Dropzone` numără `dragenter`/`dragleave`: evenimentele se declanșează și când
-cursorul trece peste un **copil** al zonei, așa că un simplu boolean face zona să
-pâlpâie.
+`Dropzone` counts `dragenter`/`dragleave`: the events fire even when the cursor
+passes over a **child** of the zone, so a plain boolean makes the zone flicker.
 
-#### Overlay-uri rămase
+#### Remaining overlays
 
 `Drawer`, `ContextMenu`, `Notification`, `Backdrop`, `ErrorBoundary`.
 
-`Drawer` cu `modeless: true` e un panou obișnuit (filtre, detalii): fără focus
-trap, fără blocarea scroll-ului, fără `aria-modal`. Un sertar de filtre care
-blochează restul paginii e o greșeală frecventă.
+`Drawer` with `modeless: true` is an ordinary panel (filters, details): no focus
+trap, no scroll lock, no `aria-modal`. A filter drawer that blocks the rest of the
+page is a common mistake.
 
-`ContextMenu` se deschide și cu tasta Menu sau Shift+F10, nu doar cu mouse-ul.
+`ContextMenu` also opens with the Menu key or Shift+F10, not just with the mouse.
 
-**`ErrorBoundary` promite doar ce poate ține.** Prinde excepțiile aruncate
-sincron când `children()` își construiește nodurile, și reconstruirea după
-`retry()`. **NU** prinde erori din handlere de evenimente, din promisiuni
-respinse, sau apărute mai târziu într-un `effect` dintr-un binding deja montat —
-într-un runtime fine-grained nu există o fază de randare care să poată fi reluată.
+**`ErrorBoundary` promises only what it can keep.** It catches exceptions thrown
+synchronously when `children()` builds its nodes, and the rebuild after
+`retry()`. It does **NOT** catch errors from event handlers, from rejected promises,
+or ones that appear later in an `effect` from an already-mounted binding —
+in a fine-grained runtime there is no render phase that can be replayed.
 
-#### Grafice
+#### Charts
 
 `scaleLinear`, `scaleBand`, `niceTicks`, `extent`, `Axis`, `Legend`, plus
 `LineChart`, `AreaChart`, `BarChart`.
 
 ```ts
 LineChart({
-  series: () => [{ label: "Vizite", values: history() }],
+  series: () => [{ label: "Visits", values: history() }],
   labels: months,
   area: true,
-  summary: "Vizite lunare în ultimul an",
+  summary: "Monthly visits over the last year",
 });
 ```
 
-**Teza, verificată în test:** date live într-un `LineChart` rescriu doar atributul
-`d` — zero noduri create. Asta a cerut ca plotul să fie `For` keyed pe **indici**
-(primitive, deci chei stabile), nu o regiune care remapează serii la fiecare tick.
-Aceeași lecție ca la `virtualizer`.
+**The thesis, verified in the test:** live data in a `LineChart` rewrites only the
+`d` attribute — zero nodes created. This required the plot to be a `For` keyed on
+**indices** (primitives, so stable keys), not a region that remaps series on every
+tick. The same lesson as with `virtualizer`.
 
-Graficul e `role="img"` cu `aria-label` din `summary`; marcajele axelor sunt
-`aria-hidden`, fiindcă un screen reader care citește 40 de numere de pe axă nu
-ajută pe nimeni.
+The chart is `role="img"` with an `aria-label` from `summary`; the axis ticks are
+`aria-hidden`, because a screen reader reading 40 numbers off the axis helps no one.
 
-> **Limitele lor:** sunt grafice de bază, nu o bibliotecă de vizualizare. Acoperă
-> serie în timp și comparație între categorii. Pentru sankey, treemap, hărți sau
-> interacțiuni complexe (brush, zoom, pan) ai nevoie de o bibliotecă dedicată, și
-> e în regulă.
+> **Their limits:** they're basic charts, not a visualization library. They cover
+> time series and comparison across categories. For sankey, treemap, maps or
+> complex interactions (brush, zoom, pan) you need a dedicated library, and
+> that's fine.
 
-### Valul 6 — T3: specializatele
+### Wave 6 — T3: the specialized ones
 
-Ultima tranșă. **59 din cele 61 de componente T3**; două au fost lăsate
-deliberat nefăcute și motivul e mai jos.
+The last batch. **59 of the 61 T3 components**; two were deliberately left undone
+and the reason is below.
 
-#### Ce s-a livrat
+#### What was delivered
 
-**Layout și acțiuni:** `Masonry`, `Affix`, `SafeArea`, `SkipNav`,
+**Layout and actions:** `Masonry`, `Affix`, `SafeArea`, `SkipNav`,
 `BottomNavigation`, `Dock`, `SplitButton`, `FloatingActionButton`.
 
-**Inputuri specializate:** `MaskedInput`, `CurrencyInput`, `PhoneInput`,
+**Specialized inputs:** `MaskedInput`, `CurrencyInput`, `PhoneInput`,
 `DateInput`, `Mentions`, `Rating`, `ColorPicker`, `ColorSwatchPicker`,
 `TransferList`, `TreeSelect`, `Cascader`.
 
-**Grafice:** `PieChart`, `DonutChart`, `ScatterChart`, `BubbleChart`, `Heatmap`,
+**Charts:** `PieChart`, `DonutChart`, `ScatterChart`, `BubbleChart`, `Heatmap`,
 `Gauge`, `RadarChart`, `FunnelChart`, `CandlestickChart`, `Treemap`,
 `SankeyDiagram`, `Meter`.
 
-**Editoare și vizualizatoare:** `RichTextEditor`, `CodeEditor`, `JsonViewer`,
+**Editors and viewers:** `RichTextEditor`, `CodeEditor`, `JsonViewer`,
 `DiffViewer`, `ComparisonTable`.
 
 **Media:** `Carousel`, `Gallery`, `Lightbox`, `ImageZoom`, `VideoPlayer`,
 `AudioPlayer`, `Waveform`, `QRCode`, `ImageUpload`, `UploadProgress`,
 `FilePreview`.
 
-**Restul:** `Kanban`, `Wizard`, `Menubar`, `HoverCard`, `Tour`, `FormSection`,
-`ValidationSummary`, `DateTimePicker`, `MonthPicker`, `YearPicker`, plus
-primitivele `idle()` și `networkStatus()`.
+**The rest:** `Kanban`, `Wizard`, `Menubar`, `HoverCard`, `Tour`, `FormSection`,
+`ValidationSummary`, `DateTimePicker`, `MonthPicker`, `YearPicker`, plus the
+primitives `idle()` and `networkStatus()`.
 
-#### Algoritmii, exportați separat și testați fără DOM
+#### The algorithms, exported separately and tested without the DOM
 
-Partea care chiar poate fi greșită nu stă ascunsă în componente:
+The part that can actually be gotten wrong isn't hidden inside components:
 
-| Funcție | Ce face |
+| Function | What it does |
 |---|---|
-| `applyMask`, `unmask` | mască de input, cu poziția cursorului |
-| `diffLines`, `diffStats` | diff pe linii, prin cea mai lungă subsecvență comună |
-| `squarify` | așezare treemap „squarified" (Bruls–Huizing–van Wijk) |
-| `sankeyLayout` | adâncimi, debite și curbe pentru diagrama Sankey |
-| `arcPath` | sectoare de cerc pentru pie/donut |
-| `reedSolomon`, `encodeData`, `buildMatrix` | codificarea QR completă |
-| `contrastRatio`, `readableOn` | contrast WCAG și alegerea culorii de text |
-| `computePeaks`, `formatDuration` | reducerea eșantioanelor audio, formatarea timpului |
-| `activeMention`, `groupDigits`, `formatCurrency` | tokenul `@`, grupări, bani |
+| `applyMask`, `unmask` | input mask, with cursor position |
+| `diffLines`, `diffStats` | line diff, via the longest common subsequence |
+| `squarify` | "squarified" treemap layout (Bruls–Huizing–van Wijk) |
+| `sankeyLayout` | depths, flows and curves for the Sankey diagram |
+| `arcPath` | circle sectors for pie/donut |
+| `reedSolomon`, `encodeData`, `buildMatrix` | the complete QR encoding |
+| `contrastRatio`, `readableOn` | WCAG contrast and text color choice |
+| `computePeaks`, `formatDuration` | audio sample reduction, time formatting |
+| `activeMention`, `groupDigits`, `formatCurrency` | the `@` token, groupings, money |
 
-#### `QRCode` — generator complet, nu un wrapper
+#### `QRCode` — a complete generator, not a wrapper
 
-Implementează ISO/IEC 18004 pentru modul byte, versiunile 1–10, toate cele patru
-niveluri de corecție: aritmetică în GF(256), coduri Reed-Solomon, întreţeserea
-blocurilor, cele opt măști cu scorul lor de penalizare și biții BCH de format.
+It implements ISO/IEC 18004 for byte mode, versions 1–10, all four correction
+levels: arithmetic in GF(256), Reed-Solomon codes, block interleaving, the eight
+masks with their penalty score and the BCH format bits.
 
 ```ts
-QRCode({ value: () => url(), level: "H", label: "Link către pagină" });
+QRCode({ value: () => url(), level: "H", label: "Link to the page" });
 ```
 
-Codul se randează ca **un singur `path`** — un `<rect>` per modul ar însemna
-~1000 de elemente pentru versiunea 5. Testul verifică inclusiv că formatul scris
-poate fi citit înapoi corect (deci BCH-ul e bun) și că masca aleasă e cea scrisă.
+The code renders as **a single `path`** — a `<rect>` per module would mean
+~1000 elements for version 5. The test even verifies that the written format
+can be read back correctly (so the BCH is good) and that the chosen mask is the one written.
 
-Părțile astea nu pot fi aproximate: un QR cu Reed-Solomon greșit nu se scanează
-deloc, iar unul cu masca prost aleasă se scanează prost.
+These parts can't be approximated: a QR with wrong Reed-Solomon doesn't scan at all,
+and one with a poorly-chosen mask scans poorly.
 
-#### Decizii care merită știute
+#### Decisions worth knowing
 
-- **`Kanban` se poate folosi de la tastatură.** Fiecare carte are un meniu
-  „Mută în…". Drag & drop-ul singur ar face tabla inutilizabilă fără mouse — e
-  eșecul clasic de accesibilitate al acestei componente.
-- **`Carousel` oprește autoplay-ul la hover și la focus.** Un carusel care se
-  mișcă în timp ce citești încalcă WCAG 2.2.2, nu e doar enervant. Slide-urile
-  ascunse primesc `inert`, ca să nu fie tabbable.
-- **`ScatterChart` scalează raza bulelor după rădăcina valorii.** Aria trebuie
-  să fie proporțională, nu raza — altfel o valoare dublă arată de patru ori mai
-  mare. Există test.
-- **`CurrencyInput` ține banii în întregi** (bani, cenți). `0.1 + 0.2 !== 0.3`,
-  iar o eroare de rotunjire într-un coș de cumpărături e un bug real.
-- **`Meter` are `role="meter"`, nu `progressbar`.** Unul măsoară cât de plin e
-  ceva, celălalt înaintarea unei sarcini; screen readerele le anunță diferit.
-- **`HoverCard` e `dialog`, nu `tooltip`**, fiindcă are conținut interactiv — de
-  aici și întârzierea la închidere, ca să poți ajunge cu mouse-ul în el.
-- **`applyMask` nu adaugă separatorul final** până nu tastezi caracterul de
-  după: altfel cursorul ajunge după o liniuță pe care n-ai scris-o.
+- **`Kanban` can be used from the keyboard.** Each card has a "Move to…" menu.
+  Drag & drop alone would make the board unusable without a mouse — it's the classic
+  accessibility failure of this component.
+- **`Carousel` stops autoplay on hover and on focus.** A carousel that moves while
+  you're reading violates WCAG 2.2.2, it's not just annoying. Hidden slides get
+  `inert`, so they aren't tabbable.
+- **`ScatterChart` scales bubble radius by the square root of the value.** The area
+  must be proportional, not the radius — otherwise a doubled value looks four times
+  bigger. There's a test.
+- **`CurrencyInput` keeps money in integers** (bani, cents). `0.1 + 0.2 !== 0.3`,
+  and a rounding error in a shopping cart is a real bug.
+- **`Meter` has `role="meter"`, not `progressbar`.** One measures how full something
+  is, the other the progress of a task; screen readers announce them differently.
+- **`HoverCard` is a `dialog`, not a `tooltip`**, because it has interactive content —
+  hence the delay on closing, so you can reach it with the mouse.
+- **`applyMask` doesn't add the trailing separator** until you type the character
+  after it: otherwise the cursor ends up past a dash you didn't type.
 
-#### Limitele declarate
+#### The declared limits
 
-**`RichTextEditor`** folosește `contenteditable` + `document.execCommand`.
-`execCommand` e deprecated și produce HTML ușor diferit în fiecare browser.
-Alternativa reală — un model de document propriu cu gestiunea selecției, ca
-ProseMirror — e un proiect de luni de zile, nu o componentă. Acoperă cazul „câmp
-de descriere cu bold și linkuri". Nu sanitizează HTML-ul.
+**`RichTextEditor`** uses `contenteditable` + `document.execCommand`.
+`execCommand` is deprecated and produces slightly different HTML in each browser.
+The real alternative — a custom document model with selection management, like
+ProseMirror — is a months-long project, not a component. It covers the "description
+field with bold and links" case. It doesn't sanitize the HTML.
 
-**`Waveform` nu decodează audio.** Decodarea cere `AudioContext` și fișierul
-întreg în memorie, ceea ce n-are ce căuta într-o componentă de UI. Calculează
-vârfurile pe server sau într-un worker și trimite-le ca `peaks`.
+**`Waveform` doesn't decode audio.** Decoding requires `AudioContext` and the whole
+file in memory, which has no business in a UI component. Compute the peaks on the
+server or in a worker and pass them as `peaks`.
 
-**`diffLines` e O(n·m).** Suficient pentru fișiere de ordinul miilor de linii,
-care e cazul pentru care există componenta. Pentru fișiere uriașe ai nevoie de
-Myers cu bandă, deci de o bibliotecă dedicată.
+**`diffLines` is O(n·m).** Enough for files on the order of thousands of lines,
+which is the case the component exists for. For huge files you need banded Myers,
+so a dedicated library.
 
-**Graficele acoperă cazurile uzuale.** Fără brush, zoom, pan sau axe
-logaritmice.
+**The charts cover the common cases.** No brush, zoom, pan or logarithmic axes.
 
-### `Table` — tabel sortabil
+### `Table` — sortable table
 
 ```ts
-import { Table, type Column } from "@raptor/ui";
-import { state, R, render } from "@raptor/dom";
+import { Table, type Column } from "raptorjs/ui";
+import { state, R, render } from "raptorjs/dom";
 
 interface Row { id: number; name: string; qty: number }
 const rows = state<readonly Row[]>([
@@ -952,30 +946,29 @@ const columns: Column<Row>[] = [
     sort: (a, b) => a.qty - b.qty },
 ];
 
-render(() => Table({ rows: () => rows(), columns, empty: "Nimic aici" }), app);
+render(() => Table({ rows: () => rows(), columns, empty: "Nothing here" }), app);
 ```
 
-- **Sortarea mută rândurile, nu le reconstruiește.** `For` e keyed pe identitatea
-  obiectului-rând, iar sortarea întoarce un array nou cu aceleași referințe —
-  deci nodurile existente sunt doar reordonate prin `insertBefore`. Testul din
-  `packages/ui/tests/table.test.ts` verifică exact asta: după un click pe header,
-  `stats.createElement === 0` și `stats.createText === 0`.
-- **O coloană fără `sort` nu e sortabilă** — nu există comparator implicit pe
-  string, ca să nu ordonezi greșit numere sau date.
-- **Celule reactive:** `cell` poate întoarce un accesor
-  (`cell: (r) => () => total(r)`) și atunci se actualizează doar text-node-ul ei.
-- **Selecție opțională:** dă-i `selected`, un semnal pe care îl deții tu
-  (`state<ReadonlySet<Row>>(new Set())`). Fără el, tabelul n-are selecție.
-  `multiple: false` păstrează un singur rând.
+- **Sorting moves the rows, it doesn't rebuild them.** `For` is keyed on the row
+  object's identity, and sorting returns a new array with the same references —
+  so the existing nodes are just reordered via `insertBefore`. The test in
+  `packages/ui/tests/table.test.ts` checks exactly this: after a click on the header,
+  `stats.createElement === 0` and `stats.createText === 0`.
+- **A column without `sort` isn't sortable** — there's no default string comparator,
+  so you don't wrongly order numbers or dates.
+- **Reactive cells:** `cell` can return an accessor
+  (`cell: (r) => () => total(r)`) and then only its text-node updates.
+- **Optional selection:** give it `selected`, a signal you own
+  (`state<ReadonlySet<Row>>(new Set())`). Without it, the table has no selection.
+  `multiple: false` keeps a single row.
 
-> Atenție: fiindcă `For` e keyed pe valoare, rândurile trebuie să fie obiecte
-> stabile. Dacă regenerezi obiectele la fiecare citire (`rows().map(...)`),
-> reutilizarea nodurilor se pierde.
+> Note: because `For` is keyed on value, the rows must be stable objects. If you
+> regenerate the objects on each read (`rows().map(...)`), node reuse is lost.
 
-### `DropdownMenu` — meniu cu tastatură
+### `DropdownMenu` — menu with keyboard
 
 ```ts
-import { DropdownMenu, menuItem, menuSeparator } from "@raptor/ui";
+import { DropdownMenu, menuItem, menuSeparator } from "raptorjs/ui";
 
 DropdownMenu({
   trigger: "Actions",
@@ -988,193 +981,190 @@ DropdownMenu({
 });
 ```
 
-- **Când e închis nu există noduri pentru el** — meniul e montat prin `Show`.
-- **Tastatură:** `ArrowDown`/`ArrowUp` ciclează și sar peste separatoare și
-  itemi dezactivați, `Home`/`End`, `Enter`/`Space` selectează, `Escape` închide
-  și readuce focusul pe trigger.
-- **Click în afară** închide meniul. Handlerele globale sunt atașate pe
-  `document` **doar cât timp meniul e deschis** și scoase în `onCleanup`, deci nu
-  rămân agățate după `dispose`.
-- **ARIA:** `aria-haspopup`, `aria-expanded` (reactiv), `role="menu"`,
+- **When it's closed there are no nodes for it** — the menu is mounted via `Show`.
+- **Keyboard:** `ArrowDown`/`ArrowUp` cycle and skip over separators and
+  disabled items, `Home`/`End`, `Enter`/`Space` select, `Escape` closes
+  and returns focus to the trigger.
+- **An outside click** closes the menu. The global handlers are attached to
+  `document` **only while the menu is open** and removed in `onCleanup`, so they don't
+  stay hanging after `dispose`.
+- **ARIA:** `aria-haspopup`, `aria-expanded` (reactive), `role="menu"`,
   `role="menuitem"`, `aria-disabled`.
-- **Controlat din afară:** dă-i `open`, un `State<boolean>` al tău, dacă vrei să
-  deschizi meniul programatic.
-- Mutarea itemului activ rescrie două atribute; itemii nu se recreează.
+- **Controlled from outside:** give it `open`, a `State<boolean>` of yours, if you want to
+  open the menu programmatically.
+- Moving the active item rewrites two attributes; the items aren't recreated.
 
 ---
 
-## @raptor/bundle — bundler TSX propriu (fără Vite)
+## @raptor/engine/bundle — own TSX bundler (no Vite)
 
-Bundler-ul propriu al proiectului pentru varianta browser: transformă JSX către
-runtime-ul fine-grained `@raptor/dom`, rezolvă graful (inclusiv `exports` map către
-sursa `.ts` a pachetelor `@raptor/*`) și emite un singur `bundle.js`. **Zero
-dependențe la runtime**; folosește compilatorul TypeScript doar ca primitivă de
-transform la build-time. Fără Vite / esbuild / Rolldown.
+The project's own bundler for the browser variant: it transforms JSX to the
+fine-grained `raptorjs/dom` runtime, resolves the graph (including the `exports` map
+to the `.ts` source of the `@raptor/*` packages) and emits a single `bundle.js`.
+**Zero runtime dependencies**; it uses the TypeScript compiler only as a build-time
+transform primitive. No Vite / esbuild / Rolldown.
 
-**Exportă:** `bundleApp` (+ `BundleOptions`, `BundleResult`), `startDevServer`
+**Exports:** `bundleApp` (+ `BundleOptions`, `BundleResult`), `startDevServer`
 (+ `DevServerOptions`), `transpile` (+ `TranspileOptions`, `DEFAULT_JSX_IMPORT_SOURCE`),
 `resolveSpecifier`, `rewriteHtml`, `runBundleCli`.
 
-### Proba de fum a catalogului
+### The catalog smoke test
 
-`examples/site/tests/catalog.test.ts` construiește demo-ul **fiecărei**
-componente documentate pe site și verifică faptic că randează. Rulează la
-`pnpm test`, ~3,5 secunde.
+`examples/site/tests/catalog.test.ts` builds the demo of **every**
+component documented on the site and actually verifies that it renders. It runs on
+`pnpm test`, ~3.5 seconds.
 
-Ce prinde:
+What it catches:
 
-- o componentă care aruncă (raportează grupul și numele exact);
-- `NaN` ajuns în output — aritmetică pe valori lipsă, capcana clasică a scalelor
-  de grafic;
-- un obiect stringificat ca `[object Object]`;
-- output gol.
+- a component that throws (it reports the group and the exact name);
+- a `NaN` reaching the output — arithmetic on missing values, the classic trap of
+  chart scales;
+- an object stringified as `[object Object]`;
+- empty output.
 
-E și un test end-to-end al bundler-ului: paginile de catalog sunt `.tsx`, deci
-trec prin RaptorBundle (transform JSX, rezolvare de subpath-uri, tree-shaking)
-înainte de a fi evaluate pe mini-dom. Dacă se strică ceva pe lanțul ăla, aici se
-vede.
+It's also an end-to-end test of the bundler: the catalog pages are `.tsx`, so they
+go through RaptorBundle (JSX transform, subpath resolution, tree-shaking)
+before being evaluated on the mini-dom. If something breaks along that chain, it
+shows here.
 
-**Cum e ținut onest.** Verificările sunt puține intenționat. Am încercat întâi să
-semnalez și `null`/`undefined` randate ca text și am primit patru fals pozitive:
-demo-urile de `Select`, `Combobox`, `TreeSelect` și `Cascader` afișează dinadins
-`value = null` ca să arate starea inițială. Un test care țipă la conținut corect
-e mai rău decât unul care tace la o problemă rară.
+**How it's kept honest.** The checks are deliberately few. I first tried to
+flag `null`/`undefined` rendered as text too, and got four false positives:
+the `Select`, `Combobox`, `TreeSelect` and `Cascader` demos deliberately show
+`value = null` to illustrate the initial state. A test that screams at correct content
+is worse than one that stays quiet about a rare problem.
 
-Demo-urile sunt montate în containere reale, nu interogate prin `toHTML` pe
-valoarea întoarsă: un demo poate întoarce un `Block` (`ErrorBoundary`, `Portal`),
-un array sau un accesor — toate sunt `Child` valizi, niciunul nu e element.
-Raportul se citește după ce se scurg microtask-urile, fiindcă `ErrorBoundary`
-își publică fallback-ul într-un `queueMicrotask`.
+The demos are mounted in real containers, not queried via `toHTML` on the returned
+value: a demo can return a `Block` (`ErrorBoundary`, `Portal`),
+an array or an accessor — all are valid `Child`s, none is an element.
+The report is read after the microtasks drain, because `ErrorBoundary`
+publishes its fallback in a `queueMicrotask`.
 
-Timerele pornite de demo-uri (autoplay de carusel, toast, tooltip) sunt
-instrumentate și oprite la final — altfel `node --test` n-ar mai ieși niciodată.
+The timers started by demos (carousel autoplay, toast, tooltip) are
+instrumented and stopped at the end — otherwise `node --test` would never exit.
 
 ### Tree-shaking
 
-`raptor-bundle` elimină re-exporturile nefolosite **înainte de transpilare**,
-pornind de la ce cere entry-ul. Activ implicit; `--no-treeshake` îl oprește.
+`raptor-bundle` eliminates unused re-exports **before transpilation**,
+starting from what the entry requires. Active by default; `--no-treeshake` turns it off.
 
-Măsurat pe o aplicație care folosește un singur `Button`, importat din barrel:
+Measured on an app that uses a single `Button`, imported from the barrel:
 
-| | Module | Bundle |
+| | Modules | Bundle |
 |---|---|---|
-| `--no-treeshake` | 58 | 527 499 B |
-| implicit | **9** | **39 029 B** |
-| import adânc (`@raptor/ui/button`) | 8 | 38 009 B |
+| `--no-treeshake` | 58 | 527,499 B |
+| default | **9** | **39,029 B** |
+| deep import (`raptorjs/ui/button`) | 8 | 38,009 B |
 
-**13,5× mai mic**, iar barrel-ul ajunge la 3% de importul adânc. Testele
-verifică nu doar dimensiunea, ci și că bundle-ul tăiat se evaluează și dă
-același rezultat ca cel întreg.
+**13.5× smaller**, and the barrel comes within 3% of the deep import. The tests
+verify not just the size, but also that the trimmed bundle evaluates and gives the
+same result as the full one.
 
-#### De ce analiza se face pe sursă
+#### Why the analysis is done on the source
 
-Bundler-ul emite CommonJS, unde `export * from "x"` devine
-`__exportStar(require("x"), exports)` — o cerere dinamică, imposibil de analizat
-static. Așa că citim graful de importuri/exporturi din **sursa ESM**, cât încă
-mai e ESM, cu parserul TypeScript (deja dependință de build; nu s-a adăugat
-nimic).
+The bundler emits CommonJS, where `export * from "x"` becomes
+`__exportStar(require("x"), exports)` — a dynamic request, impossible to analyze
+statically. So we read the import/export graph from the **ESM source**, while it
+still is ESM, with the TypeScript parser (already a build dependency; nothing was added).
 
-Algoritmul: pornim din entry, propagăm ce nume sunt cerute și urmăm **doar
-steaua care chiar furnizează simbolul**. Dintr-un barrel cu 35 de
-`export * from`, un singur `Button` urmează exact una.
+The algorithm: we start from the entry, propagate which names are required and
+follow **only the star that actually provides the symbol**. From a barrel with 35
+`export * from`, a single `Button` follows exactly one.
 
-Instrucțiunile tăiate sunt înlocuite cu spații, nu șterse: liniile rămân la
-locul lor, deci numerele din source map continuă să corespundă fișierului
-original.
+The cut statements are replaced with spaces, not deleted: the lines stay in place,
+so the line numbers in the source map keep matching the original file.
 
-#### Ce nu face
+#### What it doesn't do
 
-**Nu elimină declarații din interiorul unui modul.** Dacă imporți un singur tip
-de grafic dintr-un fișier care conține unsprezece, toate unsprezece rămân. Asta
-ar cere un graf de dependențe între declarații; granularitatea de modul acoperă
-cazul barrel-ului, care e cel care doare. De-asta importul adânc rămâne
-recomandat: `@raptor/ui/chart` aduce doar scale + Line/Area/Bar, nu și cele 11
-tipuri din `chart-extra`.
+**It doesn't eliminate declarations inside a module.** If you import a single chart
+type from a file that contains eleven, all eleven stay. That would require a
+dependency graph between declarations; module granularity covers the barrel case,
+which is the one that hurts. That's why the deep import stays recommended:
+`raptorjs/ui/chart` brings only scale + Line/Area/Bar, not the 11 types from `chart-extra`.
 
-#### Siguranță
+#### Safety
 
-Un re-export se taie **doar dacă modulul țintă e fără efecte secundare**. Sursa
-adevărului e `"sideEffects": false` din cel mai apropiat `package.json` — toate
-pachetele `@raptor/*` îl declară, fiind grafuri de module pure.
+A re-export is cut **only if the target module is side-effect-free**. The source of
+truth is `"sideEffects": false` from the nearest `package.json` — all `@raptor/*`
+packages declare it, being pure module graphs.
 
-Fără declarație, cădem pe o euristică conservatoare: orice instrucțiune de nivel
-înalt care nu e declarație (apel, atribuire, `if`, `for`) înseamnă „poate avea
-efecte", deci modulul rămâne. Două teste fixează exact acest comportament, în
-ambele sensuri.
+Without a declaration, we fall back to a conservative heuristic: any top-level
+statement that isn't a declaration (a call, an assignment, `if`, `for`) means
+"may have effects", so the module stays. Two tests pin exactly this behavior, in
+both directions.
 
-Mai sunt trei cazuri în care nu se taie nimic, intenționat:
+There are three more cases where nothing is cut, intentionally:
 
-- `import * as ns from "x"` — nu știm ce se folosește din namespace;
-- `import "x"` — modulul e cerut tocmai pentru efectele lui;
-- un simbol care nu se găsește nicăieri în graf (tip șters la transpilare, sau
-  import greșit) — păstrăm toate stelele, ca să nu stricăm build-ul.
+- `import * as ns from "x"` — we don't know what's used from the namespace;
+- `import "x"` — the module is requested precisely for its effects;
+- a symbol that isn't found anywhere in the graph (a type stripped at transpilation,
+  or a wrong import) — we keep all the stars, so we don't break the build.
 
 
 ### CLI
 
 ```bash
-# build: un singur fișier + index.html cu scriptul rescris
+# build: a single file + index.html with the rewritten script
 raptor-bundle build src/main.tsx --out dist/bundle.js --html index.html
 
-# dev: server node:http cu live-reload (SSE) pe fs.watch
+# dev: node:http server with live-reload (SSE) on fs.watch
 raptor-bundle dev src/main.tsx --root . --port 5173
 ```
 
-În `package.json`-ul aplicației:
+In the application's `package.json`:
 ```json
 {
   "scripts": {
     "dev": "raptor-bundle dev src/main.tsx --root . --port 5173",
     "build": "raptor-bundle build src/main.tsx --out dist/bundle.js --html index.html"
   },
-  "devDependencies": { "@raptor/bundle": "workspace:*" }
+  "devDependencies": { "@raptor/engine/bundle": "workspace:*" }
 }
 ```
 
-### API din cod
+### Code API
 
 ```ts
-import { bundleApp, startDevServer, transpile } from "@raptor/bundle";
+import { bundleApp, startDevServer, transpile } from "@raptor/engine/bundle";
 
-// 1. build programatic → string cu registru de module + require lazy
+// 1. programmatic build → string with a module registry + lazy require
 const { code, files } = bundleApp("/abs/path/src/main.tsx");
-//   files = graful inclus (entry primul); code = un singur bundle browser
+//   files = the included graph (entry first); code = a single browser bundle
 
-// 2. dev server (returnează http.Server)
+// 2. dev server (returns http.Server)
 startDevServer({ entry: "src/main.tsx", root: ".", port: 5173 });
 
-// 3. doar transformul (JSX → @raptor/dom/jsx-runtime, strip de tipuri)
+// 3. just the transform (JSX → raptorjs/dom/jsx-runtime, type stripping)
 const js = transpile("const x: number = 1; const el = <b>{x}</b>;", "m.tsx");
 ```
 
-**Cum funcționează:** transform per-modul (JSX + strip de tipuri, prin compilatorul
-TS) → descoperă `require("spec")`-urile emise → le rezolvă cu rezolverul Node → le
-rescrie la ID-uri numerice interne → împachetează într-un IIFE cu registru și
-`require` lazy. Graful `@raptor/*` e ESM închis și zero-dep, deci împachetarea e
-completă și deterministă.
+**How it works:** per-module transform (JSX + type stripping, via the TS
+compiler) → discovers the emitted `require("spec")` calls → resolves them with the
+Node resolver → rewrites them to internal numeric IDs → bundles into an IIFE with a
+registry and lazy `require`. The `@raptor/*` graph is closed ESM and zero-dep, so
+the bundling is complete and deterministic.
 
-**Limitări (v0.1):** fără code-splitting, fără minificare (pentru minificare,
-folosește pipeline-ul Căii C / RaptorEngine cu Oxc opțional); tree-shaking-ul
-lucrează la nivel de modul, nu de declarație (vezi [Tree-shaking](#tree-shaking));
-transportă doar module bundle-abile (`.ts/.tsx/.js/.jsx`), lasă `node:*` și
-externii neatinși.
+**Limitations (v0.1):** no code-splitting, no minification (for minification,
+use the Path C / RaptorEngine pipeline with optional Oxc); tree-shaking
+works at the module level, not the declaration level (see [Tree-shaking](#tree-shaking));
+it carries only bundle-able modules (`.ts/.tsx/.js/.jsx`), leaving `node:*` and
+externals untouched.
 
 ---
 
-## @raptor/wire-codec — primitive de codec
+## @raptor/wire/codec — codec primitives
 
-Nivelul cel mai de jos: encodare binară compactă (whitepaper §12). Îl folosești
-direct doar dacă scrii un transport sau un codec propriu; altfel `wire-core` îl
-împachetează pentru tine.
+The lowest level: compact binary encoding (whitepaper §12). You use it
+directly only if you're writing a transport or your own codec; otherwise `wire-core`
+wraps it for you.
 
-**Exportă:** `Writer`, `Reader`.
+**Exports:** `Writer`, `Reader`.
 
 ```ts
-import { Writer, Reader } from "@raptor/wire-codec";
+import { Writer, Reader } from "@raptor/wire/codec";
 
 const w = new Writer();
-w.varint(300);          // varint LEB128 (numere mici = 1 byte)
-w.zigzag(-7);           // zig-zag pentru întregi cu semn
+w.varint(300);          // LEB128 varint (small numbers = 1 byte)
+w.zigzag(-7);           // zig-zag for signed integers
 w.float64(3.14);        // 8 bytes IEEE-754
 w.string("hello");      // length-prefixed UTF-8
 w.bytes(new Uint8Array([1, 2, 3]));
@@ -1190,24 +1180,24 @@ r.bytes();    // Uint8Array [1,2,3]
 
 ---
 
-## @raptor/wire-core — opcodes, Document, protocol
+## @raptor/wire — opcodes, Document, protocol
 
-Inima protocolului **state-aware**: operații semantice delta peste un `Document`
-versionat, plus Reactive Address Space (RAS) și codec schema-aware.
+The heart of the **state-aware** protocol: semantic delta operations over a
+versioned `Document`, plus the Reactive Address Space (RAS) and a schema-aware codec.
 
-**Exportă:** `Document`, operațiile (`encodeOp`/`decodeOp`, `encodeOpsBatch`/`decodeOpsBatch`
-+ tipurile `SetOp`, `IncOp`, `AppendOp`, `InsertOp`, `RemoveOp`, `MoveOp`, `PatchOp`,
+**Exports:** `Document`, the operations (`encodeOp`/`decodeOp`, `encodeOpsBatch`/`decodeOpsBatch`
++ the types `SetOp`, `IncOp`, `AppendOp`, `InsertOp`, `RemoveOp`, `MoveOp`, `PatchOp`,
 `ClearOp`, `ReplaceOp`, `OpsBatch`), `Opcode`/`FrameType`, `AddressBook`, `SchemaCodec`,
-valorile (`writeValue`/`readValue`), protocolul de mesaje (`encodeMessage`/`decodeMessage`,
+the values (`writeValue`/`readValue`), the message protocol (`encodeMessage`/`decodeMessage`,
 `encodeOpsFrame`/`decodeOpsFrame`, `peekFrameType`).
 
-### Document versionat + operații delta
+### Versioned Document + delta operations
 
-Operațiile identifică ținta prin `handle` (obiectul) + `field` (câmpul). Fiecare
-`apply` întoarce un `Change` și crește `version`.
+The operations identify the target by `handle` (the object) + `field` (the field).
+Each `apply` returns a `Change` and increments `version`.
 
 ```ts
-import { Document } from "@raptor/wire-core";
+import { Document } from "@raptor/wire";
 
 const doc = new Document();
 doc.apply({ kind: "set",    handle: "job:1", field: "progress", value: 10 });
@@ -1218,38 +1208,37 @@ doc.apply({ kind: "insert", handle: "jobs",  index: 0, value: 9 });
 doc.apply({ kind: "remove", handle: "jobs",  index: 0 });
 
 doc.get("job:1");    // { name: "build", progress: 40 }
-doc.version;         // crește la fiecare aplicare — cheia pentru delta resync
-// alte kind-uri: "move", "clear", "replace". applyBatch(batch) setează resultVersion.
+doc.version;         // increments on each apply — the key for delta resync
+// other kinds: "move", "clear", "replace". applyBatch(batch) sets resultVersion.
 ```
 
-**Teza state-aware (whitepaper §13):** un `INC` pe un câmp e >10× mai mic pe fir
-decât re-serializarea întregului obiect ca JSON, pentru că trimiți *operația*, nu
-*documentul*.
+**The state-aware thesis (whitepaper §13):** an `INC` on a field is >10× smaller on
+the wire than re-serializing the whole object as JSON, because you send the
+*operation*, not the *document*.
 
 ### Reactive Address Space (RAS)
 
-Numele de câmp se trimit o singură dată; pe hot path circulă un ID compact
-session-scoped.
+Field names are sent once; on the hot path a compact session-scoped ID travels.
 
 ```ts
-import { AddressBook } from "@raptor/wire-core";
+import { AddressBook } from "@raptor/wire";
 
-const book = new AddressBook();               // ID-uri compacte din 0x1000
-const { address, isNew } = book.assign("job:1.progress"); // alocă / refolosește ID
+const book = new AddressBook();               // compact IDs from 0x1000
+const { address, isNew } = book.assign("job:1.progress"); // allocates / reuses ID
 book.handleOf(address);                        // "job:1.progress"
 book.addressOf("job:1.progress");              // address
-book.define(0x18A1, "BTC.price");              // fixează o adresă (ex. din manifest)
-// Pe fir zboară `address` (varint), nu string-ul de field repetat.
+book.define(0x18A1, "BTC.price");              // pins an address (e.g. from the manifest)
+// On the wire `address` (varint) flies, not the repeated field string.
 ```
 
-### Codec schema-aware (adaptive encoding, v0.2)
+### Schema-aware codec (adaptive encoding, v0.2)
 
-Constructorul primește direct un `Schema` = `Record<string, FieldSchema>`.
-Tipuri de field: `bool`, `uint`, `int`, `float`, `string`, `percentage` (→ 1 byte),
-`money` (int scalat prin `scale`), `enum` (index din `values`).
+The constructor takes a `Schema` = `Record<string, FieldSchema>` directly.
+Field types: `bool`, `uint`, `int`, `float`, `string`, `percentage` (→ 1 byte),
+`money` (int scaled by `scale`), `enum` (index from `values`).
 
 ```ts
-import { SchemaCodec } from "@raptor/wire-core";
+import { SchemaCodec } from "@raptor/wire";
 
 const codec = new SchemaCodec({
   progress: { type: "percentage" },
@@ -1260,34 +1249,34 @@ const codec = new SchemaCodec({
 
 ---
 
-## @raptor/server — SDK server RaptorWire
+## @raptor/wire/server — RaptorWire server SDK
 
-Store reactiv **autoritativ** + `query`/`mutation`/subscription. Serverul deține
-adevărul; clienții primesc snapshot + delta.
+**Authoritative** reactive store + `query`/`mutation`/subscription. The server holds
+the truth; clients receive snapshot + delta.
 
-**Exportă:** `raptorServer`, `PROTOCOL_VERSION`, `ReactiveStore` + tipurile
+**Exports:** `raptorServer`, `PROTOCOL_VERSION`, `ReactiveStore` + the types
 `RaptorServer`, `RaptorServerOptions`, `QueryDef`, `QueryContext`, `MutationDef`,
 `MutationContext`, `ServerConnection`, `Subscription`.
 
-### Definirea unui server
+### Defining a server
 
 ```ts
-import { raptorServer, type RaptorServer, type ReactiveStore } from "@raptor/server";
+import { raptorServer, type RaptorServer, type ReactiveStore } from "@raptor/wire/server";
 
 export function buildDashboardApp(): RaptorServer {
   const app = raptorServer({ build: "dashboard-0.1.0" });
 
-  // query = proiecția expusă clientului (ce prefixe de chei poate vedea)
+  // query = the projection exposed to the client (which key prefixes it can see)
   app.query("dashboard", {
     select: () => ["cpu", "memory", "jobs", "job:"],
   });
 
-  // mutation = comandă tipată client → server
+  // mutation = typed command client → server
   app.mutation("addJob", {
-    authorize: () => true,               // opțional: control de acces
+    authorize: () => true,               // optional: access control
     run: ({ input, store }) => {
       const job = input as { id: number; name: string };
-      store.transaction(() => {          // batch atomic → 1 commit pe client
+      store.transaction(() => {          // atomic batch → 1 commit on the client
         store.setField(`job:${job.id}`, "name", job.name);
         store.setField(`job:${job.id}`, "progress", 0);
         store.append("jobs", job.id);
@@ -1299,51 +1288,51 @@ export function buildDashboardApp(): RaptorServer {
   app.mutation("setProgress", {
     run: ({ input, store }) => {
       const { id, progress } = input as { id: number; progress: number };
-      store.patch(`job:${id}`, { progress });  // un singur field → delta minim
+      store.patch(`job:${id}`, { progress });  // a single field → minimal delta
       return { id, progress };
     },
   });
 
-  // seed inițial
+  // initial seed
   app.store.setSignal("cpu", 12);
   app.store.setSignal("memory", 40);
   return app;
 }
 ```
 
-### API-ul `ReactiveStore`
+### The `ReactiveStore` API
 
 ```ts
-store.setSignal("cpu", 12);                 // scrie un signal scalar
-store.setField("job:1", "name", "build");   // scrie un field pe un obiect
-store.patch("job:1", { progress: 40 });     // patch parțial de fields
-store.append("jobs", 1);                     // adaugă la o colecție
-store.remove("jobs", index);                 // scoate din colecție după index
-store.transaction(() => { /* ... */ });      // batch atomic (1 commit / frame)
-store.doc.get("messages");                   // acces la Document-ul subiacent
+store.setSignal("cpu", 12);                 // writes a scalar signal
+store.setField("job:1", "name", "build");   // writes a field on an object
+store.patch("job:1", { progress: 40 });     // partial patch of fields
+store.append("jobs", 1);                     // appends to a collection
+store.remove("jobs", index);                 // removes from a collection by index
+store.transaction(() => { /* ... */ });      // atomic batch (1 commit / frame)
+store.doc.get("messages");                   // access to the underlying Document
 ```
 
-### Expunere pe transport
+### Exposing on a transport
 
 ```ts
-app.serve(link.server);   // leagă serverul de un transport (ex. loopback)
+app.serve(link.server);   // binds the server to a transport (e.g. loopback)
 ```
 
 ---
 
-## @raptor/wire-client — sesiune + replică reactivă
+## @raptor/wire/client — session + reactive replica
 
-Clientul: handshake, subscription, **replică reactivă** (fiecare handle e un
-signal `@raptor/core`), reconnect cu delta resync. Include transportul loopback
-pentru rulare in-process (teste, demo-uri).
+The client: handshake, subscription, **reactive replica** (each handle is a
+`raptorjs` signal), reconnect with delta resync. It includes the loopback transport
+for in-process running (tests, demos).
 
-**Exportă:** `RaptorClient` + `RaptorClientOptions`; transport `createLoopback`,
-`flushLoopback`, + tipurile `Transport`, `Loopback`, `LoopbackStats`.
+**Exports:** `RaptorClient` + `RaptorClientOptions`; transport `createLoopback`,
+`flushLoopback`, + the types `Transport`, `Loopback`, `LoopbackStats`.
 
 ```ts
-import { createLoopback, flushLoopback, RaptorClient } from "@raptor/wire-client";
+import { createLoopback, flushLoopback, RaptorClient } from "@raptor/wire/client";
 
-// 1. Transport loopback (client ↔ server in-process)
+// 1. Loopback transport (client ↔ server in-process)
 const link = createLoopback();
 app.serve(link.server);
 
@@ -1351,43 +1340,43 @@ app.serve(link.server);
 const client = new RaptorClient(link.client, { build: "web-0.1.0" });
 await client.connect();
 client.subscribe("dashboard");
-await flushLoopback();          // livrează mesajele în coadă
+await flushLoopback();          // delivers the queued messages
 
-// 3. Citește starea ca SIGNALS reactive
-client.signal("cpu")();                       // valoarea curentă
-client.signal<number[]>("jobs")();            // array de id-uri
-// un effect() pe client.signal(...) se re-rulează la fiecare delta primit
+// 3. Read the state as reactive SIGNALS
+client.signal("cpu")();                       // the current value
+client.signal<number[]>("jobs")();            // array of ids
+// an effect() on client.signal(...) re-runs on every delta received
 
-// 4. Metadate de sesiune
-client.sessionId;          // id sesiune
-client.epoch;              // epoca de conexiune
-client.version;            // versiunea Document-ului replicat
-client.snapshotsReceived;  // câte snapshot-uri full a primit (buget: 1)
+// 4. Session metadata
+client.sessionId;          // session id
+client.epoch;              // connection epoch
+client.version;            // version of the replicated Document
+client.snapshotsReceived;  // how many full snapshots it received (budget: 1)
 
-// 5. Mutații tipate
+// 5. Typed mutations
 const res = await client.mutate("addJob", { id: 4, name: "notify" });
 await flushLoopback();
 res.value;   // { ok: true, id: 4 }
 
-// 6. Automatic delta resync la reconnect (v0.2 §14.3)
+// 6. Automatic delta resync on reconnect (v0.2 §14.3)
 client.close();                         // offline
-app.store.setSignal("cpu", 999);        // schimbare pierdută cât e offline
+app.store.setSignal("cpu", 999);        // change lost while offline
 const link2 = createLoopback();
 app.serve(link2.server);
-await client.resume(link2.client, "dashboard");  // cere delta de la versiunea cunoscută
+await client.resume(link2.client, "dashboard");  // requests the delta from the known version
 await flushLoopback();
-// client.snapshotsReceived NU crește: starea s-a recuperat prin delta, nu full resend.
+// client.snapshotsReceived does NOT increase: the state recovered via delta, not a full resend.
 ```
 
 ---
 
 ## End-to-end: server ↔ RaptorWire ↔ client ↔ DOM
 
-Bucla completă din `examples/realtime-dashboard`, headless pe Node:
+The complete loop from `examples/realtime-dashboard`, headless on Node:
 
 ```ts
-import { installMiniDom, resetStats, stats } from "@raptor/dom/testing";
-import { createLoopback, flushLoopback, RaptorClient } from "@raptor/wire-client";
+import { installMiniDom, resetStats, stats } from "raptorjs/dom/testing";
+import { createLoopback, flushLoopback, RaptorClient } from "@raptor/wire/client";
 import { buildDashboardApp } from "./app.ts";
 
 const doc = installMiniDom();
@@ -1403,77 +1392,77 @@ await client.connect();
 client.subscribe("dashboard");
 await flushLoopback();
 
-// randare fine-grained: leagă client.signal(...) de text-node-uri prin mountChild
+// fine-grained rendering: bind client.signal(...) to text-nodes via mountChild
 const root = doc.createElement("div");
-renderDashboard(client, doc, root);   // vezi examples/.../view.ts
+renderDashboard(client, doc, root);   // see examples/.../view.ts
 
-// tick live: 1 batch delta → doar textul afectat se mută în DOM
+// live tick: 1 delta batch → only the affected text moves in the DOM
 resetStats();
 app.store.transaction(() => {
   app.store.setSignal("cpu", 40);
   app.store.patch("job:1", { progress: 55 });
 });
 await flushLoopback();
-stats.createElement;   // 0  — niciun nod recreat
-stats.textUpdate;      // exact bindingurile afectate
+stats.createElement;   // 0  — no node recreated
+stats.textUpdate;      // exactly the affected bindings
 
-// măsoară octeții pe fir
-link.stats.serverToClientBytes;   // delta RaptorWire (mult sub JSON full-resend)
+// measure the bytes on the wire
+link.stats.serverToClientBytes;   // RaptorWire delta (far below a JSON full-resend)
 ```
 
 ---
 
-## @raptor/compiler — parser `.raptor`, IR, graf semantic
+## @raptor/engine/compiler — `.raptor` parser, IR, semantic graph
 
-Nucleul semantic **stabil**, independent de bundler. Parsează `.raptor` în Raptor
-IR (cu stable IDs), construiește Semantic Application Graph și calculează diff-ul
-pentru HMR.
+The **stable** semantic core, independent of the bundler. It parses `.raptor` into
+Raptor IR (with stable IDs), builds the Semantic Application Graph and computes the
+diff for HMR.
 
-**Exportă:** `parseModule`, `RaptorParseError`; IR (`serializeIR`, `stableId`,
-`canonicalize`, `IRNodeKind` + tipuri `IRModule`, `IRComponent`, `IRSignal`,
-`IRDerived`, `IRServerSignal`, `IREffect`, `IRElement`, …); expresii
-(`parseExpression`, `analyze`, `exprToJs`, `ExprKind`, …); graf (`buildGraph`,
+**Exports:** `parseModule`, `RaptorParseError`; IR (`serializeIR`, `stableId`,
+`canonicalize`, `IRNodeKind` + the types `IRModule`, `IRComponent`, `IRSignal`,
+`IRDerived`, `IRServerSignal`, `IREffect`, `IRElement`, …); expressions
+(`parseExpression`, `analyze`, `exprToJs`, `ExprKind`, …); graph (`buildGraph`,
 `SemanticGraph`, `GraphNodeKind`, `EdgeType`); diff (`diffModules`, `GraphDiff`,
 `ComponentPatch`, `WireChange`).
 
 ```ts
-import { parseModule, buildGraph, diffModules, serializeIR } from "@raptor/compiler";
+import { parseModule, buildGraph, diffModules, serializeIR } from "@raptor/engine/compiler";
 
-// 1. sursă .raptor → IR
+// 1. .raptor source → IR
 const ir = parseModule(source, "App.raptor");
 ir.components;                    // IRComponent[] (signals, deriveds, bindings, wire)
-console.log(serializeIR(ir));    // formă canonică, serializabilă pentru cache
+console.log(serializeIR(ir));    // canonical form, serializable for cache
 
-// 2. IR → graf semantic (module → component → signal → derived → DOM binding)
+// 2. IR → semantic graph (module → component → signal → derived → DOM binding)
 const graph = buildGraph(ir);
-// nodurile au stable IDs; liveness = are drum spre un output observabil?
+// nodes have stable IDs; liveness = does it have a path to an observable output?
 
-// 3. diff între două versiuni (baza pentru Stateful Reactive HMR)
+// 3. diff between two versions (the basis for Stateful Reactive HMR)
 const next = parseModule(editedSource, "App.raptor");
 const diff = diffModules(ir, next);
-diff.componentPatches;   // ce se poate patcha state-preserving
-diff.wireChanges;        // schimbări de schemă/RAS
+diff.componentPatches;   // what can be patched state-preserving
+diff.wireChanges;        // schema/RAS changes
 ```
 
-> Acest pachet e „creierul": `@raptor/engine`, `@raptor/run` și `@raptor/profile`
-> consumă IR-ul și graful de aici. E deliberat separat de orice bundler.
+> This package is the "brain": `@raptor/engine`, `@raptor/engine/run` and `@raptor/engine/profile`
+> consume the IR and the graph from here. It's deliberately separate from any bundler.
 
 ---
 
 ## @raptor/engine — build, optimize, codegen, HMR, CLI
 
-Orchestrarea RaptorEngine: optimizer semantic (Dead Signal Elimination, Dependency
-Fusion), codegen multi-target (browser/server/wire) **dintr-un singur graf**,
-Stateful Reactive HMR, caching reproductibil, manifest, și CLI-ul `raptor`.
+The RaptorEngine orchestration: semantic optimizer (Dead Signal Elimination, Dependency
+Fusion), multi-target codegen (browser/server/wire) **from a single graph**,
+Stateful Reactive HMR, reproducible caching, manifest, and the `raptor` CLI.
 
-**Exportă:** `buildModule`, `buildModuleAsync` (+ `BuildResult`, `BuildOptions`, `Chunk`);
+**Exports:** `buildModule`, `buildModuleAsync` (+ `BuildResult`, `BuildOptions`, `Chunk`);
 `optimize`; codegen `emitBrowser`/`emitServer`/`emitWireManifest`; `defineConfig`/`resolveConfig`/`BuildProfile`;
 `DevEngine`/`formatUpdateLog`; caching `computeCacheKey`/`SemanticCache`/`ENGINE_VERSION`;
 `buildManifest`; low-level `NaiveEngine`/`createRolldownEngine`/`loadLowLevelEngine`/`detectToolchain`;
 inspect `inspectGraph`/`invalidationTrace`/`formatOptimizationTrace`/`analyzeReport`;
 CLI `runCli`/`runCliAsync`.
 
-### Build dintr-un singur graf
+### Build from a single graph
 
 ```ts
 import {
@@ -1485,24 +1474,24 @@ import { readFileSync } from "node:fs";
 const source = readFileSync("App.raptor", "utf8");
 const result = buildModule(source, "App.raptor");
 
-console.log(analyzeReport(result));                    // raport lizibil
-console.log(formatOptimizationTrace(result.optimization)); // ce a eliminat DSE/Fusion
-console.log(inspectGraph(result.graph));               // dump graf semantic
+console.log(analyzeReport(result));                    // readable report
+console.log(formatOptimizationTrace(result.optimization)); // what DSE/Fusion eliminated
+console.log(inspectGraph(result.graph));               // semantic graph dump
 
-result.browser;        // cod browser generat (rulează pe @raptor/core + @raptor/dom)
-result.server.code;    // producers server
+result.browser;        // generated browser code (runs on raptorjs + raptorjs/dom)
+result.server.code;    // server producers
 result.server.producers;   // [{ address: "BTC.price", ... }]
-result.wire;           // manifest RAS (addresses cu schemă)
-result.manifest;       // build manifest reproductibil (Appendix B)
-result.chunks;         // chunking per profil
-result.ir;             // IR-ul (result.ir.components)
+result.wire;           // RAS manifest (addresses with schema)
+result.manifest;       // reproducible build manifest (Appendix B)
+result.chunks;         // chunking per profile
+result.ir;             // the IR (result.ir.components)
 ```
 
-**Ce face optimizerul** (din `App.raptor` exemplu):
-- `unused` derived (fără drum spre output) → **eliminat** de Dead Signal Elimination.
-- `label` (consumator unic) → **fuzionat** în binding de Dependency Fusion
-  (blocat dacă are `@debug`).
-- `price` server signal → adresă RAS `0x18A1` cu schema `money` în manifestul wire.
+**What the optimizer does** (from the `App.raptor` example):
+- `unused` derived (no path to output) → **eliminated** by Dead Signal Elimination.
+- `label` (single consumer) → **fused** into the binding by Dependency Fusion
+  (blocked if it has `@debug`).
+- `price` server signal → RAS address `0x18A1` with the `money` schema in the wire manifest.
 
 ### Stateful Reactive HMR
 
@@ -1510,31 +1499,31 @@ result.ir;             // IR-ul (result.ir.components)
 const dev = new DevEngine();
 dev.update("App.raptor", source);
 
-// edit de expresie (nu atinge structura) → patch state-preserving
+// expression edit (doesn't touch structure) → state-preserving patch
 const edited = source.replace("count * 2", "count * 3");
-console.log(formatUpdateLog(dev.update("App.raptor", edited)));   // "patched", state păstrat
+console.log(formatUpdateLog(dev.update("App.raptor", edited)));   // "patched", state preserved
 
-// edit structural (adaugă un element) → remount, cu MOTIV explicit
-const structural = source.replace("<hr/>-ul lipsă", "...");
+// structural edit (adds an element) → remount, with an explicit REASON
+const structural = source.replace("missing <hr/>", "...");
 console.log(formatUpdateLog(dev.update("App.raptor", structural))); // "remount: reason=..."
 ```
 
-### Build async cu engine low-level opțional (Rolldown/Oxc)
+### Async build with optional low-level engine (Rolldown/Oxc)
 
 ```ts
 import { buildModuleAsync, detectToolchain } from "@raptor/engine";
 
-console.log(detectToolchain());   // { rolldown: false, oxc: false } dacă nu-s instalate
-// buildModuleAsync detectează dinamic Rolldown/Oxc; fără ele → fallback naiv zero-dep.
+console.log(detectToolchain());   // { rolldown: false, oxc: false } if they aren't installed
+// buildModuleAsync detects Rolldown/Oxc dynamically; without them → naive zero-dep fallback.
 const out = await buildModuleAsync(source, "App.raptor", { minify: true });
 ```
 
-### Caching reproductibil
+### Reproducible caching
 
 ```ts
 import { computeCacheKey, SemanticCache } from "@raptor/engine";
 
-// cheia = source + versiune compiler + profil + target + compat schemă
+// the key = source + compiler version + profile + target + schema compat
 const key = computeCacheKey({ source, target: "browser", profile: "production" });
 const cache = new SemanticCache();
 if (!cache.has(key)) cache.set(key, result);
@@ -1542,38 +1531,38 @@ if (!cache.has(key)) cache.set(key, result);
 
 ---
 
-## @raptor/run — server runtime + SSR + dev server
+## @raptor/engine/run — server runtime + SSR + dev server
 
-Leagă `serverSignal` → store reactiv → RaptorWire → client **din același graf**,
-plus routing, SSR/resume, sesiuni, observability, și un dev server live (fs.watch
-→ HMR prin SSE).
+Connects `serverSignal` → reactive store → RaptorWire → client **from the same graph**,
+plus routing, SSR/resume, sessions, observability, and a live dev server (fs.watch
+→ HMR via SSE).
 
-**Exportă:** `RaptorRuntime` (+ `RunConfig`, `ServerSignalDef`, `RuntimeMetrics`,
+**Exports:** `RaptorRuntime` (+ `RunConfig`, `ServerSignalDef`, `RuntimeMetrics`,
 `RuntimeEvent`, `HttpResult`, `Channel`); `renderComponent`/`renderDocument` (+ `SsrResult`,
-`ResumePayload`, `SsrOptions`); `matchRoute`/`RouteDef`; `evalExpr`/`Env`; nod HTTP real
+`ResumePayload`, `SsrOptions`); `matchRoute`/`RouteDef`; `evalExpr`/`Env`; real HTTP node
 `createNodeServer`/`listen`/`closeServer`; `RaptorDevServer`/`readFirstSseEvent`; CLI `runRunCli`.
 
-### Runtime din build + SSR + server signal reactiv
+### Runtime from build + SSR + reactive server signal
 
 ```ts
 import { buildModule } from "@raptor/engine";
-import { RaptorRuntime, renderDocument } from "@raptor/run";
-import { RaptorClient } from "@raptor/wire-client";
+import { RaptorRuntime, renderDocument } from "@raptor/engine/run";
+import { RaptorClient } from "@raptor/wire/client";
 
 const result = buildModule(source, "App.raptor");
 const runtime = RaptorRuntime.fromBuild(result, { initial: { "BTC.price": 60000 } });
 
-// SSR: HTML server-rendered din același graf
+// SSR: server-rendered HTML from the same graph
 const ssr = runtime.ssr("/");
 console.log(renderDocument(ssr, ssr.resume.component));
 
-// server signal → RaptorWire → client reactiv
+// server signal → RaptorWire → reactive client
 const client = new RaptorClient(runtime.connect());
 await client.connect();
 client.subscribe("signals");
 
-runtime.produce("BTC.price", 61000);   // serverul produce
-// → client.signal("BTC.price")() devine 61000 reactiv
+runtime.produce("BTC.price", 61000);   // the server produces
+// → client.signal("BTC.price")() becomes 61000 reactively
 
 // observability
 runtime.metrics;              // { activeConnections, ... }
@@ -1581,10 +1570,10 @@ runtime.log;                  // event log
 runtime.shutdown();
 ```
 
-### Server Node HTTP real
+### Real Node HTTP server
 
 ```ts
-import { createNodeServer, listen, closeServer } from "@raptor/run";
+import { createNodeServer, listen, closeServer } from "@raptor/engine/run";
 
 const server = createNodeServer(runtime);
 const { port } = await listen(server, 0);
@@ -1592,45 +1581,45 @@ const res = await fetch(`http://localhost:${port}/`);
 await closeServer(server);
 ```
 
-### Dev server live (HMR prin SSE)
+### Live dev server (HMR via SSE)
 
 ```ts
-import { RaptorDevServer } from "@raptor/run";
+import { RaptorDevServer } from "@raptor/engine/run";
 
 const dev = new RaptorDevServer({ entry: "App.raptor" });
-// fs.watch → recompilare incrementală → diff → push HMR pe /  (SSE)
-// clientul face swap pe #raptor-root; SSR se re-randează.
+// fs.watch → incremental recompile → diff → push HMR on /  (SSE)
+// the client swaps on #raptor-root; SSR re-renders.
 ```
 
-CLI echivalent: `pnpm raptor:dev examples/raptorengine-app/src/App.raptor`.
+CLI equivalent: `pnpm raptor:dev examples/raptorengine-app/src/App.raptor`.
 
 ---
 
-## @raptor/profile — telemetrie + PGO
+## @raptor/engine/profile — telemetry + PGO
 
-Colectează telemetrie runtime (frecvența signalelor, fan-out de derived, co-usage
-de rute, payload wire, DOM bursts) și emite un **plan de hints de strategie**
-(chunk folding, preload, batch, encoding) consumat de `buildModule({ planHints })`.
+Collects runtime telemetry (signal frequency, derived fan-out, route co-usage,
+wire payload, DOM bursts) and emits a **strategy-hints plan** (chunk folding,
+preload, batch, encoding) consumed by `buildModule({ planHints })`.
 
-> **Regula de aur (whitepaper §24): adaptive *strategies*, nu adaptive *correctness*.**
-> Ce nu apare în profil e **păstrat**, niciodată eliminat. Profilul nu schimbă
-> vreodată corectitudinea, doar strategia.
+> **The golden rule (whitepaper §24): adaptive *strategies*, not adaptive *correctness*.**
+> What doesn't appear in the profile is **kept**, never eliminated. The profile never
+> changes correctness, only strategy.
 
-**Exportă:** `Profiler`/`DEFAULT_THRESHOLDS`; `runScenario`/`wireByteSize` (+ `Scenario`,
+**Exports:** `Profiler`/`DEFAULT_THRESHOLDS`; `runScenario`/`wireByteSize` (+ `Scenario`,
 `ScenarioStep`); `planFromProfile`/`DEFAULT_PLAN_OPTIONS` (+ `PlanResult`, `PlanContext`,
 `PlanOptions`); `emptyProfile`/`serializeProfile`/`PROFILE_VERSION`; CLI `runProfileCli`.
 
-### Bucla PGO completă
+### The complete PGO loop
 
 ```ts
 import { buildModule } from "@raptor/engine";
-import { RaptorRuntime } from "@raptor/run";
-import { Profiler, runScenario, planFromProfile, serializeProfile } from "@raptor/profile";
+import { RaptorRuntime } from "@raptor/engine/run";
+import { Profiler, runScenario, planFromProfile, serializeProfile } from "@raptor/engine/profile";
 
 const result = buildModule(source, "App.raptor");
 const runtime = RaptorRuntime.fromBuild(result, { initial: { "BTC.price": 60000 } });
 
-// 1. rulează un scenariu reprezentativ pe runtime, colectând telemetrie
+// 1. run a representative scenario on the runtime, collecting telemetry
 const profiler = new Profiler(result.graph);
 runScenario(runtime, profiler, {
   sessions: [
@@ -1641,7 +1630,7 @@ runScenario(runtime, profiler, {
 const profile = profiler.finish();
 console.log(serializeProfile(profile));   // raptor.profile
 
-// 2. profil → plan de hints (strategie)
+// 2. profile → hints plan (strategy)
 const plan = planFromProfile(profile, {
   routes: [{ path: "/", component: "App" }],
   components: result.ir.components.map((c) => c.name),
@@ -1650,37 +1639,37 @@ const plan = planFromProfile(profile, {
 plan.hints.preloadRoutes;
 plan.hints.encodingSpecialization;
 plan.hints.batchSizes;
-plan.keptDespiteUnseen;    // dovada §24: păstrat deși nevăzut în profil
+plan.keptDespiteUnseen;    // §24 proof: kept even though unseen in the profile
 
-// 3. rebuild profile-guided
+// 3. profile-guided rebuild
 const guided = buildModule(source, "App.raptor", { planHints: plan.hints });
 guided.manifest.hintsApplied;
-guided.wire.addresses;      // adresele rămân — corectitudinea nu depinde de profil
+guided.wire.addresses;      // the addresses stay — correctness doesn't depend on the profile
 ```
 
 ---
 
-## @raptor/test — testare comportamentală autonomă
+## @raptor/test — autonomous behavioral testing
 
-Descoperă singur comportamentul aplicației, sintetizează un backend digital twin
-stateful și explorează spațiul de stări:
-`observe → infer → synthesize → explore → verify → replay`. **Fără teste scrise de mână.**
+It discovers the application's behavior on its own, synthesizes a stateful
+digital-twin backend and explores the state space:
+`observe → infer → synthesize → explore → verify → replay`. **No hand-written tests.**
 
-**Exportă:** `RaptorTest` (+ `RaptorTestConfig`, `ScenarioResult`, `Finding`);
+**Exports:** `RaptorTest` (+ `RaptorTestConfig`, `ScenarioResult`, `Finding`);
 `VirtualClock`; `VirtualDB`/`RaptorTwin` (+ `TwinRequest`, `TwinResponse`, `RouteHandler`);
 `NetworkController`/`defaultSchedule`/`DEFAULT_TIMING`; `BehaviorGraph`/`stateId`;
 `Coverage`; explorer `actionScore`/`pickBest`; oracle (`evaluate`, `BUILTIN_INVARIANTS`,
 `noExceptions`, `noInfiniteLoading`, `Invariant`, …); `chaosSchedules`; replay
 `serializeCapsule`/`parseCapsule`; semantic (`semanticId`, `stableKey`, `actionId`, …);
-+ tipurile din `types.ts` (`AppHarness`, `Capsule`, `ProbeEvent`, `NetworkSchedule`, …).
++ the types from `types.ts` (`AppHarness`, `Capsule`, `ProbeEvent`, `NetworkSchedule`, …).
 
-### Ciclul autonom complet
+### The complete autonomous cycle
 
 ```ts
 import { RaptorTest, serializeCapsule } from "@raptor/test";
 import { buildCartApp } from "./app.ts";
 
-const app = buildCartApp();       // furnizează harness + twin + invariants
+const app = buildCartApp();       // provides harness + twin + invariants
 const rt = new RaptorTest({
   harness: app.harness,
   twin: app.twin,
@@ -1689,69 +1678,69 @@ const rt = new RaptorTest({
   buildFingerprint: "cart@demo",
 });
 
-// 1. descoperire autonomă de secvențe (BFS ghidat de coverage)
+// 1. autonomous sequence discovery (coverage-guided BFS)
 const sequences = rt.discover();
 rt.coverage.count("uiStates");
 rt.coverage.count("transitions");
 rt.coverage.count("apiInteractions");
 
-// 2. explorare + chaos (RaptorChaos) + oracle (RaptorOracle) → capsule
+// 2. exploration + chaos (RaptorChaos) + oracle (RaptorOracle) → capsules
 const findings = rt.explore();
 for (const finding of findings) {
   const c = finding.capsule;
-  c.failedOracle;      // ce invariant a picat
-  c.actionLog;         // reproducere MINIMIZATĂ
+  c.failedOracle;      // which invariant failed
+  c.actionLog;         // MINIMIZED reproduction
   c.detail;
 
-  // 3. replay determinist (timp virtual → reproducere identică)
+  // 3. deterministic replay (virtual time → identical reproduction)
   const replay = rt.replay(c);
   replay.reproduced;   // true
 }
 
-// 4. artefact executabil .raptorcap
+// 4. executable .raptorcap artifact
 if (findings.length > 0) {
   console.log(serializeCapsule(findings[0].capsule));
 }
 ```
 
-### Ce descoperă autonom (din demo)
+### What it discovers autonomously (from the demo)
 
-- **Bug stale-read RT-184:** `Add to cart` → navigare imediată → un `GET /cart`
-  întârziat suprascrie UI-ul cu starea veche (UI arată 0, serverul are 1).
-  Minimizat la 2 acțiuni, reprodus determinist dintr-o capsulă `.raptorcap`.
-- **Bug de robustețe:** la `POST 500`, aplicația citește orbește `.count` dintr-un
-  răspuns de eroare.
+- **Stale-read bug RT-184:** `Add to cart` → immediate navigation → a delayed `GET /cart`
+  overwrites the UI with the old state (UI shows 0, the server has 1).
+  Minimized to 2 actions, reproduced deterministically from a `.raptorcap` capsule.
+- **Robustness bug:** on `POST 500`, the application blindly reads `.count` from an
+  error response.
 
-Totul e determinist prin **timp virtual** (`VirtualClock` = scheduler discret de
-evenimente): aceeași capsulă → identic aceeași execuție.
+Everything is deterministic through **virtual time** (`VirtualClock` = a discrete
+event scheduler): the same capsule → the exact same execution.
 
-### Componente refolosibile
+### Reusable components
 
 ```ts
 import { VirtualClock, RaptorTwin, VirtualDB, Coverage, evaluate, BUILTIN_INVARIANTS } from "@raptor/test";
 
-const clock = new VirtualClock();          // scheduler discret determinist
-const db = new VirtualDB();                 // stare backend in-memory
-const twin = new RaptorTwin(db, routes);    // backend digital twin din rute observate
-const cov = new Coverage();                 // urmărește uiStates / transitions / apiInteractions
-evaluate(BUILTIN_INVARIANTS, context);      // rulează oracolele pe o stare
+const clock = new VirtualClock();          // deterministic discrete scheduler
+const db = new VirtualDB();                 // in-memory backend state
+const twin = new RaptorTwin(db, routes);    // backend digital twin from observed routes
+const cov = new Coverage();                 // tracks uiStates / transitions / apiInteractions
+evaluate(BUILTIN_INVARIANTS, context);      // runs the oracles on a state
 ```
 
 ---
 
-## Formatul `.raptor`
+## The `.raptor` format
 
-Un fișier `.raptor` descrie o componentă declarativ; compilerul o descompune în
-signals / deriveds / server signals / bindings și generează browser + server + wire
-dintr-un singur graf.
+A `.raptor` file describes a component declaratively; the compiler decomposes it
+into signals / deriveds / server signals / bindings and generates browser + server + wire
+from a single graph.
 
 ```raptor
 component App {
   const count = state(0)
-  const doubled = derived(() => count * 2)          // 2 consumatori → supraviețuiește fuziunii
-  const label = derived(() => "clicks: " + count)   // consumator unic → fuzionat în binding
-  const unused = derived(() => doubled + count + 999) // fără output → eliminat (DSE)
-  const price = serverSignal("BTC.price", schema.money) // → schemă + adresă RAS în manifest
+  const doubled = derived(() => count * 2)          // 2 consumers → survives fusion
+  const label = derived(() => "clicks: " + count)   // single consumer → fused into the binding
+  const unused = derived(() => doubled + count + 999) // no output → eliminated (DSE)
+  const price = serverSignal("BTC.price", schema.money) // → schema + RAS address in the manifest
 
   <div class="app">
     <button on:click={count++}>increment</button>
@@ -1762,20 +1751,20 @@ component App {
 }
 ```
 
-- `state(v)` — signal local mutabil.
-- `derived(() => expr)` — valoare derivată; fuzionată dacă are consumator unic
-  (blocată la `@debug`); eliminată dacă nu ajunge la un output observabil.
-- `serverSignal("addr", schema.T)` — signal produs de server; devine o adresă RAS
-  cu schemă în manifestul wire.
-- `on:click={count++}` — event binding; `{expr}` în markup — text/attr binding fine-grained.
+- `state(v)` — mutable local signal.
+- `derived(() => expr)` — derived value; fused if it has a single consumer
+  (blocked at `@debug`); eliminated if it doesn't reach an observable output.
+- `serverSignal("addr", schema.T)` — a signal produced by the server; becomes a RAS
+  address with a schema in the wire manifest.
+- `on:click={count++}` — event binding; `{expr}` in markup — fine-grained text/attr binding.
 
-Compilează-l cu `buildModule(source, "App.raptor")` sau CLI `raptor build`.
+Compile it with `buildModule(source, "App.raptor")` or the `raptor build` CLI.
 
 ---
 
-## Referință CLI
+## CLI reference
 
-Trei CLI-uri, expuse prin scripturi npm și ca binare `raptor` / `raptor-run` / `raptor-profile`.
+Three CLIs, exposed through npm scripts and as the binaries `raptor` / `raptor-run` / `raptor-profile`.
 
 ### `raptor` (build/inspect — `@raptor/engine`)
 
@@ -1783,24 +1772,24 @@ Trei CLI-uri, expuse prin scripturi npm și ca binare `raptor` / `raptor-run` / 
 pnpm raptor build   examples/raptorengine-app/src/App.raptor --report
 pnpm raptor inspect graph examples/raptorengine-app/src/App.raptor
 pnpm raptor analyze examples/raptorengine-app/src/App.raptor
-pnpm raptor toolchain          # detectează Rolldown/Oxc instalate
+pnpm raptor toolchain          # detects installed Rolldown/Oxc
 ```
 
-### `raptor:run` (server runtime — `@raptor/run`)
+### `raptor:run` (server runtime — `@raptor/engine/run`)
 
 ```bash
 pnpm raptor:run info examples/raptorengine-app/src/App.raptor
-pnpm raptor:run ssr  examples/raptorengine-app/src/App.raptor    # emite HTML SSR
-pnpm raptor:dev      examples/raptorengine-app/src/App.raptor    # dev server live (HMR/SSE)
+pnpm raptor:run ssr  examples/raptorengine-app/src/App.raptor    # emits SSR HTML
+pnpm raptor:dev      examples/raptorengine-app/src/App.raptor    # live dev server (HMR/SSE)
 ```
 
-### `raptor:profile` (PGO — `@raptor/profile`)
+### `raptor:profile` (PGO — `@raptor/engine/profile`)
 
 ```bash
 pnpm raptor:profile examples/raptorengine-app/src/App.raptor
 ```
 
-### Engine low-level opțional (Rolldown/Oxc)
+### Optional low-level engine (Rolldown/Oxc)
 
 ```bash
 cd integrations/rolldown && npm install && npm run verify
@@ -1809,5 +1798,5 @@ cd integrations/rolldown && npm install && npm run verify
 
 ---
 
-*Vezi și [`README.md`](../README.md) (arhitectură), [`SPEC-RaptorWire-v0.2.md`](../SPEC-RaptorWire-v0.2.md)
-(protocol) și whitepaper-urile din [`design/`](../design/).*
+*See also [`README.md`](../README.md) (architecture), [`SPEC-RaptorWire-v0.2.md`](../SPEC-RaptorWire-v0.2.md)
+(protocol) and the whitepapers in [`design/`](../design/).*

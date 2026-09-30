@@ -1,16 +1,16 @@
-//! Erorile RaptorRuntime (spec sectiunea 3: implementare originala, fara text
-//! de eroare copiat din alte runtime-uri).
+//! RaptorRuntime errors (spec section 3: original implementation, no error text
+//! copied from other runtimes).
 //!
-//! Fiecare eroare poarta un cod stabil `raptor:<domeniu>/<motiv>`, identic cu
-//! cel din implementarea TypeScript. Asta este ce face migrarea la host-ul
-//! nativ invizibila pentru aplicatii: testele de contract verifica acelasi cod,
-//! nu formularea mesajului.
+//! Every error carries a stable code `raptor:<domain>/<reason>`, identical to
+//! the one in the TypeScript implementation. This is what makes migration to the
+//! native host invisible to applications: the contract tests check the same
+//! code, not the wording of the message.
 
 use std::collections::BTreeMap;
 use std::fmt;
 
-/// Codurile de eroare expuse aplicatiilor. Lista este inchisa intentionat:
-/// un cod nou este o schimbare de contract, nu un detaliu de implementare.
+/// The error codes exposed to applications. The list is intentionally closed:
+/// a new code is a contract change, not an implementation detail.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ErrorCode {
     CapabilityDenied,
@@ -50,8 +50,8 @@ impl fmt::Display for ErrorCode {
     }
 }
 
-/// Eroarea unificata a runtime-ului. `detail` este ordonat (BTreeMap) ca
-/// diagnosticele serializate sa fie deterministe.
+/// The runtime's unified error. `detail` is ordered (BTreeMap) so that the
+/// serialized diagnostics are deterministic.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RaptorError {
     pub code: ErrorCode,
@@ -64,16 +64,16 @@ impl RaptorError {
         Self { code, message: message.into(), detail: BTreeMap::new() }
     }
 
-    /// Adauga o pereche in diagnostic; se inlantuie la constructie.
+    /// Adds a pair to the diagnostics; chains at construction.
     #[must_use]
     pub fn with(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.detail.insert(key.into(), value.into());
         self
     }
 
-    /// Refuz de capability: singura cale prin care host-ul blocheaza un acces.
+    /// Capability denial: the only way the host blocks an access.
     pub fn capability(code: ErrorCode, capability: &str, target: &str, reason: &str) -> Self {
-        Self::new(code, format!("capability '{capability}' nu acopera '{target}': {reason}"))
+        Self::new(code, format!("capability '{capability}' does not cover '{target}': {reason}"))
             .with("capability", capability)
             .with("target", target)
             .with("reason", reason)
@@ -104,8 +104,8 @@ mod tests {
             ErrorCode::EngineEvaluation,
         ] {
             let text = code.as_str();
-            assert!(text.starts_with("raptor:"), "{text} nu are prefixul de produs");
-            assert!(text.contains('/'), "{text} nu are forma domeniu/motiv");
+            assert!(text.starts_with("raptor:"), "{text} has no product prefix");
+            assert!(text.contains('/'), "{text} does not have the domain/reason form");
         }
     }
 
@@ -115,7 +115,7 @@ mod tests {
             ErrorCode::CapabilityDenied,
             "files.read",
             "/proiect/secret.txt",
-            "in afara domeniului declarat",
+            "outside the declared scope",
         );
         assert_eq!(error.detail.get("capability").map(String::as_str), Some("files.read"));
         assert_eq!(error.detail.get("target").map(String::as_str), Some("/proiect/secret.txt"));

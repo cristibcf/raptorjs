@@ -1,33 +1,33 @@
-# RaptorRuntime - contractele de host
+# RaptorRuntime - the host contracts
 
-Implementarea specificatiei *RaptorRuntime Product and Architecture Specification*
-pentru **milestone-ul 0 (architecture spike)**, plus fundatia milestone-ului 1.
+The implementation of the *RaptorRuntime Product and Architecture Specification*
+for **milestone 0 (architecture spike)**, plus the foundation of milestone 1.
 
-Pachetul nu porneste nimic de la sine si nu are dependente. Expune contractele pe
-care le consuma launcher-ul `@raptor/runtime-cli` si, mai tarziu, host-ul nativ.
+The package starts nothing on its own and has no dependencies. It exposes the contracts
+that the `@raptor/runtime/cli` launcher consumes and, later, the native host.
 
-## Ce contine
+## What it contains
 
-| Componenta (spec §5) | Modul | Stare |
+| Component (spec §5) | Module | State |
 | --- | --- | --- |
-| Launcher | `@raptor/runtime-cli` | `run`, `test`, `init`, `pack`, `doctor`, `trace` |
-| Engine adapter | `src/engine-adapter.ts` | adaptor de bootstrap, cu izolare per izolat |
-| Module graph | `src/graph.ts` | graf static pentru `doctor` si `pack` |
-| Capability broker | `src/capabilities.ts` | granular, revocabil, delegare explicita |
-| Task fabric | `src/tasks.ts` | anulare, deadline-uri, cote, drenare |
+| Launcher | `@raptor/runtime/cli` | `run`, `test`, `init`, `pack`, `doctor`, `trace` |
+| Engine adapter | `src/engine-adapter.ts` | bootstrap adapter, with per-isolate isolation |
+| Module graph | `src/graph.ts` | static graph for `doctor` and `pack` |
+| Capability broker | `src/capabilities.ts` | granular, revocable, explicit delegation |
+| Task fabric | `src/tasks.ts` | cancellation, deadlines, quotas, draining |
 | Platform services | `src/modules/` | `files`, `net`, `process`, `kv`, `serve` |
-| Telemetry core | `src/observe.ts` | loguri, span-uri, metrici; export OTLP |
+| Telemetry core | `src/observe.ts` | logs, spans, metrics; OTLP export |
 
-Spatiul de nume `raptor:` (spec §6) este expus ca module reale, cu tipuri in
-[`src/raptor-modules.d.ts`](src/raptor-modules.d.ts) - deci `import { readText }
-from "raptor:files"` se verifica in `tsc`, fara declaratii scrise de mana.
+The `raptor:` namespace (spec §6) is exposed as real modules, with types in
+[`src/raptor-modules.d.ts`](src/raptor-modules.d.ts) - so `import { readText }
+from "raptor:files"` is type-checked by `tsc`, without hand-written declarations.
 
-## Modelul de securitate (spec §7)
+## The security model (spec §7)
 
-Implicit totul este refuzat, cu doua exceptii adnotate in trace (`clock.real`,
-`crypto.random`) si un singur domeniu implicit: citirea in radacina proiectului.
-`policy: "production"` - sau `--policy production` - trece brokerul in **regim
-strict**, unde nici acel domeniu implicit nu mai exista.
+By default everything is denied, with two exceptions annotated in the trace (`clock.real`,
+`crypto.random`) and a single implicit domain: reading in the project root.
+`policy: "production"` - or `--policy production` - moves the broker into **strict
+mode**, where even that implicit domain no longer exists.
 
 ```json
 {
@@ -41,37 +41,37 @@ strict**, unde nici acel domeniu implicit nu mai exista.
 }
 ```
 
-Delegarea catre un izolat copil transmite **doar** subsetul cerut explicit;
-nimic nu se mosteneste ambiental, iar o capability revocata nu poate fi reinviata
-prin delegare.
+Delegation to a child isolate passes **only** the explicitly requested subset;
+nothing is inherited ambiently, and a revoked capability cannot be revived
+through delegation.
 
-## Ce nu este inca implementat
+## What is not yet implemented
 
-Spec-ul §13 recomanda Rust + V8 pentru host-ul nativ. Acesta este pasul urmator,
-nu ce livreaza pachetul de fata. Concret, raman deschise:
+Spec §13 recommends Rust + V8 for the native host. This is the next step,
+not what this package delivers. Concretely, the following remain open:
 
-- **Host nativ si binar autonom** (§5, §10). Adaptorul de bootstrap ruleaza pe
-  motorul deja prezent pe masina de dezvoltare. Criteriul "porneste fara Node.js
-  instalat" este criteriul de iesire al milestone-ului 0 si nu este atins aici.
-- **Puntea npm** (§8). `pack` refuza explicit proiectele cu pachete externe, in
-  loc sa le ambaleze partial.
-- **Confirmarea interactiva** a accesului nedeclarat (§7). Politica `prompt` se
-  comporta ca `deny` pana cand host-ul nativ are canal propriu de prompt.
-- **Distributie semnata** (§10): instalatoare, canale de update, provenienta.
+- **Native host and standalone binary** (§5, §10). The bootstrap adapter runs on
+  the engine already present on the development machine. The "starts without Node.js
+  installed" criterion is the exit criterion of milestone 0 and is not met here.
+- **The npm bridge** (§8). `pack` explicitly refuses projects with external packages, instead
+  of partially bundling them.
+- **Interactive confirmation** of undeclared access (§7). The `prompt` policy
+  behaves like `deny` until the native host has its own prompt channel.
+- **Signed distribution** (§10): installers, update channels, provenance.
 
-## Comenzi
+## Commands
 
 ```bash
-pnpm runtime doctor           # mediu, proiect, capabilitati, graf static
-pnpm runtime -- --help        # suprafata completa de comenzi
-pnpm spike                    # ruleaza spike-ul de arhitectura (spec §14)
-pnpm spike:checks             # lista de acceptanta, prin `raptor-runtime test`
-pnpm test:runtime             # suitele de contract ale celor doua pachete
+pnpm runtime doctor           # environment, project, capabilities, static graph
+pnpm runtime -- --help        # full command surface
+pnpm spike                    # run the architecture spike (spec §14)
+pnpm spike:checks             # acceptance list, via `raptor-runtime test`
+pnpm test:runtime             # the contract suites of the two packages
 ```
 
-## Integrarea cu depozitul (spec §9)
+## Integration with the repository (spec §9)
 
-Aditiva, fara schimbari in pachetele existente: binarul se numeste
-`raptor-runtime`, nu `raptor`, iar `@raptor/run`, `@raptor/bundle` si
-`@raptor/engine` isi pastreaza comenzile si caile de import. Redenumirea vine
-doar dupa auditul de compatibilitate (§2, §13).
+Additive, with no changes to the existing packages: the binary is named
+`raptor-runtime`, not `raptor`, and `@raptor/engine/run`, `@raptor/engine/bundle`, and
+`@raptor/engine` keep their commands and import paths. The rename comes
+only after the compatibility audit (§2, §13).

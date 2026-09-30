@@ -1,9 +1,9 @@
 /**
- * NetworkController - leaga aplicatia de RaptorTwin prin timp virtual. Fiecare
- * cerere are un moment de PROCESARE (cand Twin citeste/scrie DB) si unul de
- * LIVRARE (cand raspunsul ajunge la client). Separarea lor permite reproducerea
- * deterministica a race-urilor, reordonarilor si intarzierilor (whitepaper §14,
- * §15) - de ex. un GET procesat inainte de un POST dar livrat dupa el.
+ * NetworkController - ties the application to RaptorTwin through virtual time.
+ * Each request has a PROCESSING moment (when Twin reads/writes the DB) and a
+ * DELIVERY moment (when the response reaches the client). Separating them allows
+ * deterministic reproduction of races, reorderings and delays (whitepaper §14,
+ * §15) - e.g. a GET processed before a POST but delivered after it.
  */
 import { type VirtualClock } from "./clock.ts";
 import { type RaptorTwin, type TwinResponse } from "./twin.ts";
@@ -54,14 +54,14 @@ export class NetworkController {
 
     let captured: TwinResponse = { status: 0, body: null };
 
-    // Procesare: Twin aplica efectul asupra starii (sau fault injection).
+    // Processing: Twin applies the effect on the state (or fault injection).
     this.clock.at(timing.processDelay, () => {
       captured = timing.faultStatus
         ? { status: timing.faultStatus, body: { error: "fault-injected" } }
         : this.twin.handle(method, path, body);
     });
 
-    // Livrare: raspunsul ajunge la client (poate fi mult mai tarziu -> reordonare).
+    // Delivery: the response reaches the client (may be much later -> reordering).
     this.clock.at(timing.processDelay + timing.deliverDelay, () => {
       this.emit?.("response", method, path, { id, deliverAt: this.clock.now, status: captured.status });
       onResponse({ status: captured.status, body: captured.body });

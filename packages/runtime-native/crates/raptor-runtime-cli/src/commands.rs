@@ -1,13 +1,13 @@
-//! Comenzile binarului `raptor-runtime` (spec sectiunea 4).
+//! The commands of the `raptor-runtime` binary (spec section 4).
 //!
-//! Fiecare comanda intoarce un [`Outcome`]: cod de iesire, text pentru oameni si
-//! incarcatura structurata pentru `--json`. Nimic nu scrie direct la iesire, ca
-//! suita de contract sa poata rula comenzile in proces.
+//! Each command returns an [`Outcome`]: exit code, human-readable text and a
+//! structured payload for `--json`. Nothing writes directly to output, so the
+//! contract suite can run the commands in-process.
 //!
-//! Stare la milestone 0: `doctor`, `init` si `pack` sunt complet native, pentru
-//! ca nu au nevoie sa evalueze JavaScript. `run`, `test` si `trace` ajung pana la
-//! marginea adaptorului de motor si se opresc acolo cu un mesaj explicit -
-//! codul de iesire 3 este rezervat exact pentru "nu in acest milestone".
+//! State at milestone 0: `doctor`, `init` and `pack` are fully native, because
+//! they don't need to evaluate JavaScript. `run`, `test` and `trace` reach the
+//! edge of the engine adapter and stop there with an explicit message -
+//! exit code 3 is reserved exactly for "not in this milestone".
 
 use raptor_runtime_core::capabilities::Broker;
 use raptor_runtime_core::digest;
@@ -24,8 +24,8 @@ use std::path::Path;
 pub const EXIT_OK: i32 = 0;
 pub const EXIT_ERROR: i32 = 1;
 pub const EXIT_USAGE: i32 = 2;
-/// Comanda este definita, dar depinde de o parte care ajunge intr-un milestone
-/// urmator. Distinct de o eroare, ca automatizarea sa poata face diferenta.
+/// The command is defined, but depends on a part arriving in a later
+/// milestone. Distinct from an error, so automation can tell them apart.
 pub const EXIT_NOT_YET: i32 = 3;
 
 pub const POLICY_FILENAME: &str = "raptor.policy.json";
@@ -54,7 +54,7 @@ impl Outcome {
         }
         Self {
             code: EXIT_ERROR,
-            text: format!("eroare {}: {}", error.code, error.message),
+            text: format!("error {}: {}", error.code, error.message),
             data: Json::from_pairs([(
                 "error",
                 Json::from_pairs([
@@ -91,7 +91,7 @@ fn table(rows: &[(&str, String)]) -> String {
 
 // --- doctor ----------------------------------------------------------------
 
-/// Modulele publicate de acest runtime; orice altceva este nesuportat.
+/// The modules published by this runtime; anything else is unsupported.
 fn known_host_modules() -> Vec<String> {
     HOST_MODULE_NAMES.iter().map(|name| format!("raptor:{name}")).collect()
 }
@@ -104,7 +104,7 @@ pub fn doctor(input: &Input) -> Outcome {
         ("channel", Json::string("development")),
         ("binary", Json::string("raptor-runtime")),
         ("platform", Json::string(format!("{}-{}", std::env::consts::OS, std::env::consts::ARCH))),
-        ("engine", Json::string("stub (niciun motor JavaScript legat)")),
+        ("engine", Json::string("stub (no JavaScript engine linked)")),
         ("host", Json::string("native")),
     ]);
 
@@ -114,19 +114,19 @@ pub fn doctor(input: &Input) -> Outcome {
 
     let project = match loaded {
         Err(error) => {
-            findings.push(("eroare", format!("{}: {}", error.code, error.message)));
-            // Un manifest invalid poarta toate neregulile in diagnostic; le
-            // desfacem, ca `doctor` sa le arate pe toate deodata in loc sa
-            // trimita utilizatorul inapoi dupa fiecare corectura.
+            findings.push(("error", format!("{}: {}", error.code, error.message)));
+            // An invalid manifest carries all its problems in the diagnostic; we
+            // unpack them, so `doctor` shows them all at once instead of
+            // sending the user back after each fix.
             if let Some(issues) = error.detail.get("issues") {
                 for issue in issues.split("; ").filter(|issue| !issue.is_empty()) {
-                    findings.push(("eroare", format!("{MANIFEST_FILENAME}: {issue}")));
+                    findings.push(("error", format!("{MANIFEST_FILENAME}: {issue}")));
                 }
             }
             None
         }
         Ok(project) => {
-            findings.push(("ok", format!("manifest gasit: {}", project.manifest_path)));
+            findings.push(("ok", format!("manifest found: {}", project.manifest_path)));
             Some(project)
         }
     };
@@ -149,51 +149,51 @@ pub fn doctor(input: &Input) -> Outcome {
 
         if manifest.capabilities.is_empty() {
             findings.push((
-                if policy == PolicyMode::Production { "eroare" } else { "atentie" },
-                "nicio capability declarata; in regim strict aplicatia nu va putea citi nimic".to_string(),
+                if policy == PolicyMode::Production { "error" } else { "warn" },
+                "no capability declared; in strict mode the application will not be able to read anything".to_string(),
             ));
         }
         if let Some(Grant::Targets(commands)) = manifest.capabilities.get(&CapabilityKind::ProcessSpawn) {
             if !commands.is_empty() {
                 findings.push((
-                    "atentie",
-                    format!("process.spawn este declarata pentru: {}", commands.join(", ")),
+                    "warn",
+                    format!("process.spawn is declared for: {}", commands.join(", ")),
                 ));
             }
         }
 
         match graph::build(&project.project_root, &manifest.entry) {
             Err(error) => {
-                findings.push(("eroare", format!("graful static nu a putut fi construit: {}", error.message)))
+                findings.push(("error", format!("the static graph could not be built: {}", error.message)))
             }
             Ok(built) => {
                 findings
-                    .push(("ok", format!("graf static: {} module din {}", built.modules.len(), built.entry)));
+                    .push(("ok", format!("static graph: {} modules from {}", built.modules.len(), built.entry)));
                 payload.insert("modules", built.to_json());
 
                 let known = known_host_modules();
                 for specifier in &built.host_imports {
                     if specifier.starts_with("raptor:") && !known.contains(specifier) {
-                        findings.push(("eroare", format!("modul de host necunoscut: {specifier}")));
+                        findings.push(("error", format!("unknown host module: {specifier}")));
                     }
                     if specifier.starts_with("node:") {
-                        // Spec sectiunea 8: ce depinde de interne se raporteaza
-                        // ca nesuportat, nu se emuleaza la nesfarsit.
+                        // Spec section 8: anything depending on internals is reported
+                        // as unsupported, not emulated endlessly.
                         findings.push((
-                            "atentie",
+                            "warn",
                             format!(
-                                "{specifier} ocoleste capability broker-ul si nu exista in host-ul nativ"
+                                "{specifier} bypasses the capability broker and does not exist in the native host"
                             ),
                         ));
                     }
                 }
                 for external in &built.external_imports {
                     findings
-                        .push(("atentie", format!("pachet extern '{external}': cere puntea npm (faza 3)")));
+                        .push(("warn", format!("external package '{external}': requires the npm bridge (phase 3)")));
                 }
                 for problem in &built.unresolved {
                     findings.push((
-                        "eroare",
+                        "error",
                         format!("{}: {} - {}", problem.from, problem.specifier, problem.reason),
                     ));
                 }
@@ -201,8 +201,8 @@ pub fn doctor(input: &Input) -> Outcome {
         }
     }
 
-    let errors = findings.iter().filter(|(level, _)| *level == "eroare").count();
-    let warnings = findings.iter().filter(|(level, _)| *level == "atentie").count();
+    let errors = findings.iter().filter(|(level, _)| *level == "error").count();
+    let warnings = findings.iter().filter(|(level, _)| *level == "warn").count();
 
     payload.insert(
         "findings",
@@ -210,9 +210,9 @@ pub fn doctor(input: &Input) -> Outcome {
             Json::from_pairs([
                 (
                     "level",
-                    Json::string(if *level == "eroare" {
+                    Json::string(if *level == "error" {
                         "error"
-                    } else if *level == "atentie" {
+                    } else if *level == "warn" {
                         "warn"
                     } else {
                         "ok"
@@ -224,25 +224,25 @@ pub fn doctor(input: &Input) -> Outcome {
     );
 
     let header = format!(
-        "RaptorRuntime {RUNTIME_VERSION} (nativ, development) - {}-{}",
+        "RaptorRuntime {RUNTIME_VERSION} (native, development) - {}-{}",
         std::env::consts::OS,
         std::env::consts::ARCH
     );
     let summary = table(&[
-        ("binar", "raptor-runtime".to_string()),
-        ("motor", engine_description()),
+        ("binary", "raptor-runtime".to_string()),
+        ("engine", engine_description()),
         (
-            "proiect",
+            "project",
             project
                 .as_ref()
                 .map(|p| format!("{}@{}", p.manifest.name, p.manifest.version))
-                .unwrap_or_else(|| "(negasit)".to_string()),
+                .unwrap_or_else(|| "(not found)".to_string()),
         ),
     ]);
     let lines: Vec<String> =
         findings.iter().map(|(level, message)| format!("  [{level}] {message}")).collect();
     let text =
-        format!("{header}\n{summary}\n\n{}\n\n  {errors} erori, {warnings} avertismente", lines.join("\n"));
+        format!("{header}\n{summary}\n\n{}\n\n  {errors} errors, {warnings} warnings", lines.join("\n"));
 
     if errors > 0 {
         Outcome::fail(EXIT_ERROR, text, payload)
@@ -257,8 +257,8 @@ const ENTRY_SOURCE: &str = r#"import { readText } from "raptor:files";
 import observe from "raptor:observe";
 
 /**
- * Punctul de intrare al aplicatiei. Runtime-ul il apeleaza dupa evaluarea
- * modulului si ii da contextul de host.
+ * The application entry point. The runtime calls it after evaluating the
+ * module and gives it the host context.
  */
 export default async function main(): Promise<void> {
   const manifest: string = await readText("./raptor.runtime.json");
@@ -303,20 +303,20 @@ fn manifest_for(name: &str) -> String {
     ])) + "\n"
 }
 
-/// Scrie doar daca fisierul nu exista: `init` nu suprascrie niciodata.
+/// Writes only if the file doesn't exist: `init` never overwrites.
 fn write_new(path: &str, contents: &str) -> Result<bool> {
     if Path::new(path).exists() {
         return Ok(false);
     }
     if let Some(parent) = Path::new(path).parent() {
         std::fs::create_dir_all(parent).map_err(|error| {
-            RaptorError::new(ErrorCode::ModuleUnsupported, "nu am putut crea directorul")
+            RaptorError::new(ErrorCode::ModuleUnsupported, "could not create the directory")
                 .with("path", path)
                 .with("cause", error.to_string())
         })?;
     }
     std::fs::write(path, contents).map_err(|error| {
-        RaptorError::new(ErrorCode::ModuleUnsupported, "nu am putut scrie fisierul")
+        RaptorError::new(ErrorCode::ModuleUnsupported, "could not write the file")
             .with("path", path)
             .with("cause", error.to_string())
     })?;
@@ -360,7 +360,7 @@ pub fn init(input: &Input) -> Result<Outcome> {
     if created == 0 {
         return Ok(Outcome::fail(
             EXIT_ERROR,
-            format!("proiectul exista deja in {target}; nu am suprascris nimic"),
+            format!("the project already exists in {target}; nothing was overwritten"),
             payload,
         ));
     }
@@ -368,7 +368,7 @@ pub fn init(input: &Input) -> Result<Outcome> {
     let listing = files.iter().map(|(path, _)| format!("  {path}")).collect::<Vec<_>>().join("\n");
     Ok(Outcome::ok(
         format!(
-            "proiect RaptorRuntime creat in {target}\n{listing}\n\n  verifica: raptor-runtime doctor\n  ambaleaza: raptor-runtime pack"
+            "RaptorRuntime project created in {target}\n{listing}\n\n  check: raptor-runtime doctor\n  package: raptor-runtime pack"
         ),
         payload,
     ))
@@ -390,7 +390,7 @@ pub fn pack(input: &Input) -> Result<Outcome> {
             blocking.iter().map(|p| format!("  {}: {} - {}", p.from, p.specifier, p.reason)).collect();
         return Ok(Outcome::fail(
             EXIT_ERROR,
-            format!("nu pot ambala: importuri nerezolvate\n{}", lines.join("\n")),
+            format!("cannot package: unresolved imports\n{}", lines.join("\n")),
             built.to_json(),
         ));
     }
@@ -398,17 +398,17 @@ pub fn pack(input: &Input) -> Result<Outcome> {
         let lines: Vec<String> = built
             .external_imports
             .iter()
-            .map(|name| format!("  {name} - cere puntea catre registrul npm (faza 3)"))
+            .map(|name| format!("  {name} - requires the bridge to the npm registry (phase 3)"))
             .collect();
         return Ok(Outcome::fail(
             EXIT_ERROR,
-            format!("nu pot ambala: pachete externe nerezolvate in aceasta faza\n{}", lines.join("\n")),
+            format!("cannot package: external packages unresolved in this phase\n{}", lines.join("\n")),
             built.to_json(),
         ));
     }
 
     let io = |error: std::io::Error, path: &str| {
-        RaptorError::new(ErrorCode::ModuleUnsupported, "operatie de fisier esuata")
+        RaptorError::new(ErrorCode::ModuleUnsupported, "file operation failed")
             .with("path", path)
             .with("cause", error.to_string())
     };
@@ -463,8 +463,8 @@ pub fn pack(input: &Input) -> Result<Outcome> {
         ("hostModules", Json::array(built.host_imports.iter().map(|i| Json::string(i.clone())))),
     ]);
 
-    // Amprenta continutului: depinde doar de caile si hash-urile modulelor,
-    // niciodata de ceas sau de ordinea sistemului de fisiere.
+    // Content fingerprint: depends only on the paths and hashes of the modules,
+    // never on the clock or the filesystem order.
     let fingerprint = built
         .modules
         .iter()
@@ -489,7 +489,7 @@ pub fn pack(input: &Input) -> Result<Outcome> {
         ),
         ("contentIntegrity", Json::string(digest::integrity(fingerprint.as_bytes()))),
         ("lockfile", Json::string(format!("./{LOCKFILE_NAME}"))),
-        ("builtWith", Json::string(format!("raptor-runtime@{RUNTIME_VERSION} (nativ)"))),
+        ("builtWith", Json::string(format!("raptor-runtime@{RUNTIME_VERSION} (native)"))),
     ]);
 
     let lock_path = paths::resolve(&output, LOCKFILE_NAME);
@@ -501,20 +501,20 @@ pub fn pack(input: &Input) -> Result<Outcome> {
 
     let total: usize = built.modules.iter().map(|module| module.byte_length).sum();
     let text = format!(
-        "unitate ambalata in {output}\n{}",
+        "unit packaged in {output}\n{}",
         table(&[
-            ("module", built.modules.len().to_string()),
-            ("octeti", total.to_string()),
+            ("modules", built.modules.len().to_string()),
+            ("bytes", total.to_string()),
             (
-                "module de host",
+                "host modules",
                 if built.host_imports.is_empty() {
-                    "(niciunul)".to_string()
+                    "(none)".to_string()
                 } else {
                     built.host_imports.join(", ")
                 }
             ),
             (
-                "integritate",
+                "integrity",
                 bundle.get("contentIntegrity").and_then(Json::as_str).unwrap_or_default().to_string()
             ),
             ("lockfile", LOCKFILE_NAME.to_string()),
@@ -533,30 +533,30 @@ pub fn pack(input: &Input) -> Result<Outcome> {
 
 // --- run / test / trace ----------------------------------------------------
 
-/// Porneste runtime-ul nativ. Tot ce se poate face fara motor se face; evaluarea
-/// modulului se opreste la marginea adaptorului, cu mesaj explicit.
-/// Ce motor are binarul, pentru diagnostic.
+/// Starts the native runtime. Everything that can be done without an engine is
+/// done; module evaluation stops at the edge of the adapter, with an explicit message.
+/// Which engine the binary has, for diagnostics.
 ///
-/// Textul vine din aceeasi sursa ca motorul chiar folosit de `run`, ca `doctor`
-/// sa nu poata ajunge sa raporteze altceva decat se intampla.
+/// The text comes from the same source as the engine actually used by `run`, so
+/// `doctor` cannot end up reporting anything other than what happens.
 #[cfg(feature = "quickjs")]
 fn engine_description() -> String {
-    // Cele doua capacitati se compun: un binar poate avea motor fara TypeScript,
-    // iar `doctor` trebuie sa spuna exact care este cazul.
-    let typescript = if cfg!(feature = "typescript") { "cu TypeScript" } else { "doar JavaScript" };
+    // The two capabilities compose: a binary can have an engine without TypeScript,
+    // and `doctor` must say exactly which is the case.
+    let typescript = if cfg!(feature = "typescript") { "with TypeScript" } else { "JavaScript only" };
     format!("quickjs, {typescript}")
 }
 
 #[cfg(not(feature = "quickjs"))]
 fn engine_description() -> String {
-    "stub (fara evaluare JavaScript)".to_string()
+    "stub (no JavaScript evaluation)".to_string()
 }
 
-/// Motorul folosit de `run`.
+/// The engine used by `run`.
 ///
-/// Fara feature-ul `quickjs`, binarul ramane fara dependente externe si fara
-/// motor - `None` lasa host-ul sa cada pe stub, care spune cinstit ce lipseste.
-/// Cu el, primim un izolat QuickJS adevarat.
+/// Without the `quickjs` feature, the binary stays free of external dependencies
+/// and without an engine - `None` lets the host fall back to the stub, which
+/// honestly says what is missing. With it, we get a real QuickJS isolate.
 #[cfg(feature = "quickjs")]
 fn engine_for_run() -> Result<Option<std::sync::Arc<dyn raptor_runtime_core::engine::EngineAdapter>>> {
     let engine = raptor_runtime_core::quickjs::QuickJsEngine::new("iso-run")?;
@@ -590,21 +590,21 @@ pub fn run(input: &Input) -> Result<Outcome> {
     let diagnostics = runtime.diagnostics();
     match started {
         Ok(evaluation) => {
-            // Exporturile sunt singura dovada observabila ca modulul a fost
-            // *evaluat*, nu doar parsat: fara ele, `run` ar arata la fel si daca
-            // motorul ar fi sarit peste corpul modulului.
+            // The exports are the only observable proof that the module was
+            // *evaluated*, not just parsed: without them, `run` would look the same
+            // even if the engine had skipped the module body.
             let exports = Json::Object(evaluation.exports.clone().into_iter().collect());
             let names: Vec<String> = evaluation.exports.keys().cloned().collect();
             let text = format!(
-                "aplicatia a rulat in {:.1}ms
+                "the application ran in {:.1}ms
 {}",
                 evaluation.duration_ms,
                 table(&[
-                    ("proiect", format!("{}@{}", project.manifest.name, project.manifest.version)),
-                    ("motor", runtime.engine_name().to_string()),
+                    ("project", format!("{}@{}", project.manifest.name, project.manifest.version)),
+                    ("engine", runtime.engine_name().to_string()),
                     (
-                        "exporturi",
-                        if names.is_empty() { "(niciunul)".to_string() } else { names.join(", ") }
+                        "exports",
+                        if names.is_empty() { "(none)".to_string() } else { names.join(", ") }
                     ),
                 ]),
             );
@@ -612,15 +612,15 @@ pub fn run(input: &Input) -> Result<Outcome> {
         }
         Err(error) if error.code == ErrorCode::ModuleUnsupported => {
             let text = format!(
-                "host-ul nativ este pregatit, dar nu poate inca evalua module\n{}\n\n  {}\n  {}",
+                "the native host is ready, but cannot yet evaluate modules\n{}\n\n  {}\n  {}",
                 table(&[
-                    ("proiect", format!("{}@{}", project.manifest.name, project.manifest.version)),
-                    ("politica", format!("{}{}", policy.as_str(), if runtime.broker().strict() { ", strict" } else { "" })),
-                    ("module de host", HOST_MODULE_NAMES.len().to_string()),
-                    ("motor", "stub".to_string()),
+                    ("project", format!("{}@{}", project.manifest.name, project.manifest.version)),
+                    ("policy", format!("{}{}", policy.as_str(), if runtime.broker().strict() { ", strict" } else { "" })),
+                    ("host modules", HOST_MODULE_NAMES.len().to_string()),
+                    ("engine", "stub".to_string()),
                 ]),
                 error.message,
-                "pana atunci, foloseste launcher-ul TypeScript: `raptor-runtime run` din packages/runtime-cli",
+                "until then, use the TypeScript launcher: `raptor-runtime run` from packages/runtime-cli",
             );
             Ok(Outcome::fail(
                 EXIT_NOT_YET,
@@ -645,8 +645,8 @@ pub fn not_yet(command: &str, needs: &str) -> Outcome {
     Outcome::fail(
         EXIT_NOT_YET,
         format!(
-            "`raptor-runtime {command}` exista in host-ul nativ, dar are nevoie de {needs}.\n  \
-             Pana atunci, foloseste launcher-ul TypeScript din packages/runtime-cli."
+            "`raptor-runtime {command}` exists in the native host, but needs {needs}.\n  \
+             Until then, use the TypeScript launcher from packages/runtime-cli."
         ),
         Json::from_pairs([(
             "blocked",
@@ -659,8 +659,8 @@ pub fn not_yet(command: &str, needs: &str) -> Outcome {
     )
 }
 
-/// Verificare de capabilitati fara sa ruleze aplicatia: raspunde "ar avea voie
-/// aplicatia sa faca X?" folosind exact brokerul pe care l-ar primi la rulare.
+/// Capability check without running the application: answers "would the
+/// application be allowed to do X?" using exactly the broker it would receive at runtime.
 pub fn explain(input: &Input) -> Result<Outcome> {
     let project = load_project(&input.cwd)?;
     let policy = input.policy_override.unwrap_or(project.manifest.policy);
@@ -677,7 +677,7 @@ pub fn explain(input: &Input) -> Result<Outcome> {
             raptor_runtime_core::manifest::CAPABILITY_KINDS.iter().map(|k| k.as_str().to_string()).collect();
         return Ok(Outcome::fail(
             EXIT_USAGE,
-            format!("explain cere o capability: {}", valid.join(", ")),
+            format!("explain requires a capability: {}", valid.join(", ")),
             Json::from_pairs([("valid", Json::array(valid.iter().map(|v| Json::string(v.clone()))))]),
         ));
     };
@@ -686,14 +686,14 @@ pub fn explain(input: &Input) -> Result<Outcome> {
     let decision = broker.check(capability, &target);
     let text = format!(
         "{} {} '{}'\n{}",
-        if decision.granted { "PERMIS  " } else { "REFUZAT " },
+        if decision.granted { "GRANTED " } else { "DENIED  " },
         capability,
         decision.target,
         table(&[
-            ("motiv", decision.reason.clone()),
-            ("regula", decision.rule.clone().unwrap_or_else(|| "(niciuna)".to_string())),
-            ("politica", format!("{}{}", policy.as_str(), if broker.strict() { ", strict" } else { "" })),
-            ("adnotat in trace", decision.annotated.to_string()),
+            ("reason", decision.reason.clone()),
+            ("rule", decision.rule.clone().unwrap_or_else(|| "(none)".to_string())),
+            ("policy", format!("{}{}", policy.as_str(), if broker.strict() { ", strict" } else { "" })),
+            ("annotated in trace", decision.annotated.to_string()),
         ])
     );
 

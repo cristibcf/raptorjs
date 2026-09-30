@@ -1,12 +1,12 @@
 /**
- * Varianta browser (prin RaptorBundle) a dashboard-ului realtime, in TSX. Pentru
- * un demo self-contained, serverul si clientul ruleaza in aceeasi pagina peste un
- * transport loopback; un setInterval simuleaza feed-ul de metrici server-side.
+ * The browser variant (via RaptorBundle) of the realtime dashboard, in TSX. For
+ * a self-contained demo, the server and the client run in the same page over a
+ * loopback transport; a setInterval simulates the server-side metrics feed.
  *
- * Ruleaza:  cd examples/realtime-dashboard && pnpm install && pnpm dev
+ * Run:  cd examples/realtime-dashboard && pnpm install && pnpm dev
  */
-import { render, For } from "@raptor/dom";
-import { createLoopback, RaptorClient } from "@raptor/wire-client";
+import { render, For } from "raptorjs/dom";
+import { createLoopback, RaptorClient } from "@raptor/wire/client";
 import { buildDashboardApp, DASHBOARD_QUERY } from "./app.ts";
 
 function Dashboard(props: { client: RaptorClient }) {
@@ -16,7 +16,7 @@ function Dashboard(props: { client: RaptorClient }) {
       <h1>RaptorWire realtime dashboard</h1>
       <div class="tiles">
         <div>CPU: {() => client.signal("cpu")() ?? 0}%</div>
-        <div>Memorie: {() => client.signal("memory")() ?? 0}%</div>
+        <div>Memory: {() => client.signal("memory")() ?? 0}%</div>
       </div>
       <ul>
         <For each={() => (client.signal<number[]>("jobs")() ?? []) as number[]}>
@@ -46,7 +46,7 @@ async function main() {
   const root = document.getElementById("app");
   if (root) render(() => <Dashboard client={client} />, root);
 
-  // Feed server-side de metrici (tranzactie atomica -> un singur commit UI).
+  // Server-side metrics feed (atomic transaction -> a single UI commit).
   let tick = 0;
   setInterval(() => {
     tick++;

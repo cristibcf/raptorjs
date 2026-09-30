@@ -1,12 +1,12 @@
 /**
- * Demo-uri live pentru intrarile din Docs. Spre deosebire de cele din
- * `demos/index.tsx` (care arata ce poti construi), astea arata CUM SE POARTA o
- * primitiva - de obicei numarand ceva ce altfel nu s-ar vedea: de cate ori
- * ruleaza un calcul, cate noduri DOM se creeaza, cati octeti pleaca pe fir.
+ * Live demos for the Docs entries. Unlike the ones in `demos/index.tsx` (which
+ * show what you can build), these show HOW a primitive BEHAVES - usually by
+ * counting something that would otherwise be invisible: how many times a
+ * computation runs, how many DOM nodes are created, how many bytes go over the wire.
  */
-import { state, derived, effect, batch, untracked, For, Show, onCleanup } from "@raptor/dom";
-import { raptorServer } from "@raptor/server";
-import { createLoopback, RaptorClient } from "@raptor/wire-client";
+import { state, derived, effect, batch, untracked, For, Show, onCleanup } from "raptorjs/dom";
+import { raptorServer } from "@raptor/wire/server";
+import { createLoopback, RaptorClient } from "@raptor/wire/client";
 
 function Stat(props: { label: string; value: any }) {
   return (
@@ -16,9 +16,9 @@ function Stat(props: { label: string; value: any }) {
   );
 }
 
-/* ---------------------------------------------------------------- @raptor/core -- */
+/* ---------------------------------------------------------------- raptorjs -- */
 
-/** `state`: citire, set, update — si `peek`, care NU aboneaza. */
+/** `state`: read, set, update — and `peek`, which does NOT subscribe. */
 export function ApiState() {
   const count = state(0);
   const log = state<string[]>([]);
@@ -50,7 +50,7 @@ export function ApiState() {
   );
 }
 
-/** `derived`: memoizat si lenes — contorul arata ca nu recalculeaza degeaba. */
+/** `derived`: memoised and lazy — the counter shows it does not recompute needlessly. */
 export function ApiDerived() {
   const a = state(2);
   const b = state(3);
@@ -58,7 +58,7 @@ export function ApiDerived() {
   const runCount = state(0);
   const sum = derived(() => {
     runs++;
-    // Nu scriem in semnal in timpul calculului: amanam pentru dupa commit.
+    // We don't write to the signal during the computation: defer it until after commit.
     queueMicrotask(() => runCount.set(runs));
     return a() + b();
   });
@@ -83,7 +83,7 @@ export function ApiDerived() {
   );
 }
 
-/** `effect`: ruleaza acum, apoi la fiecare schimbare — pana il opresti. */
+/** `effect`: runs now, then on every change — until you stop it. */
 export function ApiEffect() {
   const n = state(0);
   const lines = state<string[]>([]);
@@ -135,7 +135,7 @@ export function ApiEffect() {
   );
 }
 
-/** `batch`: doua scrieri, un singur commit. */
+/** `batch`: two writes, a single commit. */
 export function ApiBatch() {
   const first = state("Ada");
   const last = state("Lovelace");
@@ -178,9 +178,9 @@ export function ApiBatch() {
   );
 }
 
-/* ----------------------------------------------------------------- @raptor/dom -- */
+/* ----------------------------------------------------------------- raptorjs/dom -- */
 
-/** `For`: cheie stabila — randurile existente NU se recreeaza. */
+/** `For`: a stable key — existing rows are NOT recreated. */
 export function ApiFor() {
   interface Row { id: number; label: string }
   const rows = state<Row[]>([
@@ -191,7 +191,7 @@ export function ApiFor() {
   const created = state(0);
 
   const Row = (r: Row) => {
-    // Se executa o singura data per rand: contorul arata exact asta.
+    // Runs exactly once per row: the counter shows precisely that.
     queueMicrotask(() => created.update((n) => n + 1));
     return (
       <li style="padding:3px 0;font-family:var(--mono);font-size:12.5px">
@@ -227,7 +227,7 @@ export function ApiFor() {
   );
 }
 
-/** `Show`: montare / demontare, nu doar `display:none`. */
+/** `Show`: mount / unmount, not just `display:none`. */
 export function ApiShow() {
   const open = state(false);
   const mounts = state(0);
@@ -256,7 +256,7 @@ export function ApiShow() {
   );
 }
 
-/* --------------------------------------------------------- @raptor/wire-client -- */
+/* --------------------------------------------------------- @raptor/wire/client -- */
 
 function todoServer() {
   const app = raptorServer({ build: "docs-demo" });
@@ -274,8 +274,8 @@ function todoServer() {
 }
 
 /**
- * `RaptorClient` + `signal`: doi clienti pe acelasi server (loopback), cu
- * contorul de octeti la vedere. Scrii intr-unul, apare in celalalt.
+ * `RaptorClient` + `signal`: two clients on the same server (loopback), with the
+ * byte counter on display. You write in one, it appears in the other.
  */
 export function ApiClient() {
   const app = todoServer();
@@ -288,8 +288,8 @@ export function ApiClient() {
   };
   const a = mk("A");
   const b = mk("B");
-  // `snapshotsReceived` / `opsFramesReceived` sunt contoare simple pe client, nu
-  // semnale: nimic nu ar notifica un binding. Le esantionam periodic, ca octetii.
+  // `snapshotsReceived` / `opsFramesReceived` are plain counters on the client, not
+  // signals: nothing would notify a binding. We sample them periodically, like the bytes.
   const bytes = state(0);
   const snapshots = state(0);
   const opsFrames = state(0);
@@ -353,7 +353,7 @@ export function ApiClient() {
   );
 }
 
-/** Mapare cheie → demo, folosita de pagina Docs. */
+/** Key → demo mapping, used by the Docs page. */
 export const API_DEMOS: Record<string, () => any> = {
   state: ApiState,
   derived: ApiDerived,

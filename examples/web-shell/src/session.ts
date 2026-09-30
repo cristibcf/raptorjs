@@ -1,26 +1,27 @@
 /**
- * Legarea aplicatiei de browser.
+ * Wiring the app to the browser.
  *
- * Pe desktop si pe mobil, capatul `host` al canalului traieste in binarul nativ.
- * Aici traieste in aceeasi pagina - si asta este partea care trebuie spusa pe
- * fata: in browser, puntea nu mai este o granita de securitate, ci un strat de
- * portabilitate. Granita ramane sandbox-ul de origine al browserului.
+ * On desktop and mobile, the channel's `host` end lives in the native binary.
+ * Here it lives in the same page - and that is the part that must be said openly:
+ * in the browser, the bridge is no longer a security boundary, but a portability
+ * layer. The boundary stays the browser's origin sandbox.
  *
- * Ce castiga aplicatia din ea este tot real: acelasi cod ruleaza pe toate cele
- * trei tinte, si afla din timp - prin `bridge.allows(...)` - ce nu poate face pe
- * cea curenta, in loc sa descopere la runtime ca `navigator.geolocation` lipseste.
+ * What the app gains from it is still real: the same code runs on all three
+ * targets, and finds out ahead of time - through `bridge.allows(...)` - what it
+ * cannot do on the current one, instead of discovering at runtime that
+ * `navigator.geolocation` is missing.
  */
 import { createBridge, createMemoryChannel, requireHostManifest } from "@raptor/host";
 import type { HostBridge, HostManifest } from "@raptor/host";
-import { createWebHost, platformFromWindow } from "@raptor/web-host";
-import type { WebHost, WebPlatform } from "@raptor/web-host";
+import { createWebHost, platformFromWindow } from "@raptor/host/web";
+import type { WebHost, WebPlatform } from "@raptor/host/web";
 import { createShell } from "./app.ts";
 import type { Shell } from "./app.ts";
 
 export interface SessionOptions {
-  /** Modulele optionale acordate; implicit navigare + notificari. */
+  /** The optional modules granted; navigation + notifications by default. */
   readonly capabilities?: readonly string[];
-  /** Bucatile de browser disponibile; in pagina vin din `window`. */
+  /** The available browser pieces; in the page they come from `window`. */
   readonly platform?: WebPlatform;
   readonly initialRoute?: string;
 }
@@ -43,9 +44,9 @@ export function manifestFor(capabilities: readonly string[]): HostManifest {
       entry: "./index.html",
       capabilities,
       allowedOrigins: ["https://api.raptor.example"],
-      // Pe web nu exista scheme inregistrate in sistem: URL-ul paginii e linkul.
+      // On web there are no system-registered schemes: the page URL is the link.
       deepLinkSchemes: [],
-      // Fereastra descrie popup-ul, nu o fereastra a sistemului de operare.
+      // The window describes the popup, not an operating-system window.
       window: { title: "Raptor Web Shell", width: 720, height: 560, resizable: true },
       update: { feed: null, channel: "stable" },
     }),
@@ -76,13 +77,13 @@ export function createSession(options: SessionOptions = {}): Session {
     bridge,
     shell: createShell(bridge),
     close(): void {
-      bridge.dispose("sesiune incheiata");
+      bridge.dispose("session ended");
       host.close();
     },
   };
 }
 
-/** Sesiunea reala din pagina: platforma vine din `window`. */
+/** The real session in the page: the platform comes from `window`. */
 export function createBrowserSession(win: unknown, capabilities?: readonly string[]): Session {
   return createSession({
     platform: platformFromWindow(win),

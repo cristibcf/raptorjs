@@ -1,7 +1,7 @@
 /**
- * RaptorProbe - stratul de observabilitate (whitepaper §6). Produce evenimente
- * normalizate cu timp virtual si corelatie, nu doar loguri. Un click e legat de
- * request-urile provocate, de schimbarile de UI si de tranzitia de stare.
+ * RaptorProbe - the observability layer (whitepaper §6). Produces normalized
+ * events with virtual time and correlation, not just logs. A click is tied to
+ * the requests it triggered, the UI changes and the state transition.
  */
 import { type VirtualClock } from "./clock.ts";
 import { type ProbeEvent, type ProbeEventType } from "./types.ts";

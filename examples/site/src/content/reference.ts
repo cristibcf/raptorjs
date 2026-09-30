@@ -13,13 +13,13 @@ export interface ApiEntry {
   returns?: string;
   example: string;
   /**
-   * Eticheta blocului de cod. Implicit `tsx`, care e gresit pentru un manifest
-   * JSON sau pentru o comanda de shell - deci intrarile alea si-o spun.
+   * The code block's label. Defaults to `tsx`, which is wrong for a JSON
+   * manifest or a shell command - so those entries say so themselves.
    */
   lang?: string;
-  /** Cheie in API_DEMOS: intrarea primeste o demonstratie care chiar ruleaza. */
+  /** Key into API_DEMOS: the entry gets a demonstration that actually runs. */
   demo?: string;
-  /** Capcane si lucruri care se invata altfel doar lovindu-te de ele. */
+  /** Gotchas and things you otherwise only learn by running into them. */
   notes?: string[];
 }
 export interface RefPackage {
@@ -30,13 +30,13 @@ export interface RefPackage {
 }
 
 /**
- * „De ce am nevoie?" — traseul de la ce vrei sa faci la ce instalezi. Tinut aici,
- * langa pachete, ca sa nu se desincronizeze de ele.
+ * "What do I need?" — the path from what you want to do to what you install. Kept
+ * here, next to the packages, so it does not drift out of sync with them.
  */
 export interface PackageRoute {
   want: string;
   packages: string[];
-  /** Slug-ul paginii de referinta catre care trimitem. */
+  /** The slug of the reference page we point to. */
   to: string;
   note: string;
 }
@@ -44,49 +44,49 @@ export interface PackageRoute {
 export const PACKAGE_ROUTES: PackageRoute[] = [
   {
     want: "Reactivity only, no DOM",
-    packages: ["@raptor/core"],
+    packages: ["raptorjs"],
     to: "core",
     note: "Signals, derived, effects, batching. Assumes no browser — it runs on the server or in a worker just as well.",
   },
   {
     want: "A user interface, with JSX",
-    packages: ["@raptor/dom"],
+    packages: ["raptorjs/dom"],
     to: "dom",
-    note: "The DOM runtime: fine-grained bindings, `For` / `Show`, the JSX runtime and the `R` builder. It also re-exports `@raptor/core`'s primitives, so one import is usually enough. Where most apps start.",
+    note: "The DOM runtime: fine-grained bindings, `For` / `Show`, the JSX runtime and the `R` builder. It also re-exports `raptorjs`'s primitives, so one import is usually enough. Where most apps start.",
   },
   {
     want: "Components already built",
-    packages: ["@raptor/ui"],
+    packages: ["raptorjs/ui"],
     to: "dom",
     note: "Accessible components with optional styles — browse them in [Components](/components).",
   },
   {
     want: "Client ↔ server sync",
-    packages: ["@raptor/wire-client", "@raptor/server"],
+    packages: ["@raptor/wire/client", "@raptor/wire/server"],
     to: "wire-client",
     note: "The client holds a reactive replica, the server the authoritative state. The [Realtime todo](/learn/todo-realtime) tutorial builds both.",
   },
   {
     want: "Build and dev server",
-    packages: ["@raptor/bundle"],
+    packages: ["@raptor/engine/bundle"],
     to: "bundle",
     note: "The project's own bundler — zero dependencies, no config file. A devDependency only.",
   },
   {
     want: "Server routing and SSR",
-    packages: ["@raptor/run"],
+    packages: ["@raptor/engine/run"],
     to: "run",
-    note: "A server runtime with file-based routing and server rendering. Separate from `@raptor/bundle`, which only targets the browser.",
+    note: "A server runtime with file-based routing and server rendering. Separate from `@raptor/engine/bundle`, which only targets the browser.",
   },
   {
     want: "Run an app with declared permissions",
-    packages: ["@raptor/runtime", "@raptor/runtime-cli"],
+    packages: ["@raptor/runtime", "@raptor/runtime/cli"],
     to: "runtime",
     note: "The `raptor:` module namespace and a capability broker: every path, host, variable and command is declared in a manifest, and everything undeclared is denied. Read [Security](/learn/security) for where that boundary is real and where it is advisory.",
   },
   {
     want: "Desktop, mobile, CLI, service or device",
-    packages: ["@raptor/host", "@raptor/desktop", "@raptor/mobile", "@raptor/web-host", "@raptor/cli-host", "@raptor/service-host", "@raptor/device-host"],
+    packages: ["@raptor/host", "@raptor/host/desktop", "@raptor/host/mobile", "@raptor/host/web", "@raptor/host/cli", "@raptor/host/service", "@raptor/host/device"],
     to: "host",
     note: "One contract, six targets. The application asks the host for a window, a socket, a pin or a prompt, and the host decides — including saying no.",
   },
@@ -206,7 +206,7 @@ cargo build --release --features full`,
       },
       {
         name: "The six hosts",
-        signature: "@raptor/desktop · mobile · web-host · service-host · cli-host · device-host",
+        signature: "@raptor/host/desktop · mobile · web-host · service-host · cli-host · device-host",
         summary:
           "The same application, unchanged, against six different hosts. What differs is not the API but what each host is willing to grant — and each one has a refusal worth knowing about.",
         example: `// The same call, six answers.
@@ -228,7 +228,7 @@ await bridge.call("window.open", { width: 900 });
   },
   {
     slug: "core",
-    name: "@raptor/core",
+    name: "raptorjs",
     tagline: "Fine-grained, glitch-free reactivity: signals, derived, effects.",
     entries: [
       {
@@ -248,7 +248,7 @@ count.peek();       // read without tracking`,
         demo: "state",
         notes: [
           "`count()` reads *and* subscribes. `count.peek()` reads without subscribing — reach for it inside a handler where you want the current value, not a dependency.",
-          "Importing from `@raptor/core` and from `@raptor/dom` gives the **same function**, not a copy: one module, one reactive graph. The bundler emits `@raptor/core` once even if you import from both.",
+          "Importing from `raptorjs` and from `raptorjs/dom` gives the **same function**, not a copy: one module, one reactive graph. The bundler emits `raptorjs` once even if you import from both.",
           "By default two `===` values do not notify. Pass `{ equal: false }` when every write must notify — for instance an object you mutate in place.",
         ],
       },
@@ -347,7 +347,7 @@ setTimeout(() => {
   },
   {
     slug: "dom",
-    name: "@raptor/dom",
+    name: "raptorjs/dom",
     tagline: "Fine-grained DOM runtime, control flow, the JSX runtime and the `R` hyperscript builder.",
     entries: [
       {
@@ -428,16 +428,16 @@ const a = row(), b = row();   // cloneNode, not createElement`,
   },
   {
     slug: "ui",
-    name: "@raptor/ui",
+    name: "raptorjs/ui",
     tagline: "The component library — built on the same bindings, with styles you can ignore.",
     entries: [
       {
         name: "Components",
-        signature: "import { Button } from \"@raptor/ui\"",
+        signature: "import { Button } from \"raptorjs/ui\"",
         summary:
           "Components are plain functions returning real DOM, so JSX is optional: call `Button({ ... })` directly or write `<Button />` if you compile JSX. Every one has a live demo in [Components](/components).",
-        example: `import { Button, Dialog } from "@raptor/ui";
-import { installStyles } from "@raptor/ui/styles";
+        example: `import { Button, Dialog } from "raptorjs/ui";
+import { installStyles } from "raptorjs/ui/styles";
 
 installStyles();            // optional — or bring your own CSS
 
@@ -453,7 +453,7 @@ Button({ onClick: () => open.set(true), children: "Open" });`,
         signature: "Portal, focusTrap, virtualizer, sortable, hotkeys, persistedState, undoRedo",
         summary:
           "The behaviour underneath the components, exposed on its own for when you want your own markup.",
-        example: `import { focusTrap, virtualizer } from "@raptor/ui";
+        example: `import { focusTrap, virtualizer } from "raptorjs/ui";
 
 const release = focusTrap(dialogEl);       // tab cycles inside
 const rows = virtualizer({ count: 100000, itemHeight: 32 });`,
@@ -465,7 +465,7 @@ const rows = virtualizer({ count: 100000, itemHeight: 32 });`,
   },
   {
     slug: "compiler",
-    name: "@raptor/compiler",
+    name: "@raptor/engine/compiler",
     tagline: "The stable semantic core of RaptorEngine: `.raptor` parser, IR, semantic graph, HMR diff.",
     entries: [
       {
@@ -503,7 +503,7 @@ ir.components[0].serverSignals;  // [BTC.price]`,
   },
   {
     slug: "bundle",
-    name: "@raptor/bundle",
+    name: "@raptor/engine/bundle",
     tagline: "The project's own TSX bundler — zero runtime dependencies, single-file output, live-reload dev server.",
     entries: [
       {
@@ -529,7 +529,7 @@ raptor-bundle dev   src/main.tsx --root . --port 5173`,
   },
   {
     slug: "wire-core",
-    name: "@raptor/wire-core",
+    name: "@raptor/wire",
     tagline: "State-aware protocol: versioned Document, delta ops, address space.",
     entries: [
       {
@@ -563,7 +563,7 @@ book.handleOf(address); // "job:1.progress"`,
   },
   {
     slug: "server",
-    name: "@raptor/server",
+    name: "@raptor/wire/server",
     tagline: "Authoritative reactive store with query / mutation / subscription.",
     entries: [
       {
@@ -626,7 +626,7 @@ http.listen(5190);`,
   },
   {
     slug: "wire-client",
-    name: "@raptor/wire-client",
+    name: "@raptor/wire/client",
     tagline: "Session + reactive replica; each handle is a signal.",
     entries: [
       {
@@ -686,7 +686,7 @@ const client = new RaptorClient(transport);
 await client.connect();`,
         notes: [
           "To reconnect, open a *new* transport and hand it to `client.resume(...)`: `RaptorClient` keeps its replica across connections.",
-          "Its server-side counterpart is `serveOverWebSocket` from `@raptor/server`.",
+          "Its server-side counterpart is `serveOverWebSocket` from `@raptor/wire/server`.",
         ],
       },
     ],
@@ -758,7 +758,7 @@ if (id) console.log(invalidationTrace(graph, id));  // what changing it reaches`
   },
   {
     slug: "run",
-    name: "@raptor/run",
+    name: "@raptor/engine/run",
     tagline: "Server runtime: serverSignal → store → RaptorWire → client, plus SSR.",
     entries: [
       {
@@ -788,7 +788,7 @@ const rendered = runtime.ssr("/");           // SsrResult | null`,
           "`ssr(path)` returns `{ html, resume }` or **null** when no route matches — it is not a string, and an unmatched path is not an error.",
           "`connect()` returns a channel implementing the same 3-method `Transport` contract, so a client attaches to it exactly as it would to a socket.",
           "`produceMany` sends one frame rather than several: the client applies the whole batch in a single UI commit.",
-          "This is the RaptorEngine path (`.raptor` sources). For a JSX app you use `@raptor/server` and `serveOverWebSocket` directly — see [Realtime todo](/learn/todo-realtime).",
+          "This is the RaptorEngine path (`.raptor` sources). For a JSX app you use `@raptor/wire/server` and `serveOverWebSocket` directly — see [Realtime todo](/learn/todo-realtime).",
         ],
       },
       {
@@ -801,7 +801,7 @@ const rendered = runtime.ssr("/");           // SsrResult | null`,
 });
 const html = renderDocument(result, "Raptor");`,
         notes: [
-          "It takes an `IRComponent` from `@raptor/compiler`, not a JSX function — this is the RaptorEngine path, not the `@raptor/bundle` one.",
+          "It takes an `IRComponent` from `@raptor/engine/compiler`, not a JSX function — this is the RaptorEngine path, not the `@raptor/engine/bundle` one.",
           "`serverValue` is how the renderer reads the current value of each `serverSignal` out of your store.",
         ],
       },
@@ -927,7 +927,7 @@ const { reproduced, ui, detail } = rt.replay(capsule);
   },
   {
     slug: "profile",
-    name: "@raptor/profile",
+    name: "@raptor/engine/profile",
     tagline: "Runtime telemetry that feeds build decisions — never correctness.",
     entries: [
       {
@@ -960,7 +960,7 @@ wireByteSize(stats);`,
   },
   {
     slug: "wire-codec",
-    name: "@raptor/wire-codec",
+    name: "@raptor/wire/codec",
     tagline: "The binary primitives everything else on the wire is built from.",
     entries: [
       {
@@ -977,7 +977,7 @@ const r = new Reader(bytes);
 r.uint();     // 42
 r.string();   // "hello"`,
         notes: [
-          "You rarely touch this directly — `@raptor/wire-core` builds operations on top of it. It is here because the encoding is the reason a delta is small.",
+          "You rarely touch this directly — `@raptor/wire` builds operations on top of it. It is here because the encoding is the reason a delta is small.",
         ],
       },
     ],

@@ -1,14 +1,14 @@
 /**
- * Demo: aceeasi aplicatie ca unealta de linie de comanda.
+ * Demo: the same application as a command-line tool.
  *
  *   node examples/cli-shell/src/demo.ts
  *
- * Ruleaza mai multe invocari peste un terminal fals, ca sa se vada si iesirea,
- * si codurile de iesire, si diferenta dintre un terminal interactiv si unul care
- * nu poate raspunde. Binarul adevarat este `src/bin.ts`.
+ * Runs several invocations over a fake terminal, so you can see the output, the
+ * exit codes, and the difference between an interactive terminal and one that
+ * cannot answer. The real binary is `src/bin.ts`.
  */
 import { runOnce } from "./session.ts";
-import type { Terminal } from "@raptor/cli-host";
+import type { Terminal } from "@raptor/host/cli";
 
 interface Recorder {
   readonly terminal: Terminal;
@@ -40,23 +40,23 @@ async function invoke(label: string, args: readonly string[], options: { interac
   console.log(`\n$ raptor-notes ${args.join(" ")}${label ? `   (${label})` : ""}`);
   for (const line of recorder.out) console.log(`  ${line}`);
   for (const line of recorder.err) console.log(`  [err] ${line}`);
-  console.log(`  -> cod de iesire ${code}`);
+  console.log(`  -> exit code ${code}`);
 }
 
-console.log("=== RaptorJS ca unealta de linie de comanda ===");
+console.log("=== RaptorJS as a command-line tool ===");
 
 await invoke("", ["list"]);
-await invoke("", ["add", "de", "cumparat", "lapte"]);
-await invoke("", ["add", "de", "sunat", "la", "banca"]);
+await invoke("", ["add", "buy", "milk"]);
+await invoke("", ["add", "call", "the", "bank"]);
 await invoke("", ["list"]);
-await invoke("comanda gresita", ["scrie"]);
+await invoke("wrong command", ["write"]);
 
-// Confirmarea: acelasi cod, doua terminale diferite.
-await invoke("terminal interactiv, raspuns 'nu'", ["clear"], { interactive: true, answer: "n" });
-await invoke("CI: intrarea nu e un terminal", ["clear"]);
-await invoke("neinteractiv, dar cu --yes", ["clear", "--yes"]);
+// The confirmation: the same code, two different terminals.
+await invoke("interactive terminal, answer 'no'", ["clear"], { interactive: true, answer: "n" });
+await invoke("CI: the input is not a terminal", ["clear"]);
+await invoke("non-interactive, but with --yes", ["clear", "--yes"]);
 await invoke("", ["list"]);
 
-console.log("\n-> Unealta nu atinge `process`: argumente, iesire, latimea");
-console.log("   terminalului si confirmarea vin toate prin aceeasi punte.");
-console.log("   Fara terminal interactiv, stergerea este refuzata, nu presupusa.");
+console.log("\n-> The tool does not touch `process`: arguments, output, terminal");
+console.log("   width and the confirmation all come through the same bridge.");
+console.log("   Without an interactive terminal, deletion is refused, not assumed.");

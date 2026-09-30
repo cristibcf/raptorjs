@@ -1,32 +1,31 @@
 /**
- * Care componente din catalog re-ruleaza computatia PARINTE cand le atingi.
+ * Which catalog components re-run the PARENT computation when you touch them.
  *
- * Context: o componenta care CITESTE un semnal in timp ce se construieste
- * aboneaza computatia apelantului la acel semnal. Daca apelantul e un binding
- * reactiv - un `Show`, un `For`, orice regiune dintr-o aplicatie reala - atunci
- * interactiunea cu componenta re-ruleaza toata regiunea parinte, nu doar
- * componenta. Simptomul: un dropdown care, la deschidere, reconstruieste
- * pagina din jurul lui.
+ * Context: a component that READS a signal while it is being built subscribes
+ * the caller's computation to that signal. If the caller is a reactive binding
+ * - a `Show`, a `For`, any region in a real application - then interacting with
+ * the component re-runs the whole parent region, not just the component. The
+ * symptom: a dropdown that, on opening, rebuilds the page around it.
  *
- * Site-ul ocoleste asta construind fiecare demo in `untracked(...)`. Ocolul din
- * consumator e insa un semn ca problema e in biblioteca: oricine foloseste
- * `@raptor/ui` intr-un binding da peste ea fara sa stie de ce.
+ * The site works around this by building each demo in `untracked(...)`. But the
+ * workaround in the consumer is a sign that the problem is in the library: anyone
+ * who uses `raptorjs/ui` inside a binding hits it without knowing why.
  *
- * Masuram simptomul, nu cauza: montam demo-ul INAUNTRUL unui effect, apasam
- * primul buton din el, si vedem daca effect-ul s-a re-rulat.
+ * We measure the symptom, not the cause: we mount the demo INSIDE an effect, click
+ * the first button in it, and see whether the effect re-ran.
  *
- * Fisierul nu e cod de aplicatie - nimic nu-l importa, deci nu ajunge in
- * bundle-ul site-ului. E punctul de intrare pe care il da bundler-ul unui test.
+ * This file is not application code - nothing imports it, so it never reaches the
+ * site's bundle. It is the entry point the bundler hands to a test.
  */
-import { effect, createRoot } from "@raptor/core";
-import { mountChild } from "@raptor/dom";
+import { effect, createRoot } from "raptorjs";
+import { mountChild } from "raptorjs/dom";
 import { CATALOG } from "./index.ts";
 
 export interface LeakReport {
-  /** Componente la care o interactiune re-ruleaza computatia parinte. */
+  /** Components where an interaction re-runs the parent computation. */
   leaking: string[];
   checked: number;
-  /** Demo-uri care n-au putut fi exercitate (fara buton de apasat). */
+  /** Demos that could not be exercised (no button to click). */
   skipped: number;
 }
 
@@ -73,7 +72,7 @@ export function findLeaks(): LeakReport {
       try {
         button.click?.();
       } catch {
-        /* demo-ul poate cere ceva ce mini-dom-ul nu are; nu e ce masuram */
+        /* the demo may need something the mini-dom lacks; that is not what we measure */
       }
       if (runs > inainte) leaking.push(`${group.title} / ${item.name}`);
       dispose();

@@ -1,14 +1,14 @@
-//! Task fabric (spec sectiunea 5): planificare asincrona deterministica, cu
-//! anulare, deadline-uri si cote de resurse - fara stare globala mutabila.
+//! Task fabric (spec section 5): deterministic asynchronous scheduling, with
+//! cancellation, deadlines, and resource quotas - without mutable global state.
 //!
-//! Oprirea curata ceruta de spike (sectiunea 14) se obtine prin `shutdown`: nu
-//! mai accepta lucru nou, anuleaza ce este in zbor si asteapta drenarea.
+//! The clean shutdown required by the spike (section 14) is achieved through `shutdown`: it
+//! no longer accepts new work, cancels what is in flight, and waits for the drain.
 //!
-//! Anularea este **cooperativa si observabila**: token-ul foloseste un condvar,
-//! deci un task care asteapta se trezeste imediat ce a fost anulat, in loc sa
-//! doarma pana la capat. Un task care nu verifica niciodata token-ul nu poate fi
-//! intrerupt - asta este adevarat pentru orice runtime si il spunem pe fata, in
-//! loc sa pretindem ca `shutdown` omoara fire.
+//! Cancellation is **cooperative and observable**: the token uses a condvar,
+//! so a task that is waiting wakes up as soon as it is cancelled, instead of
+//! sleeping to the end. A task that never checks the token cannot be
+//! interrupted - this is true for any runtime and we say it plainly, instead
+//! of pretending that `shutdown` kills threads.
 
 use crate::error::{ErrorCode, RaptorError, Result};
 use crate::json::Json;
@@ -35,9 +35,9 @@ impl CancelReason {
 
     fn describe(self) -> &'static str {
         match self {
-            CancelReason::Requested => "a fost anulat",
-            CancelReason::Deadline => "a depasit deadline-ul",
-            CancelReason::Shutdown => "a fost anulat: runtime-ul se opreste",
+            CancelReason::Requested => "was cancelled",
+            CancelReason::Deadline => "exceeded the deadline",
+            CancelReason::Shutdown => "was cancelled: the runtime is shutting down",
         }
     }
 }
@@ -48,8 +48,8 @@ struct TokenInner {
     changed: Condvar,
 }
 
-/// Token de anulare partajabil. Clonarea nu copiaza starea - toate clonele
-/// vorbesc despre aceeasi anulare.
+/// A shareable cancellation token. Cloning does not copy the state - all clones
+/// talk about the same cancellation.
 #[derive(Clone, Default)]
 pub struct CancellationToken {
     inner: Arc<TokenInner>,
@@ -77,8 +77,8 @@ impl CancellationToken {
         self.reason().is_some()
     }
 
-    /// Asteapta pana la `timeout` sau pana la anulare. Intoarce `true` daca
-    /// asteptarea s-a incheiat pentru ca token-ul a fost anulat.
+    /// Waits until `timeout` or until cancellation. Returns `true` if the
+    /// wait ended because the token was cancelled.
     pub fn wait_timeout(&self, timeout: Duration) -> bool {
         let Ok(state) = self.inner.cancelled.lock() else { return false };
         if state.is_some() {
@@ -91,7 +91,7 @@ impl CancellationToken {
     }
 }
 
-/// Ce primeste corpul unui task.
+/// What a task's body receives.
 pub struct TaskContext {
     name: String,
     token: CancellationToken,
@@ -112,18 +112,18 @@ impl TaskContext {
         self.token.is_cancelled()
     }
 
-    /// Milisecunde ramase pana la deadline, sau `None` daca nu exista.
+    /// Milliseconds left until the deadline, or `None` if there is none.
     pub fn remaining_ms(&self) -> Option<u64> {
         self.deadline_ms.map(|deadline| deadline.saturating_sub(self.started_at.elapsed().as_millis() as u64))
     }
 
-    /// Somn intreruptibil: se trezeste imediat la anulare.
-    /// Intoarce `false` daca a fost trezit de anulare.
+    /// Interruptible sleep: wakes up immediately on cancellation.
+    /// Returns `false` if it was woken by cancellation.
     pub fn sleep(&self, duration: Duration) -> bool {
         !self.token.wait_timeout(duration)
     }
 
-    /// Punctul de cooperare: esueaza daca task-ul a fost anulat.
+    /// The cooperation point: fails if the task was cancelled.
     pub fn check(&self) -> Result<()> {
         match self.token.reason() {
             None => Ok(()),
@@ -163,14 +163,14 @@ pub struct SpawnOptions {
     pub deadline_ms: Option<u64>,
 }
 
-/// Rezultatul unui task lansat. `join` propaga esecul sau anularea.
+/// The result of a spawned task. `join` propagates the failure or the cancellation.
 pub struct TaskHandle<T> {
     handle: Option<std::thread::JoinHandle<Result<T>>>,
     name: String,
 }
 
-/// `Debug` scris de mana: un handle este identificabil prin nume, iar tipul
-/// rezultatului nu trebuie sa fie el insusi `Debug` ca sa putem raporta erori.
+/// A hand-written `Debug`: a handle is identifiable by name, and the result
+/// type does not itself have to be `Debug` for us to report errors.
 impl<T> std::fmt::Debug for TaskHandle<T> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.debug_struct("TaskHandle").field("name", &self.name).finish()
@@ -181,15 +181,15 @@ impl<T> TaskHandle<T> {
     pub fn join(mut self) -> Result<T> {
         match self.handle.take() {
             Some(handle) => handle.join().unwrap_or_else(|_| {
-                // Un panic in corpul task-ului nu are voie sa darame host-ul:
-                // il traducem intr-o eroare obisnuita de evaluare.
+                // A panic in the task's body must not bring down the host:
+                // we translate it into an ordinary evaluation error.
                 Err(RaptorError::new(
                     ErrorCode::EngineEvaluation,
-                    format!("task '{}' s-a oprit neasteptat", self.name),
+                    format!("task '{}' stopped unexpectedly", self.name),
                 )
                 .with("name", self.name.clone()))
             }),
-            None => Err(RaptorError::new(ErrorCode::EngineEvaluation, "task deja preluat")),
+            None => Err(RaptorError::new(ErrorCode::EngineEvaluation, "task already taken")),
         }
     }
 }
@@ -202,9 +202,9 @@ struct Quota {
 
 impl Quota {
     fn acquire(&self) -> u64 {
-        let mut active = self.active.lock().expect("cota nu este otravita");
+        let mut active = self.active.lock().expect("the quota is not poisoned");
         while *active >= self.limit {
-            active = self.released.wait(active).expect("cota nu este otravita");
+            active = self.released.wait(active).expect("the quota is not poisoned");
         }
         *active += 1;
         *active
@@ -271,8 +271,8 @@ impl TaskFabric {
         self.inner.closed.lock().map(|closed| *closed).unwrap_or(true)
     }
 
-    /// Lanseaza un task. Corpul primeste `&TaskContext` si trebuie sa verifice
-    /// `check()` in punctele in care anularea are sens.
+    /// Spawns a task. The body receives `&TaskContext` and must check
+    /// `check()` at the points where cancellation makes sense.
     pub fn spawn<T, F>(&self, name: &str, options: SpawnOptions, body: F) -> Result<TaskHandle<T>>
     where
         T: Send + 'static,
@@ -281,7 +281,7 @@ impl TaskFabric {
         if self.is_closed() {
             return Err(RaptorError::new(
                 ErrorCode::TaskQuota,
-                "task fabric este inchis; nu mai accepta lucru nou",
+                "task fabric is closed; it no longer accepts new work",
             )
             .with("name", name));
         }
@@ -296,25 +296,25 @@ impl TaskFabric {
             .name(format!("raptor-task-{task_name}"))
             .spawn(move || run_task(inner, task_name, deadline_ms, body))
             .map_err(|error| {
-                RaptorError::new(ErrorCode::TaskQuota, "nu am putut porni un fir pentru task")
+                RaptorError::new(ErrorCode::TaskQuota, "could not start a thread for the task")
                     .with("cause", error.to_string())
             })?;
 
         Ok(TaskHandle { handle: Some(handle), name: name.to_string() })
     }
 
-    /// Asteapta terminarea lucrului in zbor, fara sa anuleze.
+    /// Waits for in-flight work to finish, without cancelling.
     pub fn drain(&self) {
-        let mut active = self.inner.quota.active.lock().expect("cota nu este otravita");
+        let mut active = self.inner.quota.active.lock().expect("the quota is not poisoned");
         while *active > 0 {
-            active = self.inner.idle.wait(active).expect("cota nu este otravita");
+            active = self.inner.idle.wait(active).expect("the quota is not poisoned");
         }
     }
 
-    /// Anuleaza tot si dreneaza; idempotent.
+    /// Cancels everything and drains; idempotent.
     pub fn shutdown(&self, reason: &str) {
         let already = {
-            let mut closed = self.inner.closed.lock().expect("starea nu este otravita");
+            let mut closed = self.inner.closed.lock().expect("the state is not poisoned");
             let previous = *closed;
             *closed = true;
             previous
@@ -345,16 +345,16 @@ impl TaskFabric {
 
 impl Drop for TaskFabric {
     fn drop(&mut self) {
-        // Un fabric aruncat nu are voie sa lase fire in urma.
+        // A dropped fabric must not leave threads behind.
         if Arc::strong_count(&self.inner) == 1 {
             self.shutdown("drop");
         }
     }
 }
 
-/// Elibereaza cota si opreste santinela **orice s-ar intampla**, inclusiv daca
-/// corpul task-ului a intrat in panica. Fara acest RAII, un singur panic ar
-/// bloca un slot de concurenta pentru totdeauna si `drain` nu s-ar mai incheia.
+/// Releases the quota and stops the sentinel **no matter what happens**, including if
+/// the task's body panicked. Without this RAII, a single panic would
+/// block a concurrency slot forever and `drain` would never finish.
 struct TaskGuard {
     inner: Arc<FabricInner>,
     finished: CancellationToken,
@@ -375,7 +375,7 @@ impl Drop for TaskGuard {
             let _ = watcher.join();
         }
         if !self.settled {
-            // Corpul a intrat in panica inainte sa raporteze un rezultat.
+            // The body panicked before reporting a result.
             self.inner.counters.failed.fetch_add(1, Ordering::Relaxed);
         }
 
@@ -400,8 +400,8 @@ where
     let context =
         TaskContext { name: name.clone(), token: token.clone(), started_at: Instant::now(), deadline_ms };
 
-    // Santinela leaga token-ul task-ului de token-ul radacina si de deadline.
-    // Se opreste singura cand task-ul s-a incheiat, ca sa nu ramana fire in urma.
+    // The sentinel ties the task's token to the root token and to the deadline.
+    // It stops itself when the task has finished, so no threads are left behind.
     let finished = CancellationToken::new();
     let watcher = {
         let root = inner.root.clone();
@@ -427,7 +427,7 @@ where
                             return;
                         }
                     }
-                    // Trezire imediata cand task-ul se incheie; altfel, pas scurt.
+                    // Immediate wake-up when the task finishes; otherwise, a short step.
                     finished.wait_timeout(step);
                 }
             })
@@ -437,8 +437,8 @@ where
     let mut guard = TaskGuard { inner: Arc::clone(&inner), finished, watcher, settled: false };
 
     let mut span = inner.observer.start_span(&format!("task.{name}"));
-    // Valoare implicita: daca nu o suprascriem, corpul a intrat in panica si
-    // span-ul spune asta in loc sa taca.
+    // Default value: if we do not overwrite it, the body panicked and
+    // the span says so instead of staying silent.
     span.set("outcome", Json::string("panicked"));
 
     let outcome = body(&context);
@@ -451,8 +451,8 @@ where
             Ok(value)
         }
         Err(error) => {
-            // O eroare aparuta in timp ce task-ul era anulat este raportata ca
-            // anulare, nu ca esec al aplicatiei.
+            // An error that occurs while the task was being cancelled is reported as
+            // a cancellation, not as an application failure.
             match cancel_reason {
                 Some(reason) => {
                     inner.counters.cancelled.fetch_add(1, Ordering::Relaxed);
@@ -490,8 +490,8 @@ mod tests {
     #[test]
     fn un_task_terminat_cu_bine_intra_in_statistici() {
         let tasks = fabric(4);
-        let handle = tasks.spawn("ok", SpawnOptions::default(), |_| Ok(7u32)).expect("lansare");
-        assert_eq!(handle.join().expect("rezultat"), 7);
+        let handle = tasks.spawn("ok", SpawnOptions::default(), |_| Ok(7u32)).expect("spawn");
+        assert_eq!(handle.join().expect("result"), 7);
 
         tasks.drain();
         let stats = tasks.stats();
@@ -505,11 +505,11 @@ mod tests {
         let tasks = fabric(4);
         let handle = tasks
             .spawn("crapa", SpawnOptions::default(), |_| -> Result<()> {
-                Err(RaptorError::new(ErrorCode::EngineEvaluation, "esec deliberat"))
+                Err(RaptorError::new(ErrorCode::EngineEvaluation, "deliberate failure"))
             })
-            .expect("lansare");
+            .expect("spawn");
 
-        let error = handle.join().expect_err("esec");
+        let error = handle.join().expect_err("failure");
         assert_eq!(error.code, ErrorCode::EngineEvaluation);
         tasks.drain();
         assert_eq!(tasks.stats().failed, 1);
@@ -521,10 +521,10 @@ mod tests {
         let tasks = fabric(2);
         let handle = tasks
             .spawn("panicat", SpawnOptions::default(), |_| -> Result<()> {
-                panic!("ceva neasteptat");
+                panic!("something unexpected");
             })
-            .expect("lansare");
-        let error = handle.join().expect_err("esec");
+            .expect("spawn");
+        let error = handle.join().expect_err("failure");
         assert_eq!(error.code, ErrorCode::EngineEvaluation);
     }
 
@@ -536,7 +536,7 @@ mod tests {
                 context.sleep(Duration::from_secs(5));
                 context.check()
             })
-            .expect("lansare");
+            .expect("spawn");
 
         let error = handle.join().expect_err("deadline");
         assert_eq!(error.code, ErrorCode::TaskDeadline);
@@ -549,12 +549,12 @@ mod tests {
         let tasks = fabric(2);
         let handle = tasks
             .spawn("cu-deadline", SpawnOptions { deadline_ms: Some(10_000) }, |context| {
-                let remaining = context.remaining_ms().expect("exista deadline");
-                assert!(remaining <= 10_000 && remaining > 9_000, "ramas: {remaining}");
+                let remaining = context.remaining_ms().expect("there is a deadline");
+                assert!(remaining <= 10_000 && remaining > 9_000, "remaining: {remaining}");
                 Ok(())
             })
-            .expect("lansare");
-        handle.join().expect("rezultat");
+            .expect("spawn");
+        handle.join().expect("result");
     }
 
     #[test]
@@ -566,14 +566,14 @@ mod tests {
                 let completed = context.sleep(Duration::from_secs(30));
                 Ok((completed, started.elapsed()))
             })
-            .expect("lansare");
+            .expect("spawn");
 
         std::thread::sleep(Duration::from_millis(50));
         tasks.shutdown("test");
 
-        let (completed, elapsed) = handle.join().expect("rezultat");
-        assert!(!completed, "somnul trebuie intrerupt de anulare");
-        assert!(elapsed < Duration::from_secs(5), "trezirea a durat {elapsed:?}");
+        let (completed, elapsed) = handle.join().expect("result");
+        assert!(!completed, "sleep must be interrupted by cancellation");
+        assert!(elapsed < Duration::from_secs(5), "the wake-up took {elapsed:?}");
     }
 
     #[test]
@@ -584,16 +584,16 @@ mod tests {
                 context.sleep(Duration::from_secs(30));
                 context.check()
             })
-            .expect("lansare");
+            .expect("spawn");
 
         std::thread::sleep(Duration::from_millis(30));
         tasks.shutdown("test");
 
-        let error = handle.join().expect_err("anulare");
+        let error = handle.join().expect_err("cancellation");
         assert_eq!(error.code, ErrorCode::TaskCancelled);
         assert!(tasks.is_closed());
 
-        let refused = tasks.spawn("prea-tarziu", SpawnOptions::default(), |_| Ok(())).expect_err("refuz");
+        let refused = tasks.spawn("prea-tarziu", SpawnOptions::default(), |_| Ok(())).expect_err("refusal");
         assert_eq!(refused.code, ErrorCode::TaskQuota);
         assert_eq!(tasks.stats().active, 0);
     }
@@ -601,8 +601,8 @@ mod tests {
     #[test]
     fn shutdown_este_idempotent() {
         let tasks = fabric(2);
-        tasks.shutdown("o-data");
-        tasks.shutdown("de-doua-ori");
+        tasks.shutdown("once");
+        tasks.shutdown("twice");
         assert!(tasks.is_closed());
     }
 
@@ -614,12 +614,12 @@ mod tests {
                 let completed = context.sleep(Duration::from_millis(40));
                 Ok(completed)
             })
-            .expect("lansare");
+            .expect("spawn");
 
         tasks.drain();
         assert_eq!(tasks.stats().active, 0);
-        assert!(handle.join().expect("rezultat"), "drain nu anuleaza");
-        assert!(!tasks.is_closed(), "drain nu inchide fabricul");
+        assert!(handle.join().expect("result"), "drain does not cancel");
+        assert!(!tasks.is_closed(), "drain does not close the fabric");
     }
 
     #[test]
@@ -632,18 +632,18 @@ mod tests {
                         context.sleep(Duration::from_millis(20));
                         Ok(())
                     })
-                    .expect("lansare")
+                    .expect("spawn")
             })
             .collect();
 
         for handle in handles {
-            handle.join().expect("rezultat");
+            handle.join().expect("result");
         }
         tasks.drain();
 
         let stats = tasks.stats();
         assert_eq!(stats.completed, 6);
-        assert!(stats.peak_active <= 2, "cota depasita: varf {}", stats.peak_active);
+        assert!(stats.peak_active <= 2, "quota exceeded: peak {}", stats.peak_active);
     }
 
     #[test]
@@ -652,16 +652,16 @@ mod tests {
         let tasks = TaskFabric::new(2, None, observer.clone());
         tasks
             .spawn("cu-span", SpawnOptions::default(), |_| Ok(()))
-            .expect("lansare")
+            .expect("spawn")
             .join()
-            .expect("rezultat");
+            .expect("result");
         tasks.drain();
 
         let span = observer
             .events()
             .into_iter()
             .find(|event| event.kind == crate::observe::EventKind::Span)
-            .expect("span inregistrat");
+            .expect("span recorded");
         assert_eq!(span.name, "task.cu-span");
         assert_eq!(span.attributes.get("outcome"), Some(&Json::string("completed")));
     }

@@ -1,19 +1,19 @@
 /**
- * Legarea aplicatiei de host, intr-un singur loc.
+ * Wiring the app to the host, in a single place.
  *
- * In productie, capatul `host` al canalului este binarul nativ si capatul `app`
- * este WebView-ul. Aici amandoua sunt in proces, ca demo-ul si testele sa poata
- * rula fara nicio platforma instalata - dar contractul dintre ele este acelasi.
+ * In production, the channel's `host` end is the native binary and the `app` end
+ * is the WebView. Here both are in-process, so the demo and the tests can run
+ * without any platform installed - but the contract between them is the same.
  */
 import { createBridge, createMemoryChannel, requireHostManifest } from "@raptor/host";
 import type { HostBridge, HostManifest } from "@raptor/host";
-import { createDesktopHost } from "@raptor/desktop";
-import type { DesktopHost } from "@raptor/desktop";
+import { createDesktopHost } from "@raptor/host/desktop";
+import type { DesktopHost } from "@raptor/host/desktop";
 import { createShell } from "./app.ts";
 import type { Shell } from "./app.ts";
 
 export interface SessionOptions {
-  /** Modulele optionale acordate acestei instalari. */
+  /** The optional modules granted to this installation. */
   readonly capabilities?: readonly string[];
   readonly storage?: Map<string, string>;
 }
@@ -65,7 +65,7 @@ export function createSession(options: SessionOptions = {}): Session {
     bridge,
     shell: createShell(bridge),
     close(): void {
-      bridge.dispose("sesiune incheiata");
+      bridge.dispose("session ended");
       host.close();
     },
   };

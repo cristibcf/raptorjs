@@ -1,18 +1,18 @@
-//! Capability broker (spec sectiunile 5 si 7): securitatea este o functie de
-//! produs, nu un wrapper optional.
+//! Capability broker (spec sections 5 and 7): security is a product feature,
+//! not an optional wrapper.
 //!
-//! Reguli implementate aici, identice cu cele din implementarea TypeScript:
+//! Rules implemented here, identical to those in the TypeScript implementation:
 //!
-//! - implicit totul este refuzat, cu exceptia `clock.real` / `crypto.random`,
-//!   permise dar adnotate in trace;
-//! - granularitatea este per tinta: cale, `gazda:port`, variabila, comanda;
-//! - grant-urile sunt revocabile in timpul rularii;
-//! - delegarea catre un izolat copil se face doar explicit, printr-un subset
-//!   declarat - nu prin mostenire ambientala;
-//! - fiecare verificare, permisa sau refuzata, intra in diagnostic.
+//! - everything is denied by default, except `clock.real` / `crypto.random`,
+//!   which are allowed but annotated in the trace;
+//! - granularity is per target: path, `host:port`, variable, command;
+//! - grants are revocable at run time;
+//! - delegation to a child isolate happens only explicitly, through a declared
+//!   subset - never through ambient inheritance;
+//! - every check, allowed or denied, enters the diagnostics.
 //!
-//! `Broker` este `Send + Sync` si se partajeaza prin `Arc`: un worker primeste
-//! acelasi broker (sau un copil delegat), niciodata acces necontrolat la host.
+//! `Broker` is `Send + Sync` and is shared through `Arc`: a worker receives the
+//! same broker (or a delegated child), never uncontrolled access to the host.
 
 use crate::error::{ErrorCode, RaptorError, Result};
 use crate::json::Json;
@@ -28,9 +28,9 @@ pub struct Decision {
     pub capability: CapabilityKind,
     pub target: String,
     pub reason: String,
-    /// Regula din manifest care a decis; utila in `doctor` si in erori.
+    /// The manifest rule that decided; useful in `doctor` and in errors.
     pub rule: Option<String>,
-    /// Accesul e permis, dar trebuie marcat in trace.
+    /// Access is allowed, but must be marked in the trace.
     pub annotated: bool,
 }
 
@@ -59,14 +59,14 @@ fn matches_host(rule: &str, target: &str) -> bool {
         return true;
     }
     if let Some(suffix) = rule_host.strip_prefix('*') {
-        // `*.example.com` acopera `a.example.com`, dar nu `example.com` insusi
-        // si nici `rau-example.com`.
+        // `*.example.com` covers `a.example.com`, but not `example.com` itself
+        // nor `rau-example.com`.
         return suffix.starts_with('.') && host.ends_with(suffix) && host.len() > suffix.len();
     }
     false
 }
 
-/// `DATABASE_URL` sau prefix `DATABASE_*`.
+/// `DATABASE_URL` or a `DATABASE_*` prefix.
 fn matches_name(rule: &str, target: &str) -> bool {
     match rule.strip_suffix('*') {
         Some(prefix) => target.starts_with(prefix),
@@ -95,7 +95,7 @@ impl Broker {
         Self {
             project_root: paths::normalize(project_root),
             policy,
-            // Politica de productie porneste implicit in regim strict.
+            // The production policy starts in strict mode by default.
             strict: strict.unwrap_or(policy == PolicyMode::Production),
             declarations,
             revoked: Mutex::new(Vec::new()),
@@ -112,7 +112,7 @@ impl Broker {
         self.policy
     }
 
-    /// `true` daca nu se aplica niciun domeniu implicit.
+    /// `true` if no default scope applies.
     pub fn strict(&self) -> bool {
         self.strict
     }
@@ -143,28 +143,28 @@ impl Broker {
         };
 
         if self.is_revoked(capability) {
-            return denied("capability revocata in timpul rularii", None);
+            return denied("capability revoked at run time", None);
         }
 
         if capability.is_ambient() {
             return match self.declarations.get(&capability) {
                 Some(Grant::Ambient(false)) => {
-                    denied("dezactivata explicit in manifest", Some(format!("{capability}: false")))
+                    denied("disabled explicitly in the manifest", Some(format!("{capability}: false")))
                 }
                 Some(Grant::Ambient(true)) => Decision {
                     granted: true,
                     capability,
                     target: target.to_string(),
-                    reason: "declarata in manifest".to_string(),
+                    reason: "declared in the manifest".to_string(),
                     rule: Some(format!("{capability}: true")),
                     annotated: false,
                 },
-                // Implicit permisa, dar marcata in trace (spec sectiunea 7).
+                // Allowed by default, but marked in the trace (spec section 7).
                 _ => Decision {
                     granted: true,
                     capability,
                     target: target.to_string(),
-                    reason: "implicit permisa, adnotata in trace".to_string(),
+                    reason: "allowed by default, annotated in the trace".to_string(),
                     rule: None,
                     annotated: true,
                 },
@@ -173,10 +173,10 @@ impl Broker {
 
         let rules = self.targets(capability);
         if rules.is_empty() {
-            // Spec sectiunea 7: citirea de fisiere este "refuzata in afara
-            // proiectului". Fara declaratie, domeniul implicit este exact
-            // radacina proiectului; un manifest care declara `files.read`
-            // inlocuieste complet acest implicit.
+            // Spec section 7: file reading is "denied outside the project".
+            // Without a declaration, the default scope is exactly the project
+            // root; a manifest that declares `files.read` replaces this default
+            // entirely.
             if !self.strict
                 && capability == CapabilityKind::FilesRead
                 && paths::contains_real(&self.project_root, target)
@@ -185,20 +185,20 @@ impl Broker {
                     granted: true,
                     capability,
                     target: target.to_string(),
-                    reason: "in radacina proiectului (domeniu implicit)".to_string(),
-                    rule: Some("(implicit: radacina proiectului)".to_string()),
+                    reason: "in the project root (default scope)".to_string(),
+                    rule: Some("(default: project root)".to_string()),
                     annotated: true,
                 };
             }
-            return denied("nedeclarata in manifest", None);
+            return denied("not declared in the manifest", None);
         }
 
         for rule in rules {
             let hit = match capability {
                 CapabilityKind::FilesRead | CapabilityKind::FilesWrite => {
-                    // `contains_real`, nu `contains`: o legatura simbolica pusa
-                    // in domeniul acordat nu are voie sa scoata accesul afara
-                    // (S6 din SECURITY-AUDIT.md).
+                    // `contains_real`, not `contains`: a symbolic link placed
+                    // in the granted scope must not be able to take access
+                    // outside it (S6 in SECURITY-AUDIT.md).
                     paths::contains_real(&paths::resolve(&self.project_root, rule), target)
                 }
                 CapabilityKind::NetConnect | CapabilityKind::NetListen => matches_host(rule, target),
@@ -209,17 +209,17 @@ impl Broker {
                     granted: true,
                     capability,
                     target: target.to_string(),
-                    reason: "acoperita de o regula declarata".to_string(),
+                    reason: "covered by a declared rule".to_string(),
                     rule: Some(rule.clone()),
                     annotated: false,
                 };
             }
         }
 
-        denied(&format!("in afara domeniului declarat ({})", rules.join(", ")), None)
+        denied(&format!("outside the declared scope ({})", rules.join(", ")), None)
     }
 
-    /// Verifica un acces si il inregistreaza in diagnostic si telemetrie.
+    /// Checks an access and records it in the diagnostics and telemetry.
     pub fn check(&self, capability: CapabilityKind, target: &str) -> Decision {
         let normalized = match capability {
             CapabilityKind::FilesRead | CapabilityKind::FilesWrite => {
@@ -259,7 +259,7 @@ impl Broker {
         decision
     }
 
-    /// Ca `check`, dar esueaza daca accesul este refuzat.
+    /// Like `check`, but fails if the access is denied.
     pub fn require(&self, capability: CapabilityKind, target: &str) -> Result<Decision> {
         let decision = self.check(capability, target);
         if decision.granted {
@@ -288,7 +288,7 @@ impl Broker {
         );
     }
 
-    /// Sub-broker cu un subset explicit; nimic nu se mosteneste implicit.
+    /// Sub-broker with an explicit subset; nothing is inherited implicitly.
     pub fn delegate(&self, capabilities: &[CapabilityKind], label: &str) -> Broker {
         let mut subset = BTreeMap::new();
         for capability in capabilities {
@@ -299,7 +299,7 @@ impl Broker {
                 subset.insert(*capability, grant.clone());
             }
         }
-        // Ambientalele nu se propaga implicit: daca nu sunt cerute, copilul le pierde.
+        // Ambient capabilities do not propagate implicitly: if not requested, the child loses them.
         for ambient in CAPABILITY_KINDS.into_iter().filter(|kind| kind.is_ambient()) {
             if !capabilities.contains(&ambient) {
                 subset.insert(ambient, Grant::Ambient(false));
@@ -411,16 +411,16 @@ mod tests {
 
     #[test]
     fn o_legatura_simbolica_nu_scapa_din_domeniul_declarat() {
-        // Regresie S6: `contains` era lexical, deci un link pus in `./date`
-        // trecea verificarea si citea ce arata el. Testul construieste linkul
-        // REAL - daca sistemul nu ne lasa (Windows fara Developer Mode), se sare
-        // cu motivul scris, nu trece tacit.
+        // S6 regression: `contains` was lexical, so a link placed in `./date`
+        // passed the check and read whatever it pointed at. The test builds the
+        // REAL link - if the system won't let us (Windows without Developer
+        // Mode), we skip with the reason written out, we don't pass silently.
         let base = std::env::temp_dir().join(format!("raptor-cap-link-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&base);
         let proiect = base.join("proiect");
         let secrete = base.join("secrete");
         if std::fs::create_dir_all(proiect.join("date")).is_err() || std::fs::create_dir_all(&secrete).is_err() {
-            eprintln!("sarit: nu pot pregati terenul");
+            eprintln!("skipped: cannot set up the test fixtures");
             return;
         }
         let _ = std::fs::write(secrete.join("parola.txt"), "hunter2
@@ -435,7 +435,7 @@ mod tests {
         let facut = std::os::windows::fs::symlink_dir(&secrete, &legatura).is_ok();
         if !facut {
             let _ = std::fs::remove_dir_all(&base);
-            eprintln!("sarit: nu pot crea legaturi simbolice aici");
+            eprintln!("skipped: cannot create symbolic links here");
             return;
         }
 
@@ -449,13 +449,13 @@ mod tests {
             observer,
         );
 
-        // Ce are voie: un fisier obisnuit din `./date`.
+        // What it may do: an ordinary file in `./date`.
         assert!(broker.check(CapabilityKind::FilesRead, &paths::resolve(&root, "./date/cuminte.txt")).granted);
-        // Ce nu are voie: acelasi domeniu, dar prin legatura.
+        // What it may not do: the same scope, but through the link.
         let prin_legatura = paths::resolve(&root, "./date/spre-secrete/parola.txt");
         assert!(
             !broker.check(CapabilityKind::FilesRead, &prin_legatura).granted,
-            "o legatura nu extinde domeniul acordat"
+            "a link does not extend the granted scope"
         );
 
         let _ = std::fs::remove_dir_all(&base);
@@ -511,7 +511,7 @@ mod tests {
         let capabilities = broker(&[]);
         let decision = capabilities.check(CapabilityKind::ClockReal, "");
         assert!(decision.granted);
-        assert!(decision.annotated, "accesul implicit trebuie marcat in trace");
+        assert!(decision.annotated, "default access must be marked in the trace");
 
         let off = broker(&[(CapabilityKind::ClockReal, Grant::Ambient(false))]);
         assert!(!off.check(CapabilityKind::ClockReal, "").granted);
@@ -525,7 +525,7 @@ mod tests {
         capabilities.revoke(CapabilityKind::FilesRead);
         assert!(!capabilities.check(CapabilityKind::FilesRead, "./src/a.ts").granted);
 
-        let error = capabilities.require(CapabilityKind::FilesRead, "./src/a.ts").expect_err("refuz");
+        let error = capabilities.require(CapabilityKind::FilesRead, "./src/a.ts").expect_err("deny");
         assert_eq!(error.code, ErrorCode::CapabilityRevoked);
     }
 
@@ -542,7 +542,7 @@ mod tests {
         assert!(!child.check(CapabilityKind::FilesWrite, "./dist/a.js").granted);
         assert!(
             !child.check(CapabilityKind::ClockReal, "").granted,
-            "ambientalele nu se mostenesc fara cerere explicita"
+            "ambient capabilities are not inherited without an explicit request"
         );
     }
 
@@ -557,7 +557,7 @@ mod tests {
     #[test]
     fn require_poarta_codul_tinta_si_motivul() {
         let capabilities = broker(&[(CapabilityKind::FilesRead, targets(&["./src"]))]);
-        let error = capabilities.require(CapabilityKind::FilesRead, "./secrete/a.txt").expect_err("refuz");
+        let error = capabilities.require(CapabilityKind::FilesRead, "./secrete/a.txt").expect_err("deny");
         assert_eq!(error.code, ErrorCode::CapabilityDenied);
         assert_eq!(error.detail.get("capability").map(String::as_str), Some("files.read"));
         assert!(error.detail.get("target").is_some_and(|target| target.ends_with("/secrete/a.txt")));
@@ -567,11 +567,11 @@ mod tests {
     fn o_capability_nedeclarata_se_distinge_de_una_refuzata() {
         let capabilities = broker(&[(CapabilityKind::NetConnect, targets(&["api.example.com:443"]))]);
         assert_eq!(
-            capabilities.require(CapabilityKind::ProcessSpawn, "git").expect_err("refuz").code,
+            capabilities.require(CapabilityKind::ProcessSpawn, "git").expect_err("deny").code,
             ErrorCode::CapabilityUndeclared
         );
         assert_eq!(
-            capabilities.require(CapabilityKind::NetConnect, "alt.example.com:443").expect_err("refuz").code,
+            capabilities.require(CapabilityKind::NetConnect, "alt.example.com:443").expect_err("deny").code,
             ErrorCode::CapabilityDenied
         );
     }
@@ -593,7 +593,7 @@ mod tests {
 
         let usage = capabilities.usage();
         let granted =
-            usage.iter().find(|entry| entry.capability == CapabilityKind::FilesRead).expect("citire");
+            usage.iter().find(|entry| entry.capability == CapabilityKind::FilesRead).expect("read");
         assert_eq!(granted.count, 2);
         assert!(granted.granted);
         assert!(usage.iter().any(|entry| entry.capability == CapabilityKind::NetConnect && !entry.granted));
@@ -617,7 +617,7 @@ mod tests {
             })
             .collect();
         for handle in handles {
-            assert!(handle.join().expect("firul se incheie curat"));
+            assert!(handle.join().expect("the thread finishes cleanly"));
         }
         let usage = capabilities.usage();
         assert_eq!(usage.iter().map(|entry| entry.count).sum::<u64>(), 8);

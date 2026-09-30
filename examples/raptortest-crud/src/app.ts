@@ -1,10 +1,10 @@
 /**
- * Aplicatia testata (SUT): un mini cart CRUD cu bug-ul clasic RT-184 din
- * whitepaper (Anexa A): "Add to cart" apoi navigare imediata la Cart; un GET
- * /cart stale poate suprascrie starea corecta din UI (last-write-wins pe client).
+ * The system under test (SUT): a mini CRUD cart with the classic RT-184 bug from
+ * the whitepaper (Appendix A): "Add to cart" then immediate navigation to Cart; a
+ * stale GET /cart can overwrite the correct UI state (last-write-wins on the client).
  *
- * Aplicatia NU stie ca backend-ul e un RaptorTwin sintetic: face request-uri
- * normale prin harness-context (whitepaper §2, principiul "real client code").
+ * The app does NOT know the backend is a synthetic RaptorTwin: it makes normal
+ * requests through the harness context (whitepaper §2, the "real client code" principle).
  */
 import {
   RaptorTwin,
@@ -58,14 +58,14 @@ export function buildCartApp(): CartApp {
     },
     perform(id: string, ctx: HarnessContext) {
       if (id === actionId(ADD)) {
-        // Optimistic? Nu: asteapta raspunsul si scrie count. (last-write-wins)
+        // Optimistic? No: it waits for the response and writes count. (last-write-wins)
         ctx.request("POST", "/cart/items", {}, (res) => {
           ui.count = (res.body as { count: number }).count;
         });
       } else if (id === actionId(GO_CART)) {
-        ui.route = "/cart"; // navigare imediata
+        ui.route = "/cart"; // immediate navigation
         ctx.request("GET", "/cart", null, (res) => {
-          ui.count = (res.body as { count: number }).count; // poate suprascrie cu stare veche
+          ui.count = (res.body as { count: number }).count; // may overwrite with stale state
         });
       } else if (id === actionId(BACK)) {
         ui.route = "/product";
@@ -81,8 +81,8 @@ export function buildCartApp(): CartApp {
     },
   };
 
-  // Invariant derivat din model (whitepaper §16/§26): UI trebuie sa reflecte
-  // starea autoritativa a serverului dupa ce reteaua se stabilizeaza.
+  // Invariant derived from the model (whitepaper §16/§26): the UI must reflect
+  // the server's authoritative state once the network settles.
   const invariants: CustomInvariant[] = [
     {
       name: "cart-count-converges",

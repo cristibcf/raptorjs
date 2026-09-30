@@ -1,10 +1,10 @@
 /** Forms. */
-import { state, R } from "@raptor/dom";
-import { Wizard } from "@raptor/ui/advanced";
-import { Button } from "@raptor/ui/button";
-import { Fieldset, HelperText } from "@raptor/ui/controls";
-import { ErrorMessage, type Field, Form, FormField, FormSection, Label, ValidationSummary, field, formGroup, validators } from "@raptor/ui/form";
-import { Input } from "@raptor/ui/input";
+import { state, R } from "raptorjs/dom";
+import { Wizard } from "raptorjs/ui/advanced";
+import { Button } from "raptorjs/ui/button";
+import { Fieldset, HelperText } from "raptorjs/ui/controls";
+import { ErrorMessage, type Field, Form, FormField, FormSection, Label, ValidationSummary, field, formGroup, validators } from "raptorjs/ui/form";
+import { Input } from "raptorjs/ui/input";
 import type { CatalogGroup } from "./types.ts";
 
 /** A field's `props()` are meant for a raw control — apply them and you are done. */

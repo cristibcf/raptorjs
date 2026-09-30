@@ -1,22 +1,22 @@
-//! Motorul QuickJS, in spatele lui [`EngineAdapter`](crate::engine::EngineAdapter).
+//! The QuickJS engine, behind [`EngineAdapter`](crate::engine::EngineAdapter).
 //!
-//! Aceasta este piesa care transforma binarul dintr-un verificator de manifeste
-//! intr-un runtime: de aici incolo, `raptor-runtime run` chiar executa module,
-//! fara Node instalat pe masina.
+//! This is the piece that turns the binary from a manifest validator
+//! into a runtime: from here on, `raptor-runtime run` actually executes modules,
+//! without Node installed on the machine.
 //!
-//! **De ce QuickJS inaintea lui V8.** Spec-ul sectiunea 13 cere V8 "printr-un
-//! adaptor ingust", si acela ramane tinta. Dar adaptorul exista tocmai ca
-//! motorul sa poata fi schimbat fara sa atinga nimic din aplicatii, iar QuickJS
-//! se compileaza din sursa C in zeci de secunde, nu in ore. Ordinea aleasa
-//! dovedeste independenta de Node *acum* si lasa V8 sa intre mai tarziu prin
-//! aceeasi usa.
+//! **Why QuickJS before V8.** Spec section 13 calls for V8 "through a
+//! narrow adapter", and that remains the goal. But the adapter exists precisely
+//! so the engine can be swapped without touching anything in the applications, and QuickJS
+//! compiles from C source in tens of seconds, not hours. The chosen order
+//! proves independence from Node *now* and lets V8 come in later through
+//! the same door.
 //!
-//! **Izolarea firelor.** `rquickjs::Runtime` nu poate fi partajat intre fire,
-//! dar [`EngineAdapter`] cere `Send + Sync` pentru ca host-ul il imparte cu
-//! task-urile. Solutia nu este un `unsafe impl`: motorul traieste pe **firul lui**
-//! si primeste comenzi pe un canal. Asta este si mai aproape de adevar - un
-//! izolat chiar apartine unui singur fir - si face ca un panic in JavaScript sa
-//! ramana la el acasa.
+//! **Thread isolation.** `rquickjs::Runtime` cannot be shared across threads,
+//! but [`EngineAdapter`] requires `Send + Sync` because the host shares it with
+//! the tasks. The solution is not an `unsafe impl`: the engine lives on **its own thread**
+//! and receives commands over a channel. This is also closer to the truth - an
+//! isolate really does belong to a single thread - and it keeps a JavaScript panic
+//! at home.
 
 use crate::engine::{EngineAdapter, Evaluation, GraphNode, HostModules};
 use crate::error::{ErrorCode, RaptorError, Result};
@@ -27,7 +27,7 @@ use std::sync::mpsc::{channel, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 
-/// Comenzile pe care firul motorului le poate primi.
+/// The commands the engine thread can receive.
 enum Command {
     Install(HostModules, Sender<Result<()>>),
     Evaluate(String, Sender<Result<Evaluation>>),
@@ -51,18 +51,18 @@ impl QuickJsEngine {
         let thread_id = isolate_id.clone();
         let thread = std::thread::Builder::new()
             .name(format!("raptor-isolate-{thread_id}"))
-            // QuickJS foloseste stiva masinii pentru recursie in JavaScript;
-            // stiva implicita a unui fir este prea mica pentru module reale.
+            // QuickJS uses the machine stack for recursion in JavaScript;
+            // a thread's default stack is too small for real modules.
             .stack_size(8 * 1024 * 1024)
             .spawn(move || engine_loop(receiver, ready_tx))
             .map_err(|error| {
-                RaptorError::new(ErrorCode::EngineEvaluation, "nu am putut porni firul izolatului")
+                RaptorError::new(ErrorCode::EngineEvaluation, "could not start the isolate thread")
                     .with("cause", error.to_string())
             })?;
 
         let version = ready_rx
             .recv()
-            .map_err(|_| RaptorError::new(ErrorCode::EngineEvaluation, "firul izolatului nu a raspuns la pornire"))??;
+            .map_err(|_| RaptorError::new(ErrorCode::EngineEvaluation, "the isolate thread did not respond at startup"))??;
 
         Ok(Self {
             isolate_id,
@@ -77,15 +77,15 @@ impl QuickJsEngine {
         let guard = self
             .sender
             .lock()
-            .map_err(|_| RaptorError::new(ErrorCode::EngineEvaluation, "izolatul este intr-o stare invalida"))?;
+            .map_err(|_| RaptorError::new(ErrorCode::EngineEvaluation, "the isolate is in an invalid state"))?;
         let sender = guard
             .as_ref()
-            .ok_or_else(|| RaptorError::new(ErrorCode::EngineEvaluation, "izolatul a fost inchis"))?;
+            .ok_or_else(|| RaptorError::new(ErrorCode::EngineEvaluation, "the isolate has been closed"))?;
         sender
             .send(make(tx))
-            .map_err(|_| RaptorError::new(ErrorCode::EngineEvaluation, "firul izolatului s-a oprit"))?;
+            .map_err(|_| RaptorError::new(ErrorCode::EngineEvaluation, "the isolate thread has stopped"))?;
         rx.recv()
-            .map_err(|_| RaptorError::new(ErrorCode::EngineEvaluation, "izolatul nu a raspuns"))
+            .map_err(|_| RaptorError::new(ErrorCode::EngineEvaluation, "the isolate did not respond"))
     }
 }
 
@@ -134,14 +134,14 @@ impl Drop for QuickJsEngine {
     }
 }
 
-/// Firul izolatului: creeaza runtime-ul QuickJS si il tine pana la `Dispose`.
+/// The isolate thread: creates the QuickJS runtime and holds it until `Dispose`.
 fn engine_loop(receiver: std::sync::mpsc::Receiver<Command>, ready: Sender<Result<String>>) {
     let runtime = match rquickjs::Runtime::new() {
         Ok(runtime) => runtime,
         Err(error) => {
             let _ = ready.send(Err(RaptorError::new(
                 ErrorCode::EngineEvaluation,
-                format!("nu am putut crea runtime-ul QuickJS: {error}"),
+                format!("could not create the QuickJS runtime: {error}"),
             )));
             return;
         }
@@ -151,7 +151,7 @@ fn engine_loop(receiver: std::sync::mpsc::Receiver<Command>, ready: Sender<Resul
         Err(error) => {
             let _ = ready.send(Err(RaptorError::new(
                 ErrorCode::EngineEvaluation,
-                format!("nu am putut crea contextul QuickJS: {error}"),
+                format!("could not create the QuickJS context: {error}"),
             )));
             return;
         }
@@ -180,11 +180,11 @@ fn engine_loop(receiver: std::sync::mpsc::Receiver<Command>, ready: Sender<Resul
     }
 }
 
-/// Versiunea legaturii, fixata la compilare.
+/// The binding version, fixed at compile time.
 ///
-/// `env!("CARGO_PKG_VERSION")` ar da versiunea *nucleului*, nu a motorului - o
-/// cifra care arata credibil si este gresita. Mai bine una scrisa explicit,
-/// langa dependenta din `Cargo.toml`.
+/// `env!("CARGO_PKG_VERSION")` would give the *core's* version, not the engine's - a
+/// number that looks credible and is wrong. Better one written explicitly,
+/// next to the dependency in `Cargo.toml`.
 const QUICKJS_BINDING: &str = "rquickjs 0.14";
 
 fn quickjs_version() -> String {
@@ -198,13 +198,13 @@ fn evaluate_entry(
     graph: &mut Vec<GraphNode>,
 ) -> Result<Evaluation> {
     let source = std::fs::read_to_string(entry_path).map_err(|error| {
-        RaptorError::new(ErrorCode::ModuleNotFound, "nu am putut citi modulul de intrare")
+        RaptorError::new(ErrorCode::ModuleNotFound, "could not read the entry module")
             .with("entry", entry_path)
             .with("cause", error.to_string())
     })?;
 
-    // TypeScript trece printr-un parser adevarat inainte sa ajunga la motor.
-    // QuickJS executa JavaScript; tipurile se elimina, nu se ignora.
+    // TypeScript goes through a real parser before it reaches the engine.
+    // QuickJS executes JavaScript; types are stripped, not ignored.
     let source = if crate::typescript::needs_stripping(entry_path) {
         crate::typescript::strip(&source, entry_path)?
     } else {
@@ -224,8 +224,8 @@ fn evaluate_entry(
     let started = std::time::Instant::now();
 
     let exports = context.with(|ctx| -> Result<BTreeMap<String, Json>> {
-        // Modulele `raptor:` se publica inainte de evaluare, ca importurile din
-        // modulul de intrare sa le gaseasca deja declarate.
+        // The `raptor:` modules are published before evaluation, so imports in
+        // the entry module find them already declared.
         install_host_objects(&ctx, host_modules)?;
         for (name, module) in host_modules {
             let source = synthesize_host_module(name, module);
@@ -250,24 +250,24 @@ fn evaluate_entry(
     Ok(Evaluation { exports, duration_ms: started.elapsed().as_secs_f64() * 1000.0 })
 }
 
-/// Numele registrului global in care traiesc obiectele de host ale izolatului.
+/// The name of the global registry where the isolate's host objects live.
 ///
-/// Aceeasi conventie ca in launcher-ul TypeScript: un simbol global, nu o
-/// variabila la vedere, ca sa nu fie atins din greseala de codul aplicatiei.
+/// The same convention as in the TypeScript launcher: a global symbol, not a
+/// visible variable, so it is not touched by accident by the application code.
 const HOST_REGISTRY: &str = "raptor.runtime.hostModules";
 
-/// Construieste, pentru fiecare modul, un obiect JavaScript cu functiile native
-/// legate, si il pune in registrul global al izolatului.
+/// Builds, for each module, a JavaScript object with the native functions
+/// bound, and puts it in the isolate's global registry.
 ///
-/// Functiile nu sunt copii de date: fiecare apel din JavaScript ajunge inapoi in
-/// Rust, trece prin capability broker si abia apoi atinge discul sau mediul.
+/// The functions are not data copies: every call from JavaScript comes back into
+/// Rust, goes through the capability broker, and only then touches the disk or environment.
 fn install_host_objects<'js>(ctx: &rquickjs::Ctx<'js>, host_modules: &HostModules) -> Result<()> {
     let registry = rquickjs::Object::new(ctx.clone()).map_err(|error| engine_error(ctx, error, HOST_REGISTRY))?;
 
     for (name, module) in host_modules {
         let object = rquickjs::Object::new(ctx.clone()).map_err(|error| engine_error(ctx, error, name))?;
 
-        // Constantele se copiaza o data; nu se schimba in timpul rularii.
+        // The constants are copied once; they do not change at runtime.
         if let Some(fields) = module.descriptor.as_object() {
             for (key, value) in fields {
                 let js = json_to_js(ctx, value).map_err(|error| engine_error(ctx, error, name))?;
@@ -287,9 +287,9 @@ fn install_host_objects<'js>(ctx: &rquickjs::Ctx<'js>, host_modules: &HostModule
                     match callable(&arguments) {
                         Ok(value) => json_to_js(&ctx, &value),
                         Err(error) => {
-                            // Eroarea Raptor devine o exceptie JavaScript care
-                            // poarta acelasi cod: aplicatia o poate prinde si
-                            // deosebi "nu ai voie" de "nu am putut".
+                            // The Raptor error becomes a JavaScript exception that
+                            // carries the same code: the application can catch it and
+                            // tell "not allowed" from "could not".
                             let exception = rquickjs::Object::new(ctx.clone())?;
                             exception.set("name", "RaptorError")?;
                             exception.set("message", error.message.clone())?;
@@ -310,11 +310,11 @@ fn install_host_objects<'js>(ctx: &rquickjs::Ctx<'js>, host_modules: &HostModule
     Ok(())
 }
 
-/// Sursa sintetica a unui modul `raptor:`.
+/// The synthetic source of a `raptor:` module.
 ///
-/// Modulul citeste obiectul din registru si il reexporta: implicit ca `default`
-/// si fiecare functie ca export numit, ca `import { readText } from
-/// "raptor:files"` sa mearga la fel ca `import files from "raptor:files"`.
+/// The module reads the object from the registry and re-exports it: as `default`
+/// by default and each function as a named export, so `import { readText } from
+/// "raptor:files"` works the same as `import files from "raptor:files"`.
 fn synthesize_host_module(name: &str, module: &crate::engine::HostModule) -> String {
     let mut source = format!(
         "const __mod = globalThis[{registry}][{name}];\nexport default __mod;\n",
@@ -323,22 +323,22 @@ fn synthesize_host_module(name: &str, module: &crate::engine::HostModule) -> Str
     );
     for function_name in module.functions.keys() {
         if !is_valid_export_name(function_name) {
-            // Numele care nu pot fi legate (cuvinte rezervate ca `delete`, sau
-            // identificatori invalizi) raman accesibile prin exportul implicit:
-            // `kv.delete(...)` merge, `import { delete }` nu are cum.
+            // Names that cannot be bound (reserved words like `delete`, or
+            // invalid identifiers) stay accessible through the default export:
+            // `kv.delete(...)` works, `import { delete }` cannot.
             continue;
         }
-        // Legarea pastreaza `this`, ca destructurarea din codul utilizatorului
-        // sa nu piarda contextul modulului.
+        // The binding preserves `this`, so destructuring in the user's code
+        // does not lose the module context.
         source.push_str(&format!("export const {function_name} = __mod.{function_name}.bind(__mod);\n"));
     }
     source
 }
 
-/// Cuvintele rezervate ale limbajului nu pot fi nume de export numit.
+/// The language's reserved words cannot be named-export names.
 ///
-/// Lista este scurta pentru ca acopera doar ce poate aparea ca nume de metoda
-/// de host - `delete` din `raptor:kv` a fost cazul care a descoperit-o.
+/// The list is short because it covers only what can appear as a host method
+/// name - `delete` from `raptor:kv` was the case that uncovered it.
 const RESERVED: [&str; 20] = [
     "break", "case", "catch", "class", "const", "continue", "default", "delete", "do", "else", "export", "extends",
     "finally", "for", "function", "if", "import", "in", "new", "return",
@@ -354,7 +354,7 @@ fn is_valid_export_name(name: &str) -> bool {
         && chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$')
 }
 
-/// Conversie din `Json` in valoare JavaScript.
+/// Conversion from `Json` to a JavaScript value.
 fn json_to_js<'js>(ctx: &rquickjs::Ctx<'js>, value: &Json) -> rquickjs::Result<rquickjs::Value<'js>> {
     use rquickjs::IntoJs;
     match value {
@@ -378,13 +378,13 @@ fn json_to_js<'js>(ctx: &rquickjs::Ctx<'js>, value: &Json) -> rquickjs::Result<r
         }
     }
 }
-/// Traduce o eroare a motorului intr-o eroare Raptor.
+/// Translates an engine error into a Raptor error.
 ///
-/// Partea care conteaza este mesajul. `rquickjs` raporteaza doar "Exception
-/// generated by QuickJS" si lasa exceptia in asteptare pe context; daca ne-am
-/// opri acolo, cineva care si-a stricat codul ar primi un text care nu spune
-/// absolut nimic. Scoatem deci exceptia reala si o punem in mesaj, cu stiva in
-/// detaliu.
+/// The part that matters is the message. `rquickjs` reports only "Exception
+/// generated by QuickJS" and leaves the exception pending on the context; if we
+/// stopped there, someone who broke their code would get text that says
+/// absolutely nothing. So we pull out the real exception and put it in the message, with the stack in
+/// the detail.
 fn engine_error(ctx: &rquickjs::Ctx<'_>, error: rquickjs::Error, entry: &str) -> RaptorError {
     let mut message = error.to_string();
     let mut stack: Option<String> = None;
@@ -403,7 +403,7 @@ fn engine_error(ctx: &rquickjs::Ctx<'_>, error: rquickjs::Error, entry: &str) ->
             }
             stack = exception.stack().filter(|text| !text.is_empty());
         } else if let Some(text) = caught.as_string().and_then(|value| value.to_string().ok()) {
-            // O aruncare de valoare care nu este `Error` (`throw "text"`).
+            // A thrown value that is not an `Error` (`throw "text"`).
             message = text;
         }
     }
@@ -416,14 +416,14 @@ fn engine_error(ctx: &rquickjs::Ctx<'_>, error: rquickjs::Error, entry: &str) ->
     raptor
 }
 
-/// Conversie din valoare JavaScript in `Json`, pentru exporturile raportate.
+/// Conversion from a JavaScript value to `Json`, for the reported exports.
 fn to_json(value: &rquickjs::Value<'_>) -> Json {
     if value.is_bool() {
         return Json::Bool(value.as_bool().unwrap_or(false));
     }
     if value.is_number() {
-        // QuickJS tine intregii ca `int32`, nu ca `f64`: `as_float()` intoarce
-        // `None` pentru `42`, iar un `unwrap_or(0.0)` ar raporta tacit zero.
+        // QuickJS keeps integers as `int32`, not `f64`: `as_float()` returns
+        // `None` for `42`, and an `unwrap_or(0.0)` would silently report zero.
         if let Some(whole) = value.as_int() {
             return Json::Number(f64::from(whole));
         }
@@ -440,8 +440,8 @@ fn to_json(value: &rquickjs::Value<'_>) -> Json {
             .unwrap_or(Json::Null);
     }
     if value.is_function() {
-        // Functiile nu au reprezentare JSON; le raportam ca tip, ca `run` sa
-        // poata spune ca exista un `export default` apelabil.
+        // Functions have no JSON representation; we report them as a type, so `run`
+        // can say there is a callable `export default`.
         return Json::string("[function]");
     }
     if value.is_null() || value.is_undefined() {
@@ -451,35 +451,33 @@ fn to_json(value: &rquickjs::Value<'_>) -> Json {
         return Json::Array(array.iter::<rquickjs::Value>().flatten().map(|item| to_json(&item)).collect());
     }
     if let Some(object) = value.as_object() {
-        // Structurile chiar se convertesc: un export de forma `["a", "b"]`
-        // raportat ca "[object]" nu ar spune nimic despre ce a facut aplicatia.
+        // Structures really are converted: an export of the form `["a", "b"]`
+        // reported as "[object]" would say nothing about what the application did.
         let mut fields = BTreeMap::new();
-        for entry in object.props::<String, rquickjs::Value>() {
-            if let Ok((key, item)) = entry {
-                fields.insert(key, to_json(&item));
-            }
+        for (key, item) in object.props::<String, rquickjs::Value>().flatten() {
+            fields.insert(key, to_json(&item));
         }
         return Json::Object(fields);
     }
-    Json::string("[necunoscut]")
+    Json::string("[unknown]")
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    /// Scrie un modul temporar si intoarce calea lui.
+    /// Writes a temporary module and returns its path.
     fn temp_module(name: &str, source: &str) -> String {
         let dir = std::env::temp_dir().join(format!("raptor-qjs-{}-{}", std::process::id(), name));
-        std::fs::create_dir_all(&dir).expect("director temporar");
+        std::fs::create_dir_all(&dir).expect("temporary directory");
         let path = dir.join(format!("{name}.js"));
-        std::fs::write(&path, source).expect("scriere modul");
+        std::fs::write(&path, source).expect("module written");
         path.to_string_lossy().to_string()
     }
 
     fn host_modules() -> HostModules {
-        // Un modul de test cu o constanta si o functie nativa: exact forma pe
-        // care o primeste izolatul in productie.
+        // A test module with a constant and a native function: exactly the form
+        // the isolate receives in production.
         let module = crate::engine::HostModule::new(Json::from_pairs([(
             "module",
             Json::string("raptor:observe"),
@@ -493,14 +491,14 @@ mod tests {
 
     #[test]
     fn evalueaza_un_modul_si_intoarce_exporturile() {
-        let engine = QuickJsEngine::new("iso-eval").expect("motor");
-        engine.install(host_modules()).expect("instalare");
+        let engine = QuickJsEngine::new("iso-eval").expect("engine");
+        engine.install(host_modules()).expect("install");
 
         let entry = temp_module(
             "exporturi",
             "export const numar = 6 * 7;\nexport const text = `ok`;\nexport const adevarat = true;\n",
         );
-        let evaluation = engine.evaluate(&entry).expect("evaluare");
+        let evaluation = engine.evaluate(&entry).expect("evaluation");
 
         assert_eq!(evaluation.exports.get("numar"), Some(&Json::Number(42.0)));
         assert_eq!(evaluation.exports.get("text"), Some(&Json::string("ok")));
@@ -510,56 +508,56 @@ mod tests {
 
     #[test]
     fn corpul_modulului_chiar_ruleaza_nu_doar_se_parseaza() {
-        // Diferenta conteaza: un motor care doar ar parsa ar trece un test pe
-        // constante, dar nu si unul in care valoarea vine dintr-un calcul.
-        let engine = QuickJsEngine::new("iso-calcul").expect("motor");
-        engine.install(host_modules()).expect("instalare");
+        // The difference matters: an engine that only parsed would pass a test on
+        // constants, but not one where the value comes from a computation.
+        let engine = QuickJsEngine::new("iso-calcul").expect("engine");
+        engine.install(host_modules()).expect("install");
 
         let entry = temp_module(
             "calcul",
             "const valori = [1, 2, 3, 4, 5];\nexport const suma = valori.reduce((a, b) => a + b, 0);\n",
         );
-        let evaluation = engine.evaluate(&entry).expect("evaluare");
+        let evaluation = engine.evaluate(&entry).expect("evaluation");
         assert_eq!(evaluation.exports.get("suma"), Some(&Json::Number(15.0)));
     }
 
     #[test]
     fn modulele_raptor_sunt_importabile_din_aplicatie() {
-        let engine = QuickJsEngine::new("iso-import").expect("motor");
-        engine.install(host_modules()).expect("instalare");
+        let engine = QuickJsEngine::new("iso-import").expect("engine");
+        engine.install(host_modules()).expect("install");
 
         let entry = temp_module(
             "import",
             "import observe from \"raptor:observe\";\nexport const nume = observe.module;\n",
         );
-        let evaluation = engine.evaluate(&entry).expect("evaluare");
+        let evaluation = engine.evaluate(&entry).expect("evaluation");
         assert_eq!(evaluation.exports.get("nume"), Some(&Json::string("raptor:observe")));
     }
 
     #[test]
     fn un_modul_de_host_nedeclarat_nu_exista() {
-        let engine = QuickJsEngine::new("iso-lipsa").expect("motor");
-        engine.install(host_modules()).expect("instalare");
+        let engine = QuickJsEngine::new("iso-lipsa").expect("engine");
+        engine.install(host_modules()).expect("install");
 
         let entry = temp_module("lipsa", "import x from \"raptor:teleport\";\nexport const y = x;\n");
-        let error = engine.evaluate(&entry).expect_err("import imposibil");
+        let error = engine.evaluate(&entry).expect_err("impossible import");
         assert_eq!(error.code, ErrorCode::EngineEvaluation);
     }
 
     #[test]
     fn exceptia_din_javascript_ajunge_cu_mesajul_ei() {
-        // Regresie: motorul raporta "Exception generated by QuickJS", text care
-        // nu spune nimic celui care si-a stricat codul.
-        let engine = QuickJsEngine::new("iso-eroare").expect("motor");
-        engine.install(host_modules()).expect("instalare");
+        // Regression: the engine reported "Exception generated by QuickJS", text
+        // that says nothing to whoever broke their code.
+        let engine = QuickJsEngine::new("iso-eroare").expect("engine");
+        engine.install(host_modules()).expect("install");
 
-        let entry = temp_module("eroare", "throw new TypeError(\"mesaj exact\");\n");
-        let error = engine.evaluate(&entry).expect_err("exceptie");
+        let entry = temp_module("eroare", "throw new TypeError(\"exact message\");\n");
+        let error = engine.evaluate(&entry).expect_err("exception");
 
         assert_eq!(error.code, ErrorCode::EngineEvaluation);
         assert!(
-            error.message.contains("TypeError") && error.message.contains("mesaj exact"),
-            "mesajul trebuie sa poarte exceptia reala: {}",
+            error.message.contains("TypeError") && error.message.contains("exact message"),
+            "the message must carry the real exception: {}",
             error.message
         );
     }
@@ -567,13 +565,13 @@ mod tests {
     #[test]
     #[cfg(feature = "typescript")]
     fn typescript_este_eliminat_si_executat() {
-        // Pana la legarea stripper-ului, `.ts` primea un refuz. Acum tipurile
-        // sunt eliminate cu un parser adevarat, iar modulul chiar ruleaza.
-        let engine = QuickJsEngine::new("iso-ts").expect("motor");
-        engine.install(host_modules()).expect("instalare");
+        // Until the stripper was wired in, `.ts` got a refusal. Now the types
+        // are stripped with a real parser, and the module actually runs.
+        let engine = QuickJsEngine::new("iso-ts").expect("engine");
+        engine.install(host_modules()).expect("install");
 
         let dir = std::env::temp_dir().join(format!("raptor-qjs-ts-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).expect("director");
+        std::fs::create_dir_all(&dir).expect("directory");
         let path = dir.join("main.ts");
         std::fs::write(
             &path,
@@ -582,40 +580,40 @@ const n: N = { v: 21 };
 export const dublu: number = n.v * 2;
 ",
         )
-        .expect("scriere");
+        .expect("written");
 
-        let evaluation = engine.evaluate(&path.to_string_lossy()).expect("TypeScript rulat");
+        let evaluation = engine.evaluate(&path.to_string_lossy()).expect("TypeScript ran");
         assert_eq!(evaluation.exports.get("dublu"), Some(&Json::Number(42.0)));
     }
 
     #[test]
     #[cfg(not(feature = "typescript"))]
     fn fara_stripper_typescript_este_refuzat_explicit() {
-        // Nu exista cale tacuta: un binar fara stripper spune ce ii lipseste.
-        let engine = QuickJsEngine::new("iso-ts-fara").expect("motor");
+        // There is no silent path: a binary without a stripper says what it lacks.
+        let engine = QuickJsEngine::new("iso-ts-fara").expect("engine");
         let dir = std::env::temp_dir().join(format!("raptor-qjs-nots-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).expect("director");
+        std::fs::create_dir_all(&dir).expect("directory");
         let path = dir.join("main.ts");
         std::fs::write(&path, "export const x: number = 1;
-").expect("scriere");
+").expect("written");
 
-        let error = engine.evaluate(&path.to_string_lossy()).expect_err("refuz");
+        let error = engine.evaluate(&path.to_string_lossy()).expect_err("refusal");
         assert_eq!(error.code, ErrorCode::ModuleUnsupported);
     }
 
     #[test]
     fn un_modul_inexistent_este_raportat_ca_atare() {
-        let engine = QuickJsEngine::new("iso-negasit").expect("motor");
-        let error = engine.evaluate("/cale/care/nu/exista.js").expect_err("fisier lipsa");
+        let engine = QuickJsEngine::new("iso-negasit").expect("engine");
+        let error = engine.evaluate("/cale/care/nu/exista.js").expect_err("missing file");
         assert_eq!(error.code, ErrorCode::ModuleNotFound);
     }
 
     #[test]
     fn graful_de_module_contine_intrarea_si_modulele_de_host() {
-        let engine = QuickJsEngine::new("iso-graf").expect("motor");
-        engine.install(host_modules()).expect("instalare");
+        let engine = QuickJsEngine::new("iso-graf").expect("engine");
+        engine.install(host_modules()).expect("install");
         let entry = temp_module("graf", "export const x = 1;\n");
-        engine.evaluate(&entry).expect("evaluare");
+        engine.evaluate(&entry).expect("evaluation");
 
         let graph = engine.module_graph();
         assert!(graph.iter().any(|node| node.kind == "raptor" && node.specifier == "raptor:observe"));
@@ -624,13 +622,13 @@ export const dublu: number = n.v * 2;
 
     #[test]
     fn motorul_poate_fi_partajat_intre_fire() {
-        // `EngineAdapter: Send + Sync` nu este decorativ: host-ul imparte
-        // motorul cu task-urile. Izolatul traieste pe firul lui, iar comenzile
-        // ajung la el pe canal - deci partajarea chiar este sigura.
+        // `EngineAdapter: Send + Sync` is not decorative: the host shares
+        // the engine with the tasks. The isolate lives on its own thread, and the commands
+        // reach it over a channel - so the sharing really is safe.
         fn require_send_sync<T: Send + Sync>(_: &T) {}
-        let engine = std::sync::Arc::new(QuickJsEngine::new("iso-fire").expect("motor"));
+        let engine = std::sync::Arc::new(QuickJsEngine::new("iso-fire").expect("engine"));
         require_send_sync(&*engine);
-        engine.install(host_modules()).expect("instalare");
+        engine.install(host_modules()).expect("install");
 
         let entry = temp_module("fire", "export const x = 7;\n");
         let handles: Vec<_> = (0..4)
@@ -642,17 +640,17 @@ export const dublu: number = n.v * 2;
             .collect();
 
         for handle in handles {
-            let result = handle.join().expect("fir incheiat");
-            assert!(result.is_ok(), "evaluarea din alt fir trebuie sa reuseasca");
+            let result = handle.join().expect("thread finished");
+            assert!(result.is_ok(), "evaluation from another thread must succeed");
         }
     }
 
     #[test]
     fn dispose_este_idempotent() {
-        let engine = QuickJsEngine::new("iso-dispose").expect("motor");
+        let engine = QuickJsEngine::new("iso-dispose").expect("engine");
         engine.dispose();
         engine.dispose();
-        let error = engine.evaluate("/orice.js").expect_err("dupa inchidere");
+        let error = engine.evaluate("/orice.js").expect_err("after closing");
         assert_eq!(error.code, ErrorCode::EngineEvaluation);
     }
 }

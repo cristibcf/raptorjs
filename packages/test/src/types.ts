@@ -1,15 +1,15 @@
 /**
- * Tipuri partajate RaptorTest. Vezi whitepaper §6-§9, §20.
+ * Shared RaptorTest types. See whitepaper §6-§9, §20.
  */
 import { type VirtualClock } from "./clock.ts";
 
 // --- Semantic UI Model (§8) ------------------------------------------------
-/** Un nod interactiv identificat semantic, nu prin selector CSS. */
+/** An interactive node identified semantically, not by CSS selector. */
 export interface SemanticNode {
   role: string; // button, link, input, form...
   name: string; // accessible name / text
-  context: string[]; // ex. ["ProductCard", "SKU:ABC-42"]
-  actionEffect?: string; // ex. "POST /cart/items"
+  context: string[]; // e.g. ["ProductCard", "SKU:ABC-42"]
+  actionEffect?: string; // e.g. "POST /cart/items"
   stability?: number; // 0..1
 }
 
@@ -44,41 +44,41 @@ export interface ObservedResponse {
 
 // --- Network schedule (chaos / temporal, §14/§15) --------------------------
 export interface RouteTiming {
-  /** intarziere pana cand Twin proceseaza cererea (citeste/scrie DB) */
+  /** delay until Twin processes the request (reads/writes the DB) */
   processDelay: number;
-  /** intarziere de la procesare pana la livrarea raspunsului la client */
+  /** delay from processing until the response is delivered to the client */
   deliverDelay: number;
-  /** injecteaza o eroare (status) in loc de raspuns normal */
+  /** inject an error (status) instead of a normal response */
   faultStatus?: number;
 }
 
 export interface NetworkSchedule {
-  /** timing implicit */
+  /** default timing */
   default: RouteTiming;
   /** override per "METHOD path" */
   routes: Record<string, RouteTiming>;
 }
 
-// --- Application harness (aplicatia testata) --------------------------------
-/** Starea observabila a aplicatiei la un moment dat. */
+// --- Application harness (the application under test) -----------------------
+/** The observable state of the application at a given moment. */
 export interface AppState {
   route: string;
-  /** fapte observabile din UI (ex. { "cart.count": 1 }) */
+  /** observable facts from the UI (e.g. { "cart.count": 1 }) */
   facts: Record<string, unknown>;
-  /** actiuni disponibile acum */
+  /** actions available right now */
   actions: SemanticNode[];
 }
 
 /**
- * Contract pe care aplicatia testata il implementeaza ca RaptorTest sa o poata
- * conduce determinist (echivalentul unui adapter Playwright/RaptorJS, §23).
+ * The contract the application under test implements so RaptorTest can drive it
+ * deterministically (the equivalent of a Playwright/RaptorJS adapter, §23).
  */
 export interface AppHarness {
   reset(): void;
   currentState(): AppState;
-  /** Executa o actiune (poate emite requests prin `net`, folosind `clock`). */
+  /** Perform an action (may emit requests via `net`, using `clock`). */
   perform(actionId: string, ctx: HarnessContext): void;
-  /** Snapshot pentru state forking copy-on-write (§13). */
+  /** Snapshot for copy-on-write state forking (§13). */
   snapshot(): unknown;
   restore(snap: unknown): void;
 }
@@ -101,7 +101,7 @@ export interface Capsule {
   actionLog: string[];
   networkSchedule: NetworkSchedule;
   seed: number;
-  /** invariantul care a esuat */
+  /** the invariant that failed */
   failedOracle?: string;
   detail?: string;
 }

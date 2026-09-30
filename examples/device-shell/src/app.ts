@@ -1,23 +1,22 @@
 /**
- * A sasea forma: un logger de senzor pe o placheta.
+ * The sixth form: a sensor logger on a board.
  *
- * Aici aplicatia se schimba mai mult decat la celelalte cinci, si merita spus de
- * ce. Un carnet de note pe un microcontroler ar fi fost o gluma: pe o placheta
- * nu exista utilizator care sa scrie note. Ce ramane insa identic este forma:
- * starea in semnale `@raptor/core`, persistenta prin stocarea host-ului, si tot
- * ce tine de platforma prin `bridge` - aceleasi trei lucruri ca in
- * `desktop-shell` sau `service-shell`.
+ * Here the app changes more than in the other five, and it is worth saying why.
+ * A notepad on a microcontroller would have been a joke: on a board there is no
+ * user to write notes. What stays identical, though, is the shape: state in
+ * `@raptor/core` signals, persistence through the host's storage, and everything
+ * platform-related through `bridge` - the same three things as in `desktop-shell`
+ * or `service-shell`.
  *
- * Ce e nou aici, si nu are corespondent pe celelalte tinte:
+ * What is new here, and has no counterpart on the other targets:
  *
- *  - **Watchdog.** Bucla principala trebuie sa dea semne de viata. Nu e o
- *    optiune si nu se poate refuza: daca aplicatia se blocheaza, host-ul
- *    reseteaza placheta.
- *  - **Somn.** Intre citiri, placheta doarme. Ceasul aplicatiei se opreste.
- *  - **Scrierile in NVS se numara**, pentru ca uzeaza flash-ul: logger-ul
- *    salveaza doar cand valoarea chiar s-a schimbat destul.
+ *  - **Watchdog.** The main loop must show signs of life. It is not an option and
+ *    cannot be refused: if the app hangs, the host resets the board.
+ *  - **Sleep.** Between readings, the board sleeps. The app's clock stops.
+ *  - **NVS writes are counted**, because they wear out the flash: the logger
+ *    saves only when the value has actually changed enough.
  */
-import { derived, state } from "@raptor/core";
+import { derived, state } from "raptorjs";
 import type { HostBridge } from "@raptor/host";
 
 export interface Reading {
@@ -28,15 +27,15 @@ export interface Reading {
 export interface Logger {
   readonly readings: () => readonly Reading[];
   readonly lastError: () => string | null;
-  /** Rezumat derivat, ca pe celelalte tinte. */
+  /** A derived summary, as on the other targets. */
   readonly summary: () => string;
-  /** Citeste starea salvata si aprinde LED-ul de activitate. */
+  /** Reads the saved state and turns on the activity LED. */
   start(): Promise<void>;
-  /** O singura trecere prin bucla: da semne de viata, citeste, poate salveaza. */
+  /** A single pass through the loop: shows signs of life, reads, maybe saves. */
   step(): Promise<void>;
-  /** Bucla completa: `count` treceri, cu somn intre ele. */
+  /** The full loop: `count` passes, with sleep between them. */
   run(count: number, sleepMs: number): Promise<void>;
-  /** Stinge LED-ul si lasa placheta intr-o stare cunoscuta. */
+  /** Turns off the LED and leaves the board in a known state. */
   shutdown(): Promise<void>;
 }
 
@@ -45,28 +44,28 @@ const LED_PIN = 2;
 const SENSOR_BUS = "i2c0";
 const SENSOR_ADDRESS = 0x48;
 
-/** Sub aceasta diferenta fata de ultima valoare *salvata*, nu se scrie in flash. */
+/** Below this difference from the last *saved* value, nothing is written to flash. */
 const SIGNIFICANT_CHANGE = 0.5;
 
 export function createLogger(bridge: HostBridge): Logger {
   const readings = state<readonly Reading[]>([]);
   const lastError = state<string | null>(null);
   const awake = state(true);
-  // Referinta pentru deduplicare este ultima valoare *scrisa*, nu ultima citita:
-  // altfel o deriva lenta nu ar ajunge niciodata in flash, oricat ar creste.
+  // The reference for deduplication is the last *written* value, not the last read:
+  // otherwise a slow drift would never reach the flash, no matter how much it grows.
   let lastSaved: number | null = null;
 
   const summary = derived(() => {
     const last = readings()[readings().length - 1];
-    return `${awake() ? "treaz" : "adormit"} - ${readings().length} citiri` + (last ? `, ultima ${last.value.toFixed(1)}` : "");
+    return `${awake() ? "awake" : "asleep"} - ${readings().length} readings` + (last ? `, last ${last.value.toFixed(1)}` : "");
   });
 
   bridge.on("power.sleeping", () => awake.set(false));
   bridge.on("power.wake", () => awake.set(true));
   bridge.on("watchdog.warning", (payload) => {
-    // Un avertisment nu este o eroare: este exact momentul in care o bucla
-    // lunga trebuie sa se intrerupa si sa dea semne de viata.
-    lastError.set(`watchdog: ${String(payload["remainingMs"])}ms ramase`);
+    // A warning is not an error: it is exactly the moment when a long loop must
+    // break and show signs of life.
+    lastError.set(`watchdog: ${String(payload["remainingMs"])}ms remaining`);
   });
 
   const led = async (on: boolean): Promise<void> => {
@@ -74,7 +73,7 @@ export function createLogger(bridge: HostBridge): Logger {
     await bridge.call("hw.gpio.write", { pin: LED_PIN, value: on });
   };
 
-  /** Senzorul raspunde cu doi octeti; conversia este a aplicatiei, nu a host-ului. */
+  /** The sensor answers with two bytes; the conversion is the app's, not the host's. */
   const readSensor = async (): Promise<number | null> => {
     if (!bridge.allows("hw.bus.transfer")) return null;
     const answer = await bridge.call<{ read: number[] }>("hw.bus.transfer", {
@@ -103,8 +102,8 @@ export function createLogger(bridge: HostBridge): Logger {
     },
 
     async step(): Promise<void> {
-      // Semnele de viata se dau intai: daca citirea de mai jos atarna, macar
-      // fereastra a fost reimprospatata inainte.
+      // The signs of life come first: if the reading below hangs, at least the
+      // window was refreshed beforehand.
       await bridge.call("watchdog.pet");
 
       const value = await readSensor();
@@ -114,8 +113,8 @@ export function createLogger(bridge: HostBridge): Logger {
       const next = [...readings(), { value, atMs: info.uptimeMs }];
       readings.set(next);
 
-      // Flash-ul se uzeaza: salvam doar cand valoarea s-a departat destul de
-      // ultima salvata - deci si o deriva lenta ajunge pe disc, doar mai rar.
+      // The flash wears out: we save only when the value has moved far enough from
+      // the last saved one - so even a slow drift reaches the disk, just less often.
       if (lastSaved === null || Math.abs(lastSaved - value) >= SIGNIFICANT_CHANGE) {
         await bridge.call("storage.set", { key: READINGS_KEY, value: JSON.stringify(next) });
         lastSaved = value;

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { installMiniDom, stats, resetStats } from "@raptor/dom/testing";
-import { createLoopback, flushLoopback, RaptorClient } from "@raptor/wire-client";
+import { installMiniDom, stats, resetStats } from "raptorjs/dom/testing";
+import { createLoopback, flushLoopback, RaptorClient } from "@raptor/wire/client";
 import { buildDashboardApp, DASHBOARD_QUERY } from "../src/app.ts";
 import { renderDashboard } from "../src/view.ts";
 
@@ -19,13 +19,13 @@ async function setup() {
   return { app, link, client };
 }
 
-test("handshake stabileste o sesiune", async () => {
+test("handshake establishes a session", async () => {
   const { client } = await setup();
   assert.ok(client.sessionId.length > 0);
   assert.equal(client.epoch, 1);
 });
 
-test("snapshot populeaza replica reactiva a clientului", async () => {
+test("snapshot populates the client's reactive replica", async () => {
   const { client } = await setup();
   assert.equal(client.signal("cpu")(), 12);
   assert.equal(client.signal("memory")(), 40);
@@ -33,7 +33,7 @@ test("snapshot populeaza replica reactiva a clientului", async () => {
   assert.deepEqual(client.signal("job:1")(), { name: "build", progress: 10 });
 });
 
-test("delta ops actualizeaza DOAR text-node-ul afectat (end-to-end)", async () => {
+test("delta ops update ONLY the affected text node (end-to-end)", async () => {
   const { app, client } = await setup();
   const root = doc.createElement("div");
   renderDashboard(client, doc, root);
@@ -44,11 +44,11 @@ test("delta ops actualizeaza DOAR text-node-ul afectat (end-to-end)", async () =
   await flushLoopback();
 
   assert.match(root.querySelector("main").toHTML(), /CPU: 99%/);
-  assert.equal(stats.createElement, 0, "niciun element nou");
-  assert.equal(stats.textUpdate, 1, "exact o actualizare de text");
+  assert.equal(stats.createElement, 0, "no new element");
+  assert.equal(stats.textUpdate, 1, "exactly one text update");
 });
 
-test("patch pe un job atinge doar randul lui", async () => {
+test("patch on a job touches only its row", async () => {
   const { app, client } = await setup();
   const root = doc.createElement("div");
   renderDashboard(client, doc, root);
@@ -59,10 +59,10 @@ test("patch pe un job atinge doar randul lui", async () => {
 
   assert.match(root.querySelector("ul").toHTML(), /#2 test - 77%/);
   assert.equal(stats.createElement, 0);
-  assert.equal(stats.textUpdate, 1); // doar randul #2
+  assert.equal(stats.textUpdate, 1); // only row #2
 });
 
-test("mutatie addJob adauga exact un rand nou", async () => {
+test("addJob mutation adds exactly one new row", async () => {
   const { client } = await setup();
   const root = doc.createElement("div");
   renderDashboard(client, doc, root);
@@ -74,10 +74,10 @@ test("mutatie addJob adauga exact un rand nou", async () => {
   assert.equal(res.ok, true);
   assert.deepEqual(client.signal("jobs")(), [1, 2, 3, 9]);
   assert.match(root.querySelector("ul").toHTML(), /#9 notify - 0%/);
-  assert.equal(stats.createElement, 1, "exact un <li> nou");
+  assert.equal(stats.createElement, 1, "exactly one new <li>");
 });
 
-test("TEZA end-to-end: batch delta << re-trimitere JSON a documentului", async () => {
+test("end-to-end THESIS: delta batch << re-sending the document as JSON", async () => {
   const { app, link, client } = await setup();
   const jsonSize = () => {
     const ids = client.signal<number[]>("jobs")() as number[];
@@ -101,7 +101,7 @@ test("TEZA end-to-end: batch delta << re-trimitere JSON a documentului", async (
   assert.ok(deltaBytes < jsonSize(), `delta=${deltaBytes} json=${jsonSize()}`);
 });
 
-test("numerele de secventa cresc per subscription", async () => {
+test("sequence numbers increase per subscription", async () => {
   const { app, client } = await setup();
   let gap = false;
   (client as any).onGap = () => (gap = true);
@@ -109,5 +109,5 @@ test("numerele de secventa cresc per subscription", async () => {
     app.store.setSignal("cpu", i);
     await flushLoopback();
   }
-  assert.equal(gap, false, "fara gauri de secventa peste loopback ordonat");
+  assert.equal(gap, false, "no sequence gaps over ordered loopback");
 });

@@ -1,10 +1,10 @@
 /**
- * Vederea clientului: bindings DOM fine-grained peste replica reactiva a
- * clientului RaptorWire. Aceeasi componenta ruleaza headless (mini-dom) sau in
- * browser (Vite) - vezi src/main.tsx pentru varianta TSX.
+ * The client view: fine-grained DOM bindings over the RaptorWire client's
+ * reactive replica. The same component runs headless (mini-dom) or in the
+ * browser (Vite) - see src/main.tsx for the TSX variant.
  */
-import { render, mountChild, For } from "@raptor/dom";
-import { type RaptorClient } from "@raptor/wire-client";
+import { render, mountChild, For } from "raptorjs/dom";
+import { type RaptorClient } from "@raptor/wire/client";
 
 interface Job {
   name?: string;
@@ -20,7 +20,7 @@ export function renderDashboard(client: RaptorClient, doc: any, root: any): () =
     main.appendChild(cpu);
 
     const mem = doc.createElement("div");
-    mountChild(mem, () => `Memorie: ${client.signal("memory")() ?? 0}%`, null);
+    mountChild(mem, () => `Memory: ${client.signal("memory")() ?? 0}%`, null);
     main.appendChild(mem);
 
     const ul = doc.createElement("ul");

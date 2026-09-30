@@ -1,7 +1,7 @@
 /** Files and upload. */
-import { state } from "@raptor/dom";
-import { Dropzone, FileInput, type FileLike, FileList, type FileRejection, formatSize } from "@raptor/ui/files";
-import { FilePreview, ImageUpload, UploadProgress } from "@raptor/ui/media";
+import { state } from "raptorjs/dom";
+import { Dropzone, FileInput, type FileLike, FileList, type FileRejection, formatSize } from "raptorjs/ui/files";
+import { FilePreview, ImageUpload, UploadProgress } from "raptorjs/ui/media";
 import type { CatalogGroup } from "./types.ts";
 
 const SAMPLE: FileLike[] = [

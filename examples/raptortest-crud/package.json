@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "RaptorTest descopera autonom bug-ul stale-read RT-184 intr-o aplicatie cart CRUD.",
+  "description": "RaptorTest autonomously discovers the stale-read bug RT-184 in a CRUD cart app.",
   "dependencies": {
     "@raptor/test": "workspace:*"
   },

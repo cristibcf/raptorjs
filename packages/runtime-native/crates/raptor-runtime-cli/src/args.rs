@@ -1,8 +1,9 @@
-//! Parser de argumente al binarului `raptor-runtime`.
+//! Argument parser for the `raptor-runtime` binary.
 //!
-//! Spec sectiunea 4: fiecare comanda suporta atat iesire lizibila, cat si
-//! `--json` pentru automatizare. Separatorul `--` trece restul argumentelor
-//! aplicatiei, ca `raptor-runtime run -- --port 8080` sa fie neambiguu.
+//! Spec section 4: every command supports both human-readable output and
+//! `--json` for automation. The `--` separator passes the rest of the
+//! arguments to the application, so `raptor-runtime run -- --port 8080` is
+//! unambiguous.
 
 use std::collections::BTreeMap;
 
@@ -17,11 +18,11 @@ pub struct Args {
     pub command: Option<String>,
     pub positionals: Vec<String>,
     pub flags: BTreeMap<String, Flag>,
-    /// Argumentele de dupa `--`, destinate aplicatiei.
+    /// The arguments after `--`, destined for the application.
     pub app_args: Vec<String>,
 }
 
-/// Flaguri care consuma valoarea urmatoare cand nu se foloseste `--flag=valoare`.
+/// Flags that consume the next value when `--flag=value` is not used.
 const VALUE_FLAGS: [&str; 5] = ["policy", "cwd", "out", "filter", "port"];
 
 impl Args {
@@ -103,7 +104,7 @@ mod tests {
         assert_eq!(args.flag("policy"), Some("production"));
         assert!(args.has("json"));
         assert_eq!(args.app_args, ["--port", "8080"]);
-        assert!(args.positionals.is_empty(), "ce e dupa '--' nu este pozitional");
+        assert!(args.positionals.is_empty(), "what follows '--' is not positional");
     }
 
     #[test]
@@ -128,9 +129,9 @@ mod tests {
 
     #[test]
     fn pozitionalele_pastreaza_ordinea_dupa_comanda() {
-        let args = parse(["init", "proiect-nou", "extra"]);
+        let args = parse(["init", "new-project", "extra"]);
         assert_eq!(args.command.as_deref(), Some("init"));
-        assert_eq!(args.positionals, ["proiect-nou", "extra"]);
+        assert_eq!(args.positionals, ["new-project", "extra"]);
     }
 
     #[test]

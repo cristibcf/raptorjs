@@ -2,6 +2,14 @@
   "name": "@raptor/test",
   "version": "0.1.0",
   "description": "RaptorTest: autonomous behavioral testing + backend digital twin (observe -> infer -> synthesize -> explore -> verify -> replay).",
+  "author": "cristibcf (https://github.com/cristibcf)",
+  "homepage": "https://github.com/cristibcf/raptorjs/tree/main/packages/test#readme",
+  "bugs": "https://github.com/cristibcf/raptorjs/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cristibcf/raptorjs.git",
+    "directory": "packages/test"
+  },
   "type": "module",
   "sideEffects": false,
   "exports": {
@@ -9,11 +17,25 @@
   },
   "types": "./src/index.ts",
   "scripts": {
-    "test": "node --test tests/*.test.ts"
+    "test": "node --test tests/*.test.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "prepack": "tsc -p tsconfig.build.json"
   },
   "license": "MIT",
   "files": [
     "src",
-    "LICENSE"
-  ]
+    "LICENSE",
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  }
 }

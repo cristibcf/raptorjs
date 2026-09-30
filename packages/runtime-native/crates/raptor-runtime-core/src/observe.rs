@@ -1,12 +1,12 @@
-//! Telemetry core (spec sectiunea 5): loguri, span-uri si metrici structurate
-//! din prima zi.
+//! Telemetry core (spec section 5): structured logs, spans, and metrics
+//! from day one.
 //!
-//! Nu exista "print ad-hoc" in host. Fiecare eveniment trece pe aici, ca
-//! `raptor-runtime trace` sa poata emite un flux compatibil OpenTelemetry fara
-//! sa instrumenteze retroactiv codul.
+//! There is no "ad-hoc print" in the host. Every event goes through here, so
+//! that `raptor-runtime trace` can emit an OpenTelemetry-compatible stream
+//! without instrumenting the code after the fact.
 //!
-//! `Observer` este `Clone` si partajeaza acelasi jurnal: il poti da mai departe
-//! unui worker fara sa pierzi evenimentele si fara sincronizare manuala.
+//! `Observer` is `Clone` and shares the same journal: you can hand it off to
+//! a worker without losing events and without manual synchronization.
 
 use crate::json::Json;
 use std::collections::BTreeMap;
@@ -54,7 +54,7 @@ impl EventKind {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Event {
-    /// Milisecunde de la pornirea recorder-ului; monoton.
+    /// Milliseconds since the recorder started; monotonic.
     pub at: f64,
     pub kind: EventKind,
     pub name: String,
@@ -86,7 +86,7 @@ impl Event {
     }
 }
 
-/// Sursa de timp, injectabila ca testele sa fie deterministe.
+/// The time source, injectable so tests can be deterministic.
 enum Clock {
     Monotonic(Instant),
     Frozen,
@@ -128,14 +128,14 @@ impl Observer {
         Self::with(Clock::Monotonic(Instant::now()), Severity::Debug)
     }
 
-    /// Observer cu ceas inghetat: toate evenimentele au `at == 0`. Pentru teste
-    /// care verifica structura, nu durata.
+    /// Observer with a frozen clock: every event has `at == 0`. For tests that
+    /// check structure, not duration.
     pub fn frozen() -> Self {
         Self::with(Clock::Frozen, Severity::Debug)
     }
 
-    /// Observer care pastreaza doar erorile; pentru cai in care telemetria nu
-    /// este ceruta, dar un esec tot trebuie sa lase urma.
+    /// Observer that keeps only errors; for paths where telemetry is not
+    /// required, but a failure must still leave a trace.
     pub fn quiet() -> Self {
         Self::with(Clock::Monotonic(Instant::now()), Severity::Error)
     }
@@ -152,7 +152,7 @@ impl Observer {
         }
     }
 
-    /// Sub-scop cu acelasi jurnal: numele evenimentelor devin `scop.nume`.
+    /// Sub-scope with the same journal: event names become `scope.name`.
     pub fn child(&self, scope: &str) -> Self {
         Self {
             inner: Arc::clone(&self.inner),
@@ -185,7 +185,7 @@ impl Observer {
         });
     }
 
-    /// Log fara atribute; forma scurta, cea mai folosita.
+    /// Log without attributes; the short form, the most used.
     pub fn note(&self, severity: Severity, name: &str) {
         self.log(severity, name, BTreeMap::new());
     }
@@ -217,8 +217,8 @@ impl Observer {
         });
     }
 
-    /// Deschide un span. Daca `Span` este aruncat fara `end`, se inchide singur
-    /// la `Drop` - un span pierdut ar fi o gaura in urma de executie.
+    /// Opens a span. If the `Span` is dropped without `end`, it closes itself
+    /// on `Drop` - a lost span would be a hole in the execution trace.
     pub fn start_span(&self, name: &str) -> Span {
         let id = self.inner.span_counter.fetch_add(1, Ordering::Relaxed) + 1;
         Span {
@@ -235,7 +235,7 @@ impl Observer {
         self.inner.events.lock().map(|events| events.clone()).unwrap_or_default()
     }
 
-    /// Flux de linii JSON, o linie per eveniment.
+    /// A stream of JSON lines, one line per event.
     pub fn to_json_lines(&self) -> String {
         self.events()
             .iter()
@@ -273,7 +273,7 @@ impl Span {
         self.finish();
     }
 
-    /// Inchide span-ul marcandu-l ca esuat, cu motivul in atribute.
+    /// Closes the span marking it as failed, with the reason in the attributes.
     pub fn end_with_error(mut self, error: &str) {
         self.attributes.insert("error".to_string(), Json::string(error));
         self.finish();
@@ -316,11 +316,11 @@ mod tests {
     #[test]
     fn logurile_poarta_scopul_severitatea_si_atributele() {
         let observer = Observer::frozen();
-        observer.log(Severity::Info, "gata", attributes(&[("octeti", Json::from(12u64))]));
+        observer.log(Severity::Info, "ready", attributes(&[("octeti", Json::from(12u64))]));
 
         let events = observer.events();
         assert_eq!(events.len(), 1);
-        assert_eq!(events[0].name, "gata");
+        assert_eq!(events[0].name, "ready");
         assert_eq!(events[0].severity, Severity::Info);
         assert_eq!(events[0].attributes.get("octeti"), Some(&Json::Number(12.0)));
     }
@@ -331,20 +331,20 @@ mod tests {
         let child = observer.child("tasks");
         let grandchild = child.child("worker");
 
-        child.note(Severity::Info, "pornit");
-        grandchild.note(Severity::Warn, "incetinit");
+        child.note(Severity::Info, "started");
+        grandchild.note(Severity::Warn, "slowed");
 
         let names: Vec<String> = observer.events().iter().map(|event| event.name.clone()).collect();
-        assert_eq!(names, vec!["tasks.pornit", "tasks.worker.incetinit"]);
+        assert_eq!(names, vec!["tasks.started", "tasks.worker.slowed"]);
     }
 
     #[test]
     fn span_ul_se_inchide_si_fara_apel_explicit() {
         let observer = Observer::frozen();
         {
-            let mut span = observer.start_span("munca");
+            let mut span = observer.start_span("work");
             span.set("pasi", Json::from(3u64));
-            // Iesim din scop fara `end()`: `Drop` trebuie sa il inchida oricum.
+            // We leave the scope without `end()`: `Drop` must close it anyway.
         }
         let events = observer.events();
         assert_eq!(events.len(), 1);
@@ -356,40 +356,40 @@ mod tests {
     #[test]
     fn un_span_incheiat_cu_eroare_are_severitate_de_eroare() {
         let observer = Observer::frozen();
-        observer.start_span("fetch").end_with_error("conexiune refuzata");
+        observer.start_span("fetch").end_with_error("connection refused");
         let events = observer.events();
         assert_eq!(events[0].severity, Severity::Error);
-        assert_eq!(events[0].attributes.get("error"), Some(&Json::string("conexiune refuzata")));
+        assert_eq!(events[0].attributes.get("error"), Some(&Json::string("connection refused")));
     }
 
     #[test]
     fn un_span_nu_poate_fi_inregistrat_de_doua_ori() {
         let observer = Observer::frozen();
-        observer.start_span("o-singura-data").end();
+        observer.start_span("once").end();
         assert_eq!(observer.events().len(), 1);
     }
 
     #[test]
     fn observerul_linistit_pastreaza_doar_erorile() {
         let observer = Observer::quiet();
-        observer.note(Severity::Info, "zgomot");
-        observer.note(Severity::Error, "chiar conteaza");
+        observer.note(Severity::Info, "noise");
+        observer.note(Severity::Error, "really matters");
         let events = observer.events();
         assert_eq!(events.len(), 1);
-        assert_eq!(events[0].name, "chiar conteaza");
+        assert_eq!(events[0].name, "really matters");
     }
 
     #[test]
     fn jurnalul_se_serializeaza_ca_linii_json_independente() {
         let observer = Observer::frozen();
-        observer.note(Severity::Info, "unu");
-        observer.metric("doi", 2.0, BTreeMap::new());
+        observer.note(Severity::Info, "one");
+        observer.metric("two", 2.0, BTreeMap::new());
 
         let serialized = observer.to_json_lines();
         let lines: Vec<&str> = serialized.lines().collect();
         assert_eq!(lines.len(), 2);
         for line in lines {
-            crate::json::parse(line).expect("fiecare linie este JSON valid de sine statator");
+            crate::json::parse(line).expect("each line is self-contained valid JSON");
         }
     }
 
@@ -399,11 +399,11 @@ mod tests {
         let handles: Vec<_> = (0..4)
             .map(|index| {
                 let scoped = observer.child(&format!("fir{index}"));
-                std::thread::spawn(move || scoped.note(Severity::Info, "gata"))
+                std::thread::spawn(move || scoped.note(Severity::Info, "ready"))
             })
             .collect();
         for handle in handles {
-            handle.join().expect("firul se incheie curat");
+            handle.join().expect("the thread finishes cleanly");
         }
         assert_eq!(observer.events().len(), 4);
     }

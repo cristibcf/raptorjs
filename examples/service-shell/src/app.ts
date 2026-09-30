@@ -1,17 +1,17 @@
 /**
- * Aceeasi aplicatie, a patra oara: acum ca serviciu HTTP.
+ * The same application, a fourth time: now as an HTTP service.
  *
- * Ce ramane identic fata de `desktop-shell`, `mobile-shell` si `web-shell`:
- * starea traieste in semnale `@raptor/core`, iar tot ce tine de platforma trece
- * prin `bridge`. Ce se schimba este forma interactiunii - aici nu exista DOM si
- * nici utilizator, ci cereri care intra si raspunsuri care ies.
+ * What stays identical to `desktop-shell`, `mobile-shell` and `web-shell`: the
+ * state lives in `@raptor/core` signals, and everything platform-related goes
+ * through `bridge`. What changes is the shape of the interaction - here there is
+ * no DOM and no user, just requests coming in and responses going out.
  *
- * Cererile vin ca evenimente `serve.request` si pleaca prin `serve.respond`,
- * pentru ca puntea transporta doar JSON. Asta pare un ocol fata de un handler
- * apelat direct, dar este exact drumul pe care il va face o cerere cand host-ul
- * va fi un proces separat - deci codul de aici nu se schimba atunci.
+ * Requests arrive as `serve.request` events and leave through `serve.respond`,
+ * because the bridge only transports JSON. This looks like a detour compared to a
+ * directly called handler, but it is exactly the path a request will take when
+ * the host is a separate process - so the code here does not change then.
  */
-import { derived, state } from "@raptor/core";
+import { derived, state } from "raptorjs";
 import type { HostBridge } from "@raptor/host";
 
 export interface Note {
@@ -24,11 +24,11 @@ export interface Service {
   readonly url: () => string | null;
   readonly ready: () => boolean;
   readonly served: () => number;
-  /** Rezumatul pe care il raporteaza si `/health`. */
+  /** The summary that `/health` also reports. */
   readonly summary: () => string;
-  /** Cere listenerul, incarca starea si se declara gata de trafic. */
+  /** Requests the listener, loads the state and declares itself ready for traffic. */
   start(): Promise<void>;
-  /** Opreste primirea de cereri noi si spune host-ului ca nu mai e gata. */
+  /** Stops accepting new requests and tells the host it is no longer ready. */
   stop(): Promise<void>;
 }
 
@@ -48,7 +48,7 @@ export function createService(bridge: HostBridge): Service {
   const served = state(0);
   let greeting = "Raptor Service";
 
-  const summary = derived(() => `${ready() ? "ready" : "starting"} - ${notes().length} note, ${served()} cereri`);
+  const summary = derived(() => `${ready() ? "ready" : "starting"} - ${notes().length} notes, ${served()} requests`);
 
   const json = (value: unknown, status = 200): { status: number; headers: Record<string, string>; body: string } => ({
     status,
@@ -56,12 +56,12 @@ export function createService(bridge: HostBridge): Service {
     body: JSON.stringify(value),
   });
 
-  /** Rutare minima; contractul este Web-standard, nu un framework propriu. */
+  /** Minimal routing; the contract is Web-standard, not a custom framework. */
   const handle = async (event: RequestEvent): Promise<{ status: number; headers: Record<string, string>; body: string }> => {
     const path = new URL(event.url).pathname;
 
     if (event.method === "GET" && path === "/health") {
-      // Sanatatea raportata aici si cea declarata host-ului sunt acelasi adevar.
+      // The health reported here and the one declared to the host are the same truth.
       return json({ status: ready() ? "ready" : "starting", notes: notes().length, served: served() });
     }
     if (event.method === "GET" && path === "/note") {
@@ -72,20 +72,20 @@ export function createService(bridge: HostBridge): Service {
       try {
         text = (JSON.parse(event.body ?? "{}") as { text?: unknown }).text;
       } catch {
-        return json({ error: "corp JSON invalid" }, 400);
+        return json({ error: "invalid JSON body" }, 400);
       }
       if (typeof text !== "string" || text.trim().length === 0) {
-        return json({ error: "campul 'text' este obligatoriu" }, 400);
+        return json({ error: "the 'text' field is required" }, 400);
       }
 
       const next = [...notes(), { text: text.trim(), atMs: Date.now() }];
-      // Scriem la host inainte sa publicam starea, ca in celelalte trei shell-uri.
+      // Write to the host before publishing the state, as in the other three shells.
       await bridge.call("storage.set", { key: NOTES_KEY, value: JSON.stringify(next) });
       notes.set(next);
       return json({ stored: next.length }, 201);
     }
 
-    return json({ error: `nicio ruta pentru ${event.method} ${path}` }, 404);
+    return json({ error: `no route for ${event.method} ${path}` }, 404);
   };
 
   bridge.on("serve.request", (payload) => {
@@ -96,8 +96,8 @@ export function createService(bridge: HostBridge): Service {
       try {
         answer = await handle(event);
       } catch (error) {
-        // O cerere care crapa nu are voie sa lase socketul agatat: host-ul
-        // asteapta un `serve.respond` pentru fiecare `serve.request`.
+        // A request that crashes must not leave the socket hanging: the host
+        // waits for a `serve.respond` for every `serve.request`.
         answer = json({ error: (error as Error).message }, 500);
       }
       await bridge.call("serve.respond", { id: event.id, ...answer });
@@ -118,8 +118,8 @@ export function createService(bridge: HostBridge): Service {
       const stored = await bridge.call<string | null>("storage.get", { key: NOTES_KEY });
       if (stored) notes.set(JSON.parse(stored) as Note[]);
 
-      // Portul nu este ales de aplicatie: cere listenerul pe nume, host-ul stie
-      // pe ce port l-a alocat deployment-ul.
+      // The port is not chosen by the app: it requests the listener by name, the
+      // host knows which port the deployment allocated it.
       const listener = await bridge.call<{ url: string }>("serve.listen", { name: "public" });
       url.set(listener.url);
 

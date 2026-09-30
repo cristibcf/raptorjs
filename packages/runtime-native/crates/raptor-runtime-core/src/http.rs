@@ -1,14 +1,14 @@
-//! HTTP/1.1 minimal, peste `std::net`.
+//! Minimal HTTP/1.1, over `std::net`.
 //!
-//! Suficient pentru `raptor:net` si `raptor:serve`, fara nicio dependenta: linia
-//! de start, anteturile, si un corp delimitat de `content-length`. Nu este un
-//! stack HTTP complet si nu pretinde ca este - `transfer-encoding: chunked`,
-//! HTTP/2 si TLS lipsesc, si fiecare este raportat explicit acolo unde conteaza.
+//! Enough for `raptor:net` and `raptor:serve`, with no dependency: the start
+//! line, the headers, and a body delimited by `content-length`. It is not a full
+//! HTTP stack and does not claim to be - `transfer-encoding: chunked`, HTTP/2 and
+//! TLS are missing, and each is reported explicitly where it matters.
 //!
-//! Parsarea trateaza intrarea ca ostila: anteturi fara doua puncte, lungimi
-//! imposibile si linii de start stricate produc erori, nu valori ghicite. Un
-//! corp declarat mai mare decat limita este refuzat inainte sa fie citit, nu
-//! dupa ce a umplut memoria.
+//! Parsing treats the input as hostile: headers without a colon, impossible
+//! lengths and broken start lines produce errors, not guessed values. A body
+//! declared larger than the limit is refused before it is read, not after it has
+//! filled memory.
 
 use crate::error::{ErrorCode, RaptorError, Result};
 use crate::json::Json;
@@ -17,11 +17,11 @@ use std::collections::BTreeMap;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::TcpStream;
 
-/// Limita de corp acceptata, in ambele sensuri. Un server fara limita este o
-/// invitatie la epuizarea memoriei.
+/// The accepted body limit, in both directions. A server without a limit is an
+/// invitation to memory exhaustion.
 pub const MAX_BODY: usize = 8 * 1024 * 1024;
 
-/// Cat asteptam anteturile unei cereri inainte sa renuntam.
+/// How long we wait for a request's headers before giving up.
 pub const HEADER_LIMIT: usize = 64 * 1024;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -60,14 +60,14 @@ fn protocol_error(message: impl Into<String>) -> RaptorError {
     RaptorError::new(ErrorCode::ModuleUnsupported, message)
 }
 
-/// Numele anteturilor se normalizeaza la litere mici: HTTP le trateaza
-/// case-insensitive, iar cine citeste `headers["content-type"]` din JavaScript
-/// nu trebuie sa ghiceasca forma pe care a trimis-o celalalt capat.
+/// Header names are normalized to lowercase: HTTP treats them
+/// case-insensitively, and whoever reads `headers["content-type"]` from
+/// JavaScript should not have to guess the form the other end sent.
 fn insert_header(headers: &mut BTreeMap<String, String>, line: &str) -> Result<()> {
-    let (name, value) = line.split_once(':').ok_or_else(|| protocol_error(format!("antet invalid: {line}")))?;
+    let (name, value) = line.split_once(':').ok_or_else(|| protocol_error(format!("invalid header: {line}")))?;
     let name = name.trim().to_ascii_lowercase();
     if name.is_empty() {
-        return Err(protocol_error("antet fara nume"));
+        return Err(protocol_error("header without a name"));
     }
     headers.insert(name, value.trim().to_string());
     Ok(())
@@ -78,35 +78,35 @@ fn content_length(headers: &BTreeMap<String, String>) -> Result<usize> {
         None => Ok(0),
         Some(raw) => {
             let length: usize =
-                raw.trim().parse().map_err(|_| protocol_error(format!("content-length invalid: {raw}")))?;
+                raw.trim().parse().map_err(|_| protocol_error(format!("invalid content-length: {raw}")))?;
             if length > MAX_BODY {
-                return Err(protocol_error(format!("corp prea mare: {length} octeti, limita {MAX_BODY}")));
+                return Err(protocol_error(format!("body too large: {length} bytes, limit {MAX_BODY}")));
             }
             Ok(length)
         }
     }
 }
 
-/// Citeste anteturile pana la linia goala, cu limita de dimensiune.
+/// Reads the headers up to the blank line, with a size limit.
 fn read_headers<R: BufRead>(reader: &mut R) -> Result<(String, BTreeMap<String, String>)> {
     let mut start_line = String::new();
     let mut consumed = 0;
 
-    // Sar peste linii goale de dinaintea cererii (unele clienti le trimit).
+    // Skip blank lines before the request (some clients send them).
     loop {
         start_line.clear();
         let read = reader
             .read_line(&mut start_line)
-            .map_err(|error| protocol_error(format!("nu am putut citi linia de start: {error}")))?;
+            .map_err(|error| protocol_error(format!("could not read the start line: {error}")))?;
         if read == 0 {
-            return Err(protocol_error("conexiune inchisa inainte de cerere"));
+            return Err(protocol_error("connection closed before the request"));
         }
         consumed += read;
         if !start_line.trim().is_empty() {
             break;
         }
         if consumed > HEADER_LIMIT {
-            return Err(protocol_error("anteturi prea mari"));
+            return Err(protocol_error("headers too large"));
         }
     }
 
@@ -115,13 +115,13 @@ fn read_headers<R: BufRead>(reader: &mut R) -> Result<(String, BTreeMap<String, 
         let mut line = String::new();
         let read = reader
             .read_line(&mut line)
-            .map_err(|error| protocol_error(format!("nu am putut citi anteturile: {error}")))?;
+            .map_err(|error| protocol_error(format!("could not read the headers: {error}")))?;
         if read == 0 {
             break;
         }
         consumed += read;
         if consumed > HEADER_LIMIT {
-            return Err(protocol_error("anteturi prea mari"));
+            return Err(protocol_error("headers too large"));
         }
         let trimmed = line.trim_end_matches(['\r', '\n']);
         if trimmed.is_empty() {
@@ -135,38 +135,39 @@ fn read_headers<R: BufRead>(reader: &mut R) -> Result<(String, BTreeMap<String, 
 
 fn read_body<R: Read>(reader: &mut R, headers: &BTreeMap<String, String>) -> Result<String> {
     if headers.get("transfer-encoding").is_some_and(|value| value.to_ascii_lowercase().contains("chunked")) {
-        // Mai bine un refuz limpede decat un corp taiat pe tacute.
-        return Err(protocol_error("transfer-encoding: chunked nu este suportat de acest stack HTTP"));
+        // Better a clear refusal than a body silently truncated.
+        return Err(protocol_error("transfer-encoding: chunked is not supported by this HTTP stack"));
     }
     let length = content_length(headers)?;
     if length == 0 {
         return Ok(String::new());
     }
     let mut buffer = vec![0_u8; length];
-    reader.read_exact(&mut buffer).map_err(|error| protocol_error(format!("corp incomplet: {error}")))?;
+    reader.read_exact(&mut buffer).map_err(|error| protocol_error(format!("incomplete body: {error}")))?;
     Ok(String::from_utf8_lossy(&buffer).into_owned())
 }
 
-/// Citeste o cerere HTTP de pe un flux.
+/// Reads an HTTP request from a stream.
 pub fn read_request(stream: &TcpStream) -> Result<Request> {
     let mut reader = BufReader::new(stream);
     let (start_line, headers) = read_headers(&mut reader)?;
 
     let mut parts = start_line.split_whitespace();
-    let method = parts.next().ok_or_else(|| protocol_error("linie de start fara metoda"))?.to_string();
-    let target = parts.next().ok_or_else(|| protocol_error("linie de start fara tinta"))?.to_string();
+    let method = parts.next().ok_or_else(|| protocol_error("start line without a method"))?.to_string();
+    let target = parts.next().ok_or_else(|| protocol_error("start line without a target"))?.to_string();
 
     let body = read_body(&mut reader, &headers)?;
     Ok(Request { method, target, headers, body })
 }
 
-/// Scrie un raspuns HTTP pe un flux.
+/// Writes an HTTP response to a stream.
 pub fn write_response(stream: &mut TcpStream, response: &Response) -> Result<()> {
     let reason = reason_phrase(response.status);
     let mut out = format!("HTTP/1.1 {} {reason}\r\n", response.status);
     for (name, value) in &response.headers {
-        // `content-length` si `connection` le stabileste stack-ul, nu aplicatia:
-        // o valoare gresita acolo ar bloca clientul sau ar taia raspunsul.
+        // `content-length` and `connection` are set by the stack, not the
+        // application: a wrong value there would stall the client or truncate
+        // the response.
         if name == "content-length" || name == "connection" {
             continue;
         }
@@ -179,10 +180,10 @@ pub fn write_response(stream: &mut TcpStream, response: &Response) -> Result<()>
     stream
         .write_all(out.as_bytes())
         .and_then(|()| stream.flush())
-        .map_err(|error| protocol_error(format!("nu am putut scrie raspunsul: {error}")))
+        .map_err(|error| protocol_error(format!("could not write the response: {error}")))
 }
 
-/// Trimite o cerere si citeste raspunsul; folosit de `raptor:net`.
+/// Sends a request and reads the response; used by `raptor:net`.
 pub fn exchange(stream: &mut TcpStream, host: &str, request: &Request) -> Result<Response> {
     let mut out = format!("{} {} HTTP/1.1\r\n", request.method, request.target);
     out.push_str(&format!("host: {host}\r\n"));
@@ -199,10 +200,10 @@ pub fn exchange(stream: &mut TcpStream, host: &str, request: &Request) -> Result
     stream
         .write_all(out.as_bytes())
         .and_then(|()| stream.flush())
-        .map_err(|error| protocol_error(format!("nu am putut trimite cererea: {error}")))?;
+        .map_err(|error| protocol_error(format!("could not send the request: {error}")))?;
 
     let mut reader = BufReader::new(stream.try_clone().map_err(|error| {
-        protocol_error(format!("nu am putut citi raspunsul: {error}"))
+        protocol_error(format!("could not read the response: {error}"))
     })?);
     let (start_line, headers) = read_headers(&mut reader)?;
 
@@ -210,7 +211,7 @@ pub fn exchange(stream: &mut TcpStream, host: &str, request: &Request) -> Result
         .split_whitespace()
         .nth(1)
         .and_then(|code| code.parse().ok())
-        .ok_or_else(|| protocol_error(format!("raspuns fara status: {start_line}")))?;
+        .ok_or_else(|| protocol_error(format!("response without a status: {start_line}")))?;
 
     let body = read_body(&mut reader, &headers)?;
     Ok(Response { status, headers, body })
@@ -236,14 +237,14 @@ fn reason_phrase(status: u16) -> &'static str {
     }
 }
 
-/// Descompune un URL absolut in (schema, gazda, port, tinta).
+/// Breaks an absolute URL into (scheme, host, port, target).
 ///
-/// Portul implicit face parte din rezultat pentru ca tinta capabilitatii este
-/// `gazda:port`: fara el, `net.connect: ["api.exemplu.com:443"]` nu ar putea fi
-/// comparat cu `https://api.exemplu.com/x`.
+/// The default port is part of the result because the capability target is
+/// `host:port`: without it, `net.connect: ["api.exemplu.com:443"]` could not be
+/// compared against `https://api.exemplu.com/x`.
 pub fn split_url(url: &str) -> Result<(String, String, u16, String)> {
     let (scheme, rest) = url.split_once("://").ok_or_else(|| {
-        RaptorError::new(ErrorCode::ModuleUnsupported, "raptor:net cere un URL absolut").with("url", url)
+        RaptorError::new(ErrorCode::ModuleUnsupported, "raptor:net requires an absolute URL").with("url", url)
     })?;
     let scheme = scheme.to_ascii_lowercase();
     let default_port = match scheme.as_str() {
@@ -252,7 +253,7 @@ pub fn split_url(url: &str) -> Result<(String, String, u16, String)> {
         other => {
             return Err(RaptorError::new(
                 ErrorCode::ModuleUnsupported,
-                format!("protocol nesuportat de raptor:net: {other}"),
+                format!("protocol not supported by raptor:net: {other}"),
             )
             .with("url", url))
         }
@@ -266,12 +267,12 @@ pub fn split_url(url: &str) -> Result<(String, String, u16, String)> {
         Some((host, port)) => (
             host.to_string(),
             port.parse::<u16>()
-                .map_err(|_| protocol_error(format!("port invalid in URL: {port}")))?,
+                .map_err(|_| protocol_error(format!("invalid port in URL: {port}")))?,
         ),
         None => (authority.to_string(), default_port),
     };
     if host.is_empty() {
-        return Err(protocol_error(format!("URL fara gazda: {url}")));
+        return Err(protocol_error(format!("URL without a host: {url}")));
     }
 
     Ok((scheme, host.to_ascii_lowercase(), port, path.to_string()))
@@ -287,7 +288,7 @@ mod tests {
         assert_eq!((scheme.as_str(), host.as_str(), port, path.as_str()), ("http", "exemplu.com", 80, "/cale?x=1"));
 
         let (_, _, port, path) = split_url("https://API.Exemplu.com").expect("url");
-        assert_eq!((port, path.as_str()), (443, "/"), "portul implicit al schemei si calea radacina");
+        assert_eq!((port, path.as_str()), (443, "/"), "the scheme's default port and the root path");
     }
 
     #[test]
@@ -306,9 +307,9 @@ mod tests {
     #[test]
     fn anteturile_se_normalizeaza_la_litere_mici() {
         let mut headers = BTreeMap::new();
-        insert_header(&mut headers, "Content-Type: text/plain").expect("antet");
+        insert_header(&mut headers, "Content-Type: text/plain").expect("header");
         assert_eq!(headers.get("content-type").map(String::as_str), Some("text/plain"));
-        assert!(insert_header(&mut headers, "fara-doua-puncte").is_err());
+        assert!(insert_header(&mut headers, "no-colon").is_err());
     }
 
     #[test]
@@ -316,7 +317,7 @@ mod tests {
         let mut headers = BTreeMap::new();
         headers.insert("content-length".to_string(), (MAX_BODY + 1).to_string());
         let error = content_length(&headers).expect_err("prea mare");
-        assert!(error.message.contains("prea mare"), "{}", error.message);
+        assert!(error.message.contains("too large"), "{}", error.message);
     }
 
     #[test]
@@ -332,9 +333,9 @@ mod tests {
         let response = Response {
             status: 200,
             headers: BTreeMap::from([("content-length".to_string(), "999".to_string())]),
-            body: "salut".to_string(),
+            body: "hello".to_string(),
         };
-        // Valoarea aplicatiei se ignora; altfel clientul ar astepta 999 octeti.
+        // The application's value is ignored; otherwise the client would expect 999 bytes.
         assert_eq!(response.body.len(), 5);
     }
 }

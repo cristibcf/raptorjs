@@ -1,35 +1,35 @@
-//! Normalizare si continere de cai.
+//! Path normalization and containment.
 //!
-//! Aici traieste logica sensibila la securitate a capability broker-ului. Patru
-//! proprietati trebuie sa fie adevarate, altfel modelul de capabilitati cade:
+//! This is where the capability broker's security-sensitive logic lives. Four
+//! properties must hold, otherwise the capability model collapses:
 //!
-//! 1. rezolvarea lexicala se face **inainte** de orice comparatie, deci
-//!    `./src/../secret` nu poate fi confundat cu ceva din `./src`;
-//! 2. `contains` compara pe segmente, deci `/proiect` nu contine `/proiect-privat`;
-//! 3. radacina sistemului de fisiere este punct fix, deci o cautare care urca in
-//!    arbore se opreste in loc sa cicleze;
-//! 4. **legaturile simbolice sunt urmarite** inainte de decizie (`contains_real`),
-//!    altfel un link pus in domeniul acordat ar scoate accesul in afara lui.
+//! 1. lexical resolution happens **before** any comparison, so
+//!    `./src/../secret` cannot be confused with something in `./src`;
+//! 2. `contains` compares by segments, so `/proiect` does not contain `/proiect-privat`;
+//! 3. the filesystem root is a fixed point, so a search that climbs up the
+//!    tree stops instead of looping;
+//! 4. **symbolic links are followed** before the decision (`contains_real`),
+//!    otherwise a link placed in the granted scope would take access outside it.
 //!
-//! De aceea sunt doua niveluri:
+//! That is why there are two levels:
 //!
-//! - [`normalize`] / [`contains`] sunt **lexicale** si nu ating discul. O cale nu
-//!   trebuie sa existe ca sa poata fi comparata, deci un refuz nu scurge
-//!   informatie despre ce fisiere exista.
-//! - [`real_path`] / [`contains_real`] rezolva legaturile. Astea le foloseste
-//!   brokerul (S6 din `SECURITY-AUDIT.md`).
+//! - [`normalize`] / [`contains`] are **lexical** and do not touch the disk. A path
+//!   does not need to exist to be compared, so a refusal does not leak
+//!   information about which files exist.
+//! - [`real_path`] / [`contains_real`] resolve the links. These are what the
+//!   broker uses (S6 in `SECURITY-AUDIT.md`).
 //!
-//! Aceeasi impartire, cu aceleasi nume, in `packages/runtime/src/paths.ts`.
+//! The same split, with the same names, in `packages/runtime/src/paths.ts`.
 
-/// Pe Windows comparatia de cai ignora registrul literelor si accepta `\`.
+/// On Windows, path comparison ignores letter case and accepts `\`.
 pub const CASE_INSENSITIVE: bool = cfg!(windows);
 
 fn is_separator(character: char) -> bool {
     character == '/' || character == '\\'
 }
 
-/// Prefixul de radacina al unei cai absolute: `"C:"` pe Windows, `""` cu `/` pe
-/// POSIX. `None` pentru caile relative.
+/// The root prefix of an absolute path: `"C:"` on Windows, `""` with `/` on
+/// POSIX. `None` for relative paths.
 fn root_prefix(path: &str) -> Option<String> {
     let bytes = path.as_bytes();
     if bytes.len() >= 2 && bytes[1] == b':' && (bytes[0] as char).is_ascii_alphabetic() {
@@ -45,15 +45,15 @@ pub fn is_absolute(path: &str) -> bool {
     root_prefix(path).is_some()
 }
 
-/// Rezolva lexical `path` fata de `base` si intoarce forma canonica:
-/// separatori `/`, fara `.`/`..`, fara slash final (cu exceptia radacinii),
-/// litera de disc majuscula pe Windows.
+/// Lexically resolves `path` against `base` and returns the canonical form:
+/// `/` separators, no `.`/`..`, no trailing slash (except the root),
+/// an uppercase drive letter on Windows.
 pub fn resolve(base: &str, path: &str) -> String {
     let combined = if path.is_empty() {
         base.to_string()
     } else if is_absolute(path) || base.is_empty() {
-        // O cale absoluta se foloseste ca atare; una relativa fara baza nu are
-        // de ce sa fie prefixata cu un separator inutil.
+        // An absolute path is used as-is; a relative one with no base has no
+        // reason to be prefixed with a useless separator.
         path.to_string()
     } else {
         format!("{base}/{path}")
@@ -67,8 +67,8 @@ pub fn resolve(base: &str, path: &str) -> String {
         match segment {
             "" | "." => {}
             ".." => {
-                // La radacina, `..` nu are unde sa urce: il ignoram, ca o cale
-                // absoluta sa nu poata "iesi" din sistemul de fisiere.
+                // At the root, `..` has nowhere to climb: we ignore it, so an
+                // absolute path cannot "escape" the filesystem.
                 segments.pop();
             }
             other => segments.push(other),
@@ -76,24 +76,24 @@ pub fn resolve(base: &str, path: &str) -> String {
     }
 
     if segments.is_empty() {
-        // Radacina isi pastreaza slash-ul: `C:/` sau `/`. Fara el, `C:` ar
-        // insemna "directorul curent al discului C" si urcarea in arbore ar
-        // sari inapoi in alta parte in loc sa se opreasca.
+        // The root keeps its slash: `C:/` or `/`. Without it, `C:` would
+        // mean "the current directory of drive C" and climbing the tree would
+        // jump back elsewhere instead of stopping.
         return format!("{root}/");
     }
     format!("{root}/{}", segments.join("/"))
 }
 
-/// Forma canonica a unei cai deja absolute.
+/// The canonical form of an already-absolute path.
 pub fn normalize(path: &str) -> String {
     resolve("", path)
 }
 
-/// Parintele unei cai canonice. Radacina este punct fix: `parent(root) == root`.
+/// The parent of a canonical path. The root is a fixed point: `parent(root) == root`.
 pub fn parent(path: &str) -> String {
     let normalized = normalize(path);
     match normalized.rfind('/') {
-        // Slash-ul de radacina: deja la capat de drum.
+        // The root slash: already at the end of the road.
         Some(0) => "/".to_string(),
         Some(index) if normalized[..index].ends_with(':') => format!("{}/", &normalized[..index]),
         Some(index) => normalized[..index].to_string(),
@@ -109,21 +109,21 @@ fn comparable(path: &str) -> String {
     }
 }
 
-/// `true` daca `target` este `scope` sau se afla strict sub el.
+/// `true` if `target` is `scope` or lies strictly below it.
 pub fn contains(scope: &str, target: &str) -> bool {
     let scope = comparable(&normalize(scope));
     let target = comparable(&normalize(target));
     if scope == target {
         return true;
     }
-    // Radacina se termina deja cu `/`; orice alt domeniu are nevoie de separator,
-    // altfel `/proiect` ar parea sa contina `/proiect-privat`.
+    // The root already ends with `/`; any other scope needs a separator,
+    // otherwise `/proiect` would seem to contain `/proiect-privat`.
     let prefix = if scope.ends_with('/') { scope } else { format!("{scope}/") };
     target.starts_with(&prefix)
 }
 
-/// Cale relativa la radacina proiectului, pentru diagnostice stabile intre
-/// platforme. Caile din afara radacinii raman absolute.
+/// A path relative to the project root, for diagnostics stable across
+/// platforms. Paths outside the root stay absolute.
 pub fn relative_to(root: &str, target: &str) -> String {
     let root = normalize(root);
     let target = normalize(target);
@@ -137,18 +137,18 @@ pub fn relative_to(root: &str, target: &str) -> String {
     format!("./{}", &target[skip..])
 }
 
-/// Forma canonica a unei cai **dupa** rezolvarea legaturilor simbolice.
+/// The canonical form of a path **after** resolving symbolic links.
 ///
-/// `canonicalize` cere ca fisierul sa existe, iar brokerul trebuie sa poata
-/// decide si despre un fisier care urmeaza sa fie creat (`files.write`). Deci
-/// urcam pana la cel mai adanc parinte care chiar exista, il rezolvam pe acela,
-/// si lipim inapoi segmentele ramase. O scriere in `./date/link/nou.txt` ajunge
-/// astfel unde ajunge si `open`: prin link, nu pe langa el.
+/// `canonicalize` requires the file to exist, and the broker must be able to
+/// decide about a file that is about to be created too (`files.write`). So
+/// we climb to the deepest parent that actually exists, resolve that one,
+/// and glue the remaining segments back on. A write to `./date/link/nou.txt`
+/// thus lands where `open` does: through the link, not beside it.
 ///
-/// Cand nimic din cale nu exista - sau cand sistemul refuza sa ne spuna -
-/// ramanem la forma lexicala. Asta nu slabeste verificarea: o cale care nu
-/// exista nu poate fi un link catre altundeva, iar daca apare intre timp o
-/// prinde urmatorul apel.
+/// When nothing in the path exists - or when the system refuses to tell us -
+/// we fall back to the lexical form. This does not weaken the check: a path
+/// that does not exist cannot be a link to somewhere else, and if it appears in
+/// the meantime the next call catches it.
 pub fn real_path(path: &str) -> String {
     let normalized = normalize(path);
     let mut suffix: Vec<String> = Vec::new();
@@ -163,8 +163,8 @@ pub fn real_path(path: &str) -> String {
             return out;
         }
         let parent_path = parent(&current);
-        // Am ajuns la radacina fara sa gasim nimic existent: raspunsul lexical e
-        // tot ce avem, si e corect ca atare.
+        // We reached the root without finding anything that exists: the lexical
+        // answer is all we have, and it is correct as such.
         if parent_path == current {
             return normalized;
         }
@@ -174,8 +174,8 @@ pub fn real_path(path: &str) -> String {
     }
 }
 
-/// `\\?\C:\x` -> `C:\x`. Pe Windows, `canonicalize` intoarce forma verbatim,
-/// care nu se compara cu nimic din ce vede restul programului.
+/// `\\?\C:\x` -> `C:\x`. On Windows, `canonicalize` returns the verbatim form,
+/// which does not compare against anything the rest of the program sees.
 fn strip_verbatim(path: &str) -> String {
     if let Some(rest) = path.strip_prefix(r"\\?\UNC\") {
         return format!(r"\\{rest}");
@@ -183,18 +183,18 @@ fn strip_verbatim(path: &str) -> String {
     path.strip_prefix(r"\\?\").unwrap_or(path).to_string()
 }
 
-/// `true` daca `target` este `scope` sau se afla strict sub el, **cu legaturile
-/// simbolice rezolvate de ambele parti**.
+/// `true` if `target` is `scope` or lies strictly below it, **with symbolic
+/// links resolved on both sides**.
 ///
-/// Domeniul se rezolva si el, nu doar tinta: pe macOS `/tmp` este un link catre
-/// `/private/tmp`, deci o comparatie intre un domeniu nerezolvat si o tinta
-/// rezolvata ar refuza accesul in propriul director.
+/// The scope is resolved too, not just the target: on macOS `/tmp` is a link to
+/// `/private/tmp`, so a comparison between an unresolved scope and a resolved
+/// target would deny access within one's own directory.
 ///
-/// **Cursa TOCTOU ramane, si trebuie spusa:** intre verificarea de aici si
-/// `open`-ul propriu-zis, cine poate scrie in domeniu poate inlocui un director
-/// cu o legatura. Inchiderea completa cere `openat2(RESOLVE_BENEATH)` pe Linux
-/// sau echivalentul lui. Ce se inchide aici e cazul real: un link **deja
-/// prezent** in domeniu nu mai scoate accesul afara.
+/// **The TOCTOU race remains, and must be stated:** between the check here and
+/// the actual `open`, whoever can write in the scope can replace a directory
+/// with a link. Closing it completely requires `openat2(RESOLVE_BENEATH)` on Linux
+/// or its equivalent. What is closed here is the real case: a link **already
+/// present** in the scope no longer takes access outside.
 pub fn contains_real(scope: &str, target: &str) -> bool {
     contains(&real_path(scope), &real_path(target))
 }
@@ -222,8 +222,8 @@ mod tests {
                 continue;
             }
             let normalized = normalize(candidate);
-            assert_eq!(parent(&normalized), normalized, "{normalized} nu este punct fix");
-            assert!(normalized.ends_with('/'), "{normalized} si-a pierdut slash-ul de radacina");
+            assert_eq!(parent(&normalized), normalized, "{normalized} is not a fixed point");
+            assert!(normalized.ends_with('/'), "{normalized} lost its root slash");
         }
     }
 
@@ -237,7 +237,7 @@ mod tests {
             }
             current = next;
         }
-        panic!("urcarea nu s-a oprit; ultimul director: {current}");
+        panic!("the climb did not stop; last directory: {current}");
     }
 
     #[test]
@@ -260,7 +260,7 @@ mod tests {
         assert!(contains(&base, &base));
         assert!(contains(&base, &format!("{base}/src/a.ts")));
         assert!(!contains(&base, &format!("{base}-privat/a.ts")));
-        assert!(!contains(&format!("{base}/src"), &base), "parintele nu este continut in copil");
+        assert!(!contains(&format!("{base}/src"), &base), "the parent is not contained in the child");
     }
 
     #[test]
@@ -287,8 +287,8 @@ mod tests {
         assert_eq!(normalize("c:/proiect"), "C:/proiect");
     }
 
-    /// Un teren cu o legatura reala pe disc, sau `None` daca sistemul nu ne lasa
-    /// sa o facem (Windows fara Developer Mode pentru symlink-uri).
+    /// A setup with a real link on disk, or `None` if the system does not let us
+    /// create it (Windows without Developer Mode for symlinks).
     fn teren_cu_legatura() -> Option<(std::path::PathBuf, String, String)> {
         let base = std::env::temp_dir().join(format!("raptor-link-{}-{:?}", std::process::id(), std::thread::current().id()));
         let _ = std::fs::remove_dir_all(&base);
@@ -319,18 +319,18 @@ mod tests {
     #[test]
     fn o_legatura_nu_extinde_domeniul() {
         let Some((base, root, secret)) = teren_cu_legatura() else {
-            eprintln!("sarit: nu pot crea legaturi simbolice aici");
+            eprintln!("skipped: cannot create symbolic links here");
             return;
         };
 
         let prin_legatura = format!("{root}/date/spre-secrete/parola.txt");
-        // Lexical calea chiar e sub radacina - de aici venea gaura (S6).
-        assert!(contains(&root, &prin_legatura), "lexical pare inauntru");
-        // Real, duce in alta parte.
-        assert!(!contains_real(&root, &prin_legatura), "dar ajunge in afara domeniului");
+        // Lexically the path really is under the root - that is where the hole came from (S6).
+        assert!(contains(&root, &prin_legatura), "lexically it looks inside");
+        // In reality, it leads elsewhere.
+        assert!(!contains_real(&root, &prin_legatura), "but it ends up outside the scope");
         assert_eq!(real_path(&prin_legatura), secret);
 
-        // Un fisier obisnuit din acelasi director nu e afectat.
+        // An ordinary file in the same directory is not affected.
         assert!(contains_real(&root, &format!("{root}/date/cuminte.txt")));
 
         let _ = std::fs::remove_dir_all(&base);
@@ -339,12 +339,12 @@ mod tests {
     #[test]
     fn o_cale_inexistenta_se_rezolva_prin_parintele_ei() {
         let Some((base, root, _secret)) = teren_cu_legatura() else {
-            eprintln!("sarit: nu pot crea legaturi simbolice aici");
+            eprintln!("skipped: cannot create symbolic links here");
             return;
         };
 
-        // Fisierul nu exista; parintele e o legatura. O scriere ar ajunge totusi
-        // dincolo de ea, deci verificarea trebuie sa vada asta dinainte.
+        // The file does not exist; the parent is a link. A write would still reach
+        // beyond it, so the check must see this in advance.
         let viitor = format!("{root}/date/spre-secrete/nou.txt");
         assert!(real_path(&viitor).ends_with("/secrete/nou.txt"), "{}", real_path(&viitor));
         assert!(!contains_real(&root, &viitor));

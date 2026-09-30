@@ -1,17 +1,17 @@
 /**
- * Demo RaptorProfile (whitepaper RaptorEngine 22-24). Ruleaza cu:
+ * RaptorProfile demo (whitepaper RaptorEngine 22-24). Run with:
  *   node examples/raptorengine-app/src/profile-demo.ts
  *
- * Arata bucla PGO completa: build -> ruleaza un scenariu pe runtime -> profil de
- * telemetrie -> plan de hints (strategie) -> rebuild profile-guided. Corectitudinea
- * NU depinde de profil (24): ce nu apare in profil ramane in output.
+ * Shows the full PGO loop: build -> run a scenario on the runtime -> telemetry
+ * profile -> hints plan (strategy) -> profile-guided rebuild. Correctness does
+ * NOT depend on the profile (24): whatever is absent from the profile stays in the output.
  */
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { buildModule } from "@raptor/engine";
-import { RaptorRuntime } from "@raptor/run";
-import { Profiler, runScenario, planFromProfile, serializeProfile } from "@raptor/profile";
+import { RaptorRuntime } from "@raptor/engine/run";
+import { Profiler, runScenario, planFromProfile, serializeProfile } from "@raptor/engine/profile";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const source = readFileSync(join(here, "App.raptor"), "utf8");
@@ -19,7 +19,7 @@ const source = readFileSync(join(here, "App.raptor"), "utf8");
 const result = buildModule(source, "App.raptor");
 const runtime = RaptorRuntime.fromBuild(result, { initial: { "BTC.price": 60000 } });
 
-// Scenariu reprezentativ: cateva flow-uri care lovesc "/" si produc BTC.price.
+// Representative scenario: a few flows that hit "/" and produce BTC.price.
 const profiler = new Profiler(result.graph);
 runScenario(runtime, profiler, {
   sessions: [
@@ -29,7 +29,7 @@ runScenario(runtime, profiler, {
 });
 const profile = profiler.finish();
 
-console.log("=== Profil de telemetrie (raptor.profile) ===\n");
+console.log("=== Telemetry profile (raptor.profile) ===\n");
 console.log(serializeProfile(profile));
 
 const plan = planFromProfile(profile, {
@@ -38,12 +38,12 @@ const plan = planFromProfile(profile, {
   serverSignals: result.server.producers.map((p) => p.address),
 });
 
-console.log("\n=== Plan profile-guided (hints de STRATEGIE) ===\n");
+console.log("\n=== Profile-guided plan (STRATEGY hints) ===\n");
 console.log("preload:", plan.hints.preloadRoutes);
 console.log("encodingSpecialization:", plan.hints.encodingSpecialization);
 console.log("batchSizes:", plan.hints.batchSizes);
-console.log("pastrate desi nevazute (24):", plan.keptDespiteUnseen);
-console.log("\nnote:");
+console.log("kept despite unseen (24):", plan.keptDespiteUnseen);
+console.log("\nnotes:");
 for (const n of plan.notes) console.log("  ·", n);
 
 console.log("\n=== Rebuild profile-guided ===\n");
@@ -51,4 +51,4 @@ const guided = buildModule(source, "App.raptor", { planHints: plan.hints });
 console.log("chunks:", guided.chunks.map((c) => c.name).join(", "));
 console.log("manifest.preload:", guided.manifest.preload);
 console.log("manifest.hintsApplied:", guided.manifest.hintsApplied);
-console.log("wire addresses (pastrate):", guided.wire.addresses.map((a) => a.logical).join(", "));
+console.log("wire addresses (kept):", guided.wire.addresses.map((a) => a.logical).join(", "));

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { installMiniDom, stats, resetStats } from "@raptor/dom/testing";
-import { createLoopback, flushLoopback, RaptorClient } from "@raptor/wire-client";
+import { installMiniDom, stats, resetStats } from "raptorjs/dom/testing";
+import { createLoopback, flushLoopback, RaptorClient } from "@raptor/wire/client";
 import { buildDashboardApp, DASHBOARD_QUERY } from "../src/app.ts";
 import { renderDashboard } from "../src/view.ts";
 
@@ -9,7 +9,7 @@ installMiniDom();
 const doc = (globalThis as any).document;
 
 // --- Automatic delta resync (v0.2, 14.3) ----------------------------------
-test("reconnect recupereaza starea prin delta, FARA full resend", async () => {
+test("reconnect recovers state through delta, WITHOUT full resend", async () => {
   const app = buildDashboardApp();
   const link1 = createLoopback();
   app.serve(link1.server);
@@ -21,28 +21,28 @@ test("reconnect recupereaza starea prin delta, FARA full resend", async () => {
   assert.equal(client.snapshotsReceived, 1);
   const versionAtDisconnect = client.version;
 
-  // Simuleaza offline: inchide conexiunea.
+  // Simulate offline: close the connection.
   client.close();
 
-  // Serverul face schimbari cat clientul e offline (pierdute pe link-ul mort).
+  // The server makes changes while the client is offline (lost on the dead link).
   app.store.setSignal("cpu", 88);
   app.store.patch("job:2", { progress: 99 });
 
-  // Reconnect pe transport nou: resume cere doar delta de la versiunea cunoscuta.
+  // Reconnect on a new transport: resume requests only the delta from the known version.
   const link2 = createLoopback();
   app.serve(link2.server);
   await client.resume(link2.client, DASHBOARD_QUERY);
   await flushLoopback();
 
-  assert.equal(client.snapshotsReceived, 1, "niciun snapshot nou la reconnect (zero full resend)");
-  assert.ok(client.opsFramesReceived >= 1, "starea a venit prin ops delta");
-  assert.equal(client.signal("cpu")(), 88, "valoarea pierduta a fost recuperata prin delta");
+  assert.equal(client.snapshotsReceived, 1, "no new snapshot on reconnect (zero full resend)");
+  assert.ok(client.opsFramesReceived >= 1, "state arrived through delta ops");
+  assert.equal(client.signal("cpu")(), 88, "the lost value was recovered through delta");
   assert.equal((client.signal("job:2")() as any).progress, 99);
   assert.ok(client.version >= versionAtDisconnect);
 });
 
 // --- Network transaction / single DOM commit (v0.2, 16.1) -----------------
-test("frame atomic cu 2 op-uri pe acelasi binding -> UN singur commit UI", async () => {
+test("atomic frame with 2 ops on the same binding -> a SINGLE UI commit", async () => {
   const app = buildDashboardApp();
   const link = createLoopback();
   app.serve(link.server);
@@ -55,7 +55,7 @@ test("frame atomic cu 2 op-uri pe acelasi binding -> UN singur commit UI", async
   renderDashboard(client, doc, root);
 
   resetStats();
-  // Doua scrieri pe cpu intr-o singura tranzactie atomica.
+  // Two writes to cpu within a single atomic transaction.
   app.store.transaction(() => {
     app.store.setSignal("cpu", 1);
     app.store.setSignal("cpu", 2);
@@ -63,11 +63,11 @@ test("frame atomic cu 2 op-uri pe acelasi binding -> UN singur commit UI", async
   await flushLoopback();
 
   assert.match(root.querySelector("main").toHTML(), /CPU: 2%/);
-  assert.equal(stats.textUpdate, 1, "starile intermediare coalesc intr-un singur commit");
+  assert.equal(stats.textUpdate, 1, "intermediate states coalesce into a single commit");
 });
 
-// --- RAS pe fir: nume de field negociate o singura data (25.2) -------------
-test("steady-state: al doilea tick e mai mic (nume negociate, doar adrese)", async () => {
+// --- RAS on the wire: field names negotiated only once (25.2) -------------
+test("steady-state: the second tick is smaller (names negotiated, only addresses)", async () => {
   const app = buildDashboardApp();
   const link = createLoopback();
   app.serve(link.server);
@@ -92,5 +92,5 @@ test("steady-state: al doilea tick e mai mic (nume negociate, doar adrese)", asy
   await flushLoopback();
   const tick2 = link.stats.serverToClientBytes - before2;
 
-  assert.ok(tick2 < tick1, `tick2 (${tick2}B) < tick1 (${tick1}B) dupa negociere adrese`);
+  assert.ok(tick2 < tick1, `tick2 (${tick2}B) < tick1 (${tick1}B) after address negotiation`);
 });
