@@ -1,13 +1,13 @@
-//! JSON minimal, fara dependente externe.
+//! Minimal JSON, with no external dependencies.
 //!
-//! Manifestul, lockfile-ul si fiecare iesire `--json` trec pe aici. Doua
-//! proprietati sunt cerute de spec, nu optionale:
+//! The manifest, the lockfile and every `--json` output pass through here. Two
+//! properties are required by the spec, not optional:
 //!
-//! - **determinism** (sectiunile 8 si 12): obiectele sunt tinute in `BTreeMap`,
-//!   deci serializarea aceleiasi valori da mereu exact acelasi text. Fara asta,
-//!   `pack` nu poate promite unitati reproductibile.
-//! - **fail-closed la parsare**: intrarea invalida produce o eroare cu pozitie,
-//!   nu o valoare ghicita.
+//! - **determinism** (sections 8 and 12): objects are kept in a `BTreeMap`, so
+//!   serializing the same value always yields exactly the same text. Without
+//!   this, `pack` cannot promise reproducible units.
+//! - **fail-closed on parsing**: invalid input produces an error with a
+//!   position, not a guessed value.
 
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
@@ -69,7 +69,7 @@ impl Json {
         }
     }
 
-    /// Ajutor de constructie: `Json::from_pairs([("a", Json::Bool(true))])`.
+    /// Construction helper: `Json::from_pairs([("a", Json::Bool(true))])`.
     pub fn from_pairs<I, K>(pairs: I) -> Self
     where
         I: IntoIterator<Item = (K, Json)>,
@@ -123,7 +123,7 @@ impl From<usize> for Json {
     }
 }
 
-// --- serializare -----------------------------------------------------------
+// --- serialization -----------------------------------------------------------
 
 fn write_escaped(out: &mut String, text: &str) {
     out.push('"');
@@ -147,7 +147,7 @@ fn write_escaped(out: &mut String, text: &str) {
 
 fn write_number(out: &mut String, value: f64) {
     if !value.is_finite() {
-        // JSON nu are NaN/Infinity; `null` este singura reprezentare valida.
+        // JSON has no NaN/Infinity; `null` is the only valid representation.
         out.push_str("null");
     } else if value == value.trunc() && value.abs() < 1e15 {
         let _ = write!(out, "{}", value as i64);
@@ -212,21 +212,21 @@ fn write_break(out: &mut String, indent: Option<usize>, depth: usize) {
     }
 }
 
-/// Serializare compacta, determinista.
+/// Compact, deterministic serialization.
 pub fn to_string(value: &Json) -> String {
     let mut out = String::new();
     write_value(&mut out, value, None, 0);
     out
 }
 
-/// Serializare indentata, determinista - forma scrisa in fisiere.
+/// Indented, deterministic serialization - the form written to files.
 pub fn to_string_pretty(value: &Json) -> String {
     let mut out = String::new();
     write_value(&mut out, value, Some(2), 0);
     out
 }
 
-// --- parsare ---------------------------------------------------------------
+// --- parsing ---------------------------------------------------------------
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseError {
@@ -236,7 +236,7 @@ pub struct ParseError {
 
 impl std::fmt::Display for ParseError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(formatter, "{} (pozitia {})", self.message, self.offset)
+        write!(formatter, "{} (position {})", self.message, self.offset)
     }
 }
 
@@ -247,7 +247,7 @@ struct Parser<'a> {
     depth: usize,
 }
 
-/// Limita de adancime: o intrare ostila nu trebuie sa poata epuiza stiva.
+/// Depth limit: hostile input must not be able to exhaust the stack.
 const MAX_DEPTH: usize = 128;
 
 impl<'a> Parser<'a> {
@@ -274,7 +274,7 @@ impl<'a> Parser<'a> {
             self.position += 1;
             Ok(())
         } else {
-            Err(self.error(format!("asteptam '{}'", byte as char)))
+            Err(self.error(format!("expected '{}'", byte as char)))
         }
     }
 
@@ -283,16 +283,16 @@ impl<'a> Parser<'a> {
             self.position += word.len();
             Ok(value)
         } else {
-            Err(self.error("valoare necunoscuta"))
+            Err(self.error("unknown value"))
         }
     }
 
     fn parse_value(&mut self) -> Result<Json, ParseError> {
         if self.depth > MAX_DEPTH {
-            return Err(self.error("structura prea adanca"));
+            return Err(self.error("structure too deep"));
         }
         self.skip_whitespace();
-        match self.peek().ok_or_else(|| self.error("intrare incompleta"))? {
+        match self.peek().ok_or_else(|| self.error("incomplete input"))? {
             b'{' => self.parse_object(),
             b'[' => self.parse_array(),
             b'"' => Ok(Json::String(self.parse_string()?)),
@@ -328,7 +328,7 @@ impl<'a> Parser<'a> {
                     self.depth -= 1;
                     return Ok(Json::Object(map));
                 }
-                _ => return Err(self.error("asteptam ',' sau '}'")),
+                _ => return Err(self.error("expected ',' or '}'")),
             }
         }
     }
@@ -353,7 +353,7 @@ impl<'a> Parser<'a> {
                     self.depth -= 1;
                     return Ok(Json::Array(items));
                 }
-                _ => return Err(self.error("asteptam ',' sau ']'")),
+                _ => return Err(self.error("expected ',' or ']'")),
             }
         }
     }
@@ -362,7 +362,7 @@ impl<'a> Parser<'a> {
         self.expect(b'"')?;
         let mut out = String::new();
         loop {
-            let byte = self.peek().ok_or_else(|| self.error("sir neterminat"))?;
+            let byte = self.peek().ok_or_else(|| self.error("unterminated string"))?;
             match byte {
                 b'"' => {
                     self.position += 1;
@@ -370,7 +370,7 @@ impl<'a> Parser<'a> {
                 }
                 b'\\' => {
                     self.position += 1;
-                    let escape = self.peek().ok_or_else(|| self.error("escape neterminat"))?;
+                    let escape = self.peek().ok_or_else(|| self.error("unterminated escape"))?;
                     self.position += 1;
                     match escape {
                         b'"' => out.push('"'),
@@ -382,14 +382,14 @@ impl<'a> Parser<'a> {
                         b'r' => out.push('\r'),
                         b't' => out.push('\t'),
                         b'u' => out.push(self.parse_unicode_escape()?),
-                        _ => return Err(self.error("escape nerecunoscut")),
+                        _ => return Err(self.error("unrecognized escape")),
                     }
                 }
-                control if control < 0x20 => return Err(self.error("caracter de control intr-un sir")),
+                control if control < 0x20 => return Err(self.error("control character in a string")),
                 _ => {
-                    // Avansam pe caractere, nu pe octeti, ca UTF-8 sa ramana valid.
+                    // We advance by characters, not bytes, so UTF-8 stays valid.
                     let rest = &self.source[self.position..];
-                    let character = rest.chars().next().ok_or_else(|| self.error("sir invalid"))?;
+                    let character = rest.chars().next().ok_or_else(|| self.error("invalid string"))?;
                     out.push(character);
                     self.position += character.len_utf8();
                 }
@@ -401,32 +401,32 @@ impl<'a> Parser<'a> {
         let slice = self
             .source
             .get(self.position..self.position + 4)
-            .ok_or_else(|| self.error("escape \\u incomplet"))?;
-        let value = u32::from_str_radix(slice, 16).map_err(|_| self.error("escape \\u invalid"))?;
+            .ok_or_else(|| self.error("incomplete \\u escape"))?;
+        let value = u32::from_str_radix(slice, 16).map_err(|_| self.error("invalid \\u escape"))?;
         self.position += 4;
         Ok(value)
     }
 
     fn parse_unicode_escape(&mut self) -> Result<char, ParseError> {
         let first = self.parse_hex4()?;
-        // Perechile surogat se combina; un surogat singur este o eroare, nu un
-        // caracter de inlocuire tacut.
+        // Surrogate pairs combine; a lone surrogate is an error, not a silent
+        // replacement character.
         if (0xD800..0xDC00).contains(&first) {
             if !self.source[self.position..].starts_with("\\u") {
-                return Err(self.error("surogat inalt fara pereche"));
+                return Err(self.error("high surrogate without a pair"));
             }
             self.position += 2;
             let second = self.parse_hex4()?;
             if !(0xDC00..0xE000).contains(&second) {
-                return Err(self.error("surogat jos invalid"));
+                return Err(self.error("invalid low surrogate"));
             }
             let combined = 0x1_0000 + ((first - 0xD800) << 10) + (second - 0xDC00);
-            return char::from_u32(combined).ok_or_else(|| self.error("pereche surogat invalida"));
+            return char::from_u32(combined).ok_or_else(|| self.error("invalid surrogate pair"));
         }
         if (0xDC00..0xE000).contains(&first) {
-            return Err(self.error("surogat jos fara surogat inalt"));
+            return Err(self.error("low surrogate without a high surrogate"));
         }
-        char::from_u32(first).ok_or_else(|| self.error("punct de cod invalid"))
+        char::from_u32(first).ok_or_else(|| self.error("invalid code point"))
     }
 
     fn parse_number(&mut self) -> Result<Json, ParseError> {
@@ -444,7 +444,7 @@ impl<'a> Parser<'a> {
         let text = &self.source[start..self.position];
         text.parse::<f64>()
             .map(Json::Number)
-            .map_err(|_| ParseError { message: format!("numar invalid: '{text}'"), offset: start })
+            .map_err(|_| ParseError { message: format!("invalid number: '{text}'"), offset: start })
     }
 }
 
@@ -453,7 +453,7 @@ pub fn parse(source: &str) -> Result<Json, ParseError> {
     let value = parser.parse_value()?;
     parser.skip_whitespace();
     if parser.position != source.len() {
-        return Err(parser.error("continut in plus dupa valoarea JSON"));
+        return Err(parser.error("extra content after the JSON value"));
     }
     Ok(value)
 }
@@ -464,7 +464,7 @@ mod tests {
 
     #[test]
     fn parsarea_acopera_toate_tipurile() {
-        let value = parse(r#"{"a":1,"b":[true,false,null],"c":"text","d":-2.5e2}"#).expect("JSON valid");
+        let value = parse(r#"{"a":1,"b":[true,false,null],"c":"text","d":-2.5e2}"#).expect("valid JSON");
         assert_eq!(value.get("a").and_then(Json::as_number), Some(1.0));
         assert_eq!(value.get("c").and_then(Json::as_str), Some("text"));
         assert_eq!(value.get("d").and_then(Json::as_number), Some(-250.0));
@@ -488,22 +488,22 @@ mod tests {
     #[test]
     fn dus_intors_pastreaza_valoarea() {
         let source = r#"{"lista":[1,2,3],"imbricat":{"x":true},"gol":{},"vid":[]}"#;
-        let parsed = parse(source).expect("JSON valid");
-        assert_eq!(parse(&to_string(&parsed)).expect("reparsare"), parsed);
-        assert_eq!(parse(&to_string_pretty(&parsed)).expect("reparsare"), parsed);
+        let parsed = parse(source).expect("valid JSON");
+        assert_eq!(parse(&to_string(&parsed)).expect("reparse"), parsed);
+        assert_eq!(parse(&to_string_pretty(&parsed)).expect("reparse"), parsed);
     }
 
     #[test]
     fn escape_urile_sunt_scrise_si_citite_simetric() {
-        let original = Json::string("linie\nnoua \"ghilimele\" \\bara\t\u{1}");
+        let original = Json::string("new\nline \"quotes\" \\backslash\t\u{1}");
         let text = to_string(&original);
-        assert!(text.contains("\\u0001"), "controlul este scapat: {text}");
-        assert_eq!(parse(&text).expect("reparsare"), original);
+        assert!(text.contains("\\u0001"), "the control is escaped: {text}");
+        assert_eq!(parse(&text).expect("reparse"), original);
     }
 
     #[test]
     fn perechile_surogat_devin_un_singur_caracter() {
-        let value = parse(r#""\ud83e\udd80""#).expect("surogat valid");
+        let value = parse(r#""\ud83e\udd80""#).expect("valid surrogate");
         assert_eq!(value.as_str(), Some("\u{1F980}"));
     }
 
@@ -514,13 +514,13 @@ mod tests {
             "{\"a\"}",
             "{\"a\":}",
             "[1,]",
-            "\"neterminat",
+            "\"unterminated",
             "tru",
-            "{\"a\":1} in plus",
+            "{\"a\":1} extra",
             r#""\ud800""#,
             "{\"a\":1,}",
         ] {
-            let error = parse(bad).expect_err(&format!("'{bad}' ar fi trebuit respins"));
+            let error = parse(bad).expect_err(&format!("'{bad}' should have been rejected"));
             assert!(!error.message.is_empty());
         }
     }

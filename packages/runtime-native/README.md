@@ -40,10 +40,10 @@ cargo build --release --features quickjs
 In an environment with no Node installed (verified in WSL Ubuntu, `which node` empty):
 
 ```
-aplicatia a rulat in 13.7ms
-  proiect    native-hello@0.1.0
-  motor      quickjs
-  exporturi  default, izolat, motorChiarRuleaza, rezultat, runtime
+the application ran in 13.7ms
+  project    native-hello@0.1.0
+  engine     quickjs
+  exports    default, izolat, motorChiarRuleaza, rezultat, runtime
 ```
 
 `--json` shows the exports read from the module — proof that it was **evaluated**, not
@@ -102,10 +102,10 @@ Run on `examples/native-hello`, with `files.read` declared only for `./src`:
 The broker's audit trail, from the same run:
 
 ```
-files.read  src          -> PERMIS
-files.read  main.js      -> PERMIS
-files.read  package.json -> REFUZAT
-files.write nou.txt      -> REFUZAT
+files.read  src          -> GRANTED
+files.read  main.js      -> GRANTED
+files.read  package.json -> DENIED
+files.write nou.txt      -> DENIED
 ```
 
 The denied file **exists on disk** — so if the denial didn't work, the read would
@@ -126,8 +126,8 @@ Verified on a real `.ts`, with interfaces, aliases, generics (`primul<T>`),
 `!` and `as` — in an environment without Node **and without `tsc`**:
 
 ```
-motor    quickjs, cu TypeScript
-aplicatia a rulat in 24.7ms
+engine   quickjs, with TypeScript
+the application ran in 24.7ms
 ```
 
 What it does **not** do: it doesn't type-check and it doesn't lower modern
@@ -148,8 +148,8 @@ run by the binary, without Node and without `tsc`. Real `curl` requests:
 ```
 {"status":"ok","note":0}                    <- 200
 {"salvate":1}                               <- 201
-[{"text":"prima nota"},{"text":"a doua"}]   <- 200
-{"eroare":"campul 'text' este obligatoriu"} <- 400
+[{"text":"first note"},{"text":"second"}]   <- 200
+{"eroare":"the 'text' field is required"}   <- 400
 ```
 
 **The accept loop belongs to the application**, and that is a direct consequence of the

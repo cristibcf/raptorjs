@@ -1,15 +1,15 @@
-//! Graful de module static (spec sectiunea 5, componenta "Module graph").
+//! The static module graph (spec section 5, the "Module graph" component).
 //!
-//! `pack` trebuie sa stie ce fisiere intra in unitatea livrabila fara sa execute
-//! aplicatia - altfel ambalarea ar depinde de efectele secundare ale codului.
+//! `pack` must know which files enter the deliverable unit without executing the
+//! application - otherwise packing would depend on the code's side effects.
 //!
-//! Fata de varianta TypeScript, scanerul de aici nu este o expresie regulata, ci
-//! un mic lexer. Diferenta conteaza: un `export const mesaj = "./pare-un-modul"`
-//! nu mai poate fi confundat cu un import, iar cuvintele cheie din comentarii si
-//! din siruri sunt ignorate corect.
+//! Unlike the TypeScript variant, the scanner here is not a regular expression
+//! but a small lexer. The difference matters: an `export const mesaj = "./pare-un-modul"`
+//! can no longer be mistaken for an import, and keywords in comments and in
+//! strings are correctly ignored.
 //!
-//! Ce nu poate fi rezolvat cu certitudine nu este ghicit: un `import(expresie)`
-//! este raportat explicit ca nerezolvabil static.
+//! What cannot be resolved with certainty is not guessed: an `import(<expression>)`
+//! is reported explicitly as not statically resolvable.
 
 use crate::digest;
 use crate::error::{ErrorCode, RaptorError, Result};
@@ -20,7 +20,7 @@ use std::path::Path;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Module {
-    /// Cale relativa la radacina proiectului, cu `/` - stabila intre platforme.
+    /// Path relative to the project root, with `/` - stable across platforms.
     pub path: String,
     pub absolute_path: String,
     pub integrity: String,
@@ -39,7 +39,7 @@ pub struct Unresolved {
 pub struct Graph {
     pub entry: String,
     pub modules: Vec<Module>,
-    /// Module `raptor:` si `node:` cerute de aplicatie.
+    /// `raptor:` and `node:` modules required by the application.
     pub host_imports: Vec<String>,
     pub external_imports: Vec<String>,
     pub unresolved: Vec<Unresolved>,
@@ -69,7 +69,7 @@ impl Graph {
     }
 }
 
-// --- scanare ---------------------------------------------------------------
+// --- scanning ---------------------------------------------------------------
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum Token {
@@ -78,8 +78,8 @@ enum Token {
     Punct(char),
 }
 
-/// Lexer minimal: suficient ca sa recunoastem declaratiile de import/export.
-/// Ignora comentariile si nu confunda cuvintele cheie din siruri cu cod.
+/// Minimal lexer: enough to recognize import/export declarations. Ignores
+/// comments and does not confuse keywords in strings with code.
 fn tokenize(source: &str) -> Vec<Token> {
     let chars: Vec<char> = source.chars().collect();
     let mut tokens = Vec::new();
@@ -93,7 +93,7 @@ fn tokenize(source: &str) -> Vec<Token> {
             continue;
         }
 
-        // Comentarii
+        // Comments
         if current == '/' && chars.get(index + 1) == Some(&'/') {
             while index < chars.len() && chars[index] != '\n' {
                 index += 1;
@@ -109,8 +109,8 @@ fn tokenize(source: &str) -> Vec<Token> {
             continue;
         }
 
-        // Siruri. Template literal-urile sunt consumate, dar nu produc un
-        // specificator: un import nu poate avea specificator template.
+        // Strings. Template literals are consumed, but do not produce a
+        // specifier: an import cannot have a template specifier.
         if current == '"' || current == '\'' || current == '`' {
             let quote = current;
             index += 1;
@@ -157,13 +157,13 @@ fn tokenize(source: &str) -> Vec<Token> {
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Scan {
     pub specifiers: Vec<String>,
-    /// Importuri dinamice cu specificator calculat - nerezolvabile static.
+    /// Dynamic imports with a computed specifier - not statically resolvable.
     pub dynamic_count: usize,
 }
 
-/// Cat de departe cautam `from` dupa un `import`/`export`, in tokenuri. O lista
-/// de import realista nu depaseste asta; limita opreste cautarea pe un fisier
-/// intreg daca declaratia nu este de fapt un import.
+/// How far we search for `from` after an `import`/`export`, in tokens. A
+/// realistic import list does not exceed this; the limit stops the search from
+/// running over a whole file when the declaration is not actually an import.
 const LOOKAHEAD: usize = 512;
 
 pub fn scan_imports(source: &str) -> Scan {
@@ -185,7 +185,7 @@ pub fn scan_imports(source: &str) -> Scan {
 
         let mut cursor = index + 1;
 
-        // `import(...)`: dinamic. Rezolvabil doar cu specificator literal.
+        // `import(...)`: dynamic. Resolvable only with a literal specifier.
         if is_import && tokens.get(cursor) == Some(&Token::Punct('(')) {
             match tokens.get(cursor + 1) {
                 Some(Token::Str(specifier)) => scan.specifiers.push(specifier.clone()),
@@ -195,14 +195,14 @@ pub fn scan_imports(source: &str) -> Scan {
             continue;
         }
 
-        // `import type` / `export type`: sters la incarcare, deci nu este o
-        // dependinta de rulare. `import { type A, b }` ramane import de valoare.
+        // `import type` / `export type`: erased at load, so it is not a runtime
+        // dependency. `import { type A, b }` remains a value import.
         if matches!(tokens.get(cursor), Some(Token::Ident(word)) if word == "type") {
             index = cursor + 1;
             continue;
         }
 
-        // `import "spec"`: import fara legaturi, doar pentru efect.
+        // `import "spec"`: import with no bindings, only for effect.
         if is_import {
             if let Some(Token::Str(specifier)) = tokens.get(cursor) {
                 scan.specifiers.push(specifier.clone());
@@ -211,8 +211,8 @@ pub fn scan_imports(source: &str) -> Scan {
             }
         }
 
-        // Restul trebuie sa treaca prin `from "spec"`. Fara `from`, `export`
-        // este o declaratie locala, nu un import.
+        // The rest must go through `from "spec"`. Without `from`, `export` is a
+        // local declaration, not an import.
         let limit = (cursor + LOOKAHEAD).min(tokens.len());
         let mut found = false;
         while cursor < limit {
@@ -224,7 +224,7 @@ pub fn scan_imports(source: &str) -> Scan {
                     }
                     break;
                 }
-                // `;` inchide declaratia; un alt `import`/`export` incepe alta.
+                // `;` closes the declaration; another `import`/`export` starts a new one.
                 Token::Punct(';') => break,
                 Token::Ident(word) if word == "import" || word == "export" => break,
                 _ => cursor += 1,
@@ -237,18 +237,17 @@ pub fn scan_imports(source: &str) -> Scan {
     scan
 }
 
-// --- parcurgere ------------------------------------------------------------
+// --- traversal ------------------------------------------------------------
 
-/// Extensii incercate cand specificatorul nu are una.
+/// Extensions tried when the specifier has none.
 const EXTENSIONS: [&str; 7] = ["", ".ts", ".js", ".mts", ".mjs", "/index.ts", "/index.js"];
 
 fn read_file(path: &str) -> Option<Vec<u8>> {
     std::fs::read(Path::new(path)).ok()
 }
 
-/// Parcurge graful pornind de la `entry`. Nu paraseste niciodata radacina
-/// proiectului: un import relativ care iese din proiect este raportat, nu
-/// inclus tacit.
+/// Walks the graph starting from `entry`. Never leaves the project root: a
+/// relative import that escapes the project is reported, not included silently.
 pub fn build(project_root: &str, entry: &str) -> Result<Graph> {
     let root = paths::normalize(project_root);
     let entry_path = paths::resolve(&root, entry);
@@ -268,7 +267,7 @@ pub fn build(project_root: &str, entry: &str) -> Result<Graph> {
         let Some(bytes) = read_file(&current) else {
             return Err(RaptorError::new(
                 ErrorCode::ModuleNotFound,
-                format!("modulul nu exista: {}", paths::relative_to(&root, &current)),
+                format!("module does not exist: {}", paths::relative_to(&root, &current)),
             )
             .with("path", current));
         };
@@ -280,9 +279,9 @@ pub fn build(project_root: &str, entry: &str) -> Result<Graph> {
         if scan.dynamic_count > 0 {
             unresolved.push(Unresolved {
                 from: here.clone(),
-                specifier: "import(<expresie>)".to_string(),
+                specifier: "import(<expression>)".to_string(),
                 reason: format!(
-                    "{} import(uri) dinamice cu specificator calculat; nu pot fi ambalate static",
+                    "{} dynamic import(s) with a computed specifier; cannot be packed statically",
                     scan.dynamic_count
                 ),
             });
@@ -311,12 +310,12 @@ pub fn build(project_root: &str, entry: &str) -> Result<Graph> {
                 None => unresolved.push(Unresolved {
                     from: here.clone(),
                     specifier: specifier.clone(),
-                    reason: "fisierul nu a fost gasit".to_string(),
+                    reason: "file not found".to_string(),
                 }),
                 Some(target) if !paths::contains(&root, &target) => unresolved.push(Unresolved {
                     from: here.clone(),
                     specifier: specifier.clone(),
-                    reason: "iese din radacina proiectului".to_string(),
+                    reason: "escapes the project root".to_string(),
                 }),
                 Some(target) => {
                     resolved_imports.push(paths::relative_to(&root, &target));
@@ -343,7 +342,7 @@ pub fn build(project_root: &str, entry: &str) -> Result<Graph> {
 
     Ok(Graph {
         entry: paths::relative_to(&root, &entry_path),
-        // `BTreeMap`/`BTreeSet` garanteaza ordinea; de asta depinde `pack`.
+        // `BTreeMap`/`BTreeSet` guarantee ordering; `pack` depends on it.
         modules: modules.into_values().collect(),
         host_imports: host_imports.into_iter().collect(),
         external_imports: external_imports.into_iter().collect(),
@@ -388,9 +387,9 @@ mod tests {
 
     #[test]
     fn o_declaratie_export_fara_from_nu_este_un_import() {
-        // Cazul care scapa unei expresii regulate: sirul seamana cu un modul.
+        // The case a regular expression misses: the string looks like a module.
         let source = r#"export const mesaj = "./pare-un-modul.ts";"#;
-        assert!(specifiers(source).is_empty(), "sirul nu este un specificator");
+        assert!(specifiers(source).is_empty(), "the string is not a specifier");
     }
 
     #[test]
@@ -423,7 +422,7 @@ mod tests {
         }
     }
 
-    // --- parcurgerea pe disc ---
+    // --- on-disk traversal ---
 
     struct Fixture {
         root: String,
@@ -436,11 +435,11 @@ mod tests {
                 std::process::id(),
                 std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
             );
-            let root = paths::normalize(std::env::temp_dir().join(unique).to_str().expect("cale valida"));
+            let root = paths::normalize(std::env::temp_dir().join(unique).to_str().expect("valid path"));
             for (path, contents) in files {
                 let full = paths::resolve(&root, path);
-                std::fs::create_dir_all(Path::new(&paths::parent(&full))).expect("director creat");
-                std::fs::write(Path::new(&full), contents).expect("fisier scris");
+                std::fs::create_dir_all(Path::new(&paths::parent(&full))).expect("directory created");
+                std::fs::write(Path::new(&full), contents).expect("file written");
             }
             Self { root }
         }
@@ -459,7 +458,7 @@ mod tests {
             ("src/util.ts", "export const x = 1;"),
             ("src/adanc/nested.ts", "import \"../util.ts\";\nexport const y = 2;"),
         ]);
-        let graph = build(&fixture.root, "./src/main.ts").expect("graf construit");
+        let graph = build(&fixture.root, "./src/main.ts").expect("graph built");
 
         assert_eq!(graph.entry, "./src/main.ts");
         assert_eq!(
@@ -467,7 +466,7 @@ mod tests {
             ["./src/adanc/nested.ts", "./src/main.ts", "./src/util.ts"]
         );
         assert!(graph.modules.iter().all(|module| module.integrity.starts_with("sha256-")));
-        let nested = graph.modules.iter().find(|module| module.path.ends_with("nested.ts")).expect("modul");
+        let nested = graph.modules.iter().find(|module| module.path.ends_with("nested.ts")).expect("module");
         assert_eq!(nested.imports, ["./src/util.ts"]);
     }
 
@@ -478,8 +477,8 @@ mod tests {
             ("src/a.ts", "export const a = 1;"),
             ("src/z.ts", "export const z = 1;"),
         ]);
-        let first = build(&fixture.root, "./src/main.ts").expect("graf");
-        let second = build(&fixture.root, "./src/main.ts").expect("graf");
+        let first = build(&fixture.root, "./src/main.ts").expect("graph");
+        let second = build(&fixture.root, "./src/main.ts").expect("graph");
         assert_eq!(first, second);
     }
 
@@ -489,7 +488,7 @@ mod tests {
             "src/main.ts",
             "import \"raptor:files\";\nimport \"node:crypto\";\nimport \"zod\";",
         )]);
-        let graph = build(&fixture.root, "./src/main.ts").expect("graf");
+        let graph = build(&fixture.root, "./src/main.ts").expect("graph");
         assert_eq!(graph.host_imports, ["node:crypto", "raptor:files"]);
         assert_eq!(graph.external_imports, ["zod"]);
         assert_eq!(graph.modules.len(), 1);
@@ -502,14 +501,14 @@ mod tests {
             ("src/a.ts", "import \"./b.ts\";"),
             ("src/b.ts", "import \"./a.ts\";"),
         ]);
-        let graph = build(&fixture.root, "./src/main.ts").expect("graf");
+        let graph = build(&fixture.root, "./src/main.ts").expect("graph");
         assert_eq!(graph.modules.len(), 3);
     }
 
     #[test]
     fn un_import_care_iese_din_proiect_este_raportat_nu_inclus() {
         let fixture = Fixture::new(&[("src/main.ts", "import \"../../afara.ts\";")]);
-        let graph = build(&fixture.root, "./src/main.ts").expect("graf");
+        let graph = build(&fixture.root, "./src/main.ts").expect("graph");
         assert_eq!(graph.modules.len(), 1);
         assert_eq!(graph.unresolved.len(), 1);
     }
@@ -517,7 +516,7 @@ mod tests {
     #[test]
     fn un_punct_de_intrare_inexistent_este_o_eroare_raptor() {
         let fixture = Fixture::new(&[("src/altceva.ts", "export const x = 1;")]);
-        let error = build(&fixture.root, "./src/main.ts").expect_err("eroare");
+        let error = build(&fixture.root, "./src/main.ts").expect_err("error");
         assert_eq!(error.code, ErrorCode::ModuleNotFound);
     }
 }

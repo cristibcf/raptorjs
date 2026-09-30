@@ -1,33 +1,33 @@
-//! Eliminarea tipurilor TypeScript, nativ.
+//! TypeScript type stripping, native.
 //!
-//! Ultima piesa dintre binarul nativ si codul real al proiectului: tot ce e
-//! scris in depozit este TypeScript, iar un runtime care nu-l poate citi ramane
-//! o demonstratie.
+//! The last piece between the native binary and the project's real code: everything
+//! written in the repository is TypeScript, and a runtime that cannot read it remains
+//! a demonstration.
 //!
-//! **De ce oxc si nu un stripper propriu.** Tentatia de a sterge tipurile cu
-//! expresii regulate este mare si gresita: `a < b > (c)` este o comparatie,
-//! `f<T>(c)` este un apel generic, iar diferenta se vede doar cu un parser
-//! adevarat. oxc este deja lantul de unelte folosit de `integrations/rolldown`
-//! pe latura JavaScript, deci nu aducem un al doilea parser de TypeScript in
-//! proiect.
+//! **Why oxc and not a stripper of our own.** The temptation to erase types with
+//! regular expressions is strong and wrong: `a < b > (c)` is a comparison,
+//! `f<T>(c)` is a generic call, and the difference shows only with a real
+//! parser. oxc is already the toolchain used by `integrations/rolldown`
+//! on the JavaScript side, so we do not bring a second TypeScript parser into
+//! the project.
 //!
-//! **Ce face si ce nu face.** Transformarea produce JavaScript din TypeScript;
-//! nu coboara sintaxa moderna catre browsere vechi (motorul este ES2023) si nu
-//! verifica tipurile. Verificarea de tipuri ramane treaba lui `tsc` la
-//! dezvoltare - runtime-ul executa, nu judeca.
+//! **What it does and does not do.** The transform produces JavaScript from TypeScript;
+//! it does not lower modern syntax for old browsers (the engine is ES2023) and does
+//! not type-check. Type checking remains `tsc`'s job at
+//! development time - the runtime executes, it does not judge.
 
 use crate::error::{ErrorCode, RaptorError, Result};
 
-/// Extensiile pe care le consideram TypeScript.
+/// The extensions we consider TypeScript.
 pub fn needs_stripping(path: &str) -> bool {
     path.ends_with(".ts") || path.ends_with(".tsx") || path.ends_with(".mts") || path.ends_with(".cts")
 }
 
-/// Transforma sursa TypeScript in JavaScript executabil.
+/// Transforms TypeScript source into executable JavaScript.
 ///
-/// Calea conteaza: din ea deduce oxc daca fisierul are JSX (`.tsx`) si daca este
-/// modul sau script. Un `.tsx` parsat ca `.ts` ar raporta erori de sintaxa la
-/// primul `<`.
+/// The path matters: from it oxc infers whether the file has JSX (`.tsx`) and whether it is
+/// a module or a script. A `.tsx` parsed as `.ts` would report syntax errors at
+/// the first `<`.
 #[cfg(feature = "typescript")]
 pub fn strip(source: &str, path: &str) -> Result<String> {
     use oxc_allocator::Allocator;
@@ -38,7 +38,7 @@ pub fn strip(source: &str, path: &str) -> Result<String> {
     use oxc_transformer::{TransformOptions, Transformer};
 
     let source_type = SourceType::from_path(path).map_err(|error| {
-        RaptorError::new(ErrorCode::ModuleUnsupported, "extensie de fisier nerecunoscuta")
+        RaptorError::new(ErrorCode::ModuleUnsupported, "unrecognized file extension")
             .with("path", path)
             .with("cause", format!("{error:?}"))
     })?;
@@ -47,17 +47,17 @@ pub fn strip(source: &str, path: &str) -> Result<String> {
     let parsed = Parser::new(&allocator, source, source_type).parse();
 
     if !parsed.diagnostics.is_empty() {
-        // Prima eroare este cea care conteaza; restul sunt de obicei consecinte.
+        // The first error is the one that matters; the rest are usually consequences.
         let first = &parsed.diagnostics[0];
-        return Err(RaptorError::new(ErrorCode::EngineEvaluation, format!("TypeScript invalid: {first}"))
+        return Err(RaptorError::new(ErrorCode::EngineEvaluation, format!("invalid TypeScript: {first}"))
             .with("path", path)
             .with("erori", parsed.diagnostics.len().to_string()));
     }
 
     let mut program = parsed.program;
 
-    // Transformatorul are nevoie de domenii si simboluri: fara ele nu poate sti
-    // ce este un tip si ce este o valoare cu acelasi nume.
+    // The transformer needs scopes and symbols: without them it cannot know
+    // what is a type and what is a value with the same name.
     let scoping = SemanticBuilder::new().build(&program).semantic.into_scoping();
 
     let options = TransformOptions::default();
@@ -68,7 +68,7 @@ pub fn strip(source: &str, path: &str) -> Result<String> {
         let first = &transformed.diagnostics[0];
         return Err(RaptorError::new(
             ErrorCode::ModuleUnsupported,
-            format!("TypeScript pe care nu il pot transforma: {first}"),
+            format!("TypeScript I cannot transform: {first}"),
         )
         .with("path", path));
     }
@@ -76,12 +76,12 @@ pub fn strip(source: &str, path: &str) -> Result<String> {
     Ok(Codegen::new().build(&program).code)
 }
 
-/// Varianta fara feature: refuz explicit, ca sa nu existe o cale tacuta.
+/// The feature-less variant: an explicit refusal, so there is no silent path.
 #[cfg(not(feature = "typescript"))]
 pub fn strip(_source: &str, path: &str) -> Result<String> {
     Err(RaptorError::new(
         ErrorCode::ModuleUnsupported,
-        "acest binar este compilat fara suport de TypeScript (cargo build --features typescript)",
+        "this binary is compiled without TypeScript support (cargo build --features typescript)",
     )
     .with("path", path))
 }
@@ -91,32 +91,32 @@ mod tests {
     use super::*;
 
     fn strip_ts(source: &str) -> String {
-        strip(source, "main.ts").expect("stripping reusit")
+        strip(source, "main.ts").expect("stripping succeeded")
     }
 
     #[test]
     fn recunoaste_extensiile_de_typescript() {
         for path in ["a.ts", "b.tsx", "c.mts", "d.cts"] {
-            assert!(needs_stripping(path), "{path} este TypeScript");
+            assert!(needs_stripping(path), "{path} is TypeScript");
         }
         for path in ["a.js", "b.mjs", "c.json"] {
-            assert!(!needs_stripping(path), "{path} nu este TypeScript");
+            assert!(!needs_stripping(path), "{path} is not TypeScript");
         }
     }
 
     #[test]
     fn adnotarile_de_tip_dispar_iar_valorile_raman() {
         let output = strip_ts("export const x: number = 1;\nexport const y: string = \"a\";\n");
-        assert!(output.contains("const x = 1"), "valoarea ramane: {output}");
-        assert!(!output.contains(": number"), "tipul dispare: {output}");
-        assert!(!output.contains(": string"), "tipul dispare: {output}");
+        assert!(output.contains("const x = 1"), "the value stays: {output}");
+        assert!(!output.contains(": number"), "the type disappears: {output}");
+        assert!(!output.contains(": string"), "the type disappears: {output}");
     }
 
     #[test]
     fn interfetele_si_aliasurile_dispar_complet() {
         let output = strip_ts("interface Om { nume: string }\ntype Varsta = number;\nexport const a = 1;\n");
-        assert!(!output.contains("interface"), "interfata dispare: {output}");
-        assert!(!output.contains("Varsta"), "aliasul dispare: {output}");
+        assert!(!output.contains("interface"), "the interface disappears: {output}");
+        assert!(!output.contains("Varsta"), "the alias disappears: {output}");
         assert!(output.contains("const a = 1"));
     }
 
@@ -125,24 +125,24 @@ mod tests {
         let output = strip_ts(
             "export function primul<T>(lista: T[]): T { return lista[0]!; }\nexport const n = (1 as number);\n",
         );
-        assert!(output.contains("function primul"), "functia ramane: {output}");
-        assert!(!output.contains("<T>"), "genericul dispare: {output}");
-        assert!(!output.contains(" as "), "asertiunea dispare: {output}");
+        assert!(output.contains("function primul"), "the function stays: {output}");
+        assert!(!output.contains("<T>"), "the generic disappears: {output}");
+        assert!(!output.contains(" as "), "the assertion disappears: {output}");
     }
 
     #[test]
     fn import_type_dispare_dar_importul_de_valoare_ramane() {
         let output = strip_ts("import type { A } from \"./a.ts\";\nimport { b } from \"./b.ts\";\nexport const c = b;\n");
-        assert!(!output.contains("import type"), "importul de tip dispare: {output}");
-        assert!(output.contains("./b.ts"), "importul de valoare ramane: {output}");
+        assert!(!output.contains("import type"), "the type import disappears: {output}");
+        assert!(output.contains("./b.ts"), "the value import stays: {output}");
     }
 
     #[test]
     fn o_comparatie_nu_este_confundata_cu_un_generic() {
-        // Cazul care face imposibil un stripper cu expresii regulate: aceleasi
-        // caractere, intelesuri diferite, distinse doar de un parser real.
+        // The case that makes a regex stripper impossible: the same
+        // characters, different meanings, distinguished only by a real parser.
         let output = strip_ts("export const rezultat = (a: number, b: number, c: number) => a < b > c;\n");
-        assert!(output.contains("a < b"), "comparatia ramane intacta: {output}");
+        assert!(output.contains("a < b"), "the comparison stays intact: {output}");
     }
 
     #[test]
@@ -152,20 +152,20 @@ mod tests {
             "main.tsx",
         )
         .expect("tsx");
-        assert!(!output.contains("<div"), "JSX-ul este transformat: {output}");
+        assert!(!output.contains("<div"), "the JSX is transformed: {output}");
     }
 
     #[test]
     fn typescript_invalid_este_raportat_cu_pozitie() {
-        let error = strip("export const x: = ;\n", "main.ts").expect_err("sintaxa invalida");
+        let error = strip("export const x: = ;\n", "main.ts").expect_err("invalid syntax");
         assert_eq!(error.code, ErrorCode::EngineEvaluation);
-        assert!(error.message.contains("TypeScript invalid"), "{}", error.message);
+        assert!(error.message.contains("invalid TypeScript"), "{}", error.message);
     }
 
     #[test]
     fn rezultatul_este_javascript_valid_pentru_motor() {
-        // Proprietatea care conteaza de fapt: iesirea trebuie sa treaca prin
-        // motor. Verificam forma minima - nu mai contine sintaxa de tip.
+        // The property that actually matters: the output must pass through the
+        // engine. We check the minimal form - it no longer contains type syntax.
         let output = strip_ts(
             "type Nota = { text: string };\nexport const note: Nota[] = [{ text: \"a\" }];\nexport const cate: number = note.length;\n",
         );

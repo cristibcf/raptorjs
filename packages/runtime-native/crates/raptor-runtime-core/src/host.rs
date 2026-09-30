@@ -1,9 +1,9 @@
-//! Host-ul RaptorRuntime: leaga manifest, capabilitati, task fabric, telemetrie
-//! si adaptorul de motor intr-un obiect cu ciclu de viata explicit.
+//! The RaptorRuntime host: ties manifest, capabilities, task fabric, telemetry
+//! and the engine adapter into a single object with an explicit lifecycle.
 //!
-//! Este acelasi contract pe care il implementeaza si varianta TypeScript, ca
-//! migrarea sa fie o inlocuire, nu o rescriere. Launcher-ul nu stie nimic despre
-//! motor - stie doar acest API.
+//! It is the same contract the TypeScript variant implements, so that migration
+//! is a replacement, not a rewrite. The launcher knows nothing about the engine
+//! - it knows only this API.
 
 use crate::capabilities::Broker;
 use crate::engine::{EngineAdapter, HostModules, StubEngine};
@@ -20,7 +20,7 @@ use std::sync::Arc;
 
 pub const RUNTIME_VERSION: &str = "0.1.0";
 
-/// Numele modulelor publicate sub `raptor:` (spec sectiunea 6).
+/// The names of the modules published under `raptor:` (spec section 6).
 pub const HOST_MODULE_NAMES: [&str; 8] =
     ["files", "net", "process", "kv", "serve", "tasks", "observe", "capabilities"];
 
@@ -44,7 +44,7 @@ pub struct RuntimeOptions {
     pub args: Vec<String>,
     pub observer: Observer,
     pub engine: Option<Arc<dyn EngineAdapter>>,
-    /// Forteaza regimul strict, indiferent de politica din manifest.
+    /// Forces strict mode, regardless of the manifest policy.
     pub strict: Option<bool>,
 }
 
@@ -105,14 +105,14 @@ impl Runtime {
         &self.project_root
     }
 
-    /// Descrierea modulelor `raptor:` publicate izolatului. Cand motorul va
-    /// exista, tot aceasta lista devine spatiul de nume importabil.
-    /// Modulele `raptor:` publicate izolatului.
+    /// The description of the `raptor:` modules published to the isolate. Once
+    /// the engine exists, this same list becomes the importable namespace.
+    /// The `raptor:` modules published to the isolate.
     ///
-    /// Pana la legarea motorului, acestea erau descriptori: nume si atat. Acum
-    /// sunt functii native care trec prin *acest* broker si scriu in *acest*
-    /// observer - deci capabilitatile declarate in manifest chiar au efect
-    /// asupra a ce poate face codul aplicatiei.
+    /// Until the engine is bound, these were descriptors: names and nothing
+    /// more. Now they are native functions that pass through *this* broker and
+    /// write to *this* observer - so the capabilities declared in the manifest
+    /// really do affect what the application code can do.
     fn host_modules(&self) -> HostModules {
         crate::modules::build(
             Arc::clone(&self.broker),
@@ -122,16 +122,16 @@ impl Runtime {
         )
     }
 
-    /// Numele motorului legat la acest runtime; `doctor` si `run` il raporteaza.
+    /// The name of the engine bound to this runtime; `doctor` and `run` report it.
     pub fn engine_name(&self) -> &str {
         self.engine.name()
     }
 
     pub fn start(&self) -> Result<crate::engine::Evaluation> {
         {
-            let mut started = self.started.lock().expect("starea nu este otravita");
+            let mut started = self.started.lock().expect("the state is not poisoned");
             if *started {
-                return Err(RaptorError::new(ErrorCode::EngineEvaluation, "runtime-ul a fost deja pornit"));
+                return Err(RaptorError::new(ErrorCode::EngineEvaluation, "the runtime has already been started"));
             }
             *started = true;
         }
@@ -140,7 +140,7 @@ impl Runtime {
         if !paths::contains(&self.project_root, &entry_path) {
             return Err(RaptorError::new(
                 ErrorCode::ModuleNotFound,
-                "punctul de intrare trebuie sa fie in radacina proiectului",
+                "the entry point must be inside the project root",
             )
             .with("entry", self.manifest.entry.clone())
             .with("projectRoot", self.project_root.clone()));
@@ -164,11 +164,11 @@ impl Runtime {
         self.engine.evaluate(&entry_path)
     }
 
-    /// Oprire curata: anuleaza lucrul in zbor, dreneaza, elibereaza izolatul.
-    /// Idempotenta.
+    /// Clean shutdown: cancels in-flight work, drains, releases the isolate.
+    /// Idempotent.
     pub fn shutdown(&self, reason: &str) {
         {
-            let mut stopped = self.stopped.lock().expect("starea nu este otravita");
+            let mut stopped = self.stopped.lock().expect("the state is not poisoned");
             if *stopped {
                 return;
             }
@@ -226,14 +226,14 @@ pub struct LoadedProject {
     pub manifest: Manifest,
 }
 
-/// Cauta `raptor.runtime.json` in sus, de la `from` pana la radacina discului.
+/// Searches for `raptor.runtime.json` upward, from `from` to the disk root.
 pub fn load_project(from: &str) -> Result<LoadedProject> {
     let mut current = paths::normalize(from);
     loop {
         let candidate = paths::resolve(&current, MANIFEST_FILENAME);
         if let Ok(source) = std::fs::read_to_string(Path::new(&candidate)) {
-            // Un manifest prezent dar invalid este o eroare aici, nu un motiv
-            // sa urcam mai departe si sa gasim alt proiect din intamplare.
+            // A present but invalid manifest is an error here, not a reason to
+            // keep going up and find another project by accident.
             let manifest = crate::manifest::require(&source)?;
             return Ok(LoadedProject { project_root: current, manifest_path: candidate, manifest });
         }
@@ -241,7 +241,7 @@ pub fn load_project(from: &str) -> Result<LoadedProject> {
         if parent == current {
             return Err(RaptorError::new(
                 ErrorCode::ManifestMissing,
-                format!("nu am gasit {MANIFEST_FILENAME} pornind de la {from}"),
+                format!("did not find {MANIFEST_FILENAME} starting from {from}"),
             )
             .with("from", from));
         }
@@ -265,14 +265,14 @@ mod tests {
                 std::process::id(),
                 std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
             );
-            let root = paths::normalize(std::env::temp_dir().join(unique).to_str().expect("cale"));
-            std::fs::create_dir_all(Path::new(&root)).expect("radacina");
+            let root = paths::normalize(std::env::temp_dir().join(unique).to_str().expect("path"));
+            std::fs::create_dir_all(Path::new(&root)).expect("root");
             std::fs::write(Path::new(&paths::resolve(&root, MANIFEST_FILENAME)), manifest_source)
                 .expect("manifest");
             for (path, contents) in files {
                 let full = paths::resolve(&root, path);
-                std::fs::create_dir_all(Path::new(&paths::parent(&full))).expect("director");
-                std::fs::write(Path::new(&full), contents).expect("fisier");
+                std::fs::create_dir_all(Path::new(&paths::parent(&full))).expect("directory");
+                std::fs::write(Path::new(&full), contents).expect("file");
             }
             Self { root }
         }
@@ -301,7 +301,7 @@ mod tests {
     fn load_project_urca_pana_la_manifest() {
         let fixture = Fixture::new(BASIC, &[("src/adanc/mai-adanc/nota.txt", "x")]);
         let deep = paths::resolve(&fixture.root, "./src/adanc/mai-adanc");
-        let loaded = load_project(&deep).expect("proiect gasit");
+        let loaded = load_project(&deep).expect("project found");
         assert_eq!(loaded.project_root, fixture.root);
         assert_eq!(loaded.manifest.name, "fixture");
     }
@@ -310,8 +310,8 @@ mod tests {
     fn lipsa_manifestului_este_raportata_cu_cod_stabil_nu_prin_ciclare() {
         let root = paths::normalize(std::env::temp_dir().to_str().expect("temp"));
         let orphan = paths::resolve(&root, &format!("raptor-orfan-{}", std::process::id()));
-        std::fs::create_dir_all(Path::new(&orphan)).expect("director");
-        let error = load_project(&orphan).expect_err("fara manifest");
+        std::fs::create_dir_all(Path::new(&orphan)).expect("directory");
+        let error = load_project(&orphan).expect_err("no manifest");
         assert_eq!(error.code, ErrorCode::ManifestMissing);
         let _ = std::fs::remove_dir_all(Path::new(&orphan));
     }
@@ -319,7 +319,7 @@ mod tests {
     #[test]
     fn un_manifest_invalid_nu_este_sarit_in_favoarea_unuia_de_mai_sus() {
         let fixture = Fixture::new(r#"{"version":3}"#, &[]);
-        let error = load_project(&fixture.root).expect_err("manifest invalid");
+        let error = load_project(&fixture.root).expect_err("invalid manifest");
         assert_eq!(error.code, ErrorCode::ManifestInvalid);
     }
 
@@ -336,8 +336,8 @@ mod tests {
             strict: None,
         });
 
-        // Fara motor evaluarea esueaza, dar instalarea modulelor s-a facut deja.
-        let error = runtime.start().expect_err("stub fara motor");
+        // Without an engine, evaluation fails, but the modules are already installed.
+        let error = runtime.start().expect_err("stub without engine");
         assert_eq!(error.code, ErrorCode::ModuleUnsupported);
         assert_eq!(engine.installed_modules().len(), HOST_MODULE_NAMES.len());
         assert!(engine.installed_modules().contains(&"files".to_string()));
@@ -349,7 +349,7 @@ mod tests {
         let source = r#"{"name":"fixture","entry":"../escape.ts"}"#;
         let fixture = Fixture::new(source, &[]);
         let runtime = fixture.runtime(manifest::require(source).expect("manifest"));
-        let error = runtime.start().expect_err("refuz");
+        let error = runtime.start().expect_err("deny");
         assert_eq!(error.code, ErrorCode::ModuleNotFound);
     }
 
@@ -358,7 +358,7 @@ mod tests {
         let fixture = Fixture::new(BASIC, &[("src/main.ts", "export default () => undefined;")]);
         let runtime = fixture.runtime(manifest::require(BASIC).expect("manifest"));
         let _ = runtime.start();
-        let error = runtime.start().expect_err("a doua pornire");
+        let error = runtime.start().expect_err("second start");
         assert_eq!(error.code, ErrorCode::EngineEvaluation);
     }
 
@@ -369,11 +369,11 @@ mod tests {
 
         runtime
             .tasks()
-            .spawn("fundal", Default::default(), |context| {
+            .spawn("background", Default::default(), |context| {
                 context.sleep(std::time::Duration::from_secs(30));
                 context.check()
             })
-            .expect("lansare");
+            .expect("launch");
 
         runtime.shutdown("test");
         runtime.shutdown("test");
@@ -423,7 +423,7 @@ mod tests {
                 descriptor.descriptor.get("module").and_then(Json::as_str),
                 Some(format!("raptor:{name}").as_str())
             );
-            assert!(!descriptor.function_names().is_empty(), "modulul publica functii native");
+            assert!(!descriptor.function_names().is_empty(), "the module publishes native functions");
         }
     }
 }
