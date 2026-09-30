@@ -5,7 +5,7 @@
  * derived metrics. The derived fan-out is STATIC (from the graph), not from
  * runtime - it identifies hot reactive nodes regardless of traffic (22).
  */
-import { GraphNodeKind, type SemanticGraph } from "@raptor/engine/compiler";
+import { GraphNodeKind, type SemanticGraph } from "@raptorstack/engine/compiler";
 import { emptyProfile, PROFILE_VERSION, type RaptorProfile, type WirePayloadStat } from "./profile.ts";
 
 export interface ProfilerThresholds {

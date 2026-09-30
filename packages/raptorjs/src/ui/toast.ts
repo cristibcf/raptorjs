@@ -8,8 +8,8 @@
  * The timers pause on hover: otherwise a half-read message disappears exactly
  * when the user reaches for the action button.
  */
-import { state, onCleanup, type Accessor } from "raptorjs";
-import { R, For, Show, type Child } from "raptorjs/dom";
+import { state, onCleanup, type Accessor } from "@raptorstack/raptorjs";
+import { R, For, Show, type Child } from "@raptorstack/raptorjs/dom";
 import { Portal } from "./primitives/portal.ts";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

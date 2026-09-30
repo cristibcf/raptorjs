@@ -1,8 +1,8 @@
 /** Typography. */
-import { state, derived, onCleanup } from "raptorjs/dom";
-import { Input } from "raptorjs/ui/input";
-import { Blockquote, CodeBlock, Heading, Kbd, Link, Mark, Text, TextList, Truncate } from "raptorjs/ui/typography";
-import { Code as UICode } from "raptorjs/ui/typography";
+import { state, derived, onCleanup } from "@raptorstack/raptorjs/dom";
+import { Input } from "@raptorstack/raptorjs/ui/input";
+import { Blockquote, CodeBlock, Heading, Kbd, Link, Mark, Text, TextList, Truncate } from "@raptorstack/raptorjs/ui/typography";
+import { Code as UICode } from "@raptorstack/raptorjs/ui/typography";
 import { highlight } from "../lib/ui.tsx";
 import type { CatalogGroup } from "./types.ts";
 

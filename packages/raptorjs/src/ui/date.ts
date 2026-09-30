@@ -10,8 +10,8 @@
  * which is local. Day arithmetic never uses "+ 86400000" - a day isn't always
  * 24h (daylight saving time).
  */
-import { state, derived, effect, type Accessor, type State } from "raptorjs";
-import { R, For, Show, type Child } from "raptorjs/dom";
+import { state, derived, effect, type Accessor, type State } from "@raptorstack/raptorjs";
+import { R, For, Show, type Child } from "@raptorstack/raptorjs/dom";
 import { clickOutside } from "./primitives/click-outside.ts";
 import { positioner, type Placement } from "./primitives/positioner.ts";
 import { focus, type El } from "./primitives/env.ts";

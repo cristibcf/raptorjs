@@ -9,8 +9,8 @@ import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { bundleApp, rewriteHtml } from "@raptor/engine/bundle";
-import { serveOverWebSocket } from "@raptor/wire/server";
+import { bundleApp, rewriteHtml } from "@raptorstack/engine/bundle";
+import { serveOverWebSocket } from "@raptorstack/wire/server";
 import { buildTodoApp } from "./app.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));

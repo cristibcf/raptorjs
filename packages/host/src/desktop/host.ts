@@ -8,8 +8,8 @@
  * allowlist, storage in the app directory, subprocesses from the explicit list
  * only) are the part that must not differ between implementations.
  */
-import { HostError, createLifecycle, serveHost } from "@raptor/host";
-import type { AuditEntry, HostManifest, HostServer, HostTransport, LifecycleMachine, MethodHandler } from "@raptor/host";
+import { HostError, createLifecycle, serveHost } from "@raptorstack/host";
+import type { AuditEntry, HostManifest, HostServer, HostTransport, LifecycleMachine, MethodHandler } from "@raptorstack/host";
 
 export interface WindowState {
   readonly id: string;

@@ -17,153 +17,153 @@ importers:
 
   examples/chat:
     dependencies:
-      '@raptor/wire':
-        specifier: workspace:*
-        version: link:../../packages/wire
-      raptorjs:
+      '@raptorstack/raptorjs':
         specifier: workspace:*
         version: link:../../packages/raptorjs
+      '@raptorstack/wire':
+        specifier: workspace:*
+        version: link:../../packages/wire
 
   examples/cli-shell:
     dependencies:
-      '@raptor/host':
+      '@raptorstack/host':
         specifier: workspace:*
         version: link:../../packages/host
-      raptorjs:
+      '@raptorstack/raptorjs':
         specifier: workspace:*
         version: link:../../packages/raptorjs
 
   examples/counter:
     dependencies:
-      raptorjs:
+      '@raptorstack/raptorjs':
         specifier: workspace:*
         version: link:../../packages/raptorjs
     devDependencies:
-      '@raptor/engine':
+      '@raptorstack/engine':
         specifier: workspace:*
         version: link:../../packages/engine
 
   examples/desktop-shell:
     dependencies:
-      '@raptor/host':
+      '@raptorstack/host':
         specifier: workspace:*
         version: link:../../packages/host
-      raptorjs:
+      '@raptorstack/raptorjs':
         specifier: workspace:*
         version: link:../../packages/raptorjs
 
   examples/device-shell:
     dependencies:
-      '@raptor/host':
+      '@raptorstack/host':
         specifier: workspace:*
         version: link:../../packages/host
-      raptorjs:
+      '@raptorstack/raptorjs':
         specifier: workspace:*
         version: link:../../packages/raptorjs
 
   examples/mobile-shell:
     dependencies:
-      '@raptor/host':
+      '@raptorstack/host':
         specifier: workspace:*
         version: link:../../packages/host
-      raptorjs:
+      '@raptorstack/raptorjs':
         specifier: workspace:*
         version: link:../../packages/raptorjs
 
   examples/raptor-runtime-spike:
     devDependencies:
-      '@raptor/runtime':
+      '@raptorstack/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
 
   examples/raptorengine-app:
     dependencies:
-      '@raptor/engine':
+      '@raptorstack/engine':
         specifier: workspace:*
         version: link:../../packages/engine
-      '@raptor/wire':
-        specifier: workspace:*
-        version: link:../../packages/wire
-      raptorjs:
+      '@raptorstack/raptorjs':
         specifier: workspace:*
         version: link:../../packages/raptorjs
+      '@raptorstack/wire':
+        specifier: workspace:*
+        version: link:../../packages/wire
 
   examples/raptortest-crud:
     dependencies:
-      '@raptor/test':
+      '@raptorstack/test':
         specifier: workspace:*
         version: link:../../packages/test
 
   examples/realtime-dashboard:
     dependencies:
-      '@raptor/wire':
-        specifier: workspace:*
-        version: link:../../packages/wire
-      raptorjs:
+      '@raptorstack/raptorjs':
         specifier: workspace:*
         version: link:../../packages/raptorjs
+      '@raptorstack/wire':
+        specifier: workspace:*
+        version: link:../../packages/wire
     devDependencies:
-      '@raptor/engine':
+      '@raptorstack/engine':
         specifier: workspace:*
         version: link:../../packages/engine
 
   examples/service-shell:
     dependencies:
-      '@raptor/host':
+      '@raptorstack/host':
         specifier: workspace:*
         version: link:../../packages/host
-      raptorjs:
+      '@raptorstack/raptorjs':
         specifier: workspace:*
         version: link:../../packages/raptorjs
 
   examples/site:
     dependencies:
-      '@raptor/wire':
-        specifier: workspace:*
-        version: link:../../packages/wire
-      raptorjs:
+      '@raptorstack/raptorjs':
         specifier: workspace:*
         version: link:../../packages/raptorjs
+      '@raptorstack/wire':
+        specifier: workspace:*
+        version: link:../../packages/wire
     devDependencies:
-      '@raptor/engine':
+      '@raptorstack/engine':
         specifier: workspace:*
         version: link:../../packages/engine
 
   examples/todo-realtime:
     dependencies:
-      '@raptor/wire':
-        specifier: workspace:*
-        version: link:../../packages/wire
-      raptorjs:
+      '@raptorstack/raptorjs':
         specifier: workspace:*
         version: link:../../packages/raptorjs
+      '@raptorstack/wire':
+        specifier: workspace:*
+        version: link:../../packages/wire
     devDependencies:
-      '@raptor/engine':
+      '@raptorstack/engine':
         specifier: workspace:*
         version: link:../../packages/engine
 
   examples/web-shell:
     dependencies:
-      '@raptor/host':
+      '@raptorstack/host':
         specifier: workspace:*
         version: link:../../packages/host
-      raptorjs:
+      '@raptorstack/raptorjs':
         specifier: workspace:*
         version: link:../../packages/raptorjs
     devDependencies:
-      '@raptor/engine':
+      '@raptorstack/engine':
         specifier: workspace:*
         version: link:../../packages/engine
 
   packages/engine:
     dependencies:
-      '@raptor/host':
+      '@raptorstack/host':
         specifier: workspace:*
         version: link:../host
-      '@raptor/runtime':
+      '@raptorstack/runtime':
         specifier: workspace:*
         version: link:../runtime
-      '@raptor/wire':
+      '@raptorstack/wire':
         specifier: workspace:*
         version: link:../wire
       typescript:
@@ -180,7 +180,7 @@ importers:
 
   packages/wire:
     dependencies:
-      raptorjs:
+      '@raptorstack/raptorjs':
         specifier: workspace:*
         version: link:../raptorjs
 

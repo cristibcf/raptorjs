@@ -35,7 +35,7 @@ Do you need realtime / state shared between clients?
 ```
 
 **Recommendation for most apps:** start with **Path B** (server
-`@raptor/wire/server` + client `@raptor/wire/client` over loopback), put your domain
+`@raptorstack/wire/server` + client `@raptorstack/wire/client` over loopback), put your domain
 logic in mutations/queries, bind the UI with `client.signal(...)`. When you need
 real networking, you add a `Transport` adapter over WebSocket — the rest of the code
 stays unchanged. Move to **Path C** only if you want SSR/resume, state-preserving
@@ -47,32 +47,32 @@ HMR and semantic-graph optimization.
 
 | Concern | Status | Where / how |
 |---|---|---|
-| Fine-grained reactivity | ✅ ready | `raptorjs`, `raptorjs/dom` |
-| DOM bindings + control flow (`For`/`Show`) | ✅ ready | `raptorjs/dom` |
-| Two authoring surfaces over the same runtime: JSX (compiled) and `R` (hyperscript, no build step) | ✅ ready | `raptorjs/dom` |
-| Reusable components (`Table`, `DropdownMenu`) with separate styles | ✅ ready | `raptorjs/ui` |
-| Headless primitives (Portal, focusTrap, resizable, virtualizer, sortable, hotkeys...) | ✅ ready | `raptorjs/ui` |
-| ⚡ components with DOM-mutation tests (virtualized DataGrid, Combobox, Slider, SplitPane, Sparkline, Progress) | ✅ ready | `raptorjs/ui` |
-| SVG support in the runtime (`createElementNS` for SVG tags) | ✅ ready | `raptorjs/dom` |
-| Form core (derived validation) and overlays (Dialog/Popover/Tooltip/Toast) | ✅ ready | `raptorjs/ui` |
-| Layout, typography, display, controls, state primitives (persistedState/undoRedo/selectionState) | ✅ ready | `raptorjs/ui` |
-| Date/time, navigation, files, trees and basic charts (139 components: all of T1+T2) | ✅ ready | `raptorjs/ui` |
-| T3: specialized charts, editors, media, QRCode (own ISO 18004 generator), Kanban, Wizard | ✅ ready | `raptorjs/ui` |
-| 36 entry points (subpath exports) | ✅ ready | `raptorjs/ui` |
-| Tree-shaking on the ESM source, driven by the requested exports (barrel: 58 modules → 9, 527 KB → 39 KB) | ✅ ready | `@raptor/engine/bundle` |
-| JSX in the browser | ✅ ready | `@raptor/engine/bundle` (own bundler, zero-dep, no Vite) |
-| Dev server + live-reload (client-only) | ✅ ready | `@raptor/engine/bundle` `raptor-bundle dev` |
-| State-aware delta protocol + RAS | ✅ ready | `@raptor/wire` |
-| Authoritative server, query/mutation/subscription | ✅ ready | `@raptor/wire/server` |
-| Client with reactive replica, delta reconnect | ✅ ready | `@raptor/wire/client` |
+| Fine-grained reactivity | ✅ ready | `@raptorstack/raptorjs`, `@raptorstack/raptorjs/dom` |
+| DOM bindings + control flow (`For`/`Show`) | ✅ ready | `@raptorstack/raptorjs/dom` |
+| Two authoring surfaces over the same runtime: JSX (compiled) and `R` (hyperscript, no build step) | ✅ ready | `@raptorstack/raptorjs/dom` |
+| Reusable components (`Table`, `DropdownMenu`) with separate styles | ✅ ready | `@raptorstack/raptorjs/ui` |
+| Headless primitives (Portal, focusTrap, resizable, virtualizer, sortable, hotkeys...) | ✅ ready | `@raptorstack/raptorjs/ui` |
+| ⚡ components with DOM-mutation tests (virtualized DataGrid, Combobox, Slider, SplitPane, Sparkline, Progress) | ✅ ready | `@raptorstack/raptorjs/ui` |
+| SVG support in the runtime (`createElementNS` for SVG tags) | ✅ ready | `@raptorstack/raptorjs/dom` |
+| Form core (derived validation) and overlays (Dialog/Popover/Tooltip/Toast) | ✅ ready | `@raptorstack/raptorjs/ui` |
+| Layout, typography, display, controls, state primitives (persistedState/undoRedo/selectionState) | ✅ ready | `@raptorstack/raptorjs/ui` |
+| Date/time, navigation, files, trees and basic charts (139 components: all of T1+T2) | ✅ ready | `@raptorstack/raptorjs/ui` |
+| T3: specialized charts, editors, media, QRCode (own ISO 18004 generator), Kanban, Wizard | ✅ ready | `@raptorstack/raptorjs/ui` |
+| 36 entry points (subpath exports) | ✅ ready | `@raptorstack/raptorjs/ui` |
+| Tree-shaking on the ESM source, driven by the requested exports (barrel: 58 modules → 9, 527 KB → 39 KB) | ✅ ready | `@raptorstack/engine/bundle` |
+| JSX in the browser | ✅ ready | `@raptorstack/engine/bundle` (own bundler, zero-dep, no Vite) |
+| Dev server + live-reload (client-only) | ✅ ready | `@raptorstack/engine/bundle` `raptor-bundle dev` |
+| State-aware delta protocol + RAS | ✅ ready | `@raptorstack/wire` |
+| Authoritative server, query/mutation/subscription | ✅ ready | `@raptorstack/wire/server` |
+| Client with reactive replica, delta reconnect | ✅ ready | `@raptorstack/wire/client` |
 | Network transport (WebSocket) | ✅ ready | `connectWebSocket` (client) + `serveOverWebSocket` (server), own RFC 6455, zero-dep. Loopback stays for tests. |
-| SSR + resume | ✅ ready (Path C) | `@raptor/engine/run` |
-| Dev server + state-preserving HMR | ✅ ready (Path C) | `@raptor/engine/run`, `@raptor/engine` |
-| Routing | ✅ basic | `@raptor/engine/run` `matchRoute` |
+| SSR + resume | ✅ ready (Path C) | `@raptorstack/engine/run` |
+| Dev server + state-preserving HMR | ✅ ready (Path C) | `@raptorstack/engine/run`, `@raptorstack/engine` |
+| Routing | ✅ basic | `@raptorstack/engine/run` `matchRoute` |
 | **Persistence (DB)** | ⚠️ **you** | the store is in-memory; you feed it from your DB in `mutation.run` |
 | **Authentication / authorization** | ⚠️ **you** | the `authorize()` hook on the mutation + `QueryContext` — the logic is yours |
-| Semantic-graph optimization (DSE/Fusion) | ✅ ready (Path C) | `@raptor/engine` |
-| Autonomous testing | ✅ ready | `@raptor/test` |
+| Semantic-graph optimization (DSE/Fusion) | ✅ ready (Path C) | `@raptorstack/engine` |
+| Autonomous testing | ✅ ready | `@raptorstack/test` |
 
 The two remaining ⚠️ are **small adapters over stable interfaces**, not rewrites. Examples below.
 
@@ -88,16 +88,16 @@ It's the simplest and 100% ready.
 ```
 my-app/
 ├─ index.html            # <div id="app"></div> + <script type="module" src="/src/main.tsx">
-├─ tsconfig.json         # jsx: "react-jsx", jsxImportSource: "raptorjs/dom"
-├─ package.json          # deps: raptorjs, raptorjs/dom ; devDep: @raptor/engine/bundle
+├─ tsconfig.json         # jsx: "react-jsx", jsxImportSource: "@raptorstack/raptorjs/dom"
+├─ package.json          # deps: raptorjs, raptorjs/dom ; devDep: @raptorstack/engine/bundle
 └─ src/
    ├─ main.tsx           # render(App, #app)
    ├─ components/        # .tsx components
    └─ state/             # shared signals/deriveds (state stores)
 ```
 
-There is no bundler config file: `@raptor/engine/bundle` has `jsxImportSource:
-"raptorjs/dom"` built in. There is no Vite, esbuild or Rolldown in the dependency
+There is no bundler config file: `@raptorstack/engine/bundle` has `jsxImportSource:
+"@raptorstack/raptorjs/dom"` built in. There is no Vite, esbuild or Rolldown in the dependency
 graph.
 
 ### Wiring (exactly like `examples/counter`)
@@ -109,7 +109,7 @@ graph.
     "dev": "raptor-bundle dev src/main.tsx --root . --port 5173",
     "build": "raptor-bundle build src/main.tsx --out dist/bundle.js --html index.html"
   },
-  "devDependencies": { "@raptor/engine/bundle": "workspace:*" }
+  "devDependencies": { "@raptorstack/engine/bundle": "workspace:*" }
 }
 ```
 
@@ -125,7 +125,7 @@ automatically to the bundle):
 {
   "compilerOptions": {
     "jsx": "react-jsx",
-    "jsxImportSource": "raptorjs/dom",
+    "jsxImportSource": "@raptorstack/raptorjs/dom",
     "allowImportingTsExtensions": true,
     "noEmit": true
   }
@@ -134,7 +134,7 @@ automatically to the bundle):
 
 `src/main.tsx`:
 ```tsx
-import { render, state, derived } from "raptorjs/dom";
+import { render, state, derived } from "@raptorstack/raptorjs/dom";
 
 function Counter() {
   const count = state(0);
@@ -158,7 +158,7 @@ files). See also ["How RaptorBundle works"](#how-raptorbundle-works).
 need them — there's no provider/context, it's just reactivity.
 ```ts
 // src/state/cart.ts
-import { state, derived } from "raptorjs";
+import { state, derived } from "@raptorstack/raptorjs";
 export const items = state<CartItem[]>([]);
 export const total = derived(() => items().reduce((s, i) => s + i.price, 0));
 export const add = (i: CartItem) => items.update((xs) => [...xs, i]);
@@ -166,17 +166,17 @@ export const add = (i: CartItem) => items.update((xs) => [...xs, i]);
 
 ### How RaptorBundle works
 
-`@raptor/engine/bundle` is the project's own bundler — it fully replaces Vite,
+`@raptorstack/engine/bundle` is the project's own bundler — it fully replaces Vite,
 in the stack's zero-dep / compiler-centric spirit. It has **zero runtime
 dependencies**; it uses the TypeScript compiler (already in the repo, as
 `typescript`) only as a build-time transform primitive.
 
 What it does, in order:
 1. **Transform** — each `.tsx`/`.ts` is transformed: JSX → calls to
-   `raptorjs/dom/jsx-runtime` (fine-grained, no Virtual DOM), the types are stripped.
-2. **Resolution** — the specifiers (`./x.ts`, `raptorjs/dom`, `raptorjs/dom/jsx-runtime`)
+   `@raptorstack/raptorjs/dom/jsx-runtime` (fine-grained, no Virtual DOM), the types are stripped.
+2. **Resolution** — the specifiers (`./x.ts`, `@raptorstack/raptorjs/dom`, `@raptorstack/raptorjs/dom/jsx-runtime`)
    are resolved with the Node resolver, including the `exports` map to the `.ts`
-   source of the `@raptor/*` packages.
+   source of the `@raptorstack/*` packages.
 3. **Bundling** — the graph (closed and zero-dep) is gathered into a single file
    with a module registry and lazy `require` — a statically-servable `dist/bundle.js`.
 4. **Dev** — `raptor-bundle dev` starts a `node:http` server that serves
@@ -212,7 +212,7 @@ where you put the domain logic.**
 ```
 ┌─────────────────────────── the same process (v0.1) ─────────────────────────┐
 │                                                                              │
-│   @raptor/wire/server                    Transport                @raptor/wire/client
+│   @raptorstack/wire/server                    Transport                @raptorstack/wire/client
 │   ┌───────────────┐   delta ops   ┌──────────┐   delta ops   ┌───────────────┐
 │   │ ReactiveStore │ ────────────▶ │ loopback │ ────────────▶ │ replica (signals)│
 │   │(authoritative)│ ◀──────────── │ (in-mem) │ ◀──────────── │  client.signal() │
@@ -231,7 +231,7 @@ where you put the domain logic.**
 
 ```ts
 // server/app.ts
-import { raptorServer, type RaptorServer, type ReactiveStore } from "@raptor/wire/server";
+import { raptorServer, type RaptorServer, type ReactiveStore } from "@raptorstack/wire/server";
 
 export function buildApp(): RaptorServer {
   const app = raptorServer({ build: "my-app-0.1.0" });
@@ -271,8 +271,8 @@ export function buildApp(): RaptorServer {
 
 ```tsx
 // client/main.tsx
-import { render, For } from "raptorjs/dom";
-import { createLoopback, RaptorClient } from "@raptor/wire/client";
+import { render, For } from "@raptorstack/raptorjs/dom";
+import { createLoopback, RaptorClient } from "@raptorstack/wire/client";
 import { buildApp } from "../server/app.ts";
 
 const app = buildApp();
@@ -314,7 +314,7 @@ affected bindings.
 
 ```ts
 // shared/ws-transport.ts
-import { type Transport } from "@raptor/wire/client";
+import { type Transport } from "@raptorstack/wire/client";
 
 export function wsTransport(ws: WebSocket): Transport {
   ws.binaryType = "arraybuffer";
@@ -386,8 +386,8 @@ App.raptor ──buildModule──▶ { browser, server, wire, graph, manifest, 
 
 ```ts
 import { readFileSync } from "node:fs";
-import { buildModule } from "@raptor/engine";
-import { RaptorRuntime, renderDocument, createNodeServer, listen } from "@raptor/engine/run";
+import { buildModule } from "@raptorstack/engine";
+import { RaptorRuntime, renderDocument, createNodeServer, listen } from "@raptorstack/engine/run";
 
 const source = readFileSync("src/App.raptor", "utf8");
 const result = buildModule(source, "App.raptor");
@@ -461,7 +461,7 @@ What you need to add on top of the prototype, in priority order:
    known version) instead of reconnecting with a full snapshot. The op-log is already there.
 6. **Observability** — on Path C you have `runtime.metrics` / `runtime.log`; on
    Path B instrument around `app.serve` and the mutations.
-7. **Testing** — use `@raptor/test` for autonomous bug discovery + budget tests
+7. **Testing** — use `@raptorstack/test` for autonomous bug discovery + budget tests
    (0 repeated field names, 1 commit/frame) as in
    `examples/realtime-dashboard/tests`.
 

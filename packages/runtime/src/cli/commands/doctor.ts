@@ -6,7 +6,7 @@
  * manifest, policies and static graph. That makes it safe to run on a foreign
  * project.
  */
-import { MANIFEST_FILENAME, RUNTIME_VERSION, buildStaticGraph, loadProject, parseManifest } from "@raptor/runtime";
+import { MANIFEST_FILENAME, RUNTIME_VERSION, buildStaticGraph, loadProject, parseManifest } from "@raptorstack/runtime";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { POLICY_FILENAME, describeUndeclared, loadPolicyFile, profileFor } from "../policy.ts";

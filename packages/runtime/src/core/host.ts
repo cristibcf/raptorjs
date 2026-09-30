@@ -3,7 +3,7 @@
  * and the `raptor:` namespace into a single object with an explicit lifecycle.
  *
  * This is the contract the native host will implement; the launcher
- * (`@raptor/runtime-cli`) knows nothing about the engine, only about this API.
+ * (`@raptorstack/runtime-cli`) knows nothing about the engine, only about this API.
  */
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";

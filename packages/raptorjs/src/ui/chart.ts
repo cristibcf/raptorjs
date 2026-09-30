@@ -10,8 +10,8 @@
  * `path` or the `height` of a `rect`. Nodes are not recreated, because `For`
  * is keyed on index (as in `virtualizer`), not on new objects at every tick.
  */
-import { derived, state, type Accessor } from "raptorjs";
-import { R, For, Show, type Child } from "raptorjs/dom";
+import { derived, state, type Accessor } from "@raptorstack/raptorjs";
+import { R, For, Show, type Child } from "@raptorstack/raptorjs/dom";
 import { type El } from "./primitives/env.ts";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

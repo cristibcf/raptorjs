@@ -1,5 +1,5 @@
 /**
- * @raptor/test - RaptorTest: autonomous behavioral testing + backend digital twin.
+ * @raptorstack/test - RaptorTest: autonomous behavioral testing + backend digital twin.
  *
  * Pilonul de verificare al ecosistemului Raptor (RaptorJS = executie,
  * RaptorWire = comunicare, RaptorTest = verificare). Vezi whitepaper-ul

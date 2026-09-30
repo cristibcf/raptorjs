@@ -6,7 +6,7 @@
  * fire while you're typing in an input - otherwise "n" as a shortcut would make
  * typing the letter n impossible.
  */
-import { onCleanup } from "raptorjs";
+import { onCleanup } from "@raptorstack/raptorjs";
 import { onDoc, type El } from "./env.ts";
 
 export interface HotkeyOptions {

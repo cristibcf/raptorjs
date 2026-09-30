@@ -11,7 +11,7 @@ opens the sockets, brings the configuration and requests shutdown — exactly th
 which provides the arguments, the output streams, Ctrl-C and the exit code; and for
 `embedded`, the **board's firmware**, which provides pins, buses and sleep — and
 which, alone among them all, does not trust the application. The same contract is
-implemented there too ([`@raptor/host/web`](../packages/web-host)), with a caveat
+implemented there too ([`@raptorstack/host/web`](../packages/web-host)), with a caveat
 that must not be lost: in the browser the bridge provides **portability, not
 isolation** — the page and the host are the same isolate, and the real boundary
 remains the browser's origin sandbox. On desktop and mobile, where the bridge
@@ -21,16 +21,16 @@ crosses a process, the host's rejection really is a security boundary.
 
 | Part | Status | Where |
 |---|---|---|
-| The capability matrix (§6) | **Implemented**, transcribed as data and tested row by row | [`@raptor/host`](../packages/host) |
+| The capability matrix (§6) | **Implemented**, transcribed as data and tested row by row | [`@raptorstack/host`](../packages/host) |
 | The native-boundary manifest `raptor.host.json` | **Implemented**: parser with accumulated diagnostics, stable round-trip | `packages/host/src/manifest.ts` |
 | The JS ↔ host bridge (protocol, transport, lifecycle) | **Implemented**, with an in-process reference host | `packages/host/src/{protocol,bridge,host-server}.ts` |
-| Desktop adapter (windows, menus, deep links, notifications, storage, update) | **Implemented as a reference host** | [`@raptor/host/desktop`](../packages/desktop) |
-| Mobile adapter (navigation, secure storage, lifecycle, deep links, optional modules) | **Implemented as a reference host** | [`@raptor/host/mobile`](../packages/mobile) |
-| Browser adapter (History API, localStorage, Notification, Geolocation) | **Implemented**; portability, not isolation | [`@raptor/host/web`](../packages/web-host) |
-| Service adapter (sockets, configuration, health, draining) | **Implemented**, with a real `node:http` server | [`@raptor/host/service`](../packages/service-host) |
-| Terminal adapter (argv, streams, TTY, confirmations, exit code) | **Implemented**, with a runnable binary | [`@raptor/host/cli`](../packages/cli-host) |
-| Board adapter (pins, buses, sleep, watchdog, OTA) | **Implemented**, with a simulated board | [`@raptor/host/device`](../packages/device-host) |
-| Packaging + installer workflow | **Generated plan**, deterministic, from which CI is derived | `packages/*/src/packaging.ts`, `@raptor/engine/forge` |
+| Desktop adapter (windows, menus, deep links, notifications, storage, update) | **Implemented as a reference host** | [`@raptorstack/host/desktop`](../packages/desktop) |
+| Mobile adapter (navigation, secure storage, lifecycle, deep links, optional modules) | **Implemented as a reference host** | [`@raptorstack/host/mobile`](../packages/mobile) |
+| Browser adapter (History API, localStorage, Notification, Geolocation) | **Implemented**; portability, not isolation | [`@raptorstack/host/web`](../packages/web-host) |
+| Service adapter (sockets, configuration, health, draining) | **Implemented**, with a real `node:http` server | [`@raptorstack/host/service`](../packages/service-host) |
+| Terminal adapter (argv, streams, TTY, confirmations, exit code) | **Implemented**, with a runnable binary | [`@raptorstack/host/cli`](../packages/cli-host) |
+| Board adapter (pins, buses, sleep, watchdog, OTA) | **Implemented**, with a simulated board | [`@raptorstack/host/device`](../packages/device-host) |
+| Packaging + installer workflow | **Generated plan**, deterministic, from which CI is derived | `packages/*/src/packaging.ts`, `@raptorstack/engine/forge` |
 | **The native Rust binary** — `doctor`/`init`/`pack` and **`run` with the QuickJS engine** | **Runs without Node** | [`packages/runtime-native`](../packages/runtime-native) |
 | Native TypeScript stripping, `raptor:` modules as functions, native WebViews | **Doesn't exist** | — |
 | **The `raptor-package` command** that actually builds the installers | **Doesn't exist** | — |
@@ -123,8 +123,8 @@ responses; events (lifecycle, deep links, menu commands) flow from the host
 without a request.
 
 ```ts
-import { createBridge, createMemoryChannel } from "@raptor/host";
-import { createDesktopHost } from "@raptor/host/desktop";
+import { createBridge, createMemoryChannel } from "@raptorstack/host";
+import { createDesktopHost } from "@raptorstack/host/desktop";
 
 const channel = createMemoryChannel();          // in production: stdio / the WebView's messages
 const host = createDesktopHost({ manifest, transport: channel.host });

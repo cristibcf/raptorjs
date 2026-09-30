@@ -78,7 +78,7 @@ function countComponents(): number {
  *
  * Workspace links don't count: they are the same project, not foreign code.
  * We recognize them by the `workspace:*` version. `peerDependencies` (e.g. the
- * TypeScript compiler, used only at build time by `@raptor/engine`) are not shipped
+ * TypeScript compiler, used only at build time by `@raptorstack/engine`) are not shipped
  * runtime dependencies, so they don't count either. If we counted them, "zero dependencies"
  * would look different and the number would lose its exact meaning right where it matters.
  */
@@ -96,7 +96,7 @@ function countRuntimeDependencies(): readonly string[] {
   return [...external].sort();
 }
 
-/** The public UI entry points: the `./ui*` subpaths in `raptorjs`. */
+/** The public UI entry points: the `./ui*` subpaths in `@raptorstack/raptorjs`. */
 function countUiEntryPoints(): number {
   const manifest = JSON.parse(readFileSync(join(ROOT, "packages", "raptorjs", "package.json"), "utf8")) as {
     exports?: Record<string, string>;

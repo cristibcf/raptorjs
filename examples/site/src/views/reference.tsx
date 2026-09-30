@@ -3,7 +3,7 @@
  * format as the Components section — a running demo, import, signature,
  * parameters, example, notes.
  */
-import { untracked } from "raptorjs/dom";
+import { untracked } from "@raptorstack/raptorjs/dom";
 import { sub, navigate } from "../lib/route.ts";
 import { Code, inline } from "../lib/ui.tsx";
 import { API_DEMOS } from "../demos/api.tsx";
@@ -12,7 +12,7 @@ import { REF_PACKAGES, PACKAGE_ROUTES, type RefPackage, type ApiEntry } from "..
 const current = (): RefPackage | null => REF_PACKAGES.find((p) => p.slug === sub()) ?? null;
 
 /** The 6 published packages; the reference entries group under them by their name prefix. */
-const PACKAGE_GROUPS = ["raptorjs", "@raptor/wire", "@raptor/engine", "@raptor/runtime", "@raptor/host", "@raptor/test"] as const;
+const PACKAGE_GROUPS = ["@raptorstack/raptorjs", "@raptorstack/wire", "@raptorstack/engine", "@raptorstack/runtime", "@raptorstack/host", "@raptorstack/test"] as const;
 const groupOf = (name: string): string => PACKAGE_GROUPS.find((g) => name.startsWith(g)) ?? PACKAGE_GROUPS[0];
 
 function Sidebar() {
@@ -174,7 +174,7 @@ function Index() {
         </div>
         <div>
           {inline(
-            "Start with `raptorjs/dom`. It is the DOM runtime, and it re-exports the reactive primitives too, " +
+            "Start with `@raptorstack/raptorjs/dom`. It is the DOM runtime, and it re-exports the reactive primitives too, " +
               "so a first app needs one import and you can add realtime or the component library later without " +
               "moving any of them. The [Quick start](/learn/quick-start) assumes exactly that.",
           )}

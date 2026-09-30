@@ -5,8 +5,8 @@
   "type": "module",
   "description": "Chat example: APPEND messages, PATCH status, REMOVE, broadcast to multiple clients.",
   "dependencies": {
-    "raptorjs": "workspace:*",
-    "@raptor/wire": "workspace:*"
+    "@raptorstack/raptorjs": "workspace:*",
+    "@raptorstack/wire": "workspace:*"
   },
   "scripts": {
     "demo": "node src/demo.ts",

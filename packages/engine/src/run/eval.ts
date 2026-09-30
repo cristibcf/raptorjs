@@ -4,10 +4,10 @@
  * The same Raptor IR that feeds the browser codegen is evaluated server-side to
  * produce HTML in SSR - concrete proof that "the same graph" traverses both the
  * client and the server (35). A small interpreter over the AST from
- * @raptor/compiler; supports exactly what the DSL (.raptor) produces, not
+ * @raptorstack/compiler; supports exactly what the DSL (.raptor) produces, not
  * arbitrary JS.
  */
-import type { Expr } from "@raptor/engine/compiler";
+import type { Expr } from "@raptorstack/engine/compiler";
 
 export type Env = Record<string, unknown>;
 

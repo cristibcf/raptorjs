@@ -10,10 +10,10 @@
  * The core is transport-agnostic. `connect()` offers a memory (loopback) target
  * for tests/dev; `node.ts` adds a real Node HTTP target.
  */
-import { raptorServer, type RaptorServer } from "@raptor/wire/server";
-import type { WireValue } from "@raptor/wire";
-import type { IRComponent } from "@raptor/engine/compiler";
-import type { BuildResult } from "@raptor/engine";
+import { raptorServer, type RaptorServer } from "@raptorstack/wire/server";
+import type { WireValue } from "@raptorstack/wire";
+import type { IRComponent } from "@raptorstack/engine/compiler";
+import type { BuildResult } from "@raptorstack/engine";
 import { matchRoute, type RouteDef } from "./router.ts";
 import { renderComponent, renderDocument, type SsrResult } from "./ssr.ts";
 

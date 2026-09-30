@@ -2,7 +2,7 @@
  * RaptorDev live server (whitepaper RaptorEngine 10, 11, 12).
  *
  * File watching is only the first level (10): on each edit it reparses the
- * touched module, computes the graph diff (DevEngine, from @raptor/engine) and
+ * touched module, computes the graph diff (DevEngine, from @raptorstack/engine) and
  * sends the structured HMR update to clients over SSE, then rebuilds the SSR.
  * The core logic (`applyChange`) is deterministically testable; `fs.watch` is a
  * thin adapter over it.
@@ -15,7 +15,7 @@ import {
   formatUpdateLog,
   buildModule,
   type DevUpdate,
-} from "@raptor/engine";
+} from "@raptorstack/engine";
 import { RaptorRuntime } from "./runtime.ts";
 import { renderDocument } from "./ssr.ts";
 import type { RouteDef } from "./router.ts";
@@ -31,7 +31,7 @@ export interface DevServerOptions {
 }
 
 const CLIENT_JS = `// RaptorDev HMR client
-const es = new EventSource("/@raptor/hmr");
+const es = new EventSource("/@raptorstack/hmr");
 es.onmessage = async (e) => {
   const u = JSON.parse(e.data);
   console.log("[raptor:hmr] #" + u.n, u.kind, u);
@@ -135,7 +135,7 @@ export class RaptorDevServer {
     const ssr = this.runtime.ssr(path);
     if (!ssr) return null;
     const doc = renderDocument(ssr, ssr.resume.component);
-    return doc.replace("</body>", `<script src="/@raptor/client.js"></script></body>`);
+    return doc.replace("</body>", `<script src="/@raptorstack/client.js"></script></body>`);
   }
 
   /** Starts watching a directory (recursive fs.watch). */
@@ -177,7 +177,7 @@ export class RaptorDevServer {
   private onHttp(url: string, res: import("node:http").ServerResponse): void {
     const path = url.split("?")[0] ?? "/";
 
-    if (path === "/@raptor/hmr") {
+    if (path === "/@raptorstack/hmr") {
       res.writeHead(200, {
         "content-type": "text/event-stream",
         "cache-control": "no-cache",
@@ -188,7 +188,7 @@ export class RaptorDevServer {
       res.on("close", off);
       return;
     }
-    if (path === "/@raptor/client.js") {
+    if (path === "/@raptorstack/client.js") {
       res.writeHead(200, { "content-type": "text/javascript; charset=utf-8" });
       res.end(CLIENT_JS);
       return;

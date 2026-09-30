@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { installMiniDom, resetStats, stats, type MiniElement } from "raptorjs/dom/testing";
-import { render, R } from "raptorjs/dom";
-import { state, createRoot } from "raptorjs";
+import { installMiniDom, resetStats, stats, type MiniElement } from "@raptorstack/raptorjs/dom/testing";
+import { render, R } from "@raptorstack/raptorjs/dom";
+import { state, createRoot } from "@raptorstack/raptorjs";
 import { Box, Stack, Group, Flex, Grid, SimpleGrid, Container, Center, Spacer, Divider, AspectRatio, ScrollArea } from "../../src/ui/layout.ts";
 import { Text, Heading, Link, TextList, Truncate, Mark, CodeBlock } from "../../src/ui/typography.ts";
 import { Card, Badge, Tag, Avatar, AvatarGroup, initials, Stat, DescriptionList, Alert, EmptyState, Result, Spinner, Skeleton, LoadingOverlay, Timeline, Image } from "../../src/ui/display.ts";

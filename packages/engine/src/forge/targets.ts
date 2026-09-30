@@ -1,6 +1,6 @@
 /** Targets supported by RaptorForge. Host adapters stay replaceable. */
-import type { CapabilityDeclarations } from "@raptor/runtime";
-import type { HostTarget } from "@raptor/host";
+import type { CapabilityDeclarations } from "@raptorstack/runtime";
+import type { HostTarget } from "@raptorstack/host";
 
 export const APP_TARGETS = ["web", "desktop", "mobile"] as const;
 export type AppTarget = (typeof APP_TARGETS)[number];

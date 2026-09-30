@@ -1,6 +1,6 @@
 /**
  * Fine-grained JSX runtime (automatic runtime). Configure tsconfig with:
- *   "jsx": "react-jsx", "jsxImportSource": "raptorjs/dom"
+ *   "jsx": "react-jsx", "jsxImportSource": "@raptorstack/raptorjs/dom"
  *
  * There is no Virtual DOM: `jsx` creates real DOM nodes immediately and binds
  * reactive expressions through effects. Components are just functions that

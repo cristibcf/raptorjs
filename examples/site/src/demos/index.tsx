@@ -2,9 +2,9 @@
  * Live, interactive demos used across the site (Home, Learn, Playground). Each is
  * a plain function returning real DOM — the same fine-grained runtime that ships.
  */
-import { state, derived, effect, For, onCleanup } from "raptorjs/dom";
-import { raptorServer } from "@raptor/wire/server";
-import { createLoopback, flushLoopback, RaptorClient } from "@raptor/wire/client";
+import { state, derived, effect, For, onCleanup } from "@raptorstack/raptorjs/dom";
+import { raptorServer } from "@raptorstack/wire/server";
+import { createLoopback, flushLoopback, RaptorClient } from "@raptorstack/wire/client";
 
 /* ------------------------------------------------------------------ Counter -- */
 export function DemoCounter() {

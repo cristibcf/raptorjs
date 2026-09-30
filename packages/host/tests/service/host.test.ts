@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createBridge, createMemoryChannel, requireHostManifest } from "@raptor/host";
-import type { HostBridge, HostManifest } from "@raptor/host";
+import { createBridge, createMemoryChannel, requireHostManifest } from "@raptorstack/host";
+import type { HostBridge, HostManifest } from "@raptorstack/host";
 import { createServiceHost, nodeListeners } from "../../src/service/index.ts";
 import type { Listener, ListenerFactory, ServeHandler, ServiceHost, ServiceHostOptions } from "../../src/service/index.ts";
 

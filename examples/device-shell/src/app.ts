@@ -4,7 +4,7 @@
  * Here the app changes more than in the other five, and it is worth saying why.
  * A notepad on a microcontroller would have been a joke: on a board there is no
  * user to write notes. What stays identical, though, is the shape: state in
- * `@raptor/core` signals, persistence through the host's storage, and everything
+ * `@raptorstack/raptorjs` signals, persistence through the host's storage, and everything
  * platform-related through `bridge` - the same three things as in `desktop-shell`
  * or `service-shell`.
  *
@@ -16,8 +16,8 @@
  *  - **NVS writes are counted**, because they wear out the flash: the logger
  *    saves only when the value has actually changed enough.
  */
-import { derived, state } from "raptorjs";
-import type { HostBridge } from "@raptor/host";
+import { derived, state } from "@raptorstack/raptorjs";
+import type { HostBridge } from "@raptorstack/host";
 
 export interface Reading {
   readonly value: number;

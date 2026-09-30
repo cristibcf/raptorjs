@@ -13,8 +13,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { bundleApp } from "@raptor/engine/bundle";
-import { installMiniDom } from "raptorjs/dom/testing";
+import { bundleApp } from "@raptorstack/engine/bundle";
+import { installMiniDom } from "@raptorstack/raptorjs/dom/testing";
 import type { SmokeReport } from "../src/catalog/smoke.ts";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -171,7 +171,7 @@ test("the smoke bundle passes tree-shaking without losing needed modules", () =>
  * whatever was typed into an input.
  *
  * The site worked around it by building each demo in `untracked(...)`. That
- * workaround was removed and the fix moved into the library (`raptorjs/ui` -> `isolate`);
+ * workaround was removed and the fix moved into the library (`@raptorstack/raptorjs/ui` -> `isolate`);
  * this test is what keeps the fix in place.
  */
 test("no component re-renders the region that builds it", async () => {

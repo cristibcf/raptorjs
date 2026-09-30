@@ -1,10 +1,10 @@
 /**
- * @raptor/host - the shared contract of the native hosts.
+ * @raptorstack/host - the shared contract of the native hosts.
  *
  * Roadmap section 4 places the native host as a separate layer: window, WebView,
  * lifecycle, signing and distribution. This package is the contract of that
- * layer, not a platform implementation. The adapters (`@raptor/desktop`,
- * `@raptor/mobile`) make it concrete, and the native binary implements it on the
+ * layer, not a platform implementation. The adapters (`@raptorstack/desktop`,
+ * `@raptorstack/mobile`) make it concrete, and the native binary implements it on the
  * other side of the transport - without changing anything in the app.
  */
 export { HOST_ERROR_CODES, HostError, isHostError, isHostErrorCode } from "./errors.ts";

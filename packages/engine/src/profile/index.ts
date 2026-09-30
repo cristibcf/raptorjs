@@ -1,7 +1,7 @@
 /**
- * @raptor/profile - RaptorProfile: runtime telemetry + behavior-guided build
+ * @raptorstack/profile - RaptorProfile: runtime telemetry + behavior-guided build
  * planning (whitepaper RaptorEngine 22-24). Produces strategy plan hints
- * (chunk folding, preload, batch, encoding), consumed by @raptor/engine via
+ * (chunk folding, preload, batch, encoding), consumed by @raptorstack/engine via
  * `buildModule({ planHints })`. Never changes correctness (24).
  */
 export {

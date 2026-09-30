@@ -10,7 +10,7 @@
  * Run after `demo:desktop` and `demo:mobile`, it shows the third column of the matrix.
  */
 import { createSession } from "./session.ts";
-import type { WebPlatform } from "@raptor/host/web";
+import type { WebPlatform } from "@raptorstack/host/web";
 
 const tick = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 5));
 

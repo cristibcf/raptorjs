@@ -10,8 +10,8 @@
  * absolute rows break the table layout). It uses a grid with table ARIA roles,
  * as all serious virtualized grids do.
  */
-import { state, derived, type Accessor, type State } from "raptorjs";
-import { R, For, Show, type Child } from "raptorjs/dom";
+import { state, derived, type Accessor, type State } from "@raptorstack/raptorjs";
+import { R, For, Show, type Child } from "@raptorstack/raptorjs/dom";
 import { virtualizer } from "./primitives/virtualizer.ts";
 import { resizable, type Resizable } from "./primitives/resizable.ts";
 import { type El } from "./primitives/env.ts";

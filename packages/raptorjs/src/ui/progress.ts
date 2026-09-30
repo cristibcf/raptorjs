@@ -7,8 +7,8 @@
  * framework those same 100 steps mean 100 re-renders and 100 reconciliations of
  * the subtree.
  */
-import { derived, type Accessor } from "raptorjs";
-import { R, Show, type Child } from "raptorjs/dom";
+import { derived, type Accessor } from "@raptorstack/raptorjs";
+import { R, Show, type Child } from "@raptorstack/raptorjs/dom";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type El = any;

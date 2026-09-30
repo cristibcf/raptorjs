@@ -4,7 +4,7 @@
  *
  *   node examples/raptortest-crud/src/demo.ts
  */
-import { RaptorTest, serializeCapsule } from "@raptor/test";
+import { RaptorTest, serializeCapsule } from "@raptorstack/test";
 import { buildCartApp } from "./app.ts";
 
 const app = buildCartApp();

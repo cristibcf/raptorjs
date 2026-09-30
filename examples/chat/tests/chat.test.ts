@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createLoopback, flushLoopback, RaptorClient } from "@raptor/wire/client";
+import { createLoopback, flushLoopback, RaptorClient } from "@raptorstack/wire/client";
 import { buildChatApp, CHAT_QUERY } from "../src/app.ts";
 
 async function connect(app: ReturnType<typeof buildChatApp>): Promise<RaptorClient> {

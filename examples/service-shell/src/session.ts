@@ -6,10 +6,10 @@
  * deployment manifest, the container's environment variables). The app requests
  * them by name and has no way to choose them itself.
  */
-import { createBridge, createMemoryChannel, requireHostManifest } from "@raptor/host";
-import type { HostBridge, HostManifest } from "@raptor/host";
-import { createServiceHost, nodeListeners } from "@raptor/host/service";
-import type { ListenerFactory, ServiceHost } from "@raptor/host/service";
+import { createBridge, createMemoryChannel, requireHostManifest } from "@raptorstack/host";
+import type { HostBridge, HostManifest } from "@raptorstack/host";
+import { createServiceHost, nodeListeners } from "@raptorstack/host/service";
+import type { ListenerFactory, ServiceHost } from "@raptorstack/host/service";
 import { createService } from "./app.ts";
 import type { Service } from "./app.ts";
 

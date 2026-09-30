@@ -6,8 +6,8 @@
  * decoding, subtitles and streaming are the browser's job; we only add
  * stylable, accessible controls.
  */
-import { state, derived, effect, onCleanup, type Accessor, type State } from "raptorjs";
-import { R, For, Show, type Child } from "raptorjs/dom";
+import { state, derived, effect, onCleanup, type Accessor, type State } from "@raptorstack/raptorjs";
+import { R, For, Show, type Child } from "@raptorstack/raptorjs/dom";
 import { Portal } from "./primitives/portal.ts";
 import { focusTrap } from "./primitives/focus-trap.ts";
 import { onDoc, type El } from "./primitives/env.ts";

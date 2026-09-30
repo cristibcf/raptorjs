@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { raptorServer, serveOverWebSocket, type RaptorServer } from "../../src/server/index.ts";
-import { RaptorClient, connectWebSocket } from "@raptor/wire/client";
+import { RaptorClient, connectWebSocket } from "@raptorstack/wire/client";
 
 const QUERY = "todos";
 const PREFIXES = ["order", "todo:"];

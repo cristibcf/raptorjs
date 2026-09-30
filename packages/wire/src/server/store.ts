@@ -7,7 +7,7 @@
  * The sync engine is separate from business logic: mutators produce canonical
  * results, and broadcast + resync compute what each subscriber sees.
  */
-import { Document, AddressBook, type Operation, type WireValue, type OpsBatch } from "@raptor/wire";
+import { Document, AddressBook, type Operation, type WireValue, type OpsBatch } from "@raptorstack/wire";
 
 export interface ServerConnection {
   send(data: Uint8Array): void;

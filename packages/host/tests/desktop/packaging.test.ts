@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { requireHostManifest } from "@raptor/host";
-import type { HostManifest } from "@raptor/host";
+import { requireHostManifest } from "@raptorstack/host";
+import type { HostManifest } from "@raptorstack/host";
 import { DESKTOP_BACKENDS, DESKTOP_FORMATS, desktopBackend, planDesktopPackages, runtimeRequirements } from "../../src/desktop/index.ts";
 
 function manifest(patch: Record<string, unknown> = {}): HostManifest {

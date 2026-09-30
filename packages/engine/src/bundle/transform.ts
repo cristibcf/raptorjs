@@ -1,6 +1,6 @@
 /**
  * Primitive transform: TSX/TS -> JS (CommonJS), with JSX wired to the fine-grained
- * @raptor/dom runtime. Type-stripping + JSX transform are done by the TypeScript
+ * @raptorstack/raptorjs/dom runtime. Type-stripping + JSX transform are done by the TypeScript
  * compiler, used STRICTLY as a build primitive (not at runtime).
  *
  * Why CommonJS: the bundler (bundle.ts) packs the modules into a registry with a
@@ -10,10 +10,10 @@
 import ts from "typescript";
 
 /** Default jsxImportSource: the project's fine-grained DOM runtime. */
-export const DEFAULT_JSX_IMPORT_SOURCE = "raptorjs/dom";
+export const DEFAULT_JSX_IMPORT_SOURCE = "@raptorstack/raptorjs/dom";
 
 export interface TranspileOptions {
-  /** Source for the automatic JSX import (defaults to @raptor/dom). */
+  /** Source for the automatic JSX import (defaults to @raptorstack/raptorjs/dom). */
   jsxImportSource?: string;
   /** Emit an inline source map (useful in dev). */
   sourceMap?: boolean;

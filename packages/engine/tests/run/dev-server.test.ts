@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { RaptorDevServer, readFirstSseEvent } from "../../src/run/index.ts";
-import type { DevUpdate } from "@raptor/engine";
+import type { DevUpdate } from "@raptorstack/engine";
 
 /**
  * Wait for a condition, not a duration.
@@ -75,9 +75,9 @@ test("dev: HTTP serves SSR with the injected HMR client script", async () => {
     const home = await fetch(`http://127.0.0.1:${port}/`);
     const html = await home.text();
     assert.match(html, /id="raptor-root"/);
-    assert.match(html, /\/@raptor\/client\.js/);
+    assert.match(html, /\/@raptorstack\/client\.js/);
 
-    const client = await fetch(`http://127.0.0.1:${port}/@raptor/client.js`);
+    const client = await fetch(`http://127.0.0.1:${port}/@raptorstack/client.js`);
     assert.match(await client.text(), /EventSource/);
   } finally {
     await server.close();
@@ -88,7 +88,7 @@ test("dev: SSE sends the HMR update to connected clients", async () => {
   const server = new RaptorDevServer({ files: { "/App.raptor": SRC }, entry: "/App.raptor" });
   const port = await server.listen(0);
   try {
-    const event = readFirstSseEvent(`http://127.0.0.1:${port}/@raptor/hmr`);
+    const event = readFirstSseEvent(`http://127.0.0.1:${port}/@raptorstack/hmr`);
     // We wait for the CONDITION, not a timer: a `setTimeout(60)` passed on an
     // idle machine and failed on a loaded one, and a broadcast to zero clients
     // could no longer be recovered - the test then waited 4 seconds in vain.

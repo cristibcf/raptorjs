@@ -6,7 +6,7 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createLoopback, flushLoopback, RaptorClient, connectWebSocket } from "@raptor/wire/client";
+import { createLoopback, flushLoopback, RaptorClient, connectWebSocket } from "@raptorstack/wire/client";
 import { buildTodoApp, TODO_QUERY, type Todo } from "../src/app.ts";
 import { startTodoServer } from "../src/server.ts";
 

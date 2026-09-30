@@ -9,7 +9,7 @@
  *
  * The site works around this by building each demo in `untracked(...)`. But the
  * workaround in the consumer is a sign that the problem is in the library: anyone
- * who uses `raptorjs/ui` inside a binding hits it without knowing why.
+ * who uses `@raptorstack/raptorjs/ui` inside a binding hits it without knowing why.
  *
  * We measure the symptom, not the cause: we mount the demo INSIDE an effect, click
  * the first button in it, and see whether the effect re-ran.
@@ -17,8 +17,8 @@
  * This file is not application code - nothing imports it, so it never reaches the
  * site's bundle. It is the entry point the bundler hands to a test.
  */
-import { effect, createRoot } from "raptorjs";
-import { mountChild } from "raptorjs/dom";
+import { effect, createRoot } from "@raptorstack/raptorjs";
+import { mountChild } from "@raptorstack/raptorjs/dom";
 import { CATALOG } from "./index.ts";
 
 export interface LeakReport {

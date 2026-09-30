@@ -1,5 +1,5 @@
 /** Top navigation (light editorial theme). Active state reactive on section(). */
-import { state, derived, Show } from "raptorjs/dom";
+import { state, derived, Show } from "@raptorstack/raptorjs/dom";
 import { section, navigate } from "./lib/route.ts";
 import { search } from "./lib/search.ts";
 

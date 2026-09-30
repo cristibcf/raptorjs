@@ -1,9 +1,9 @@
 /** Buttons and actions. */
-import { state } from "raptorjs/dom";
-import { Button, ButtonGroup, IconButton } from "raptorjs/ui/button";
-import { CloseButton, CopyButton, ToggleButton, ToggleGroup } from "raptorjs/ui/controls";
-import { FloatingActionButton, SplitButton } from "raptorjs/ui/layout-extra";
-import { menuItem, menuSeparator } from "raptorjs/ui/menu";
+import { state } from "@raptorstack/raptorjs/dom";
+import { Button, ButtonGroup, IconButton } from "@raptorstack/raptorjs/ui/button";
+import { CloseButton, CopyButton, ToggleButton, ToggleGroup } from "@raptorstack/raptorjs/ui/controls";
+import { FloatingActionButton, SplitButton } from "@raptorstack/raptorjs/ui/layout-extra";
+import { menuItem, menuSeparator } from "@raptorstack/raptorjs/ui/menu";
 import type { CatalogGroup } from "./types.ts";
 
 export const BUTTONS: CatalogGroup = {
@@ -202,15 +202,15 @@ ToggleGroup({
       name: "CopyButton",
       tier: "T2",
       summary: "Copies text to the clipboard and swaps its own label for a moment. Built on the `clipboard` primitive.",
-      code: `CopyButton({ text: "npm i raptorjs" });`,
+      code: `CopyButton({ text: "npm i @raptorstack/raptorjs" });`,
       props: [
         { name: "text", type: "Accessor<string> | string", desc: "What gets copied." },
         { name: "resetAfter", type: "number", desc: "How long the copied state lasts, in ms. Default 1500." },
       ],
       demo: () => (
         <div class="cmp-row">
-          <code class="inl">npm i raptorjs</code>
-          {CopyButton({ text: "npm i raptorjs" })}
+          <code class="inl">npm i @raptorstack/raptorjs</code>
+          {CopyButton({ text: "npm i @raptorstack/raptorjs" })}
         </div>
       ),
     },

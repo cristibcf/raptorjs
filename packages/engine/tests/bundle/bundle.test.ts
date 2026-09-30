@@ -1,5 +1,5 @@
 /**
- * RaptorBundle tests: the JSX -> @raptor/dom transform, type stripping, resolving
+ * RaptorBundle tests: the JSX -> @raptorstack/raptorjs/dom transform, type stripping, resolving
  * .ts specifiers and bundling a real graph (the counter example) into a valid
  * bundle, without Vite.
  */
@@ -26,9 +26,9 @@ test("transpile: JSX -> jsx-runtime + type stripping", () => {
 });
 
 test("resolveSpecifier: bare + subpath .ts, builtin -> null", () => {
-  const dom = resolveSpecifier("raptorjs/dom", counterEntry);
+  const dom = resolveSpecifier("@raptorstack/raptorjs/dom", counterEntry);
   assert.ok(dom && dom.endsWith("index.ts"));
-  const jsx = resolveSpecifier("raptorjs/dom/jsx-runtime", counterEntry);
+  const jsx = resolveSpecifier("@raptorstack/raptorjs/dom/jsx-runtime", counterEntry);
   assert.ok(jsx && jsx.endsWith("jsx-runtime.ts"));
   assert.equal(resolveSpecifier("node:fs", counterEntry), null);
 });

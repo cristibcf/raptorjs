@@ -3,7 +3,7 @@
  * Each operation targets a "handle" (an object/collection/signal id, usually
  * session-local after a snapshot - see section 31.3).
  */
-import { Writer, Reader } from "@raptor/wire/codec";
+import { Writer, Reader } from "@raptorstack/wire/codec";
 import { OpKindToCode, CodeToOpKind, type OpKind } from "./opcodes.ts";
 import { type WireValue, writeValue, readValue } from "./value.ts";
 import { setOwn } from "./safe.ts";

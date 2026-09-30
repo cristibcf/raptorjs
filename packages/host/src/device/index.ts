@@ -1,5 +1,5 @@
 /**
- * @raptor/device-host - a board's firmware as a Raptor host.
+ * @raptorstack/device-host - a board's firmware as a Raptor host.
  *
  * The sixth target and the furthest from the roadmap: `embedded` appears
  * nowhere in it, and its column in the capability matrix is entirely derived.

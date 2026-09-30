@@ -7,9 +7,9 @@
  * a platform to the adapter changes the workflow on the next generation instead
  * of leaving a stale matrix behind.
  */
-import { planDesktopPackages } from "@raptor/host/desktop";
-import type { HostManifest, PackagePlan } from "@raptor/host";
-import { planMobilePackages } from "@raptor/host/mobile";
+import { planDesktopPackages } from "@raptorstack/host/desktop";
+import type { HostManifest, PackagePlan } from "@raptorstack/host";
+import { planMobilePackages } from "@raptorstack/host/mobile";
 
 export function planFor(manifest: HostManifest): PackagePlan {
   return manifest.target === "desktop" ? planDesktopPackages(manifest) : planMobilePackages(manifest);

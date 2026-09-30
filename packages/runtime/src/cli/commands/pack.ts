@@ -10,7 +10,7 @@
  */
 import { copyFile, mkdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { MANIFEST_FILENAME, RUNTIME_VERSION, buildStaticGraph, integrityOf, loadProject, stableStringify } from "@raptor/runtime";
+import { MANIFEST_FILENAME, RUNTIME_VERSION, buildStaticGraph, integrityOf, loadProject, stableStringify } from "@raptorstack/runtime";
 import type { CommandInput, CommandResult } from "../shared.ts";
 import { fail, ok, table } from "../shared.ts";
 

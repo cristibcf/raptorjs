@@ -6,7 +6,7 @@
  * that throws in private mode, an undo history that grows without bound, and a
  * Shift selection that breaks when the list is filtered.
  */
-import { state, derived, onCleanup, untracked, type Accessor, type State } from "raptorjs";
+import { state, derived, onCleanup, untracked, type Accessor, type State } from "@raptorstack/raptorjs";
 import { onDoc } from "./env.ts";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

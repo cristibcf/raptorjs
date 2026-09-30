@@ -7,8 +7,8 @@
  * Cleanup removes the nodes from the destination, not from where they were
  * declared - hence the explicit `onCleanup`.
  */
-import { onCleanup } from "raptorjs";
-import { block, mountChild, type Block, type Child } from "raptorjs/dom";
+import { onCleanup } from "@raptorstack/raptorjs";
+import { block, mountChild, type Block, type Child } from "@raptorstack/raptorjs/dom";
 import { doc, type El } from "./env.ts";
 
 export interface PortalProps {

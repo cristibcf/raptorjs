@@ -6,8 +6,8 @@
  * says explicitly what cannot be published unsigned (roadmap section 7: "CI for
  * installers - signing, smoke tests and safe distribution").
  */
-import { planPackages } from "@raptor/host";
-import type { HostManifest, InstallerFormat, PackagePlan } from "@raptor/host";
+import { planPackages } from "@raptorstack/host";
+import type { HostManifest, InstallerFormat, PackagePlan } from "@raptorstack/host";
 import { DESKTOP_BACKENDS } from "./backends.ts";
 
 export const DESKTOP_FORMATS: readonly InstallerFormat[] = [

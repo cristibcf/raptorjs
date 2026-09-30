@@ -6,8 +6,8 @@
  * jump from `h2` to `h4` just to get smaller text, and the document structure
  * becomes unreadable for a screen reader.
  */
-import { R, For, type Child } from "raptorjs/dom";
-import { type Accessor } from "raptorjs";
+import { R, For, type Child } from "@raptorstack/raptorjs/dom";
+import { type Accessor } from "@raptorstack/raptorjs";
 import { type El } from "./primitives/env.ts";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

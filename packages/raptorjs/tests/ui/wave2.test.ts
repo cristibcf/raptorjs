@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { installMiniDom, resetStats, stats, type MiniElement } from "raptorjs/dom/testing";
-import { render, R, SVG_NS, isSvgTag } from "raptorjs/dom";
-import { state, createRoot } from "raptorjs";
+import { installMiniDom, resetStats, stats, type MiniElement } from "@raptorstack/raptorjs/dom/testing";
+import { render, R, SVG_NS, isSvgTag } from "@raptorstack/raptorjs/dom";
+import { state, createRoot } from "@raptorstack/raptorjs";
 import { Progress, CircularProgress } from "../../src/ui/progress.ts";
 import { Slider, RangeSlider } from "../../src/ui/slider.ts";
 import { Sparkline } from "../../src/ui/sparkline.ts";

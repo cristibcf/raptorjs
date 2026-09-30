@@ -8,8 +8,8 @@
  * fine-grained rendering) and what changes: navigation comes from the adapter,
  * there is suspend and resume, and windows and subprocesses do not exist at all.
  */
-import { installMiniDom, resetStats, stats } from "raptorjs/dom/testing";
-import { render } from "raptorjs/dom";
+import { installMiniDom, resetStats, stats } from "@raptorstack/raptorjs/dom/testing";
+import { render } from "@raptorstack/raptorjs/dom";
 import { createSession } from "./session.ts";
 
 const doc = installMiniDom();

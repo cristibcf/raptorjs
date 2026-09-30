@@ -5,8 +5,8 @@
   "type": "module",
   "description": "Example: the sixth form of the same app - a sensor logger on a board, with a watchdog, deep sleep and declared peripherals.",
   "dependencies": {
-    "raptorjs": "workspace:*",
-    "@raptor/host": "workspace:*"
+    "@raptorstack/raptorjs": "workspace:*",
+    "@raptorstack/host": "workspace:*"
   },
   "scripts": {
     "demo": "node src/demo.ts",

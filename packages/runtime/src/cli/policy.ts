@@ -8,8 +8,8 @@
  */
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { Observer, PolicyMode, RuntimeEvent } from "@raptor/runtime";
-import { normalizePath, stableStringify } from "@raptor/runtime";
+import type { Observer, PolicyMode, RuntimeEvent } from "@raptorstack/runtime";
+import { normalizePath, stableStringify } from "@raptorstack/runtime";
 
 export const POLICY_FILENAME = "raptor.policy.json";
 

@@ -7,8 +7,8 @@
  * Demonstrates: initial snapshot, versioned delta operations, exact DOM updates
  * and the delta byte count vs. re-sending the whole document as JSON.
  */
-import { installMiniDom, stats, resetStats } from "raptorjs/dom/testing";
-import { createLoopback, flushLoopback, RaptorClient } from "@raptor/wire/client";
+import { installMiniDom, stats, resetStats } from "@raptorstack/raptorjs/dom/testing";
+import { createLoopback, flushLoopback, RaptorClient } from "@raptorstack/wire/client";
 import { buildDashboardApp, DASHBOARD_QUERY } from "./app.ts";
 import { renderDashboard } from "./view.ts";
 

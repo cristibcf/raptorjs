@@ -9,8 +9,8 @@
  * attribute but a DOM property - which is why it's forgotten in most libraries
  * and the accessibility tree ends up lying.
  */
-import { type Accessor, type State } from "raptorjs";
-import { R, For, type Child } from "raptorjs/dom";
+import { type Accessor, type State } from "@raptorstack/raptorjs";
+import { R, For, type Child } from "@raptorstack/raptorjs/dom";
 import { type El } from "./primitives/env.ts";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

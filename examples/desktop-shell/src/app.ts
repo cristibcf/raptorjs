@@ -3,15 +3,15 @@
  *
  * Everything system-related - window, menu, storage, notifications, deep links -
  * goes through the bridge. The app imports nothing platform-specific and does not
- * know whether behind the bridge sits the reference host from `@raptor/desktop` or
+ * know whether behind the bridge sits the reference host from `@raptorstack/desktop` or
  * the native binary: that is exactly the promise of section 6.
  *
  * Reactivity stays RaptorJS: host responses land in signals, and the fine-grained
  * bindings move only the touched nodes.
  */
-import { derived, state } from "raptorjs";
-import { mountChild, applyProps } from "raptorjs/dom";
-import type { HostBridge } from "@raptor/host";
+import { derived, state } from "@raptorstack/raptorjs";
+import { mountChild, applyProps } from "@raptorstack/raptorjs/dom";
+import type { HostBridge } from "@raptorstack/host";
 
 export interface ShellElement {
   appendChild(child: unknown): unknown;

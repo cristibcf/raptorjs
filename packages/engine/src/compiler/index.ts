@@ -1,8 +1,8 @@
 /**
- * @raptor/compiler - the stable semantic core of RaptorEngine (whitepaper 6-9).
+ * @raptorstack/compiler - the stable semantic core of RaptorEngine (whitepaper 6-9).
  *
  * Separate from the bundler/engine: it parses .raptor into Raptor IR, builds the
- * semantic graph and computes the diff for HMR. @raptor/engine consumes this API
+ * semantic graph and computes the diff for HMR. @raptorstack/engine consumes this API
  * for optimization, codegen and the dev loop.
  */
 export {

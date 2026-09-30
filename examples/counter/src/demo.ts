@@ -7,9 +7,9 @@
  *
  * The same logic, written in TSX, is in src/main.tsx (for browser/Vite).
  */
-import { installMiniDom, stats, resetStats, type MiniElement } from "raptorjs/dom/testing";
-import { render, mountChild, applyProps } from "raptorjs/dom";
-import { state, derived } from "raptorjs";
+import { installMiniDom, stats, resetStats, type MiniElement } from "@raptorstack/raptorjs/dom/testing";
+import { render, mountChild, applyProps } from "@raptorstack/raptorjs/dom";
+import { state, derived } from "@raptorstack/raptorjs";
 
 const doc = installMiniDom();
 

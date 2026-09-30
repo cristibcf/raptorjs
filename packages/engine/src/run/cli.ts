@@ -5,7 +5,7 @@
  * lives in bin.ts. RaptorRun consumes a RaptorEngine build and runs it.
  */
 import { readFileSync } from "node:fs";
-import { buildModule } from "@raptor/engine";
+import { buildModule } from "@raptorstack/engine";
 import { RaptorRuntime } from "./runtime.ts";
 import { renderDocument } from "./ssr.ts";
 

@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createSession } from "../src/session.ts";
 import type { Session } from "../src/session.ts";
-import type { WebPlatform } from "@raptor/host/web";
+import type { WebPlatform } from "@raptorstack/host/web";
 
 const tick = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 5));
 

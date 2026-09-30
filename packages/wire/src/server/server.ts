@@ -10,7 +10,7 @@ import {
   AddressBook,
   type Message,
   type WireValue,
-} from "@raptor/wire";
+} from "@raptorstack/wire";
 import { ReactiveStore, type ServerConnection, type Subscription } from "./store.ts";
 
 export interface QueryContext {

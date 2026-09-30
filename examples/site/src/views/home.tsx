@@ -6,7 +6,7 @@ import { RUNTIME_DEPENDENCIES, TEST_COUNT } from "../content/stats.ts";
 import { SectionHead, highlight } from "../lib/ui.tsx";
 import { DemoCounter, DemoTodo, DemoRealtime } from "../demos/index.tsx";
 
-const HERO_SRC = `import { render, state, derived } from "raptorjs/dom";
+const HERO_SRC = `import { render, state, derived } from "@raptorstack/raptorjs/dom";
 
 function Counter() {
   const count = state(0);

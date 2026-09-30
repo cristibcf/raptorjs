@@ -5,7 +5,7 @@
   "description": "The RaptorRuntime architecture spike (spec section 14): demonstrates autonomous launch, TypeScript module, permission denial and clean shutdown.",
   "type": "module",
   "devDependencies": {
-    "@raptor/runtime": "workspace:*"
+    "@raptorstack/runtime": "workspace:*"
   },
   "scripts": {
     "spike": "node ../../packages/runtime-cli/src/bin.ts run",

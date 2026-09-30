@@ -1,7 +1,7 @@
 /** Feedback and state. */
-import { state, R, onCleanup } from "raptorjs/dom";
-import { Button } from "raptorjs/ui/button";
-import { Meter } from "raptorjs/ui/chart-extra";
+import { state, R, onCleanup } from "@raptorstack/raptorjs/dom";
+import { Button } from "@raptorstack/raptorjs/ui/button";
+import { Meter } from "@raptorstack/raptorjs/ui/chart-extra";
 import {
   Alert,
   Banner,
@@ -11,9 +11,9 @@ import {
   Result,
   Skeleton,
   Spinner,
-} from "raptorjs/ui/display";
-import { ErrorBoundary } from "raptorjs/ui/overlay-extra";
-import { CircularProgress, Progress } from "raptorjs/ui/progress";
+} from "@raptorstack/raptorjs/ui/display";
+import { ErrorBoundary } from "@raptorstack/raptorjs/ui/overlay-extra";
+import { CircularProgress, Progress } from "@raptorstack/raptorjs/ui/progress";
 import type { CatalogGroup } from "./types.ts";
 
 export const FEEDBACK: CatalogGroup = {

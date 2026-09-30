@@ -5,10 +5,10 @@
  * is the WebView. Here both are in-process, so the demo and the tests can run
  * without any platform installed - but the contract between them is the same.
  */
-import { createBridge, createMemoryChannel, requireHostManifest } from "@raptor/host";
-import type { HostBridge, HostManifest } from "@raptor/host";
-import { createDesktopHost } from "@raptor/host/desktop";
-import type { DesktopHost } from "@raptor/host/desktop";
+import { createBridge, createMemoryChannel, requireHostManifest } from "@raptorstack/host";
+import type { HostBridge, HostManifest } from "@raptorstack/host";
+import { createDesktopHost } from "@raptorstack/host/desktop";
+import type { DesktopHost } from "@raptorstack/host/desktop";
 import { createShell } from "./app.ts";
 import type { Shell } from "./app.ts";
 

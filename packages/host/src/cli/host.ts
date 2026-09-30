@@ -16,8 +16,8 @@
  *     process; it notifies whoever is working, so they can clean up in time.
  *     Only the second press forces the stop, exactly like in ordinary tools.
  */
-import { HostError, createLifecycle, serveHost } from "@raptor/host";
-import type { AuditEntry, HostManifest, HostServer, HostTransport, LifecycleMachine, MethodHandler } from "@raptor/host";
+import { HostError, createLifecycle, serveHost } from "@raptorstack/host";
+import type { AuditEntry, HostManifest, HostServer, HostTransport, LifecycleMachine, MethodHandler } from "@raptorstack/host";
 import type { Stream, Terminal } from "./terminal.ts";
 
 export interface CliHostOptions {

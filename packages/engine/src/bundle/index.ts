@@ -1,8 +1,8 @@
 /**
- * @raptor/bundle - RaptorBundle: an in-house TSX/ESM bundler, zero-dep at runtime.
+ * @raptorstack/bundle - RaptorBundle: an in-house TSX/ESM bundler, zero-dep at runtime.
  *
- * Transforms JSX -> the fine-grained @raptor/dom runtime (jsx-runtime), resolves
- * the module graph (including the exports map to the .ts source of the @raptor/*
+ * Transforms JSX -> the fine-grained @raptorstack/raptorjs/dom runtime (jsx-runtime), resolves
+ * the module graph (including the exports map to the .ts source of the @raptorstack/*
  * packages) and emits a single browser bundle with a module registry + lazy
  * require. No Vite/esbuild/Rolldown; the TypeScript compiler is used only as a
  * build-time transform primitive.

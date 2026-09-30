@@ -4,7 +4,7 @@
  * it is not destroyed by the parent effect's re-run, and it is deterministically
  * destroyed when it disappears (whitepaper 8.3 "list specialization").
  */
-import { effect, createRoot } from "raptorjs";
+import { effect, createRoot } from "@raptorstack/raptorjs";
 import { type Block, type Child, block, mountChild, disposeDetached } from "./runtime.ts";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

@@ -9,7 +9,7 @@
  * Movement is where fine-grained shows: at 120Hz, a drag writes a single style
  * attribute per frame, with no reconciliation.
  */
-import { state, onCleanup, type Accessor, type State } from "raptorjs";
+import { state, onCleanup, type Accessor, type State } from "@raptorstack/raptorjs";
 import { onDoc, pointOf, type El } from "./env.ts";
 
 export interface DragEvent {

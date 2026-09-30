@@ -1,5 +1,5 @@
 /**
- * @raptor/cli-host - the terminal as a Raptor host.
+ * @raptorstack/cli-host - the terminal as a Raptor host.
  *
  * Roadmap §4 puts the tools in a layer of their own (`raptor-create`,
  * `raptor-bundle`, `raptor-runtime`). This package gives them the same contract

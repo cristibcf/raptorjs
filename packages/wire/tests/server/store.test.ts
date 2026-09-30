@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { ReactiveStore } from "../../src/server/index.ts";
-import { Document } from "@raptor/wire";
+import { Document } from "@raptorstack/wire";
 
 test("snapshotFor: a prefix without a delimiter does NOT expose neighboring handles", () => {
   const store = new ReactiveStore();

@@ -6,14 +6,14 @@ the consumer imports exactly what they need:
 
 | Package | Contains | Subpaths |
 |---|---|---|
-| `raptorjs` | reactivity + DOM + UI | `raptorjs`, `raptorjs/dom`, `raptorjs/dom/jsx-runtime`, `raptorjs/dom/testing`, `raptorjs/ui`, `raptorjs/ui/*` |
-| `@raptor/wire` | the binary protocol | `@raptor/wire`, `/codec`, `/client`, `/server` |
-| `@raptor/engine` | compiler + build + server runtime | `@raptor/engine`, `/compiler`, `/bundle`, `/profile`, `/run`, `/forge` (+ 5 bins) |
-| `@raptor/runtime` | runtime contracts + launcher | `@raptor/runtime`, `/cli` (bin `raptor-runtime`) |
-| `@raptor/host` | host contract + adapters | `@raptor/host`, `/web`, `/desktop`, `/mobile`, `/cli`, `/service`, `/device` |
-| `@raptor/test` | behavioral testing | `@raptor/test` |
+| `@raptorstack/raptorjs` | reactivity + DOM + UI | `@raptorstack/raptorjs`, `@raptorstack/raptorjs/dom`, `@raptorstack/raptorjs/dom/jsx-runtime`, `@raptorstack/raptorjs/dom/testing`, `@raptorstack/raptorjs/ui`, `@raptorstack/raptorjs/ui/*` |
+| `@raptorstack/wire` | the binary protocol | `@raptorstack/wire`, `/codec`, `/client`, `/server` |
+| `@raptorstack/engine` | compiler + build + server runtime | `@raptorstack/engine`, `/compiler`, `/bundle`, `/profile`, `/run`, `/forge` (+ 5 bins) |
+| `@raptorstack/runtime` | runtime contracts + launcher | `@raptorstack/runtime`, `/cli` (bin `raptor-runtime`) |
+| `@raptorstack/host` | host contract + adapters | `@raptorstack/host`, `/web`, `/desktop`, `/mobile`, `/cli`, `/service`, `/device` |
+| `@raptorstack/test` | behavioral testing | `@raptorstack/test` |
 
-`@raptor/runtime-native` (Rust) is not published to npm.
+`@raptorstack/runtime-native` (Rust) is not published to npm.
 
 ## TS-native dev vs. compiled dist
 
@@ -27,12 +27,12 @@ touching the development workflow:
   **pnpm** applies these overrides only in the published manifest.
 - `tsc` (already in devDependencies, so **zero shipped runtime dependency**)
   compiles with `rewriteRelativeImportExtensions`, which rewrites relative
-  imports `./x.ts` → `./x.js`. Bare subpaths (`@raptor/wire/codec`,
-  `raptorjs/dom`) are left untouched and resolve through `exports` on the consumer side.
+  imports `./x.ts` → `./x.js`. Bare subpaths (`@raptorstack/wire/codec`,
+  `@raptorstack/raptorjs/dom`) are left untouched and resolve through `exports` on the consumer side.
 - `prepack` in each package runs the build automatically before `pack`/`publish`.
 - `pnpm publish` automatically turns `workspace:*` into real versions.
 
-`typescript` is a **peerDependency** of `@raptor/engine` (the bundler uses it as a
+`typescript` is a **peerDependency** of `@raptorstack/engine` (the bundler uses it as a
 build-time transform, not as a shipped dependency), so the "zero runtime
 dependencies" claim stays true — `pnpm stats:check` verifies it.
 

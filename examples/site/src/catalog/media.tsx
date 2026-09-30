@@ -1,8 +1,8 @@
 /** Media. */
-import { state } from "raptorjs/dom";
-import { Input } from "raptorjs/ui/input";
-import { AudioPlayer, ImageZoom, VideoPlayer, Waveform } from "raptorjs/ui/media";
-import { QRCode } from "raptorjs/ui/qrcode";
+import { state } from "@raptorstack/raptorjs/dom";
+import { Input } from "@raptorstack/raptorjs/ui/input";
+import { AudioPlayer, ImageZoom, VideoPlayer, Waveform } from "@raptorstack/raptorjs/ui/media";
+import { QRCode } from "@raptorstack/raptorjs/ui/qrcode";
 import { SAMPLE_IMAGES } from "./sample.ts";
 import type { CatalogGroup } from "./types.ts";
 

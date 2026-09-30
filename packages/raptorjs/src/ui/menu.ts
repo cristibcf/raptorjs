@@ -10,8 +10,8 @@
  * menu is open and removed in `onCleanup`, so they don't stay attached to the
  * document after the component is destroyed.
  */
-import { state, derived, effect, onCleanup, type Accessor, type State } from "raptorjs";
-import { R, Show, type Child } from "raptorjs/dom";
+import { state, derived, effect, onCleanup, type Accessor, type State } from "@raptorstack/raptorjs";
+import { R, Show, type Child } from "@raptorstack/raptorjs/dom";
 import { positioner, type Placement } from "./primitives/positioner.ts";
 import { isolate } from "./primitives/isolate.ts";
 

@@ -4,10 +4,10 @@
  * `createSession` takes any terminal - a fake one in tests, the real one from
  * `process` in the binary. The tool sees no difference.
  */
-import { createBridge, createMemoryChannel, requireHostManifest } from "@raptor/host";
-import type { HostBridge, HostManifest } from "@raptor/host";
-import { createCliHost, terminalFromProcess } from "@raptor/host/cli";
-import type { CliHost, ProcessLike, Terminal } from "@raptor/host/cli";
+import { createBridge, createMemoryChannel, requireHostManifest } from "@raptorstack/host";
+import type { HostBridge, HostManifest } from "@raptorstack/host";
+import { createCliHost, terminalFromProcess } from "@raptorstack/host/cli";
+import type { CliHost, ProcessLike, Terminal } from "@raptorstack/host/cli";
 import { createCli } from "./app.ts";
 import type { Cli } from "./app.ts";
 

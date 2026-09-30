@@ -7,7 +7,7 @@
  * This file knows nothing about the transport - it is used identically over
  * WebSocket (src/server.ts) or over loopback (in tests).
  */
-import { raptorServer, type RaptorServer } from "@raptor/wire/server";
+import { raptorServer, type RaptorServer } from "@raptorstack/wire/server";
 
 export const TODO_QUERY = "todos";
 

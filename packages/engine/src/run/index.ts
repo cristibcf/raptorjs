@@ -1,5 +1,5 @@
 /**
- * @raptor/run - RaptorRun: server runtime (whitepaper RaptorEngine 19-21).
+ * @raptorstack/run - RaptorRun: server runtime (whitepaper RaptorEngine 19-21).
  *
  * Wires serverSignal -> reactive store -> RaptorWire -> client from the same
  * semantic graph produced by RaptorEngine, plus routing, SSR/resume, sessions,

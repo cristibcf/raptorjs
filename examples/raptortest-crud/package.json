@@ -5,7 +5,7 @@
   "type": "module",
   "description": "RaptorTest autonomously discovers the stale-read bug RT-184 in a CRUD cart app.",
   "dependencies": {
-    "@raptor/test": "workspace:*"
+    "@raptorstack/test": "workspace:*"
   },
   "scripts": {
     "demo": "node src/demo.ts",

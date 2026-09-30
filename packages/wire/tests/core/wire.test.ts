@@ -11,7 +11,7 @@ import {
   type Operation,
   type OpsBatch,
 } from "../../src/core/index.ts";
-import { Writer, Reader } from "@raptor/wire/codec";
+import { Writer, Reader } from "@raptorstack/wire/codec";
 
 function roundtripOp(op: Operation): Operation {
   const w = new Writer();

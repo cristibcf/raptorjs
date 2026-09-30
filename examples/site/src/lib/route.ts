@@ -3,7 +3,7 @@
  * in one signal; `section()` / `sub()` derive the parts. Changing it re-binds
  * only the view region in the shell — no page re-render.
  */
-import { state, derived } from "raptorjs";
+import { state, derived } from "@raptorstack/raptorjs";
 
 function fromHash(): string {
   const h = decodeURIComponent(location.hash.replace(/^#\/?/, ""));

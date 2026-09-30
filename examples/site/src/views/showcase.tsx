@@ -2,7 +2,7 @@
  * Showcase: the real examples from the monorepo, grouped into cards, each with its
  * run command (with copy). Built with RaptorJS.
  */
-import { state } from "raptorjs";
+import { state } from "@raptorstack/raptorjs";
 import { SectionHead } from "../lib/ui.tsx";
 import { SHOWCASE } from "../content/showcase.ts";
 

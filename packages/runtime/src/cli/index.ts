@@ -1,5 +1,5 @@
 /**
- * @raptor/runtime-cli - the RaptorRuntime launcher.
+ * @raptorstack/runtime-cli - the RaptorRuntime launcher.
  *
  * The package exposes the commands as an API too, not just as a binary:
  * `raptor-create`, the contract tests and, later, the native host call them

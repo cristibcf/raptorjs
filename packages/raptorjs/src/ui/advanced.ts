@@ -3,11 +3,11 @@
  *
  * Each one combines several primitives and base components into a
  * self-contained flow. They live apart because they are large and rarely all
- * used at once - import them through `@raptor/ui/advanced` so you don't pull
+ * used at once - import them through `@raptorstack/raptorjs/ui/advanced` so you don't pull
  * them in when you don't need them.
  */
-import { state, derived, effect, onCleanup, type Accessor, type State } from "raptorjs";
-import { R, For, Show, type Child } from "raptorjs/dom";
+import { state, derived, effect, onCleanup, type Accessor, type State } from "@raptorstack/raptorjs";
+import { R, For, Show, type Child } from "@raptorstack/raptorjs/dom";
 import { Portal } from "./primitives/portal.ts";
 import { positioner, type Placement } from "./primitives/positioner.ts";
 import { focusTrap } from "./primitives/focus-trap.ts";

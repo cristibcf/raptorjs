@@ -14,7 +14,7 @@
  * stays {0,0} and `update()` can be called manually with given rectangles, so
  * the flip/shift logic is testable without real layout.
  */
-import { state, onCleanup, type Accessor } from "raptorjs";
+import { state, onCleanup, type Accessor } from "@raptorstack/raptorjs";
 import { onDoc, type El } from "./env.ts";
 
 export type Side = "top" | "right" | "bottom" | "left";

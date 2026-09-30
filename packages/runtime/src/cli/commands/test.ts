@@ -10,8 +10,8 @@
  */
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
-import { createObserver, createRuntime, loadProject, relativeToRoot } from "@raptor/runtime";
-import type { HostContext } from "@raptor/runtime";
+import { createObserver, createRuntime, loadProject, relativeToRoot } from "@raptorstack/runtime";
+import type { HostContext } from "@raptorstack/runtime";
 import { describeUndeclared, loadPolicyFile, profileFor } from "../policy.ts";
 import type { CommandInput, CommandResult } from "../shared.ts";
 import { fail, formatMs, fromError, ok } from "../shared.ts";

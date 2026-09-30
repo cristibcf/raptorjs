@@ -5,7 +5,7 @@
  * the page underneath, which for a screen reader is as if the modal didn't
  * exist. On deactivation it returns focus to where it left from.
  */
-import { effect, onCleanup } from "raptorjs";
+import { effect, onCleanup } from "@raptorstack/raptorjs";
 import { focus, focusable, type El } from "./env.ts";
 
 export interface FocusTrapOptions {

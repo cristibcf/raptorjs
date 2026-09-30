@@ -1,11 +1,11 @@
 /**
  * TSX variant (browser, via RaptorBundle) of the counter - the developer API
  * from whitepaper section 9. RaptorBundle transforms JSX with the fine-grained
- * @raptor/dom jsx-runtime -> direct DOM bindings, with no Virtual DOM and no Vite.
+ * @raptorstack/raptorjs/dom jsx-runtime -> direct DOM bindings, with no Virtual DOM and no Vite.
  *
  * Run:  cd examples/counter && pnpm install && pnpm dev
  */
-import { render, state, derived } from "raptorjs/dom";
+import { render, state, derived } from "@raptorstack/raptorjs/dom";
 
 function Counter() {
   const count = state(0);

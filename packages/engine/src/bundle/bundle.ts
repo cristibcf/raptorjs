@@ -2,7 +2,7 @@
  * Bundler: starts from the entry, transforms each module (transform.ts), discovers
  * the dependencies from the emitted `require("spec")` calls, resolves them
  * (resolve.ts) and rewrites them to internal numeric IDs, then emits a single file
- * with a module registry using a lazy `require`. The @raptor/* graph is a closed,
+ * with a module registry using a lazy `require`. The @raptorstack/* graph is a closed,
  * zero-dep ESM, so bundling is deterministic and complete.
  */
 import { readFileSync } from "node:fs";

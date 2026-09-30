@@ -5,7 +5,7 @@
  * need it. There is no `matchMedia` on the server or in tests: in that case it
  * returns `fallback` and subscribes to nothing.
  */
-import { state, onCleanup, type Accessor } from "raptorjs";
+import { state, onCleanup, type Accessor } from "@raptorstack/raptorjs";
 
 export function mediaQuery(query: string, fallback = false): Accessor<boolean> {
   const mm = (globalThis as any).matchMedia;

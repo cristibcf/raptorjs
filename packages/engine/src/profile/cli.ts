@@ -8,8 +8,8 @@
  * hints the build would apply (without changing correctness, 24).
  */
 import { readFileSync, writeFileSync } from "node:fs";
-import { buildModule } from "@raptor/engine";
-import { RaptorRuntime, type RouteDef } from "@raptor/engine/run";
+import { buildModule } from "@raptorstack/engine";
+import { RaptorRuntime, type RouteDef } from "@raptorstack/engine/run";
 import { Profiler } from "./collector.ts";
 import { runScenario, type Scenario } from "./scenario.ts";
 import { serializeProfile, type RaptorProfile } from "./profile.ts";

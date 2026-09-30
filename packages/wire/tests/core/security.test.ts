@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Writer, Reader } from "@raptor/wire/codec";
+import { Writer, Reader } from "@raptorstack/wire/codec";
 import { readValue, writeValue } from "../../src/core/value.ts";
 import { Document } from "../../src/core/index.ts";
 

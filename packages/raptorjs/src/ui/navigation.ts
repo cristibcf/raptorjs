@@ -7,8 +7,8 @@
  * tells a screen reader how many items there are and where you are; a `div`
  * says nothing.
  */
-import { state, derived, effect, onCleanup, type Accessor, type State } from "raptorjs";
-import { R, For, Show, type Child } from "raptorjs/dom";
+import { state, derived, effect, onCleanup, type Accessor, type State } from "@raptorstack/raptorjs";
+import { R, For, Show, type Child } from "@raptorstack/raptorjs/dom";
 import { type El } from "./primitives/env.ts";
 import { mediaQuery } from "./primitives/media-query.ts";
 

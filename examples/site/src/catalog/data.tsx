@@ -1,10 +1,10 @@
 /** Data display. */
-import { state, R } from "raptorjs/dom";
-import { Kanban, type KanbanCard } from "raptorjs/ui/advanced";
-import { Button } from "raptorjs/ui/button";
-import { DataGrid } from "raptorjs/ui/data-grid";
-import { ListView, TreeView } from "raptorjs/ui/data-views";
-import { Accordion, Collapsible } from "raptorjs/ui/disclosure";
+import { state, R } from "@raptorstack/raptorjs/dom";
+import { Kanban, type KanbanCard } from "@raptorstack/raptorjs/ui/advanced";
+import { Button } from "@raptorstack/raptorjs/ui/button";
+import { DataGrid } from "@raptorstack/raptorjs/ui/data-grid";
+import { ListView, TreeView } from "@raptorstack/raptorjs/ui/data-views";
+import { Accordion, Collapsible } from "@raptorstack/raptorjs/ui/disclosure";
 import {
   Avatar,
   AvatarGroup,
@@ -16,10 +16,10 @@ import {
   Stat,
   Tag,
   Timeline,
-} from "raptorjs/ui/display";
-import { ComparisonTable, DiffViewer, JsonViewer } from "raptorjs/ui/editors";
-import { Carousel, Gallery } from "raptorjs/ui/media";
-import { Table } from "raptorjs/ui/table";
+} from "@raptorstack/raptorjs/ui/display";
+import { ComparisonTable, DiffViewer, JsonViewer } from "@raptorstack/raptorjs/ui/editors";
+import { Carousel, Gallery } from "@raptorstack/raptorjs/ui/media";
+import { Table } from "@raptorstack/raptorjs/ui/table";
 import { SAMPLE_IMAGES, BROKEN_IMAGE } from "./sample.ts";
 import type { CatalogGroup } from "./types.ts";
 
@@ -30,11 +30,11 @@ interface Row {
   size: number;
 }
 const ROWS: Row[] = [
-  { id: 1, pkg: "raptorjs", tests: 31, size: 6.2 },
-  { id: 2, pkg: "raptorjs/dom", tests: 24, size: 8.8 },
-  { id: 3, pkg: "@raptor/wire", tests: 38, size: 11.4 },
-  { id: 4, pkg: "@raptor/wire/server", tests: 12, size: 4.1 },
-  { id: 5, pkg: "raptorjs/ui", tests: 46, size: 22.9 },
+  { id: 1, pkg: "@raptorstack/raptorjs", tests: 31, size: 6.2 },
+  { id: 2, pkg: "@raptorstack/raptorjs/dom", tests: 24, size: 8.8 },
+  { id: 3, pkg: "@raptorstack/wire", tests: 38, size: 11.4 },
+  { id: 4, pkg: "@raptorstack/wire/server", tests: 12, size: 4.1 },
+  { id: 5, pkg: "@raptorstack/raptorjs/ui", tests: 46, size: 22.9 },
 ];
 
 
@@ -97,7 +97,7 @@ export const DATA: CatalogGroup = {
               <span class="chip">
                 selected: <b>{() => String(selected().size)}</b>
               </span>
-              {Button({ children: "Add a row", size: "sm", onClick: () => rows.update((rs) => [...rs, { id: rs.length + 1, pkg: "@raptor/new-" + rs.length, tests: 1, size: 0.4 }]) })}
+              {Button({ children: "Add a row", size: "sm", onClick: () => rows.update((rs) => [...rs, { id: rs.length + 1, pkg: "@raptorstack/new-" + rs.length, tests: 1, size: 0.4 }]) })}
             </div>
           </div>
         );

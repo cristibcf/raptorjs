@@ -3,7 +3,7 @@
  * (browser, and Node >= 22), so this file stays safe to bundle - nothing from
  * node: here.
  *
- * Its counterpart on the server is `serveOverWebSocket` from @raptor/server.
+ * Its counterpart on the server is `serveOverWebSocket` from @raptorstack/wire/server.
  */
 import { type Transport } from "./transport.ts";
 

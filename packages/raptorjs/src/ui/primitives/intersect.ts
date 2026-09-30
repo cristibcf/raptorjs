@@ -6,7 +6,7 @@
  * in tests you call it yourself. That way the loading logic is testable without
  * real layout.
  */
-import { state, onCleanup, type Accessor } from "raptorjs";
+import { state, onCleanup, type Accessor } from "@raptorstack/raptorjs";
 import { type El } from "./env.ts";
 
 export interface IntersectOptions {

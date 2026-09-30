@@ -7,8 +7,8 @@
  *
  * When closed there are NO nodes for them - they're mounted via `Show`.
  */
-import { state, effect, onCleanup, type Accessor, type State } from "raptorjs";
-import { R, Show, type Child } from "raptorjs/dom";
+import { state, effect, onCleanup, type Accessor, type State } from "@raptorstack/raptorjs";
+import { R, Show, type Child } from "@raptorstack/raptorjs/dom";
 import { Portal } from "./primitives/portal.ts";
 import { focusTrap } from "./primitives/focus-trap.ts";
 import { clickOutside } from "./primitives/click-outside.ts";

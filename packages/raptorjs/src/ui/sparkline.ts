@@ -6,11 +6,11 @@
  * framework with a Virtual DOM, the same stream would re-create the SVG tree on
  * every tick and reconcile it point by point.
  *
- * It needs the SVG support from `@raptor/dom` (`createElementNS`) - without it,
+ * It needs the SVG support from `@raptorstack/raptorjs/dom` (`createElementNS`) - without it,
  * `document.createElement("svg")` produces an HTML element that doesn't render.
  */
-import { derived, type Accessor } from "raptorjs";
-import { R, Show } from "raptorjs/dom";
+import { derived, type Accessor } from "@raptorstack/raptorjs";
+import { R, Show } from "@raptorstack/raptorjs/dom";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type El = any;

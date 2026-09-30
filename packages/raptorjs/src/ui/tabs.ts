@@ -8,8 +8,8 @@
  * `activation: "manual"` (default) moves focus without changing the panel until
  * Enter/Space - important when the panels are expensive or load data.
  */
-import { state, type Accessor, type State } from "raptorjs";
-import { R, For, Show, type Child } from "raptorjs/dom";
+import { state, type Accessor, type State } from "@raptorstack/raptorjs";
+import { R, For, Show, type Child } from "@raptorstack/raptorjs/dom";
 import { type El } from "./primitives/env.ts";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

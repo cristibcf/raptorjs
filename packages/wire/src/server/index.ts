@@ -1,4 +1,4 @@
-/** @raptor/server - SDK server RaptorWire. */
+/** @raptorstack/wire/server - SDK server RaptorWire. */
 export {
   raptorServer,
   PROTOCOL_VERSION,

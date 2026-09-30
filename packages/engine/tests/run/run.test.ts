@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildModule } from "@raptor/engine";
-import { RaptorClient } from "@raptor/wire/client";
+import { buildModule } from "@raptorstack/engine";
+import { RaptorClient } from "@raptorstack/wire/client";
 import {
   RaptorRuntime,
   matchRoute,
@@ -12,7 +12,7 @@ import {
   closeServer,
   runRunCli,
 } from "../../src/run/index.ts";
-import { parseModule } from "@raptor/engine/compiler";
+import { parseModule } from "@raptorstack/engine/compiler";
 
 const APP = `
 component App {

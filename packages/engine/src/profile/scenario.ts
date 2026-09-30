@@ -6,9 +6,9 @@
  * (23): each session = a representative flow; routes visited together become
  * co-usage. Deterministic = reproducible (no timers, no real network).
  */
-import { Writer } from "@raptor/wire/codec";
-import { SchemaCodec, type WireValue } from "@raptor/wire";
-import type { RaptorRuntime } from "@raptor/engine/run";
+import { Writer } from "@raptorstack/wire/codec";
+import { SchemaCodec, type WireValue } from "@raptorstack/wire";
+import type { RaptorRuntime } from "@raptorstack/engine/run";
 import type { Profiler } from "./collector.ts";
 
 export type ScenarioStep =

@@ -9,8 +9,8 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { createHash, randomBytes } from "node:crypto";
 import { dirname, join } from "node:path";
-import { RUNTIME_VERSION } from "@raptor/runtime";
-import type { RuntimeEvent } from "@raptor/runtime";
+import { RUNTIME_VERSION } from "@raptorstack/runtime";
+import type { RuntimeEvent } from "@raptorstack/runtime";
 import { runCommand } from "./run.ts";
 import type { CommandInput, CommandResult } from "../shared.ts";
 import { formatMs, ok, table } from "../shared.ts";

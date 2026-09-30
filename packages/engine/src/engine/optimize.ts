@@ -22,7 +22,7 @@ import {
   type IRElement,
   type IRChild,
   type Expr,
-} from "@raptor/engine/compiler";
+} from "@raptorstack/engine/compiler";
 
 export interface OptEntry {
   pass: "DSE" | "Fusion";

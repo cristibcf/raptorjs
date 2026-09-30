@@ -1,7 +1,7 @@
-import { installMiniDom } from "raptorjs/dom/testing";
+import { installMiniDom } from "@raptorstack/raptorjs/dom/testing";
 installMiniDom();
-const { mountChild } = await import("raptorjs/dom");
-const { state, effect, createRoot } = await import("raptorjs");
+const { mountChild } = await import("@raptorstack/raptorjs/dom");
+const { state, effect, createRoot } = await import("@raptorstack/raptorjs");
 
 const doc = (globalThis as { document?: any }).document;
 

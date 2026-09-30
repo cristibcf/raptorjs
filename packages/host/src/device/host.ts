@@ -18,8 +18,8 @@
  *    fine is rolled back on the next reset, not left to turn the board into a
  *    brick.
  */
-import { HostError, createLifecycle, serveHost } from "@raptor/host";
-import type { AuditEntry, HostManifest, HostServer, HostTransport, LifecycleMachine, MethodHandler } from "@raptor/host";
+import { HostError, createLifecycle, serveHost } from "@raptorstack/host";
+import type { AuditEntry, HostManifest, HostServer, HostTransport, LifecycleMachine, MethodHandler } from "@raptorstack/host";
 import type { Board, BusDefinition, PinDefinition } from "./board.ts";
 
 export interface DeviceHostOptions {

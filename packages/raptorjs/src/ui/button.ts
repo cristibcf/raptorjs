@@ -7,8 +7,8 @@
  * during an async action) are exactly the ones forgotten when everyone writes
  * their own button.
  */
-import { state, type Accessor } from "raptorjs";
-import { R, Show, type Child } from "raptorjs/dom";
+import { state, type Accessor } from "@raptorstack/raptorjs";
+import { R, Show, type Child } from "@raptorstack/raptorjs/dom";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type El = any;

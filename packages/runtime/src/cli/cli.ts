@@ -6,8 +6,8 @@
  * writes to output and sets the process code, so every command can be tested
  * in-process, without starting a shell.
  */
-import { RUNTIME_VERSION } from "@raptor/runtime";
-import type { PolicyMode } from "@raptor/runtime";
+import { RUNTIME_VERSION } from "@raptorstack/runtime";
+import type { PolicyMode } from "@raptorstack/runtime";
 import { flagBool, flagString, parseArgs } from "./args.ts";
 import { doctorCommand } from "./commands/doctor.ts";
 import { initCommand } from "./commands/init.ts";

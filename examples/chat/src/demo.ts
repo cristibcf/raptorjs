@@ -4,7 +4,7 @@
  *
  *   node examples/chat/src/demo.ts
  */
-import { createLoopback, flushLoopback, RaptorClient } from "@raptor/wire/client";
+import { createLoopback, flushLoopback, RaptorClient } from "@raptorstack/wire/client";
 import { buildChatApp, CHAT_QUERY } from "./app.ts";
 
 function renderChat(client: RaptorClient): string {

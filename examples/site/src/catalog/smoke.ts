@@ -12,7 +12,7 @@
  * regression — a component that throws, a chart that produces `NaN`, an object
  * that ends up stringified in the text.
  */
-import { mountChild } from "raptorjs/dom";
+import { mountChild } from "@raptorstack/raptorjs/dom";
 import { CATALOG } from "./index.ts";
 
 export interface DemoFailure {

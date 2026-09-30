@@ -6,8 +6,8 @@
  * The UI shows explicitly what the app can and cannot do on the current host -
  * exactly the information that `bridge.allows(...)` gives before the first call.
  */
-import { For, Show, render } from "raptorjs/dom";
-import { state } from "raptorjs";
+import { For, Show, render } from "@raptorstack/raptorjs/dom";
+import { state } from "@raptorstack/raptorjs";
 import { createBrowserSession } from "./session.ts";
 
 const session = createBrowserSession(window);

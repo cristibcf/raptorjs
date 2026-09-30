@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseModule } from "@raptor/engine/compiler";
+import { parseModule } from "@raptorstack/engine/compiler";
 import {
   optimize,
   buildModule,

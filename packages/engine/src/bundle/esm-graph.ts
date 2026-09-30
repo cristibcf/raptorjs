@@ -12,7 +12,7 @@
 import ts from "typescript";
 
 export interface ImportEdge {
-  /** The specifier from the source (`"./x.ts"`, `"raptorjs/ui"`). */
+  /** The specifier from the source (`"./x.ts"`, `"@raptorstack/raptorjs/ui"`). */
   spec: string;
   /** The imported names: the name EXPORTED from the target module. */
   names: string[];

@@ -9,7 +9,7 @@
  */
 import { readText } from "raptor:files";
 import tasks from "raptor:tasks";
-import type { HostContext } from "@raptor/runtime";
+import type { HostContext } from "@raptorstack/runtime";
 
 function assert(condition: boolean, message: string): void {
   if (!condition) throw new Error(message);

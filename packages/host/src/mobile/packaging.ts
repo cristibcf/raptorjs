@@ -6,8 +6,8 @@
  * (`store`). The plan says this explicitly, so CI does not try to publish
  * artifacts the store would reject anyway.
  */
-import { planPackages } from "@raptor/host";
-import type { HostManifest, InstallerFormat, PackagePlan } from "@raptor/host";
+import { planPackages } from "@raptorstack/host";
+import type { HostManifest, InstallerFormat, PackagePlan } from "@raptorstack/host";
 
 export const MOBILE_FORMATS: readonly InstallerFormat[] = [
   {

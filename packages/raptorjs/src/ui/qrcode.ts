@@ -11,8 +11,8 @@
  * masks with their penalty score, and the BCH format bits. A QR with a badly
  * chosen mask scans poorly; one with wrong RS doesn't scan at all.
  */
-import { derived, type Accessor } from "raptorjs";
-import { R, type Child } from "raptorjs/dom";
+import { derived, type Accessor } from "@raptorstack/raptorjs";
+import { R, type Child } from "@raptorstack/raptorjs/dom";
 import { type El } from "./primitives/env.ts";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

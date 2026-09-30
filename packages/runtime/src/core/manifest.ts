@@ -19,7 +19,7 @@ export const CAPABILITY_KINDS = [
    * (`host:port`, with `*` accepted on either side), so that `127.0.0.1:*` can
    * mean "local only" without pinning the port.
    *
-   * It exists because `@raptor/host` already required a capability for exactly
+   * It exists because `@raptorstack/host` already required a capability for exactly
    * the same methods (`serve.listen` -> `net.listen` in
    * `packages/host/src/protocol.ts`), while the runtime was binding ports with
    * an empty manifest.

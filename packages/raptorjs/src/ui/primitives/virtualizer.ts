@@ -15,7 +15,7 @@
  * exists, but can also be pushed from outside (`setViewport`, `setScroll`) - so
  * the primitive is testable without real layout and usable at SSR.
  */
-import { state, derived, onCleanup, type Accessor } from "raptorjs";
+import { state, derived, onCleanup, type Accessor } from "@raptorstack/raptorjs";
 import { type El } from "./env.ts";
 
 export interface VirtualizerOptions {

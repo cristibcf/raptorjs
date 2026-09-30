@@ -19,9 +19,9 @@ export const RELEASES: Release[] = [
     title: "Six packages, publish-ready",
     blocks: [
       { t: "list", items: [
-        "**Consolidated 22 fine-grained packages into 6**: `raptorjs` (core + dom + ui), `@raptor/wire`, `@raptor/engine`, `@raptor/runtime`, `@raptor/host`, `@raptor/test`. Granularity is preserved through subpath exports — `import { Table } from \"raptorjs/ui\"`, `import { RaptorClient } from \"@raptor/wire/client\"`.",
+        "**Consolidated 22 fine-grained packages into 6**: `@raptorstack/raptorjs` (core + dom + ui), `@raptorstack/wire`, `@raptorstack/engine`, `@raptorstack/runtime`, `@raptorstack/host`, `@raptorstack/test`. Granularity is preserved through subpath exports — `import { Table } from \"@raptorstack/raptorjs/ui\"`, `import { RaptorClient } from \"@raptorstack/wire/client\"`.",
         "**npm publishing set up**: each package ships a compiled `dist/` (`.js` + `.d.ts`) via `publishConfig`, while development stays TS-native. `pnpm -r publish` handles versions and `workspace:*` rewriting.",
-        "`typescript` is now a **build-time peer** of `@raptor/engine` (the bundler's transform), so the zero-runtime-dependency thesis stays literally true.",
+        "`typescript` is now a **build-time peer** of `@raptorstack/engine` (the bundler's transform), so the zero-runtime-dependency thesis stays literally true.",
         "Site additions: **search**, **interactive tutorial**, **showcase** and this **changelog** — all built with the stack, all zero-dep.",
       ] },
       { t: "note", kind: "info", title: "Still alpha", text: "Nothing here is production-ready. The shape is stabilising, but the API can still change between alpha builds." },

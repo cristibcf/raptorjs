@@ -6,10 +6,10 @@
  * desktop. Pin 2 is the LED, pin 5 the button (input), and the sensor sits at
  * 0x48 on i2c0. Anything not on the list cannot be touched.
  */
-import { createBridge, createMemoryChannel, requireHostManifest } from "@raptor/host";
-import type { HostBridge, HostManifest } from "@raptor/host";
-import { createDeviceHost } from "@raptor/host/device";
-import type { Board, DeviceHost, PinDefinition } from "@raptor/host/device";
+import { createBridge, createMemoryChannel, requireHostManifest } from "@raptorstack/host";
+import type { HostBridge, HostManifest } from "@raptorstack/host";
+import { createDeviceHost } from "@raptorstack/host/device";
+import type { Board, DeviceHost, PinDefinition } from "@raptorstack/host/device";
 import { createLogger } from "./app.ts";
 import type { Logger } from "./app.ts";
 

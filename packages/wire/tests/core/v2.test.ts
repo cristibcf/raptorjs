@@ -10,7 +10,7 @@ import {
   type OpsMsg,
   type Schema,
 } from "../../src/core/index.ts";
-import { Writer, Reader } from "@raptor/wire/codec";
+import { Writer, Reader } from "@raptorstack/wire/codec";
 
 // --- Reactive Address Space (5.2) -----------------------------------------
 test("RAS: ops over addresses, the handle name sent only once", () => {

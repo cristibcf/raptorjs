@@ -11,7 +11,7 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseModule, exprToJs, type Expr } from "@raptor/engine/compiler";
+import { parseModule, exprToJs, type Expr } from "@raptorstack/engine/compiler";
 import { optimize } from "../../src/engine/optimize.ts";
 import { buildModule } from "../../src/engine/index.ts";
 

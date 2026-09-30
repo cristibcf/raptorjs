@@ -7,7 +7,7 @@
  * types without constraints. This is the target of a schema-generated codec
  * (8.3, 31.4).
  */
-import { Writer, Reader } from "@raptor/wire/codec";
+import { Writer, Reader } from "@raptorstack/wire/codec";
 
 export interface FieldSchema {
   type: "bool" | "uint" | "int" | "percentage" | "money" | "enum" | "float" | "string";

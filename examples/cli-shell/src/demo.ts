@@ -8,7 +8,7 @@
  * cannot answer. The real binary is `src/bin.ts`.
  */
 import { runOnce } from "./session.ts";
-import type { Terminal } from "@raptor/host/cli";
+import type { Terminal } from "@raptorstack/host/cli";
 
 interface Recorder {
   readonly terminal: Terminal;

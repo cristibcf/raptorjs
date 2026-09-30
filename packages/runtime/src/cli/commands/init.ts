@@ -7,7 +7,7 @@
  */
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { MANIFEST_FILENAME, RUNTIME_VERSION, stableStringify } from "@raptor/runtime";
+import { MANIFEST_FILENAME, RUNTIME_VERSION, stableStringify } from "@raptorstack/runtime";
 import { POLICY_FILENAME, renderPolicyFile } from "../policy.ts";
 import type { CommandInput, CommandResult } from "../shared.ts";
 import { fail, ok, table } from "../shared.ts";

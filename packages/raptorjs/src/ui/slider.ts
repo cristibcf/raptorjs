@@ -10,8 +10,8 @@
  * exist (mini-dom, SSR) `setTrack()` can push it from outside, so the
  * quantization and clamping logic is testable without real layout.
  */
-import { state, onCleanup, type Accessor, type State } from "raptorjs";
-import { R } from "raptorjs/dom";
+import { state, onCleanup, type Accessor, type State } from "@raptorstack/raptorjs";
+import { R } from "@raptorstack/raptorjs/dom";
 import { onDoc, pointOf, type El } from "./primitives/env.ts";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

@@ -3,8 +3,8 @@
  * and each binding in the JSX binds to exactly one signal. When the server
  * broadcasts a PATCH on "todo:3", row 3 updates - not the list, not the component.
  */
-import { render, state, For, Show } from "raptorjs/dom";
-import { RaptorClient, connectWebSocket } from "@raptor/wire/client";
+import { render, state, For, Show } from "@raptorstack/raptorjs/dom";
+import { RaptorClient, connectWebSocket } from "@raptorstack/wire/client";
 import { TODO_QUERY, type Todo } from "./app.ts";
 
 const WIRE_URL = `ws://${location.host}/raptor`;

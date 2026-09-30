@@ -1,6 +1,6 @@
 /**
  * RaptorClient - a browser-side RaptorWire session (whitepaper 14, 15).
- * Maintains a reactive replica: each handle becomes a @raptor/core signal, and
+ * Maintains a reactive replica: each handle becomes a @raptorstack/raptorjs signal, and
  * delta operations update only the affected signals -> fine-grained DOM
  * bindings with no re-fetch and no re-serialization.
  *
@@ -8,7 +8,7 @@
  * 5.2), applies an atomic frame with ONE UI commit (batch, 16.1) and supports
  * reconnect with automatic delta resync (14.3) via `resume`.
  */
-import { state, batch, type State, type Accessor } from "raptorjs";
+import { state, batch, type State, type Accessor } from "@raptorstack/raptorjs";
 import {
   Document,
   AddressBook,
@@ -20,7 +20,7 @@ import {
   type WireValue,
   type Message,
   type QueryMsg,
-} from "@raptor/wire";
+} from "@raptorstack/wire";
 import { type Transport } from "./transport.ts";
 
 export interface RaptorClientOptions {

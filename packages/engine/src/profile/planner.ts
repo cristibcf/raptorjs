@@ -11,8 +11,8 @@
  * Whatever is NOT in the profile is explicitly KEPT (keptDespiteUnseen) - proof
  * that the profile cannot reduce correctness (23: "hint-based").
  */
-import { emptyPlanHints, type PlanHints } from "@raptor/engine";
-import type { RouteDef } from "@raptor/engine/run";
+import { emptyPlanHints, type PlanHints } from "@raptorstack/engine";
+import type { RouteDef } from "@raptorstack/engine/run";
 import type { RaptorProfile } from "./profile.ts";
 
 export interface PlanContext {

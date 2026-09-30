@@ -7,8 +7,8 @@
  * (`insertBefore`), not rebuilt. A cell given an accessor updates only its own
  * text node when the data changes.
  */
-import { state, derived, type Accessor, type State } from "raptorjs";
-import { R, For, Show, type Child } from "raptorjs/dom";
+import { state, derived, type Accessor, type State } from "@raptorstack/raptorjs";
+import { R, For, Show, type Child } from "@raptorstack/raptorjs/dom";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type El = any;

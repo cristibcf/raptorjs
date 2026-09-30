@@ -6,8 +6,8 @@
  * are cancelled, the fabric is drained and only then does it exit - never a
  * brutal `exit` in the middle of the work.
  */
-import { createObserver, createRuntime, loadProject } from "@raptor/runtime";
-import type { RaptorRuntimeHost, RuntimeEvent } from "@raptor/runtime";
+import { createObserver, createRuntime, loadProject } from "@raptorstack/runtime";
+import type { RaptorRuntimeHost, RuntimeEvent } from "@raptorstack/runtime";
 import { blockingReasons, bypassSeverity, inspectBypasses } from "../bypass.ts";
 import { describeUndeclared, loadPolicyFile, profileFor, writeAudit } from "../policy.ts";
 import type { CommandInput, CommandResult } from "../shared.ts";

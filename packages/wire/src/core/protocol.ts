@@ -3,7 +3,7 @@
  * set of messages for handshake, subscription, snapshot, ops, ack and mutations
  * (whitepaper 14 and 31.2). A single codec shared by server and client.
  */
-import { Writer, Reader } from "@raptor/wire/codec";
+import { Writer, Reader } from "@raptorstack/wire/codec";
 import { FrameType, OpKindToCode, CodeToOpKind } from "./opcodes.ts";
 import { type WireValue, writeValue, readValue } from "./value.ts";
 import { type OpsBatch, encodeOpsBatch, decodeOpsBatch, writeOpBody, readOpBody } from "./operation.ts";

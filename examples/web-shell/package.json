@@ -5,11 +5,11 @@
   "type": "module",
   "description": "Example: the same RaptorJS app as desktop-shell and mobile-shell, with the browser as host (roadmap section 4: for the web target, the host is the browser).",
   "dependencies": {
-    "raptorjs": "workspace:*",
-    "@raptor/host": "workspace:*"
+    "@raptorstack/raptorjs": "workspace:*",
+    "@raptorstack/host": "workspace:*"
   },
   "devDependencies": {
-    "@raptor/engine": "workspace:*"
+    "@raptorstack/engine": "workspace:*"
   },
   "scripts": {
     "demo": "node src/demo.ts",

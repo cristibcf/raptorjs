@@ -18,8 +18,8 @@
  *  - menus and subprocesses do not exist, and `update.*` has nothing to report:
  *    a web page "updates" by reloading.
  */
-import { HostError, createLifecycle, serveHost } from "@raptor/host";
-import type { AuditEntry, HostManifest, HostServer, HostTransport, LifecycleMachine, MethodHandler } from "@raptor/host";
+import { HostError, createLifecycle, serveHost } from "@raptorstack/host";
+import type { AuditEntry, HostManifest, HostServer, HostTransport, LifecycleMachine, MethodHandler } from "@raptorstack/host";
 import type { WebPlatform } from "./platform.ts";
 
 export interface WebHostOptions {

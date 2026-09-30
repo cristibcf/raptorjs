@@ -8,8 +8,8 @@
  * The thesis: dragging the handle rewrites a single style attribute per frame;
  * the panels don't re-render. See the test with 60 `pointermove`s.
  */
-import { state, type Accessor } from "raptorjs";
-import { R, type Child } from "raptorjs/dom";
+import { state, type Accessor } from "@raptorstack/raptorjs";
+import { R, type Child } from "@raptorstack/raptorjs/dom";
 import { resizable, type Resizable } from "./primitives/resizable.ts";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

@@ -10,8 +10,8 @@
  * The test checks exactly this: typing in a field makes `createElement === 0`
  * and exactly one text update.
  */
-import { state, derived, untracked, type Accessor, type State } from "raptorjs";
-import { R, For, Show, type Child } from "raptorjs/dom";
+import { state, derived, untracked, type Accessor, type State } from "@raptorstack/raptorjs";
+import { R, For, Show, type Child } from "@raptorstack/raptorjs/dom";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type El = any;

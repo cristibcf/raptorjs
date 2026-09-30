@@ -5,7 +5,7 @@
  * This matters here more than in an ordinary framework: the RaptorWire thesis is
  * that state comes off the wire and is applied locally, so a navigation element
  * sent by the server is exactly the expected case, not an exotic one. Found via
- * `@raptor/ui` (`Link`, `Breadcrumbs`, `SidebarNav` take `href` from props), but
+ * `@raptorstack/raptorjs/ui` (`Link`, `Breadcrumbs`, `SidebarNav` take `href` from props), but
  * fixed in the DOM runtime: an application that writes JSX directly has the same
  * hole too.
  */
@@ -13,7 +13,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { installMiniDom } from "../../src/dom/testing/mini-dom.ts";
 import { applyProps } from "../../src/dom/runtime.ts";
-import { state } from "raptorjs";
+import { state } from "@raptorstack/raptorjs";
 
 installMiniDom();
 const doc = (globalThis as unknown as { document: any }).document;

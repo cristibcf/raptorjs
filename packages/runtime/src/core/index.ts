@@ -1,5 +1,5 @@
 /**
- * @raptor/runtime - the RaptorRuntime host contracts.
+ * @raptorstack/runtime - the RaptorRuntime host contracts.
  *
  * The package contains no CLI and starts nothing on its own: it exposes the
  * manifest, the capability broker, the task fabric, telemetry, the engine

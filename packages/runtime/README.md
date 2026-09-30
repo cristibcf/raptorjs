@@ -4,13 +4,13 @@ The implementation of the *RaptorRuntime Product and Architecture Specification*
 for **milestone 0 (architecture spike)**, plus the foundation of milestone 1.
 
 The package starts nothing on its own and has no dependencies. It exposes the contracts
-that the `@raptor/runtime/cli` launcher consumes and, later, the native host.
+that the `@raptorstack/runtime/cli` launcher consumes and, later, the native host.
 
 ## What it contains
 
 | Component (spec §5) | Module | State |
 | --- | --- | --- |
-| Launcher | `@raptor/runtime/cli` | `run`, `test`, `init`, `pack`, `doctor`, `trace` |
+| Launcher | `@raptorstack/runtime/cli` | `run`, `test`, `init`, `pack`, `doctor`, `trace` |
 | Engine adapter | `src/engine-adapter.ts` | bootstrap adapter, with per-isolate isolation |
 | Module graph | `src/graph.ts` | static graph for `doctor` and `pack` |
 | Capability broker | `src/capabilities.ts` | granular, revocable, explicit delegation |
@@ -72,6 +72,6 @@ pnpm test:runtime             # the contract suites of the two packages
 ## Integration with the repository (spec §9)
 
 Additive, with no changes to the existing packages: the binary is named
-`raptor-runtime`, not `raptor`, and `@raptor/engine/run`, `@raptor/engine/bundle`, and
-`@raptor/engine` keep their commands and import paths. The rename comes
+`raptor-runtime`, not `raptor`, and `@raptorstack/engine/run`, `@raptorstack/engine/bundle`, and
+`@raptorstack/engine` keep their commands and import paths. The rename comes
 only after the compatibility audit (§2, §13).

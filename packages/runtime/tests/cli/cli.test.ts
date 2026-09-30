@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { RUNTIME_VERSION } from "@raptor/runtime";
+import { RUNTIME_VERSION } from "@raptorstack/runtime";
 import { parseArgs, runCli } from "../../src/cli/index.ts";
 
 function workspace(): { root: string; dispose(): void } {

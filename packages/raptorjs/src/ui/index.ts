@@ -1,11 +1,11 @@
 /**
- * @raptor/ui - reusable components on top of the fine-grained runtime.
+ * @raptorstack/raptorjs/ui - reusable components on top of the fine-grained runtime.
  *
- * They're built with `R` from @raptor/dom (so no build step) and follow the
+ * They're built with `R` from @raptorstack/raptorjs/dom (so no build step) and follow the
  * same rule as the rest of the stack: nothing re-renders, every dynamic piece
  * is a binding that touches exactly one attribute / text-node / row.
  *
- * The styles are optional and separate (`@raptor/ui/styles`): components set
+ * The styles are optional and separate (`@raptorstack/raptorjs/ui/styles`): components set
  * only classes and ARIA attributes, they don't impose CSS.
  */
 export { Table, type Column, type TableProps, type SortState } from "./table.ts";

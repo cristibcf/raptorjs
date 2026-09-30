@@ -1,5 +1,5 @@
 {
-  "name": "@raptor/engine",
+  "name": "@raptorstack/engine",
   "version": "0.1.0",
   "description": "RaptorEngine: compiler, semantic optimizer, bundler, profiler, server runtime and project generator.",
   "author": "cristibcf (https://github.com/cristibcf)",
@@ -29,9 +29,9 @@
     "raptor-create": "./src/forge/bin.ts"
   },
   "dependencies": {
-    "@raptor/wire": "workspace:*",
-    "@raptor/host": "workspace:*",
-    "@raptor/runtime": "workspace:*"
+    "@raptorstack/wire": "workspace:*",
+    "@raptorstack/host": "workspace:*",
+    "@raptorstack/runtime": "workspace:*"
   },
   "peerDependencies": {
     "typescript": "^5.7.0"

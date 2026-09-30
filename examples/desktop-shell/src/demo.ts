@@ -7,8 +7,8 @@
  * a deep link coming from the system, a menu command, a capability denial and
  * a clean shutdown - with fine-grained rendering at every step.
  */
-import { installMiniDom, resetStats, stats } from "raptorjs/dom/testing";
-import { render } from "raptorjs/dom";
+import { installMiniDom, resetStats, stats } from "@raptorstack/raptorjs/dom/testing";
+import { render } from "@raptorstack/raptorjs/dom";
 import { createSession } from "./session.ts";
 
 const doc = installMiniDom();

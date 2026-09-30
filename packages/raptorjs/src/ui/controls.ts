@@ -6,8 +6,8 @@
  * that doesn't produce `0.30000000000000004`, a `PinInput` that accepts a code
  * pasted from an SMS, a `SearchInput` that doesn't fire a request on every letter.
  */
-import { state, derived, onCleanup, type Accessor, type State } from "raptorjs";
-import { R, For, Show, type Child } from "raptorjs/dom";
+import { state, derived, onCleanup, type Accessor, type State } from "@raptorstack/raptorjs";
+import { R, For, Show, type Child } from "@raptorstack/raptorjs/dom";
 import { type El } from "./primitives/env.ts";
 import { Button } from "./button.ts";
 import { Tag } from "./display.ts";

@@ -1,6 +1,6 @@
 /**
- * @raptor/engine - RaptorEngine: build, dev and runtime orchestration
- * (RaptorEngine whitepaper v0.1). Consumes @raptor/compiler for the semantic
+ * @raptorstack/engine - RaptorEngine: build, dev and runtime orchestration
+ * (RaptorEngine whitepaper v0.1). Consumes @raptorstack/compiler for the semantic
  * core and adds optimizer, multi-target codegen, HMR, caching, manifest and CLI.
  */
 export {

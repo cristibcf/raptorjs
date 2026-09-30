@@ -3,8 +3,8 @@
  * reactive replica. The same component runs headless (mini-dom) or in the
  * browser (Vite) - see src/main.tsx for the TSX variant.
  */
-import { render, mountChild, For } from "raptorjs/dom";
-import { type RaptorClient } from "@raptor/wire/client";
+import { render, mountChild, For } from "@raptorstack/raptorjs/dom";
+import { type RaptorClient } from "@raptorstack/wire/client";
 
 interface Job {
   name?: string;

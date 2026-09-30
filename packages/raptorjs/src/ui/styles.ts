@@ -1,5 +1,5 @@
 /**
- * Optional styles for @raptor/ui.
+ * Optional styles for @raptorstack/raptorjs/ui.
  *
  * They do not inject themselves: components only set classes, and you decide
  * whether to use this CSS, override it, or ignore it entirely. Colors and

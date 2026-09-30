@@ -1,5 +1,5 @@
 /**
- * @raptor/mobile - Raptor Mobile Adapter.
+ * @raptorstack/mobile - Raptor Mobile Adapter.
  *
  * Roadmap section 8 places it after desktop, and not by chance: the capability
  * model is proven first where feedback is fast, and only then extended to

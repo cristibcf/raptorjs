@@ -3,7 +3,7 @@
  * preview, like the Playground but guided. The current step comes from the route
  * (`sub()`), so each step has its own URL. The code is evaluated with the `R` primitives.
  */
-import { R, state, derived, effect, batch, onCleanup, For, Show, render } from "raptorjs/dom";
+import { R, state, derived, effect, batch, onCleanup, For, Show, render } from "@raptorstack/raptorjs/dom";
 import { sub, navigate } from "../lib/route.ts";
 import { inline } from "../lib/ui.tsx";
 import { TUTORIAL } from "../content/tutorial.ts";

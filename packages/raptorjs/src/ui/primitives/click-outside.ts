@@ -5,7 +5,7 @@
  * The global listener exists only while the element lives (removed in
  * `onCleanup`), so it doesn't stay attached to the document after dispose.
  */
-import { onCleanup } from "raptorjs";
+import { onCleanup } from "@raptorstack/raptorjs";
 import { onDoc, type El } from "./env.ts";
 
 export interface ClickOutsideOptions {

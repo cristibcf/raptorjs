@@ -5,11 +5,11 @@
   "type": "module",
   "description": "End-to-end realtime todo: RaptorWire server over WebSocket, reactive client, a single process.",
   "dependencies": {
-    "raptorjs": "workspace:*",
-    "@raptor/wire": "workspace:*"
+    "@raptorstack/raptorjs": "workspace:*",
+    "@raptorstack/wire": "workspace:*"
   },
   "devDependencies": {
-    "@raptor/engine": "workspace:*"
+    "@raptorstack/engine": "workspace:*"
   },
   "scripts": {
     "dev": "node src/server.ts",

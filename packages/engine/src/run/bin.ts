@@ -5,7 +5,7 @@
  */
 import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
-import { buildModule } from "@raptor/engine";
+import { buildModule } from "@raptorstack/engine";
 import { RaptorRuntime } from "./runtime.ts";
 import { createNodeServer, listen, closeServer } from "./node.ts";
 import { RaptorDevServer } from "./dev-server.ts";

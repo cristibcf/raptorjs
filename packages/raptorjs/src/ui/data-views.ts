@@ -5,8 +5,8 @@
  * Shift/Ctrl clicks, `positioner` for floating lists, `clickOutside` and
  * `focusTrap` for the command palette.
  */
-import { state, derived, effect, onCleanup, untracked, type Accessor, type State } from "raptorjs";
-import { R, For, Show, type Child } from "raptorjs/dom";
+import { state, derived, effect, onCleanup, untracked, type Accessor, type State } from "@raptorstack/raptorjs";
+import { R, For, Show, type Child } from "@raptorstack/raptorjs/dom";
 import { clickOutside } from "./primitives/click-outside.ts";
 import { positioner, type Placement } from "./primitives/positioner.ts";
 import { focusTrap } from "./primitives/focus-trap.ts";

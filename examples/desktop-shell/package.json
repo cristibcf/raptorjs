@@ -5,8 +5,8 @@
   "type": "module",
   "description": "Example: a RaptorJS app running in a native desktop host through the capability bridge (roadmap sections 6 and 8).",
   "dependencies": {
-    "raptorjs": "workspace:*",
-    "@raptor/host": "workspace:*"
+    "@raptorstack/raptorjs": "workspace:*",
+    "@raptorstack/host": "workspace:*"
   },
   "scripts": {
     "demo": "node src/demo.ts",

@@ -14,7 +14,7 @@ import {
   type CustomInvariant,
   type HarnessContext,
   type SemanticNode,
-} from "@raptor/test";
+} from "@raptorstack/test";
 
 const ADD: SemanticNode = { role: "button", name: "Add to cart", context: ["ProductCard"], actionEffect: "POST /cart/items" };
 const GO_CART: SemanticNode = { role: "link", name: "Go to cart", context: ["ProductCard"], actionEffect: "GET /cart" };

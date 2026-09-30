@@ -4,8 +4,8 @@
  * Bits of layout and actions that come up often enough to be worth writing
  * once, but not so often that they belong in the core.
  */
-import { state, derived, effect, onCleanup, type Accessor } from "raptorjs";
-import { R, For, Show, type Child } from "raptorjs/dom";
+import { state, derived, effect, onCleanup, type Accessor } from "@raptorstack/raptorjs";
+import { R, For, Show, type Child } from "@raptorstack/raptorjs/dom";
 import { type El } from "./primitives/env.ts";
 import { mediaQuery } from "./primitives/media-query.ts";
 import { DropdownMenu, type MenuEntry } from "./menu.ts";

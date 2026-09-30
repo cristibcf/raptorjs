@@ -5,7 +5,7 @@
  * User code is evaluated to an `App` function and rendered into the preview;
  * errors are caught and shown.
  */
-import { R, state, derived, effect, batch, onCleanup, For, Show, render } from "raptorjs/dom";
+import { R, state, derived, effect, batch, onCleanup, For, Show, render } from "@raptorstack/raptorjs/dom";
 import { SectionHead } from "../lib/ui.tsx";
 
 interface Example {

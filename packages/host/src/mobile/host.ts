@@ -11,8 +11,8 @@
  * exactly the reason - if the app held the stack, the adapter could no longer
  * respond correctly to a gesture that does not go through JavaScript.
  */
-import { HostError, createLifecycle, serveHost } from "@raptor/host";
-import type { AuditEntry, HostManifest, HostServer, HostTransport, LifecycleMachine, MethodHandler } from "@raptor/host";
+import { HostError, createLifecycle, serveHost } from "@raptorstack/host";
+import type { AuditEntry, HostManifest, HostServer, HostTransport, LifecycleMachine, MethodHandler } from "@raptorstack/host";
 
 export interface NotificationRecord {
   readonly title: string;

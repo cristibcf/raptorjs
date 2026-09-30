@@ -26,7 +26,7 @@
  * correct owner, and the bindings inside the component remain fine-grained.
  * Exactly the unwanted thing is lost: the caller's subscription.
  */
-import { untracked } from "raptorjs/dom";
+import { untracked } from "@raptorstack/raptorjs/dom";
 
 /** Builds a component without subscribing the caller's computation. */
 export function isolate<T>(build: () => T): T {

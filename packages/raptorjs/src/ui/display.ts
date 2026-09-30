@@ -7,8 +7,8 @@
  * with initials is decorative and must not be read twice; a `Skeleton` must be
  * `aria-hidden` so it doesn't announce noise.
  */
-import { derived, type Accessor } from "raptorjs";
-import { R, For, Show, type Child } from "raptorjs/dom";
+import { derived, type Accessor } from "@raptorstack/raptorjs";
+import { R, For, Show, type Child } from "@raptorstack/raptorjs/dom";
 import { type El } from "./primitives/env.ts";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

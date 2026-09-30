@@ -10,8 +10,8 @@
  * `aria-expanded`, `aria-controls`, `aria-activedescendant` pointing to the
  * highlighted option (focus stays in the input, so you can keep typing).
  */
-import { state, derived, type Accessor, type State } from "raptorjs";
-import { R, For, Show, type Child } from "raptorjs/dom";
+import { state, derived, type Accessor, type State } from "@raptorstack/raptorjs";
+import { R, For, Show, type Child } from "@raptorstack/raptorjs/dom";
 import { clickOutside } from "./primitives/click-outside.ts";
 import { positioner, type Placement } from "./primitives/positioner.ts";
 import { type El } from "./primitives/env.ts";

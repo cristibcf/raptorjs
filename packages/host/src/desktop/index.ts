@@ -1,5 +1,5 @@
 /**
- * @raptor/desktop - Raptor Desktop Adapter.
+ * @raptorstack/desktop - Raptor Desktop Adapter.
  *
  * Roadmap section 7 places it right after the runtime, as "the first path to
  * native PC apps". The package contains three things: the description of the

@@ -2,7 +2,7 @@
  * Plan hints - the profile-guided input into RaptorBuild (RaptorEngine
  * whitepaper 22-24). These are STRATEGY hints, not correctness hints (§24:
  * "profiles may influence strategy, not semantics"). The type lives in the
- * engine because the build consumes it; @raptor/profile PRODUCES it from a
+ * engine because the build consumes it; @raptorstack/profile PRODUCES it from a
  * profile + graph (no cycle).
  *
  * The golden rule: a hint may reorganize chunks/preload/batch/encoding, but it

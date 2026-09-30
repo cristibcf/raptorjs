@@ -16,8 +16,8 @@
  *  3. **Health is declared by the app.** The host does not guess whether the
  *     process is ready to take traffic; the app says so, and the supervisor reads it.
  */
-import { HostError, createLifecycle, serveHost } from "@raptor/host";
-import type { AuditEntry, HostManifest, HostServer, HostTransport, LifecycleMachine, MethodHandler } from "@raptor/host";
+import { HostError, createLifecycle, serveHost } from "@raptorstack/host";
+import type { AuditEntry, HostManifest, HostServer, HostTransport, LifecycleMachine, MethodHandler } from "@raptorstack/host";
 import type { Listener, ListenerFactory, ServeHandler } from "./listener.ts";
 
 export type Health = "starting" | "ready" | "draining" | "unhealthy";

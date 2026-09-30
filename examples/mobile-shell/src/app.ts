@@ -11,9 +11,9 @@
  * Just like on desktop, nothing platform-specific is imported here: everything
  * system-related enters and leaves through the bridge.
  */
-import { derived, state } from "raptorjs";
-import { mountChild, applyProps } from "raptorjs/dom";
-import type { HostBridge } from "@raptor/host";
+import { derived, state } from "@raptorstack/raptorjs";
+import { mountChild, applyProps } from "@raptorstack/raptorjs/dom";
+import type { HostBridge } from "@raptorstack/host";
 
 export interface ShellElement {
   appendChild(child: unknown): unknown;

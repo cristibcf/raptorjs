@@ -1,7 +1,7 @@
 /**
  * Generated from `packages/ui/src`: the export name -> the import subpath.
  *
- * The components page shows the DEEP import (`raptorjs/ui/button`), not the one
+ * The components page shows the DEEP import (`@raptorstack/raptorjs/ui/button`), not the one
  * from the barrel. It also includes the lowercase helpers (`undoRedo`, `field`,
  * `validators`), not just the components: they too have their own module.
  */
@@ -410,5 +410,5 @@ export const COMPONENT_MODULE: Readonly<Record<string, string>> = {
 /** The import line to display for an export from raptorjs/ui. */
 export function importLine(name: string): string {
   const mod = COMPONENT_MODULE[name];
-  return `import { ${name} } from "raptorjs/ui${mod ? "/" + mod : ""}"`;
+  return `import { ${name} } from "@raptorstack/raptorjs/ui${mod ? "/" + mod : ""}"`;
 }

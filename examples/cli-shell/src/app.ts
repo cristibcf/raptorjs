@@ -11,8 +11,8 @@
  * cannot happen, and the tool **refuses and says how to run it**, instead of
  * assuming "yes" or crashing with a stack trace.
  */
-import { state } from "raptorjs";
-import type { HostBridge } from "@raptor/host";
+import { state } from "@raptorstack/raptorjs";
+import type { HostBridge } from "@raptorstack/host";
 
 export interface Note {
   readonly text: string;

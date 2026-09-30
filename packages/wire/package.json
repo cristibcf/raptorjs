@@ -1,5 +1,5 @@
 {
-  "name": "@raptor/wire",
+  "name": "@raptorstack/wire",
   "version": "0.1.0",
   "description": "RaptorWire: state-aware binary protocol - codec, core document model, client replica and server SDK.",
   "author": "cristibcf (https://github.com/cristibcf)",
@@ -20,7 +20,7 @@
   },
   "types": "./src/index.ts",
   "dependencies": {
-    "raptorjs": "workspace:*"
+    "@raptorstack/raptorjs": "workspace:*"
   },
   "scripts": {
     "test": "node --test \"tests/**/*.test.ts\"",

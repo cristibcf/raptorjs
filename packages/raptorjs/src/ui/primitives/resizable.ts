@@ -11,7 +11,7 @@
  * The size is held in `size` (a signal) - you can read it, set it
  * programmatically or persist it, without asking the DOM.
  */
-import { state, onCleanup, type Accessor } from "raptorjs";
+import { state, onCleanup, type Accessor } from "@raptorstack/raptorjs";
 import { onDoc, pointOf, type El } from "./env.ts";
 
 export interface ResizableOptions {

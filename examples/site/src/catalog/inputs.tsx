@@ -1,9 +1,9 @@
 /** Text input. */
-import { state, derived } from "raptorjs/dom";
-import { Editable, InputGroup, NumberInput, PasswordInput, PinInput, SearchInput, TagsInput } from "raptorjs/ui/controls";
-import { CodeEditor, RichTextEditor } from "raptorjs/ui/editors";
-import { Input, Textarea } from "raptorjs/ui/input";
-import { CurrencyInput, DateInput, MaskedInput, type MentionOption, Mentions, PhoneInput } from "raptorjs/ui/input-extra";
+import { state, derived } from "@raptorstack/raptorjs/dom";
+import { Editable, InputGroup, NumberInput, PasswordInput, PinInput, SearchInput, TagsInput } from "@raptorstack/raptorjs/ui/controls";
+import { CodeEditor, RichTextEditor } from "@raptorstack/raptorjs/ui/editors";
+import { Input, Textarea } from "@raptorstack/raptorjs/ui/input";
+import { CurrencyInput, DateInput, MaskedInput, type MentionOption, Mentions, PhoneInput } from "@raptorstack/raptorjs/ui/input-extra";
 import { highlight } from "../lib/ui.tsx";
 import type { CatalogGroup } from "./types.ts";
 

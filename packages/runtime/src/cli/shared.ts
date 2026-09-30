@@ -5,8 +5,8 @@
  * structured payload. `--json` prints the payload; without the flag the text is
  * printed. This makes every command testable without a process.
  */
-import type { PolicyMode } from "@raptor/runtime";
-import { isRaptorError } from "@raptor/runtime";
+import type { PolicyMode } from "@raptorstack/runtime";
+import { isRaptorError } from "@raptorstack/runtime";
 
 export interface CommandResult {
   readonly code: number;

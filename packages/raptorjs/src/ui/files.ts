@@ -5,8 +5,8 @@
  * single function, `validateFiles`, exported and testable separately. Otherwise
  * you end up with two sets of rules that diverge.
  */
-import { state, type Accessor, type State } from "raptorjs";
-import { R, For, Show, type Child } from "raptorjs/dom";
+import { state, type Accessor, type State } from "@raptorstack/raptorjs";
+import { R, For, Show, type Child } from "@raptorstack/raptorjs/dom";
 import { type El } from "./primitives/env.ts";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

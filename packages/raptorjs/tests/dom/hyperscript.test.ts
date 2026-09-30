@@ -4,7 +4,7 @@ import { installMiniDom, resetStats, stats, type MiniElement } from "../../src/d
 import { render } from "../../src/dom/runtime.ts";
 import { For, Show } from "../../src/dom/control.ts";
 import { R } from "../../src/dom/hyperscript.ts";
-import { state } from "raptorjs";
+import { state } from "@raptorstack/raptorjs";
 
 installMiniDom();
 const doc = (globalThis as unknown as { document: any }).document;

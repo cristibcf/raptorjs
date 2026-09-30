@@ -12,7 +12,7 @@ import {
   type IRElement,
   type IRChild,
   type SemanticGraph,
-} from "@raptor/engine/compiler";
+} from "@raptorstack/engine/compiler";
 import { optimize, type OptEntry } from "./optimize.ts";
 import {
   emitBrowser,

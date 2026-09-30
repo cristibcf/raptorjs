@@ -1,5 +1,5 @@
 {
-  "name": "@raptor/host",
+  "name": "@raptorstack/host",
   "version": "0.1.0",
   "description": "Raptor host contract plus platform adapters: web, desktop, mobile, CLI, service and device.",
   "author": "cristibcf (https://github.com/cristibcf)",

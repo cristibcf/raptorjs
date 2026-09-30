@@ -18,7 +18,7 @@ import { execFile } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import { promisify } from "node:util";
-import { normalizePath } from "@raptor/runtime";
+import { normalizePath } from "@raptorstack/runtime";
 import { runCli } from "../../src/cli/index.ts";
 
 const run = promisify(execFile);

@@ -5,7 +5,7 @@ the real demos (`examples/`). The README describes the *architecture*; this guid
 shows *how to use each API*.
 
 All the examples run directly on **Node ≥ 22** (native TypeScript via type-stripping).
-The `@raptor/*` packages are **zero-dep**: they import nothing external.
+The `@raptorstack/*` packages are **zero-dep**: they import nothing external.
 
 > Mandatory code convention: **erasable TS syntax** — no runtime `enum`, no
 > `namespace` with values, no parameter properties. Use `const X = { ... } as const`
@@ -18,17 +18,17 @@ The `@raptor/*` packages are **zero-dep**: they import nothing external.
 - [raptorjs — fine-grained reactivity](#raptorjs--fine-grained-reactivity)
 - [raptorjs/dom — DOM runtime + control flow](#raptorjsdom--dom-runtime--control-flow)
 - [raptorjs/ui — reusable components](#raptorjsui--reusable-components)
-- [@raptor/engine/bundle — own TSX bundler (no Vite)](#raptorenginebundle--own-tsx-bundler-no-vite)
-- [@raptor/wire/codec — codec primitives](#raptorwirecodec--codec-primitives)
-- [@raptor/wire — opcodes, Document, protocol](#raptorwire--opcodes-document-protocol)
-- [@raptor/wire/server — RaptorWire server SDK](#raptorwireserver--raptorwire-server-sdk)
-- [@raptor/wire/client — session + reactive replica](#raptorwireclient--session--reactive-replica)
+- [@raptorstack/engine/bundle — own TSX bundler (no Vite)](#raptorenginebundle--own-tsx-bundler-no-vite)
+- [@raptorstack/wire/codec — codec primitives](#raptorwirecodec--codec-primitives)
+- [@raptorstack/wire — opcodes, Document, protocol](#raptorwire--opcodes-document-protocol)
+- [@raptorstack/wire/server — RaptorWire server SDK](#raptorwireserver--raptorwire-server-sdk)
+- [@raptorstack/wire/client — session + reactive replica](#raptorwireclient--session--reactive-replica)
 - [End-to-end: server ↔ RaptorWire ↔ client ↔ DOM](#end-to-end-server--raptorwire--client--dom)
-- [@raptor/engine/compiler — `.raptor` parser, IR, semantic graph](#raptorenginecompiler--raptor-parser-ir-semantic-graph)
-- [@raptor/engine — build, optimize, codegen, HMR, CLI](#raptorengine--build-optimize-codegen-hmr-cli)
-- [@raptor/engine/run — server runtime + SSR + dev server](#raptorenginerun--server-runtime--ssr--dev-server)
-- [@raptor/engine/profile — telemetry + PGO](#raptorengineprofile--telemetry--pgo)
-- [@raptor/test — autonomous behavioral testing](#raptortest--autonomous-behavioral-testing)
+- [@raptorstack/engine/compiler — `.raptor` parser, IR, semantic graph](#raptorenginecompiler--raptor-parser-ir-semantic-graph)
+- [@raptorstack/engine — build, optimize, codegen, HMR, CLI](#raptorengine--build-optimize-codegen-hmr-cli)
+- [@raptorstack/engine/run — server runtime + SSR + dev server](#raptorenginerun--server-runtime--ssr--dev-server)
+- [@raptorstack/engine/profile — telemetry + PGO](#raptorengineprofile--telemetry--pgo)
+- [@raptorstack/test — autonomous behavioral testing](#raptortest--autonomous-behavioral-testing)
 - [The `.raptor` format](#the-raptor-format)
 - [CLI reference](#cli-reference)
 
@@ -58,17 +58,17 @@ Dependency order (bottom → top). You can use each layer independently.
 raptorjs ── reactivity (signals)
    └─ raptorjs/dom ── DOM bindings + JSX
 
-@raptor/wire/codec ── varint / zig-zag / string
-   └─ @raptor/wire ── opcodes, Document, protocol
-        ├─ @raptor/wire/server ── authoritative store + query/mutation
-        └─ @raptor/wire/client ── session + reactive replica
+@raptorstack/wire/codec ── varint / zig-zag / string
+   └─ @raptorstack/wire ── opcodes, Document, protocol
+        ├─ @raptorstack/wire/server ── authoritative store + query/mutation
+        └─ @raptorstack/wire/client ── session + reactive replica
 
-@raptor/engine/compiler ── .raptor → IR → semantic graph
-   └─ @raptor/engine ── optimize + codegen + HMR + CLI `raptor`
-        ├─ @raptor/engine/run ── server runtime + SSR + dev server
-        └─ @raptor/engine/profile ── telemetry + PGO planner
+@raptorstack/engine/compiler ── .raptor → IR → semantic graph
+   └─ @raptorstack/engine ── optimize + codegen + HMR + CLI `raptor`
+        ├─ @raptorstack/engine/run ── server runtime + SSR + dev server
+        └─ @raptorstack/engine/profile ── telemetry + PGO planner
 
-@raptor/test ── autonomous behavioral testing (independent)
+@raptorstack/test ── autonomous behavioral testing (independent)
 ```
 
 ---
@@ -85,7 +85,7 @@ and registers a dependency; `count.set(v)` / `count.update(fn)` write.
 ### Essential API
 
 ```ts
-import { state, derived, effect, batch, untracked } from "raptorjs";
+import { state, derived, effect, batch, untracked } from "@raptorstack/raptorjs";
 
 // --- mutable signal ---
 const count = state(0);
@@ -127,7 +127,7 @@ const point = state({ x: 0 }, { equal: (a, b) => a.x === b.x });
 ### Ownership and cleanup
 
 ```ts
-import { createRoot, onCleanup } from "raptorjs";
+import { createRoot, onCleanup } from "@raptorstack/raptorjs";
 
 createRoot((dispose) => {
   const s = state(0);
@@ -147,22 +147,22 @@ createRoot((dispose) => {
 ## raptorjs/dom — DOM runtime + control flow
 
 The compiler's output: fine-grained DOM bindings + control flow. It also re-exports
-the primitives from `raptorjs` for ergonomics (no need to import them separately).
+the primitives from `@raptorstack/raptorjs` for ergonomics (no need to import them separately).
 
 **Exports:** `render`, `onMount`, `createElement`, `template`, `applyProps`,
 `mountChild`, `block`, `isBlock`, `disposeDetached`; control flow `For`, `Show`;
 JSX runtime `jsx`, `jsxs`, `Fragment`; the hyperscript builder `R`; + everything from
-`raptorjs`.
+`@raptorstack/raptorjs`.
 
 ### Headless mini-DOM for tests
 
-`raptorjs/dom/testing` provides a fake DOM that **counts every mutation** — useful to
+`@raptorstack/raptorjs/dom/testing` provides a fake DOM that **counts every mutation** — useful to
 prove that updates are fine-grained (0 nodes recreated).
 
 ```ts
-import { installMiniDom, stats, resetStats } from "raptorjs/dom/testing";
-import { render, mountChild, applyProps } from "raptorjs/dom";
-import { state, derived } from "raptorjs";
+import { installMiniDom, stats, resetStats } from "@raptorstack/raptorjs/dom/testing";
+import { render, mountChild, applyProps } from "@raptorstack/raptorjs/dom";
+import { state, derived } from "@raptorstack/raptorjs";
 
 const doc = installMiniDom();
 
@@ -201,7 +201,7 @@ stats.textUpdate;     // 1   (exactly the affected binding)
 ### Control flow: `For` (keyed) and `Show`
 
 ```ts
-import { For, Show } from "raptorjs/dom";
+import { For, Show } from "@raptorstack/raptorjs/dom";
 
 // Keyed For: reuses nodes for unchanged items (minimal DOM mutations).
 For({
@@ -219,9 +219,9 @@ Show({
 
 ### JSX (browser variant, `.tsx`)
 
-You write components in JSX; [`@raptor/engine/bundle`](#raptorenginebundle--own-tsx-bundler-no-vite)
+You write components in JSX; [`@raptorstack/engine/bundle`](#raptorenginebundle--own-tsx-bundler-no-vite)
 compiles them (own bundler, no Vite). Configure `tsconfig` with `jsxImportSource:
-"raptorjs/dom"` only for typecheck in the editor. Then:
+"@raptorstack/raptorjs/dom"` only for typecheck in the editor. Then:
 
 ```tsx
 function Counter() {
@@ -243,7 +243,7 @@ code is evaluated at runtime (playground, REPL, snippets from the database) or i
 project without a build step.
 
 ```ts
-import { R, state, render } from "raptorjs/dom";
+import { R, state, render } from "@raptorstack/raptorjs/dom";
 
 function Counter() {
   const count = state(0);
@@ -281,32 +281,32 @@ Ready-made components over the fine-grained runtime: `Table` and `DropdownMenu`.
 Zero runtime dependencies, built with `R` (so no build step) and tested against the
 mini-DOM that counts mutations.
 
-**Import deep** (`raptorjs/ui/button`), not from the barrel — see the table below;
+**Import deep** (`@raptorstack/raptorjs/ui/button`), not from the barrel — see the table below;
 the difference is 13× on the bundle.
 
 **Styles are separate and optional.** The components only set classes (`rui-*`)
-and ARIA attributes; the CSS lives in `raptorjs/ui/styles` and you inject it yourself if you want:
+and ARIA attributes; the CSS lives in `@raptorstack/raptorjs/ui/styles` and you inject it yourself if you want:
 
 ```ts
-import { installStyles } from "raptorjs/ui/styles";
+import { installStyles } from "@raptorstack/raptorjs/ui/styles";
 installStyles();   // or: import RUI_CSS and put it in your own bundle
 ```
 
 ### Imports: barrel vs subpath
 
-`raptorjs/ui` exposes **36 entry points**. Since RaptorBundle does
+`@raptorstack/raptorjs/ui` exposes **36 entry points**. Since RaptorBundle does
 [tree-shaking](#tree-shaking), the barrel is no longer expensive:
 
 ```ts
-import { Button } from "raptorjs/ui";          // 9 modules, 39 KB
-import { Button } from "raptorjs/ui/button";   // 8 modules, 38 KB
+import { Button } from "@raptorstack/raptorjs/ui";          // 9 modules, 39 KB
+import { Button } from "@raptorstack/raptorjs/ui/button";   // 8 modules, 38 KB
 ```
 
 Without tree-shaking (`--no-treeshake`, or another bundler that doesn't do it), the
 same barrel gives **58 modules and 527 KB**.
 
 **Rule of thumb:** import deep anyway. Tree-shaking works at the module level, not
-the declaration level — `raptorjs/ui/chart` brings only scale + Line/Area/Bar,
+the declaration level — `@raptorstack/raptorjs/ui/chart` brings only scale + Line/Area/Bar,
 whereas a symbol taken from the barrel can land in a file that contains ten more
 related components. The difference is small, but real, and the deep import also
 tells the reader where the component comes from.
@@ -315,7 +315,7 @@ tells the reader where the component comes from.
 
 | Subpath | Contains |
 |---|---|
-| `raptorjs/ui` | everything (barrel) |
+| `@raptorstack/raptorjs/ui` | everything (barrel) |
 | `/styles` | `RUI_CSS`, `installStyles` |
 | `/primitives` | the 21 headless primitives |
 | `/button` | `Button`, `IconButton`, `ButtonGroup` |
@@ -344,12 +344,12 @@ tells the reader where the component comes from.
 | `/advanced` | `Kanban`, `Wizard`, `Menubar`, `HoverCard`, `Tour` |
 
 > **Reorganization note:** `idle` and `networkStatus` moved into
-> `raptorjs/ui/primitives` (that's where they belong, they're primitives with no
+> `@raptorstack/raptorjs/ui/primitives` (that's where they belong, they're primitives with no
 > rendering), `FormSection` and `ValidationSummary` into `/form`, and `DateTimePicker`,
 > `MonthPicker` and `YearPicker` into `/date`. The barrel exports them just as
 > before, so nothing breaks.
 
-### Headless primitives (`raptorjs/ui/primitives`)
+### Headless primitives (`@raptorstack/raptorjs/ui/primitives`)
 
 They render nothing and have no CSS. They attach via `ref` or return signals. They
 all remove their global listeners themselves on dispose — no handler outlives the
@@ -375,7 +375,7 @@ component. They are the foundation for the rest of the library: `Dialog` needs
 | `mediaQuery(q, fallback?)` | accessor | media query as a signal |
 
 ```ts
-import { resizable, clickOutside, hotkeys } from "raptorjs/ui";
+import { resizable, clickOutside, hotkeys } from "@raptorstack/raptorjs/ui";
 
 function SplitPane() {
   const left = resizable({ axis: "x", initial: 240, min: 160, max: 520 });
@@ -432,7 +432,7 @@ has a test that counts DOM mutations.
 | `DataGrid` | 50,000 rows, 14 in the DOM; scrolling by one row → at most one new row |
 
 ```ts
-import { Progress, Slider, Sparkline, SplitPane, Combobox, DataGrid } from "raptorjs/ui";
+import { Progress, Slider, Sparkline, SplitPane, Combobox, DataGrid } from "@raptorstack/raptorjs/ui";
 
 const volume = state(40);
 Slider({ value: volume, min: 0, max: 100, step: 5, label: "Volume" });
@@ -474,7 +474,7 @@ accepts explicitly-given rectangles, so the flip/shift logic is tested without
 real layout.
 
 > **SVG.** `Sparkline` and `CircularProgress` required namespace support in
-> `raptorjs/dom`: `document.createElement("svg")` produces an unknown HTML element
+> `@raptorstack/raptorjs/dom`: `document.createElement("svg")` produces an unknown HTML element
 > in the browser, which renders nothing. `createElement` now uses
 > `createElementNS` for SVG-only tags. Ambiguous tags (`a`, `script`,
 > `style`, `title`) are not treated as SVG — for those you give the namespace explicitly
@@ -491,7 +491,7 @@ import {
   Form, FormField, field, formGroup, validators,
   Dialog, ConfirmDialog, Popover, Tooltip,
   createToaster, Toaster, Tabs,
-} from "raptorjs/ui";
+} from "@raptorstack/raptorjs/ui";
 ```
 
 #### Forms — derived validation
@@ -930,8 +930,8 @@ so a dedicated library.
 ### `Table` — sortable table
 
 ```ts
-import { Table, type Column } from "raptorjs/ui";
-import { state, R, render } from "raptorjs/dom";
+import { Table, type Column } from "@raptorstack/raptorjs/ui";
+import { state, R, render } from "@raptorstack/raptorjs/dom";
 
 interface Row { id: number; name: string; qty: number }
 const rows = state<readonly Row[]>([
@@ -968,7 +968,7 @@ render(() => Table({ rows: () => rows(), columns, empty: "Nothing here" }), app)
 ### `DropdownMenu` — menu with keyboard
 
 ```ts
-import { DropdownMenu, menuItem, menuSeparator } from "raptorjs/ui";
+import { DropdownMenu, menuItem, menuSeparator } from "@raptorstack/raptorjs/ui";
 
 DropdownMenu({
   trigger: "Actions",
@@ -996,11 +996,11 @@ DropdownMenu({
 
 ---
 
-## @raptor/engine/bundle — own TSX bundler (no Vite)
+## @raptorstack/engine/bundle — own TSX bundler (no Vite)
 
 The project's own bundler for the browser variant: it transforms JSX to the
-fine-grained `raptorjs/dom` runtime, resolves the graph (including the `exports` map
-to the `.ts` source of the `@raptor/*` packages) and emits a single `bundle.js`.
+fine-grained `@raptorstack/raptorjs/dom` runtime, resolves the graph (including the `exports` map
+to the `.ts` source of the `@raptorstack/*` packages) and emits a single `bundle.js`.
 **Zero runtime dependencies**; it uses the TypeScript compiler only as a build-time
 transform primitive. No Vite / esbuild / Rolldown.
 
@@ -1053,7 +1053,7 @@ Measured on an app that uses a single `Button`, imported from the barrel:
 |---|---|---|
 | `--no-treeshake` | 58 | 527,499 B |
 | default | **9** | **39,029 B** |
-| deep import (`raptorjs/ui/button`) | 8 | 38,009 B |
+| deep import (`@raptorstack/raptorjs/ui/button`) | 8 | 38,009 B |
 
 **13.5× smaller**, and the barrel comes within 3% of the deep import. The tests
 verify not just the size, but also that the trimmed bundle evaluates and gives the
@@ -1079,12 +1079,12 @@ so the line numbers in the source map keep matching the original file.
 type from a file that contains eleven, all eleven stay. That would require a
 dependency graph between declarations; module granularity covers the barrel case,
 which is the one that hurts. That's why the deep import stays recommended:
-`raptorjs/ui/chart` brings only scale + Line/Area/Bar, not the 11 types from `chart-extra`.
+`@raptorstack/raptorjs/ui/chart` brings only scale + Line/Area/Bar, not the 11 types from `chart-extra`.
 
 #### Safety
 
 A re-export is cut **only if the target module is side-effect-free**. The source of
-truth is `"sideEffects": false` from the nearest `package.json` — all `@raptor/*`
+truth is `"sideEffects": false` from the nearest `package.json` — all `@raptorstack/*`
 packages declare it, being pure module graphs.
 
 Without a declaration, we fall back to a conservative heuristic: any top-level
@@ -1117,14 +1117,14 @@ In the application's `package.json`:
     "dev": "raptor-bundle dev src/main.tsx --root . --port 5173",
     "build": "raptor-bundle build src/main.tsx --out dist/bundle.js --html index.html"
   },
-  "devDependencies": { "@raptor/engine/bundle": "workspace:*" }
+  "devDependencies": { "@raptorstack/engine/bundle": "workspace:*" }
 }
 ```
 
 ### Code API
 
 ```ts
-import { bundleApp, startDevServer, transpile } from "@raptor/engine/bundle";
+import { bundleApp, startDevServer, transpile } from "@raptorstack/engine/bundle";
 
 // 1. programmatic build → string with a module registry + lazy require
 const { code, files } = bundleApp("/abs/path/src/main.tsx");
@@ -1140,7 +1140,7 @@ const js = transpile("const x: number = 1; const el = <b>{x}</b>;", "m.tsx");
 **How it works:** per-module transform (JSX + type stripping, via the TS
 compiler) → discovers the emitted `require("spec")` calls → resolves them with the
 Node resolver → rewrites them to internal numeric IDs → bundles into an IIFE with a
-registry and lazy `require`. The `@raptor/*` graph is closed ESM and zero-dep, so
+registry and lazy `require`. The `@raptorstack/*` graph is closed ESM and zero-dep, so
 the bundling is complete and deterministic.
 
 **Limitations (v0.1):** no code-splitting, no minification (for minification,
@@ -1151,7 +1151,7 @@ externals untouched.
 
 ---
 
-## @raptor/wire/codec — codec primitives
+## @raptorstack/wire/codec — codec primitives
 
 The lowest level: compact binary encoding (whitepaper §12). You use it
 directly only if you're writing a transport or your own codec; otherwise `wire-core`
@@ -1160,7 +1160,7 @@ wraps it for you.
 **Exports:** `Writer`, `Reader`.
 
 ```ts
-import { Writer, Reader } from "@raptor/wire/codec";
+import { Writer, Reader } from "@raptorstack/wire/codec";
 
 const w = new Writer();
 w.varint(300);          // LEB128 varint (small numbers = 1 byte)
@@ -1180,7 +1180,7 @@ r.bytes();    // Uint8Array [1,2,3]
 
 ---
 
-## @raptor/wire — opcodes, Document, protocol
+## @raptorstack/wire — opcodes, Document, protocol
 
 The heart of the **state-aware** protocol: semantic delta operations over a
 versioned `Document`, plus the Reactive Address Space (RAS) and a schema-aware codec.
@@ -1197,7 +1197,7 @@ The operations identify the target by `handle` (the object) + `field` (the field
 Each `apply` returns a `Change` and increments `version`.
 
 ```ts
-import { Document } from "@raptor/wire";
+import { Document } from "@raptorstack/wire";
 
 const doc = new Document();
 doc.apply({ kind: "set",    handle: "job:1", field: "progress", value: 10 });
@@ -1221,7 +1221,7 @@ the wire than re-serializing the whole object as JSON, because you send the
 Field names are sent once; on the hot path a compact session-scoped ID travels.
 
 ```ts
-import { AddressBook } from "@raptor/wire";
+import { AddressBook } from "@raptorstack/wire";
 
 const book = new AddressBook();               // compact IDs from 0x1000
 const { address, isNew } = book.assign("job:1.progress"); // allocates / reuses ID
@@ -1238,7 +1238,7 @@ Field types: `bool`, `uint`, `int`, `float`, `string`, `percentage` (→ 1 byte)
 `money` (int scaled by `scale`), `enum` (index from `values`).
 
 ```ts
-import { SchemaCodec } from "@raptor/wire";
+import { SchemaCodec } from "@raptorstack/wire";
 
 const codec = new SchemaCodec({
   progress: { type: "percentage" },
@@ -1249,7 +1249,7 @@ const codec = new SchemaCodec({
 
 ---
 
-## @raptor/wire/server — RaptorWire server SDK
+## @raptorstack/wire/server — RaptorWire server SDK
 
 **Authoritative** reactive store + `query`/`mutation`/subscription. The server holds
 the truth; clients receive snapshot + delta.
@@ -1261,7 +1261,7 @@ the truth; clients receive snapshot + delta.
 ### Defining a server
 
 ```ts
-import { raptorServer, type RaptorServer, type ReactiveStore } from "@raptor/wire/server";
+import { raptorServer, type RaptorServer, type ReactiveStore } from "@raptorstack/wire/server";
 
 export function buildDashboardApp(): RaptorServer {
   const app = raptorServer({ build: "dashboard-0.1.0" });
@@ -1320,17 +1320,17 @@ app.serve(link.server);   // binds the server to a transport (e.g. loopback)
 
 ---
 
-## @raptor/wire/client — session + reactive replica
+## @raptorstack/wire/client — session + reactive replica
 
 The client: handshake, subscription, **reactive replica** (each handle is a
-`raptorjs` signal), reconnect with delta resync. It includes the loopback transport
+`@raptorstack/raptorjs` signal), reconnect with delta resync. It includes the loopback transport
 for in-process running (tests, demos).
 
 **Exports:** `RaptorClient` + `RaptorClientOptions`; transport `createLoopback`,
 `flushLoopback`, + the types `Transport`, `Loopback`, `LoopbackStats`.
 
 ```ts
-import { createLoopback, flushLoopback, RaptorClient } from "@raptor/wire/client";
+import { createLoopback, flushLoopback, RaptorClient } from "@raptorstack/wire/client";
 
 // 1. Loopback transport (client ↔ server in-process)
 const link = createLoopback();
@@ -1375,8 +1375,8 @@ await flushLoopback();
 The complete loop from `examples/realtime-dashboard`, headless on Node:
 
 ```ts
-import { installMiniDom, resetStats, stats } from "raptorjs/dom/testing";
-import { createLoopback, flushLoopback, RaptorClient } from "@raptor/wire/client";
+import { installMiniDom, resetStats, stats } from "@raptorstack/raptorjs/dom/testing";
+import { createLoopback, flushLoopback, RaptorClient } from "@raptorstack/wire/client";
 import { buildDashboardApp } from "./app.ts";
 
 const doc = installMiniDom();
@@ -1412,7 +1412,7 @@ link.stats.serverToClientBytes;   // RaptorWire delta (far below a JSON full-res
 
 ---
 
-## @raptor/engine/compiler — `.raptor` parser, IR, semantic graph
+## @raptorstack/engine/compiler — `.raptor` parser, IR, semantic graph
 
 The **stable** semantic core, independent of the bundler. It parses `.raptor` into
 Raptor IR (with stable IDs), builds the Semantic Application Graph and computes the
@@ -1426,7 +1426,7 @@ diff for HMR.
 `ComponentPatch`, `WireChange`).
 
 ```ts
-import { parseModule, buildGraph, diffModules, serializeIR } from "@raptor/engine/compiler";
+import { parseModule, buildGraph, diffModules, serializeIR } from "@raptorstack/engine/compiler";
 
 // 1. .raptor source → IR
 const ir = parseModule(source, "App.raptor");
@@ -1444,12 +1444,12 @@ diff.componentPatches;   // what can be patched state-preserving
 diff.wireChanges;        // schema/RAS changes
 ```
 
-> This package is the "brain": `@raptor/engine`, `@raptor/engine/run` and `@raptor/engine/profile`
+> This package is the "brain": `@raptorstack/engine`, `@raptorstack/engine/run` and `@raptorstack/engine/profile`
 > consume the IR and the graph from here. It's deliberately separate from any bundler.
 
 ---
 
-## @raptor/engine — build, optimize, codegen, HMR, CLI
+## @raptorstack/engine — build, optimize, codegen, HMR, CLI
 
 The RaptorEngine orchestration: semantic optimizer (Dead Signal Elimination, Dependency
 Fusion), multi-target codegen (browser/server/wire) **from a single graph**,
@@ -1468,7 +1468,7 @@ CLI `runCli`/`runCliAsync`.
 import {
   buildModule, inspectGraph, formatOptimizationTrace,
   analyzeReport, DevEngine, formatUpdateLog,
-} from "@raptor/engine";
+} from "@raptorstack/engine";
 import { readFileSync } from "node:fs";
 
 const source = readFileSync("App.raptor", "utf8");
@@ -1511,7 +1511,7 @@ console.log(formatUpdateLog(dev.update("App.raptor", structural))); // "remount:
 ### Async build with optional low-level engine (Rolldown/Oxc)
 
 ```ts
-import { buildModuleAsync, detectToolchain } from "@raptor/engine";
+import { buildModuleAsync, detectToolchain } from "@raptorstack/engine";
 
 console.log(detectToolchain());   // { rolldown: false, oxc: false } if they aren't installed
 // buildModuleAsync detects Rolldown/Oxc dynamically; without them → naive zero-dep fallback.
@@ -1521,7 +1521,7 @@ const out = await buildModuleAsync(source, "App.raptor", { minify: true });
 ### Reproducible caching
 
 ```ts
-import { computeCacheKey, SemanticCache } from "@raptor/engine";
+import { computeCacheKey, SemanticCache } from "@raptorstack/engine";
 
 // the key = source + compiler version + profile + target + schema compat
 const key = computeCacheKey({ source, target: "browser", profile: "production" });
@@ -1531,7 +1531,7 @@ if (!cache.has(key)) cache.set(key, result);
 
 ---
 
-## @raptor/engine/run — server runtime + SSR + dev server
+## @raptorstack/engine/run — server runtime + SSR + dev server
 
 Connects `serverSignal` → reactive store → RaptorWire → client **from the same graph**,
 plus routing, SSR/resume, sessions, observability, and a live dev server (fs.watch
@@ -1545,9 +1545,9 @@ plus routing, SSR/resume, sessions, observability, and a live dev server (fs.wat
 ### Runtime from build + SSR + reactive server signal
 
 ```ts
-import { buildModule } from "@raptor/engine";
-import { RaptorRuntime, renderDocument } from "@raptor/engine/run";
-import { RaptorClient } from "@raptor/wire/client";
+import { buildModule } from "@raptorstack/engine";
+import { RaptorRuntime, renderDocument } from "@raptorstack/engine/run";
+import { RaptorClient } from "@raptorstack/wire/client";
 
 const result = buildModule(source, "App.raptor");
 const runtime = RaptorRuntime.fromBuild(result, { initial: { "BTC.price": 60000 } });
@@ -1573,7 +1573,7 @@ runtime.shutdown();
 ### Real Node HTTP server
 
 ```ts
-import { createNodeServer, listen, closeServer } from "@raptor/engine/run";
+import { createNodeServer, listen, closeServer } from "@raptorstack/engine/run";
 
 const server = createNodeServer(runtime);
 const { port } = await listen(server, 0);
@@ -1584,7 +1584,7 @@ await closeServer(server);
 ### Live dev server (HMR via SSE)
 
 ```ts
-import { RaptorDevServer } from "@raptor/engine/run";
+import { RaptorDevServer } from "@raptorstack/engine/run";
 
 const dev = new RaptorDevServer({ entry: "App.raptor" });
 // fs.watch → incremental recompile → diff → push HMR on /  (SSE)
@@ -1595,7 +1595,7 @@ CLI equivalent: `pnpm raptor:dev examples/raptorengine-app/src/App.raptor`.
 
 ---
 
-## @raptor/engine/profile — telemetry + PGO
+## @raptorstack/engine/profile — telemetry + PGO
 
 Collects runtime telemetry (signal frequency, derived fan-out, route co-usage,
 wire payload, DOM bursts) and emits a **strategy-hints plan** (chunk folding,
@@ -1612,9 +1612,9 @@ preload, batch, encoding) consumed by `buildModule({ planHints })`.
 ### The complete PGO loop
 
 ```ts
-import { buildModule } from "@raptor/engine";
-import { RaptorRuntime } from "@raptor/engine/run";
-import { Profiler, runScenario, planFromProfile, serializeProfile } from "@raptor/engine/profile";
+import { buildModule } from "@raptorstack/engine";
+import { RaptorRuntime } from "@raptorstack/engine/run";
+import { Profiler, runScenario, planFromProfile, serializeProfile } from "@raptorstack/engine/profile";
 
 const result = buildModule(source, "App.raptor");
 const runtime = RaptorRuntime.fromBuild(result, { initial: { "BTC.price": 60000 } });
@@ -1649,7 +1649,7 @@ guided.wire.addresses;      // the addresses stay — correctness doesn't depend
 
 ---
 
-## @raptor/test — autonomous behavioral testing
+## @raptorstack/test — autonomous behavioral testing
 
 It discovers the application's behavior on its own, synthesizes a stateful
 digital-twin backend and explores the state space:
@@ -1666,7 +1666,7 @@ digital-twin backend and explores the state space:
 ### The complete autonomous cycle
 
 ```ts
-import { RaptorTest, serializeCapsule } from "@raptor/test";
+import { RaptorTest, serializeCapsule } from "@raptorstack/test";
 import { buildCartApp } from "./app.ts";
 
 const app = buildCartApp();       // provides harness + twin + invariants
@@ -1717,7 +1717,7 @@ event scheduler): the same capsule → the exact same execution.
 ### Reusable components
 
 ```ts
-import { VirtualClock, RaptorTwin, VirtualDB, Coverage, evaluate, BUILTIN_INVARIANTS } from "@raptor/test";
+import { VirtualClock, RaptorTwin, VirtualDB, Coverage, evaluate, BUILTIN_INVARIANTS } from "@raptorstack/test";
 
 const clock = new VirtualClock();          // deterministic discrete scheduler
 const db = new VirtualDB();                 // in-memory backend state
@@ -1766,7 +1766,7 @@ Compile it with `buildModule(source, "App.raptor")` or the `raptor build` CLI.
 
 Three CLIs, exposed through npm scripts and as the binaries `raptor` / `raptor-run` / `raptor-profile`.
 
-### `raptor` (build/inspect — `@raptor/engine`)
+### `raptor` (build/inspect — `@raptorstack/engine`)
 
 ```bash
 pnpm raptor build   examples/raptorengine-app/src/App.raptor --report
@@ -1775,7 +1775,7 @@ pnpm raptor analyze examples/raptorengine-app/src/App.raptor
 pnpm raptor toolchain          # detects installed Rolldown/Oxc
 ```
 
-### `raptor:run` (server runtime — `@raptor/engine/run`)
+### `raptor:run` (server runtime — `@raptorstack/engine/run`)
 
 ```bash
 pnpm raptor:run info examples/raptorengine-app/src/App.raptor
@@ -1783,7 +1783,7 @@ pnpm raptor:run ssr  examples/raptorengine-app/src/App.raptor    # emits SSR HTM
 pnpm raptor:dev      examples/raptorengine-app/src/App.raptor    # live dev server (HMR/SSE)
 ```
 
-### `raptor:profile` (PGO — `@raptor/engine/profile`)
+### `raptor:profile` (PGO — `@raptorstack/engine/profile`)
 
 ```bash
 pnpm raptor:profile examples/raptorengine-app/src/App.raptor

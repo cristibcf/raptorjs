@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { installMiniDom, resetStats, stats, type MiniElement } from "raptorjs/dom/testing";
-import { render, R } from "raptorjs/dom";
-import { state, createRoot } from "raptorjs";
+import { installMiniDom, resetStats, stats, type MiniElement } from "@raptorstack/raptorjs/dom/testing";
+import { render, R } from "@raptorstack/raptorjs/dom";
+import { state, createRoot } from "@raptorstack/raptorjs";
 import {
   addDays, addMonths, daysInMonth, parseIso, isoOf, monthGrid, compareDates, sameDay,
   calendar, datePicker, DateRangePicker, TimePicker, formatTime, type CalendarDate,

@@ -3,8 +3,8 @@
  * `section()` (no page re-render); within a section, nested routes update the
  * content reactively inside the view. Compiled with RaptorBundle.
  */
-import { render } from "raptorjs/dom";
-import { installStyles } from "raptorjs/ui/styles";
+import { render } from "@raptorstack/raptorjs/dom";
+import { installStyles } from "@raptorstack/raptorjs/ui/styles";
 import { section, navigate } from "./lib/route.ts";
 import { Nav } from "./nav.tsx";
 import { HomeView } from "./views/home.tsx";
@@ -61,7 +61,7 @@ function Footer() {
             <p>A compiler-centric stack for reactive and realtime apps. MIT licensed, zero dependencies.</p>
           </div>
           <FootCol title="Learn" links={[["Learning path", "learn/quick-start"], ["State & reactivity", "learn/state-and-reactivity"], ["Realtime", "learn/realtime-with-raptorwire"], ["Playground", "playground"]]} />
-          <FootCol title="Docs" links={[["raptorjs", "reference/core"], ["raptorjs/dom", "reference/dom"], ["@raptor/wire/client", "reference/wire-client"], ["@raptor/engine/bundle", "reference/bundle"]]} />
+          <FootCol title="Docs" links={[["@raptorstack/raptorjs", "reference/core"], ["@raptorstack/raptorjs/dom", "reference/dom"], ["@raptorstack/wire/client", "reference/wire-client"], ["@raptorstack/engine/bundle", "reference/bundle"]]} />
           <FootCol title="Components" links={[["All components", "components"], ["Buttons", "components/button"], ["Table", "components/table"], ["Charts", "components/line-chart"], ["Headless behaviours", "components/virtualizer"]]} />
           <FootCol title="Project" links={[["Overview", "home"], ["Tutorial", "tutorial"], ["Showcase", "showcase"], ["Changelog", "changelog"]]} />
         </div>

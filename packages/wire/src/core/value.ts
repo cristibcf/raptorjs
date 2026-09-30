@@ -3,7 +3,7 @@
  * whitepaper 8.3/31.4 notes that a schema-specialized codec is a later
  * optimization. Integers use zig-zag, everything else uses float64.
  */
-import { Writer, Reader } from "@raptor/wire/codec";
+import { Writer, Reader } from "@raptorstack/wire/codec";
 import { setOwn } from "./safe.ts";
 
 export type WireValue =

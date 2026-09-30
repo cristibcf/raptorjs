@@ -1,5 +1,5 @@
 /**
- * @raptor/wire-codec - codec primitives for RaptorWire.
+ * @raptorstack/wire-codec - codec primitives for RaptorWire.
  *
  * Encodings (whitepaper section 12):
  *  - unsigned int  -> varint (LEB128)

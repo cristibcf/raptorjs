@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { installMiniDom, resetStats, stats, type MiniElement } from "../../src/dom/testing/mini-dom.ts";
 import { render } from "../../src/dom/runtime.ts";
 import { For, Show } from "../../src/dom/control.ts";
-import { state } from "raptorjs";
+import { state } from "@raptorstack/raptorjs";
 
 installMiniDom();
 const doc = (globalThis as unknown as { document: any }).document;

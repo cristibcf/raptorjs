@@ -6,7 +6,7 @@
  * that preserves compatible state. A no-op edit yields a cache hit (no work).
  * Every update explains itself (12: "a fast but opaque build is hard to debug").
  */
-import { parseModule, diffModules, type IRModule, type GraphDiff } from "@raptor/engine/compiler";
+import { parseModule, diffModules, type IRModule, type GraphDiff } from "@raptorstack/engine/compiler";
 import { computeCacheKey } from "./cache.ts";
 
 export interface DevUpdate {

@@ -3,7 +3,7 @@
  * "messages" collection. Operations: APPEND on send, PATCH on status (sent ->
  * delivered -> read), REMOVE on delete (whitepaper 26.2, Appendix A.3).
  */
-import { raptorServer, type RaptorServer } from "@raptor/wire/server";
+import { raptorServer, type RaptorServer } from "@raptorstack/wire/server";
 
 export const CHAT_QUERY = "chat";
 export const CHAT_PREFIXES = ["messages", "message:"];

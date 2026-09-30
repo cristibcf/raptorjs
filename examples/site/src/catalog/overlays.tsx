@@ -1,14 +1,14 @@
 /** Overlays. */
-import { state, R } from "raptorjs/dom";
-import { HoverCard, Tour } from "raptorjs/ui/advanced";
-import { Button } from "raptorjs/ui/button";
-import { SegmentedControl } from "raptorjs/ui/controls";
-import { Lightbox } from "raptorjs/ui/media";
-import { DropdownMenu, menuItem, menuSeparator } from "raptorjs/ui/menu";
-import { ConfirmDialog, Dialog, Popover, Tooltip } from "raptorjs/ui/overlay";
-import { Backdrop, ContextMenu, Drawer, Notification } from "raptorjs/ui/overlay-extra";
-import { type Placement } from "raptorjs/ui/primitives";
-import { Toaster, createToaster } from "raptorjs/ui/toast";
+import { state, R } from "@raptorstack/raptorjs/dom";
+import { HoverCard, Tour } from "@raptorstack/raptorjs/ui/advanced";
+import { Button } from "@raptorstack/raptorjs/ui/button";
+import { SegmentedControl } from "@raptorstack/raptorjs/ui/controls";
+import { Lightbox } from "@raptorstack/raptorjs/ui/media";
+import { DropdownMenu, menuItem, menuSeparator } from "@raptorstack/raptorjs/ui/menu";
+import { ConfirmDialog, Dialog, Popover, Tooltip } from "@raptorstack/raptorjs/ui/overlay";
+import { Backdrop, ContextMenu, Drawer, Notification } from "@raptorstack/raptorjs/ui/overlay-extra";
+import { type Placement } from "@raptorstack/raptorjs/ui/primitives";
+import { Toaster, createToaster } from "@raptorstack/raptorjs/ui/toast";
 import { SAMPLE_IMAGES } from "./sample.ts";
 import type { CatalogGroup } from "./types.ts";
 

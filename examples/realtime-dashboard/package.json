@@ -5,11 +5,11 @@
   "type": "module",
   "description": "End-to-end MVP: server signals + RaptorWire delta ops + reactive client + fine-grained DOM.",
   "dependencies": {
-    "raptorjs": "workspace:*",
-    "@raptor/wire": "workspace:*"
+    "@raptorstack/raptorjs": "workspace:*",
+    "@raptorstack/wire": "workspace:*"
   },
   "devDependencies": {
-    "@raptor/engine": "workspace:*"
+    "@raptorstack/engine": "workspace:*"
   },
   "scripts": {
     "demo": "node src/demo.ts",

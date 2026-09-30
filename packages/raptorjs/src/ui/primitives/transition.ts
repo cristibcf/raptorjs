@@ -8,8 +8,8 @@
  * If `duration` is 0 it behaves exactly like `Show` (no timers, so safe in tests
  * and on the server).
  */
-import { state, effect, onCleanup, type Accessor } from "raptorjs";
-import { Show, type Block, type Child } from "raptorjs/dom";
+import { state, effect, onCleanup, type Accessor } from "@raptorstack/raptorjs";
+import { Show, type Block, type Child } from "@raptorstack/raptorjs/dom";
 import { isolate } from "./isolate.ts";
 
 export interface TransitionProps {

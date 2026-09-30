@@ -10,8 +10,8 @@
  * is `aria-hidden`, because a screen reader that reads 200 coordinates does not
  * help anyone.
  */
-import { derived, type Accessor } from "raptorjs";
-import { R, For, Show, type Child } from "raptorjs/dom";
+import { derived, type Accessor } from "@raptorstack/raptorjs";
+import { R, For, Show, type Child } from "@raptorstack/raptorjs/dom";
 import { CHART_COLORS, scaleLinear, extent, niceTicks, type Series } from "./chart.ts";
 import { type El } from "./primitives/env.ts";
 

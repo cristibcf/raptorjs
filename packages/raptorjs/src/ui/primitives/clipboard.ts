@@ -5,7 +5,7 @@
  * `R.button({ "on:click": () => copy(text) }, () => copied() ? "copied" : "copy")`.
  * The reset timer is cancelled on dispose, so it doesn't write into a dead signal.
  */
-import { state, onCleanup, type Accessor } from "raptorjs";
+import { state, onCleanup, type Accessor } from "@raptorstack/raptorjs";
 
 export interface Clipboard {
   copy: (text: string) => Promise<boolean>;

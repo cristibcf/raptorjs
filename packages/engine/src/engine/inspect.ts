@@ -5,7 +5,7 @@
  * questions: what depends on a signal, why editing one node recompiles others
  * (invalidation trace), what was eliminated/fused (optimization trace).
  */
-import { GraphNodeKind, type SemanticGraph } from "@raptor/engine/compiler";
+import { GraphNodeKind, type SemanticGraph } from "@raptorstack/engine/compiler";
 import type { OptEntry } from "./optimize.ts";
 import type { BuildResult } from "./build.ts";
 

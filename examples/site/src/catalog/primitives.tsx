@@ -1,6 +1,6 @@
 /** Headless behaviours. */
-import { state, derived, For, R } from "raptorjs/dom";
-import { Button } from "raptorjs/ui/button";
+import { state, derived, For, R } from "@raptorstack/raptorjs/dom";
+import { Button } from "@raptorstack/raptorjs/ui/button";
 import {
   Portal,
   Transition,
@@ -23,7 +23,7 @@ import {
   sortable,
   undoRedo,
   virtualizer,
-} from "raptorjs/ui/primitives";
+} from "@raptorstack/raptorjs/ui/primitives";
 import type { CatalogGroup } from "./types.ts";
 
 export const PRIMITIVES: CatalogGroup = {

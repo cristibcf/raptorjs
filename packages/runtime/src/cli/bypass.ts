@@ -27,8 +27,8 @@
  * that everything is fine; it is the absence of proof, and in strict mode the
  * absence of proof is not enough.
  */
-import { buildStaticGraph } from "@raptor/runtime";
-import type { PolicyMode } from "@raptor/runtime";
+import { buildStaticGraph } from "@raptorstack/runtime";
+import type { PolicyMode } from "@raptorstack/runtime";
 
 export interface BypassFinding {
   /** The imported specifier, e.g. `node:fs`. */

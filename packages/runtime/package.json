@@ -1,5 +1,5 @@
 {
-  "name": "@raptor/runtime",
+  "name": "@raptorstack/runtime",
   "version": "0.1.0",
   "description": "RaptorRuntime: host contracts, capability broker and standalone launcher CLI.",
   "author": "cristibcf (https://github.com/cristibcf)",

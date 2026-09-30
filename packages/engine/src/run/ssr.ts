@@ -7,7 +7,7 @@
  * to in order to continue reactively, without re-fetch (14, 15).
  */
 import { evalExpr, type Env } from "./eval.ts";
-import type { IRComponent, IRElement, IRChild } from "@raptor/engine/compiler";
+import type { IRComponent, IRElement, IRChild } from "@raptorstack/engine/compiler";
 
 export interface ResumeSignal {
   name: string;

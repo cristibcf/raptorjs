@@ -9,10 +9,10 @@
  * declares them: a missing `capturePhoto` or `readLocation` means an installation
  * on which those features simply do not exist.
  */
-import { createBridge, createMemoryChannel, requireHostManifest } from "@raptor/host";
-import type { HostBridge, HostManifest } from "@raptor/host";
-import { createMobileHost } from "@raptor/host/mobile";
-import type { MobileHost } from "@raptor/host/mobile";
+import { createBridge, createMemoryChannel, requireHostManifest } from "@raptorstack/host";
+import type { HostBridge, HostManifest } from "@raptorstack/host";
+import { createMobileHost } from "@raptorstack/host/mobile";
+import type { MobileHost } from "@raptorstack/host/mobile";
 import { createShell } from "./app.ts";
 import type { Shell } from "./app.ts";
 

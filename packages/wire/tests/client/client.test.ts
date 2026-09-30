@@ -1,5 +1,5 @@
 /**
- * The first tests for `@raptor/wire-client`.
+ * The first tests for `@raptorstack/wire-client`.
  *
  * The package went without a single test until the 2026-09-24 audit (S10),
  * even though it is exactly the component that takes bytes from a peer and
@@ -8,13 +8,13 @@
  * nothing to protect it from a refactor.
  *
  * The tests use a fake server written directly on top of `Transport`, not
- * `@raptor/server`: here we care about what the CLIENT does when it receives
+ * `@raptorstack/wire/server`: here we care about what the CLIENT does when it receives
  * something, including something an honest server would never send.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { effect, createRoot } from "raptorjs";
-import { Document, encodeMessage, encodeOpsFrame, AddressBook, type Operation } from "@raptor/wire";
+import { effect, createRoot } from "@raptorstack/raptorjs";
+import { Document, encodeMessage, encodeOpsFrame, AddressBook, type Operation } from "@raptorstack/wire";
 import { RaptorClient, createLoopback, flushLoopback, type Transport } from "../../src/client/index.ts";
 
 /**

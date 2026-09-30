@@ -4,7 +4,7 @@
  * `Change` that says exactly what changed, so the client can notify only the
  * affected signals (whitepaper 13, 13.1).
  */
-import { Writer, Reader } from "@raptor/wire/codec";
+import { Writer, Reader } from "@raptorstack/wire/codec";
 import { type WireValue, writeValue, readValue } from "./value.ts";
 import { type Operation, type OpsBatch } from "./operation.ts";
 import { setOwn } from "./safe.ts";

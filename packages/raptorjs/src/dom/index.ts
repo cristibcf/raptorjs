@@ -1,6 +1,6 @@
 /**
- * @raptor/dom - fine-grained DOM runtime + control flow.
- * Also re-exports the reactive primitives from @raptor/core for ergonomics.
+ * @raptorstack/raptorjs/dom - fine-grained DOM runtime + control flow.
+ * Also re-exports the reactive primitives from @raptorstack/raptorjs for ergonomics.
  */
 export {
   render,
@@ -38,4 +38,4 @@ export {
   type Derived,
   type Accessor,
   type Dispose,
-} from "raptorjs";
+} from "@raptorstack/raptorjs";

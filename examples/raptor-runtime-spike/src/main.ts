@@ -14,7 +14,7 @@ import { readText } from "raptor:files";
 import observe from "raptor:observe";
 import { requestExit } from "raptor:process";
 import tasks from "raptor:tasks";
-import type { HostContext } from "@raptor/runtime";
+import type { HostContext } from "@raptorstack/runtime";
 
 /** Real types, erased at load time - this is the "TypeScript module" check. */
 interface SpikeEvidence {

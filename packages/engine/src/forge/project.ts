@@ -1,8 +1,8 @@
 import { mkdirSync, writeFileSync, existsSync } from "node:fs";
 import { resolve, join, basename } from "node:path";
-import { MANIFEST_FILENAME, RUNTIME_VERSION, stableStringify } from "@raptor/runtime";
-import { HOST_MANIFEST_FILENAME, requireHostManifest } from "@raptor/host";
-import type { HostManifest } from "@raptor/host";
+import { MANIFEST_FILENAME, RUNTIME_VERSION, stableStringify } from "@raptorstack/runtime";
+import { HOST_MANIFEST_FILENAME, requireHostManifest } from "@raptorstack/host";
+import type { HostManifest } from "@raptorstack/host";
 import { planFor, renderPackaging, renderWorkflow } from "./packaging.ts";
 import { type AppTarget, TARGETS } from "./targets.ts";
 
@@ -20,7 +20,7 @@ export interface CreatedProject {
 }
 
 function appSource(name: string, target: AppTarget): string {
-  return `import { render, state } from "raptorjs/dom";\n\nconst count = state(0);\n\nfunction App() {\n  return <main>\n    <h1>${name}</h1>\n    <p>Raptor ${target} application</p>\n    <button onClick={() => count.update((value) => value + 1)}>Count: {count}</button>\n  </main>;\n}\n\nrender(App, document.getElementById("app")!);\n`;
+  return `import { render, state } from "@raptorstack/raptorjs/dom";\n\nconst count = state(0);\n\nfunction App() {\n  return <main>\n    <h1>${name}</h1>\n    <p>Raptor ${target} application</p>\n    <button onClick={() => count.update((value) => value + 1)}>Count: {count}</button>\n  </main>;\n}\n\nrender(App, document.getElementById("app")!);\n`;
 }
 
 function html(title: string): string {
@@ -70,7 +70,7 @@ function hostManifest(options: { name: string; packageName: string; target: AppT
 
 function hostReadme(target: AppTarget, manifest: HostManifest): string {
   const native = target === "desktop" ? "Windows, macOS and Linux" : "Android and iOS";
-  const adapter = target === "desktop" ? "@raptor/host/desktop" : "@raptor/host/mobile";
+  const adapter = target === "desktop" ? "@raptorstack/host/desktop" : "@raptorstack/host/mobile";
   return [
     `# ${TARGETS[target].displayName} host`,
     "",
@@ -124,7 +124,7 @@ export function createProject(options: CreateProjectOptions): CreatedProject {
           dev: "raptor-bundle dev src/main.tsx",
           build: `raptor-bundle build src/main.tsx --out ${definition.outputDirectory}/app.js --html index.html`,
         },
-        dependencies: { "raptorjs": "workspace:*", "raptorjs/dom": "workspace:*" },
+        dependencies: { "@raptorstack/raptorjs": "workspace:*", "@raptorstack/raptorjs/dom": "workspace:*" },
       },
       null,
       2,

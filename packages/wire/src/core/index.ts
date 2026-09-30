@@ -1,4 +1,4 @@
-/** @raptor/wire-core - opcodes, valori, operatii, document versionat, protocol. */
+/** @raptorstack/wire-core - opcodes, valori, operatii, document versionat, protocol. */
 export {
   Opcode,
   FrameType,

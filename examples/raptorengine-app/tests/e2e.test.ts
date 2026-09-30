@@ -1,18 +1,18 @@
 /**
  * End-to-end test: .raptor source -> IR -> optimize -> browser codegen -> it
- * COMPILES and RUNS real code on the @raptor/core + @raptor/dom runtime.
+ * COMPILES and RUNS real code on the @raptorstack/raptorjs + @raptorstack/raptorjs/dom runtime.
  *
  * This validates the whitepaper's thesis (35): outputs generated from the same
  * semantic graph are correct and fine-grained. The generated code is written to
- * disk in the example (where @raptor/* resolves) and imported dynamically.
+ * disk in the example (where @raptorstack/* resolves) and imported dynamically.
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
-import { buildModule } from "@raptor/engine";
-import { installMiniDom, resetStats, stats, type MiniElement } from "raptorjs/dom/testing";
+import { buildModule } from "@raptorstack/engine";
+import { installMiniDom, resetStats, stats, type MiniElement } from "@raptorstack/raptorjs/dom/testing";
 
 installMiniDom();
 const doc = (globalThis as unknown as { document: any }).document;
@@ -34,7 +34,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const source = readFileSync(join(here, "..", "src", "App.raptor"), "utf8");
 const result = buildModule(source, "App.raptor");
 
-// Write the generated code where node_modules/@raptor/* resolves (the example root).
+// Write the generated code where node_modules/@raptorstack/* resolves (the example root).
 const genDir = join(here, "..", ".generated");
 mkdirSync(genDir, { recursive: true });
 const genFile = join(genDir, "App.browser.ts");
@@ -49,7 +49,7 @@ test("build: DSE eliminates 'unused', fusion collapses 'label'", () => {
 
 test("e2e: the generated code runs and produces correct DOM + fine-grained reactivity", async () => {
   const mod = (await import(pathToFileURL(genFile).href)) as { App: () => MiniElement };
-  const { render } = await import("raptorjs/dom");
+  const { render } = await import("@raptorstack/raptorjs/dom");
 
   const root = doc.createElement("div") as MiniElement;
   render(mod.App, root);

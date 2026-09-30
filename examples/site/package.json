@@ -5,11 +5,11 @@
   "type": "module",
   "description": "Presentation + documentation site built WITH the Raptor stack (RaptorJS + RaptorWire), compiled with RaptorBundle.",
   "dependencies": {
-    "raptorjs": "workspace:*",
-    "@raptor/wire": "workspace:*"
+    "@raptorstack/raptorjs": "workspace:*",
+    "@raptorstack/wire": "workspace:*"
   },
   "devDependencies": {
-    "@raptor/engine": "workspace:*"
+    "@raptorstack/engine": "workspace:*"
   },
   "scripts": {
     "dev": "raptor-bundle dev src/main.tsx --root . --port 5180",

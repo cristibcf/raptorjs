@@ -15,7 +15,7 @@ import {
   analyzeReport,
   DevEngine,
   formatUpdateLog,
-} from "@raptor/engine";
+} from "@raptorstack/engine";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appPath = join(here, "App.raptor");

@@ -1,10 +1,10 @@
 /** Layout and structure. */
-import { state } from "raptorjs/dom";
-import { Button } from "raptorjs/ui/button";
-import { AspectRatio, Box, Center, Container, Divider, Flex, Grid, Group, ScrollArea, SimpleGrid, Spacer, Stack } from "raptorjs/ui/layout";
-import { Affix, Masonry, SafeArea } from "raptorjs/ui/layout-extra";
-import { AppShell, Sidebar } from "raptorjs/ui/navigation";
-import { SplitPane } from "raptorjs/ui/split-pane";
+import { state } from "@raptorstack/raptorjs/dom";
+import { Button } from "@raptorstack/raptorjs/ui/button";
+import { AspectRatio, Box, Center, Container, Divider, Flex, Grid, Group, ScrollArea, SimpleGrid, Spacer, Stack } from "@raptorstack/raptorjs/ui/layout";
+import { Affix, Masonry, SafeArea } from "@raptorstack/raptorjs/ui/layout-extra";
+import { AppShell, Sidebar } from "@raptorstack/raptorjs/ui/navigation";
+import { SplitPane } from "@raptorstack/raptorjs/ui/split-pane";
 import type { CatalogGroup } from "./types.ts";
 
 /** A visible block, so the layout itself is what you see. */

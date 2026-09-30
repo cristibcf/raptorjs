@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { installMiniDom, resetStats, stats, type MiniElement } from "raptorjs/dom/testing";
-import { render, R } from "raptorjs/dom";
-import { state, createRoot } from "raptorjs";
+import { installMiniDom, resetStats, stats, type MiniElement } from "@raptorstack/raptorjs/dom/testing";
+import { render, R } from "@raptorstack/raptorjs/dom";
+import { state, createRoot } from "@raptorstack/raptorjs";
 import { Masonry, Affix, SafeArea, SkipNav, BottomNavigation, Dock, SplitButton, FloatingActionButton } from "../../src/ui/layout-extra.ts";
 import {
   applyMask, unmask, formatCurrency, parseCurrency, groupDigits, activeMention,

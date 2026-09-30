@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { RaptorTest, defaultSchedule } from "@raptor/test";
+import { RaptorTest, defaultSchedule } from "@raptorstack/test";
 import { buildCartApp } from "../src/app.ts";
 
 function newRT() {

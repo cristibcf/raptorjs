@@ -1,5 +1,5 @@
 /**
- * @raptor/web-host - the browser as a Raptor host.
+ * @raptorstack/host/web - the browser as a Raptor host.
  *
  * Roadmap §4 names the browser the host of the `web` target, and §6 describes
  * only the native hosts. This package closes the loop: the same bridge, the

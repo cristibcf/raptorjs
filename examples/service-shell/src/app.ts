@@ -2,7 +2,7 @@
  * The same application, a fourth time: now as an HTTP service.
  *
  * What stays identical to `desktop-shell`, `mobile-shell` and `web-shell`: the
- * state lives in `@raptor/core` signals, and everything platform-related goes
+ * state lives in `@raptorstack/raptorjs` signals, and everything platform-related goes
  * through `bridge`. What changes is the shape of the interaction - here there is
  * no DOM and no user, just requests coming in and responses going out.
  *
@@ -11,8 +11,8 @@
  * directly called handler, but it is exactly the path a request will take when
  * the host is a separate process - so the code here does not change then.
  */
-import { derived, state } from "raptorjs";
-import type { HostBridge } from "@raptor/host";
+import { derived, state } from "@raptorstack/raptorjs";
+import type { HostBridge } from "@raptorstack/host";
 
 export interface Note {
   readonly text: string;

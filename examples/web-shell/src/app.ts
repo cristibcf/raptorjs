@@ -12,8 +12,8 @@
  *  - notifications can be denied by the user, not just by the manifest;
  *  - subprocesses do not exist, and menus have nothing to represent.
  */
-import { derived, state } from "raptorjs";
-import type { HostBridge } from "@raptor/host";
+import { derived, state } from "@raptorstack/raptorjs";
+import type { HostBridge } from "@raptorstack/host";
 
 export interface Note {
   readonly text: string;

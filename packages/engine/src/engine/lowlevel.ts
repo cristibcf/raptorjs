@@ -77,7 +77,7 @@ async function optionalImport(spec: string): Promise<unknown> {
 }
 
 /** Externals: runtime dependencies stay external (we do not bundle them in v0.1). */
-const RAPTOR_EXTERNALS = ["raptorjs", "raptorjs/dom"];
+const RAPTOR_EXTERNALS = ["@raptorstack/raptorjs", "@raptorstack/raptorjs/dom"];
 
 export interface RolldownOptions {
   minify?: boolean;

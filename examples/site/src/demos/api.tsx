@@ -4,9 +4,9 @@
  * counting something that would otherwise be invisible: how many times a
  * computation runs, how many DOM nodes are created, how many bytes go over the wire.
  */
-import { state, derived, effect, batch, untracked, For, Show, onCleanup } from "raptorjs/dom";
-import { raptorServer } from "@raptor/wire/server";
-import { createLoopback, RaptorClient } from "@raptor/wire/client";
+import { state, derived, effect, batch, untracked, For, Show, onCleanup } from "@raptorstack/raptorjs/dom";
+import { raptorServer } from "@raptorstack/wire/server";
+import { createLoopback, RaptorClient } from "@raptorstack/wire/client";
 
 function Stat(props: { label: string; value: any }) {
   return (
@@ -256,7 +256,7 @@ export function ApiShow() {
   );
 }
 
-/* --------------------------------------------------------- @raptor/wire/client -- */
+/* --------------------------------------------------------- @raptorstack/wire/client -- */
 
 function todoServer() {
   const app = raptorServer({ build: "docs-demo" });

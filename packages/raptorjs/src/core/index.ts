@@ -1,5 +1,5 @@
 /**
- * @raptor/core - public reactivity API (whitepaper section 32.1).
+ * @raptorstack/raptorjs - public reactivity API (whitepaper section 32.1).
  *
  * Primitives: state, derived, effect, batch, untracked + ownership.
  * Signals are callable accessors: `count()` reads, `count.set(v)` writes.

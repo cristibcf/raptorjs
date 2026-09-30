@@ -7,7 +7,7 @@
  * DOM types are treated structurally (`any`) so it works identically in the
  * browser and on the headless mini-dom.
  */
-import { effect, onCleanup, createRoot } from "raptorjs";
+import { effect, onCleanup, createRoot } from "@raptorstack/raptorjs";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type El = any;
@@ -40,7 +40,7 @@ function doc(): any {
   const d = (globalThis as any).document;
   if (!d) {
     throw new Error(
-      "[raptor] no `document` available. In Node, import @raptor/dom/testing and call installMiniDom().",
+      "[raptor] no `document` available. In Node, import @raptorstack/raptorjs/dom/testing and call installMiniDom().",
     );
   }
   return d;

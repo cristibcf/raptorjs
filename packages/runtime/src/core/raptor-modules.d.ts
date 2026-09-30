@@ -9,7 +9,7 @@
  */
 
 declare module "raptor:files" {
-  import type { RaptorFiles } from "@raptor/runtime";
+  import type { RaptorFiles } from "@raptorstack/runtime";
   const files: RaptorFiles;
   export default files;
   export const readText: RaptorFiles["readText"];
@@ -24,7 +24,7 @@ declare module "raptor:files" {
 }
 
 declare module "raptor:net" {
-  import type { RaptorNet } from "@raptor/runtime";
+  import type { RaptorNet } from "@raptorstack/runtime";
   const net: RaptorNet;
   export default net;
   export const fetch: RaptorNet["fetch"];
@@ -32,7 +32,7 @@ declare module "raptor:net" {
 }
 
 declare module "raptor:process" {
-  import type { RaptorProcess } from "@raptor/runtime";
+  import type { RaptorProcess } from "@raptorstack/runtime";
   const proc: RaptorProcess;
   export default proc;
   export const args: RaptorProcess["args"];
@@ -46,7 +46,7 @@ declare module "raptor:process" {
 }
 
 declare module "raptor:kv" {
-  import type { RaptorKv } from "@raptor/runtime";
+  import type { RaptorKv } from "@raptorstack/runtime";
   const kv: RaptorKv;
   export default kv;
   export const get: RaptorKv["get"];
@@ -57,14 +57,14 @@ declare module "raptor:kv" {
 }
 
 declare module "raptor:serve" {
-  import type { RaptorServe } from "@raptor/runtime";
+  import type { RaptorServe } from "@raptorstack/runtime";
   const serve: RaptorServe;
   export default serve;
   export const route: RaptorServe["route"];
 }
 
 declare module "raptor:tasks" {
-  import type { TaskFabric } from "@raptor/runtime";
+  import type { TaskFabric } from "@raptorstack/runtime";
   const tasks: TaskFabric;
   export default tasks;
   export const spawn: TaskFabric["spawn"];
@@ -74,7 +74,7 @@ declare module "raptor:tasks" {
 }
 
 declare module "raptor:observe" {
-  import type { Observer } from "@raptor/runtime";
+  import type { Observer } from "@raptorstack/runtime";
   const observe: Observer;
   export default observe;
   export const log: Observer["log"];
@@ -85,7 +85,7 @@ declare module "raptor:observe" {
 }
 
 declare module "raptor:capabilities" {
-  import type { CapabilityBroker } from "@raptor/runtime";
+  import type { CapabilityBroker } from "@raptorstack/runtime";
   const capabilities: CapabilityBroker;
   export default capabilities;
   export const check: CapabilityBroker["check"];

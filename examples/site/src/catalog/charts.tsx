@@ -1,6 +1,6 @@
 /** Charts. */
-import { state, onCleanup } from "raptorjs/dom";
-import { AreaChart, BarChart, CHART_COLORS, LineChart, niceTicks, scaleLinear } from "raptorjs/ui/chart";
+import { state, onCleanup } from "@raptorstack/raptorjs/dom";
+import { AreaChart, BarChart, CHART_COLORS, LineChart, niceTicks, scaleLinear } from "@raptorstack/raptorjs/ui/chart";
 import {
   CandlestickChart,
   DonutChart,
@@ -12,9 +12,9 @@ import {
   SankeyDiagram,
   ScatterChart,
   Treemap,
-} from "raptorjs/ui/chart-extra";
-import { Sparkline } from "raptorjs/ui/sparkline";
-import { Button } from "raptorjs/ui/button";
+} from "@raptorstack/raptorjs/ui/chart-extra";
+import { Sparkline } from "@raptorstack/raptorjs/ui/sparkline";
+import { Button } from "@raptorstack/raptorjs/ui/button";
 import type { CatalogGroup } from "./types.ts";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"];

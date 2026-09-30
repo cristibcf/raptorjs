@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildModule } from "@raptor/engine";
-import { RaptorRuntime, type RouteDef } from "@raptor/engine/run";
+import { buildModule } from "@raptorstack/engine";
+import { RaptorRuntime, type RouteDef } from "@raptorstack/engine/run";
 import {
   Profiler,
   runScenario,

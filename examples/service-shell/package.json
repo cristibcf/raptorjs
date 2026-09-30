@@ -5,8 +5,8 @@
   "type": "module",
   "description": "Example: the same app as desktop/mobile/web-shell, this time as an HTTP service - roadmap stage 3, 'Platform services'.",
   "dependencies": {
-    "raptorjs": "workspace:*",
-    "@raptor/host": "workspace:*"
+    "@raptorstack/raptorjs": "workspace:*",
+    "@raptorstack/host": "workspace:*"
   },
   "scripts": {
     "demo": "node src/demo.ts",

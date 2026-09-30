@@ -39,12 +39,12 @@ export const SHOWCASE: ShowcaseGroup[] = [
     title: "One app, six hosts",
     blurb: "The same application running through each host adapter — the bridge gives portability, and the host can say no.",
     items: [
-      { title: "Desktop shell", blurb: "Native window, menu, local storage, deep links and notifications through the capability bridge.", tags: ["@raptor/host/desktop"], run: "pnpm demo:desktop" },
-      { title: "Mobile shell", blurb: "Adapter-driven navigation, secure storage, suspend/resume, optional native modules.", tags: ["@raptor/host/mobile"], run: "pnpm demo:mobile" },
-      { title: "Web shell", blurb: "The browser as a host: History API, localStorage, permissioned notifications.", tags: ["@raptor/host/web"], run: "pnpm dev:web-shell" },
-      { title: "Service shell", blurb: "The same app as an HTTP service: real `node:http`, supervisor config, clean drain on SIGTERM.", tags: ["@raptor/host/service"], run: "pnpm demo:service" },
-      { title: "CLI shell", blurb: "As a command-line tool — `raptor-notes add/list/clear`, with confirmation refused when there is no TTY.", tags: ["@raptor/host/cli"], run: "pnpm demo:cli" },
-      { title: "Device shell", blurb: "On a board: a sensor logger with an LED, I2C, sleep between reads and a watchdog.", tags: ["@raptor/host/device"], run: "pnpm demo:device" },
+      { title: "Desktop shell", blurb: "Native window, menu, local storage, deep links and notifications through the capability bridge.", tags: ["@raptorstack/host/desktop"], run: "pnpm demo:desktop" },
+      { title: "Mobile shell", blurb: "Adapter-driven navigation, secure storage, suspend/resume, optional native modules.", tags: ["@raptorstack/host/mobile"], run: "pnpm demo:mobile" },
+      { title: "Web shell", blurb: "The browser as a host: History API, localStorage, permissioned notifications.", tags: ["@raptorstack/host/web"], run: "pnpm dev:web-shell" },
+      { title: "Service shell", blurb: "The same app as an HTTP service: real `node:http`, supervisor config, clean drain on SIGTERM.", tags: ["@raptorstack/host/service"], run: "pnpm demo:service" },
+      { title: "CLI shell", blurb: "As a command-line tool — `raptor-notes add/list/clear`, with confirmation refused when there is no TTY.", tags: ["@raptorstack/host/cli"], run: "pnpm demo:cli" },
+      { title: "Device shell", blurb: "On a board: a sensor logger with an LED, I2C, sleep between reads and a watchdog.", tags: ["@raptorstack/host/device"], run: "pnpm demo:device" },
     ],
   },
   {

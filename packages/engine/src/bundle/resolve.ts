@@ -1,8 +1,8 @@
 /**
  * Specifier resolution delegated to the Node resolver (createRequire): it correctly
  * handles both relative imports with an explicit extension (`./x.ts`) and bare
- * specifiers backed by an exports map (`@raptor/dom`, `@raptor/dom/jsx-runtime`),
- * including `.ts` targets (the @raptor/* packages expose their source directly in `exports`).
+ * specifiers backed by an exports map (`@raptorstack/raptorjs/dom`, `@raptorstack/raptorjs/dom/jsx-runtime`),
+ * including `.ts` targets (the @raptorstack/* packages expose their source directly in `exports`).
  *
  * Returns `null` for node: builtins and for anything that does not resolve to a
  * file (those requires stay external and are left untouched in the output).

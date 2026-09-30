@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { mkdtempSync, existsSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { parseManifest } from "@raptor/runtime";
-import { parseHostManifest } from "@raptor/host";
+import { parseManifest } from "@raptorstack/runtime";
+import { parseHostManifest } from "@raptorstack/host";
 import { createProject, runForgeCli, TARGETS } from "../../src/forge/index.ts";
 import type { AppTarget } from "../../src/forge/index.ts";
 

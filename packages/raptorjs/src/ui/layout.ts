@@ -9,7 +9,7 @@
  * Spacing is in steps (`0..8`), not free pixels: a small scale kept with
  * discipline looks better than ad-hoc values.
  */
-import { R, type Child } from "raptorjs/dom";
+import { R, type Child } from "@raptorstack/raptorjs/dom";
 import { type El } from "./primitives/env.ts";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

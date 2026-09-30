@@ -4,8 +4,8 @@
  * Rounds out the overlay set from wave 3. All of them reuse `Portal`,
  * `focusTrap`, `clickOutside` and `positioner`.
  */
-import { state, effect, onCleanup, type Accessor, type State } from "raptorjs";
-import { R, For, Show, block, mountChild, type Block, type Child } from "raptorjs/dom";
+import { state, effect, onCleanup, type Accessor, type State } from "@raptorstack/raptorjs";
+import { R, For, Show, block, mountChild, type Block, type Child } from "@raptorstack/raptorjs/dom";
 import { Portal } from "./primitives/portal.ts";
 import { focusTrap } from "./primitives/focus-trap.ts";
 import { positioner } from "./primitives/positioner.ts";

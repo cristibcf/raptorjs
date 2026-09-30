@@ -6,7 +6,7 @@
  * technical behaviors"). It is an OPTIONAL input for the build planner;
  * correctness does not depend on it (24).
  */
-import { canonicalize } from "@raptor/engine/compiler";
+import { canonicalize } from "@raptorstack/engine/compiler";
 
 export interface WirePayloadStat {
   address: string;
