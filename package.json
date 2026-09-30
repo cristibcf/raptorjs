@@ -27,6 +27,7 @@
     "typecheck:native": "tsc --noEmit -p tsconfig.native.json",
     "stats": "node tools/stats.ts",
     "stats:check": "node tools/stats.ts --check",
+    "bump": "node tools/bump.ts",
     "demo:counter": "node examples/counter/src/demo.ts",
     "demo:dashboard": "node examples/realtime-dashboard/src/demo.ts",
     "demo:chat": "node examples/chat/src/demo.ts",
