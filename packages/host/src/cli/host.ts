@@ -1,20 +1,20 @@
 /**
- * Host-ul de linie de comanda.
+ * The command-line host.
  *
- * A cincea forma a aceluiasi contract. Ce da host-ul aici: argumentele, doua
- * fluxuri de iesire, ce stie despre terminal, intrebarile catre utilizator si
- * codul de iesire. Nu exista ferestre, ecrane sau socketi.
+ * The fifth form of the same contract. What the host gives here: the arguments,
+ * two output streams, what it knows about the terminal, the questions to the
+ * user and the exit code. There are no windows, screens or sockets.
  *
- * Doua reguli merita spuse pe fata:
+ * Two rules are worth stating plainly:
  *
- *  1. **Fara terminal interactiv, o intrebare este refuzata, nu presupusa.**
- *     O unealta rulata din CI nu trebuie sa "presupuna da" la o confirmare
- *     distructiva. Capabilitatea `tty.interact` poate fi declarata in manifest,
- *     dar daca terminalul nu poate citi, apelul tot pica - cu un cod distinct,
- *     ca aplicatia sa poata spune "ruleaza-ma cu --yes" in loc sa crape.
- *  2. **Ctrl-C este eveniment, nu executie.** Host-ul nu opreste procesul; il
- *     anunta pe cel care lucreaza, ca sa apuce sa curete. Abia a doua apasare
- *     forteaza oprirea, exact ca in uneltele obisnuite.
+ *  1. **Without an interactive terminal, a question is denied, not assumed.**
+ *     A tool run from CI must not "assume yes" on a destructive confirmation.
+ *     The `tty.interact` capability can be declared in the manifest, but if the
+ *     terminal cannot read, the call still fails - with a distinct code, so the
+ *     app can say "run me with --yes" instead of crashing.
+ *  2. **Ctrl-C is an event, not an execution.** The host does not stop the
+ *     process; it notifies whoever is working, so they can clean up in time.
+ *     Only the second press forces the stop, exactly like in ordinary tools.
  */
 import { HostError, createLifecycle, serveHost } from "@raptor/host";
 import type { AuditEntry, HostManifest, HostServer, HostTransport, LifecycleMachine, MethodHandler } from "@raptor/host";
@@ -31,11 +31,11 @@ export interface CliHostOptions {
 export interface CliHost {
   readonly server: HostServer;
   readonly lifecycle: LifecycleMachine;
-  /** Codul cerut de aplicatie, sau `null` cat timp inca lucreaza. */
+  /** The code requested by the app, or `null` while it is still working. */
   readonly exitCode: number | null;
-  /** Ctrl-C: prima data anunta, a doua oara opreste. */
+  /** Ctrl-C: the first time it notifies, the second time it stops. */
   interrupt(): void;
-  /** Se incheie cand aplicatia a cerut iesirea (sau a fost intrerupta). */
+  /** Resolves when the app has requested the exit (or was interrupted). */
   finished(): Promise<number>;
   close(): void;
 }
@@ -43,18 +43,18 @@ export interface CliHost {
 function requireString(params: Readonly<Record<string, unknown>>, key: string): string {
   const value = params[key];
   if (typeof value !== "string") {
-    throw new HostError("raptor:host/protocol", `parametrul '${key}' lipseste sau nu este sir`, { key });
+    throw new HostError("raptor:host/protocol", `the '${key}' parameter is missing or is not a string`, { key });
   }
   return value;
 }
 
-/** Aceeasi politica de chei ca pe celelalte host-uri: spatiu plat, fara cai. */
+/** The same key policy as on the other hosts: a flat space, no paths. */
 function requireKey(params: Readonly<Record<string, unknown>>): string {
   const key = requireString(params, "key");
   if (key.length === 0 || key.includes("/") || key.includes("\\") || key.includes("..") || key.startsWith(".")) {
-    throw new HostError("raptor:host/capability-unavailable", `cheie de stocare invalida: ${key}`, {
+    throw new HostError("raptor:host/capability-unavailable", `invalid storage key: ${key}`, {
       key,
-      policy: "limitata la directorul de configuratie al uneltei",
+      policy: "limited to the tool's configuration directory",
     });
   }
   return key;
@@ -63,7 +63,7 @@ function requireKey(params: Readonly<Record<string, unknown>>): string {
 export function createCliHost(options: CliHostOptions): CliHost {
   const manifest = options.manifest;
   if (manifest.target !== "cli") {
-    throw new HostError("raptor:host/manifest-invalid", "createCliHost cere un manifest cu target 'cli'", {
+    throw new HostError("raptor:host/manifest-invalid", "createCliHost requires a manifest with target 'cli'", {
       target: manifest.target,
     });
   }
@@ -88,10 +88,10 @@ export function createCliHost(options: CliHostOptions): CliHost {
     settle?.(code);
   };
 
-  /** Intrebarile cer si capabilitate, si un terminal care chiar poate citi. */
+  /** Questions require both a capability and a terminal that can actually read. */
   const ask = async (question: string): Promise<string> => {
     if (!terminal.interactive || !terminal.ask) {
-      throw new HostError("raptor:host/capability-unavailable", "terminalul nu este interactiv; intrebarea a fost refuzata", {
+      throw new HostError("raptor:host/capability-unavailable", "the terminal is not interactive; the question was denied", {
         question,
         interactive: terminal.interactive,
       });
@@ -112,9 +112,9 @@ export function createCliHost(options: CliHostOptions): CliHost {
     "cli.exit": (params) => {
       const code = params["code"];
       if (code !== undefined && (typeof code !== "number" || !Number.isInteger(code) || code < 0 || code > 255)) {
-        throw new HostError("raptor:host/protocol", "codul de iesire trebuie sa fie un intreg intre 0 si 255", { code });
+        throw new HostError("raptor:host/protocol", "the exit code must be an integer between 0 and 255", { code });
       }
-      finish(typeof code === "number" ? code : 0, "aplicatia a cerut iesirea");
+      finish(typeof code === "number" ? code : 0, "the app requested the exit");
       return { code: exitCode };
     },
 
@@ -128,13 +128,13 @@ export function createCliHost(options: CliHostOptions): CliHost {
     "cli.prompt": async (params) => ({ answer: await ask(requireString(params, "question")) }),
 
     "cli.confirm": async (params) => {
-      const answer = (await ask(`${requireString(params, "question")} [d/N] `)).trim().toLowerCase();
+      const answer = (await ask(`${requireString(params, "question")} [y/N] `)).trim().toLowerCase();
       return { confirmed: answer === "d" || answer === "da" || answer === "y" || answer === "yes" };
     },
 
     "lifecycle.state": () => lifecycle.state,
     "lifecycle.requestStop": () => {
-      finish(0, "aplicatia a cerut oprirea");
+      finish(0, "the app requested a stop");
       return { state: lifecycle.state };
     },
 
@@ -149,7 +149,7 @@ export function createCliHost(options: CliHostOptions): CliHost {
 
     "update.check": () => ({ available: false, version: manifest.version, managedBy: "package-manager" }),
     "update.apply": () => {
-      throw new HostError("raptor:host/unimplemented", "o unealta se actualizeaza prin managerul de pachete", {});
+      throw new HostError("raptor:host/unimplemented", "a tool updates through the package manager", {});
     },
   };
 
@@ -177,8 +177,8 @@ export function createCliHost(options: CliHostOptions): CliHost {
     interrupt(): void {
       if (exitCode !== null) return;
       if (interrupted) {
-        // A doua apasare: nu mai asteptam curatenia.
-        finish(130, "a doua intrerupere");
+        // The second press: we no longer wait for cleanup.
+        finish(130, "second interrupt");
         return;
       }
       interrupted = true;
@@ -190,7 +190,7 @@ export function createCliHost(options: CliHostOptions): CliHost {
     },
 
     close(): void {
-      finish(exitCode ?? 0, "host inchis");
+      finish(exitCode ?? 0, "host closed");
       server.close();
     },
   };

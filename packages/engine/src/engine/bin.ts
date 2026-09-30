@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Entry point `raptor` (whitepaper Appendix A). Leaga runCli la process.argv.
+ * Entry point `raptor` (whitepaper Appendix A). Wires runCli to process.argv.
  */
 import { runCliAsync } from "./cli.ts";
 

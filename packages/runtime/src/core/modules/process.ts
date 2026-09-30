@@ -1,7 +1,7 @@
 /**
- * `raptor:process` (spec sectiunea 6): argumente, mediu si procese copil
- * controlate. Fara acces nerestrictionat la host: `env` si `spawn` trec prin
- * broker, iar `exit` merge prin oprirea curata a runtime-ului.
+ * `raptor:process` (spec section 6): arguments, environment and controlled child
+ * processes. No unrestricted access to the host: `env` and `spawn` go through
+ * the broker, and `exit` goes through the runtime's clean shutdown.
  */
 import { spawn as spawnChild } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -11,16 +11,17 @@ import { CapabilityError, RaptorError } from "../errors.ts";
 import { containsPath, resolvePath } from "../paths.ts";
 
 /**
- * Rezolva o comanda la o cale absoluta prin PATH-ul HOST-ului, inainte de spawn.
+ * Resolves a command to an absolute path through the HOST's PATH, before spawn.
  *
- * Mediul copilului e restrictionat intentionat: nu contine `PATH` decat daca
- * aplicatia l-a cerut explicit prin `env.read`. Pe Linux, `spawn` cauta binarul
- * in PATH-ul COPILULUI, deci o comanda permisa ca "node" ar da `ENOENT` desi
- * exista pe host (pe Windows libuv cauta in PATH-ul parintelui, de aici
- * diferenta). Comanda e deja autorizata de broker pe nume; a gasi binarul e o
- * treaba separata de ce mediu vede copilul, iar setarea lui `PATH` pe copil e
- * oricum refuzata. Daca nu o gasim, o lasam asa: `spawn` va da acelasi `ENOENT`,
- * corect pentru o comanda care chiar lipseste.
+ * The child's environment is restricted on purpose: it contains `PATH` only if
+ * the application explicitly requested it through `env.read`. On Linux, `spawn`
+ * looks for the binary in the CHILD's PATH, so an allowed command like "node"
+ * would give `ENOENT` even though it exists on the host (on Windows libuv looks
+ * in the parent's PATH, hence the difference). The command is already authorized
+ * by the broker by name; finding the binary is separate from what environment
+ * the child sees, and setting its `PATH` on the child is denied anyway. If we do
+ * not find it, we leave it as is: `spawn` will give the same `ENOENT`, correct
+ * for a command that is genuinely missing.
  */
 function resolveOnHostPath(command: string): string {
   if (isAbsolute(command) || command.includes("/") || command.includes("\\")) return command;
@@ -39,29 +40,29 @@ function resolveOnHostPath(command: string): string {
 }
 
 /**
- * Variabile de mediu care fac un proces sa incarce cod inainte sa ajunga la
- * `main`. Nu pot fi setate pentru un copil **nici macar cu `env.set` acordata**.
+ * Environment variables that make a process load code before it reaches `main`.
+ * They cannot be set for a child **even with `env.set` granted**.
  *
- * Fara ele, capabilitatea `process.spawn: ["node"]` - care promite *care
- * comenzi* - devine *orice cod*: `NODE_OPTIONS=--require ./payload.js` ruleaza
- * payload-ul inainte de argumentele comenzii permise. La fel `LD_PRELOAD` pentru
- * orice binar pe Linux, `DYLD_INSERT_LIBRARIES` pe macOS, `JAVA_TOOL_OPTIONS`
- * pentru orice JVM, `BASH_ENV` pentru orice shell, `GIT_SSH_COMMAND` pentru git.
+ * Without them, the `process.spawn: ["node"]` capability - which promises *which
+ * commands* - becomes *any code*: `NODE_OPTIONS=--require ./payload.js` runs the
+ * payload before the allowed command's arguments. Same with `LD_PRELOAD` for any
+ * binary on Linux, `DYLD_INSERT_LIBRARIES` on macOS, `JAVA_TOOL_OPTIONS` for any
+ * JVM, `BASH_ENV` for any shell, `GIT_SSH_COMMAND` for git.
  *
- * **Lista asta nu este granita, si nu trebuie confundata cu una.** Prima
- * versiune a ei parea completa si a doua trecere de audit a trecut pe langa ea
- * cu `NODE_PATH`, `JAVA_TOOL_OPTIONS`, `_JAVA_OPTIONS`, `RUBYOPT`, `PYTHONHOME`
- * si `CLASSPATH`. Fiecare ecosistem isi are propriile variabile care incarca
- * cod, si apar altele noi. Granita e `env.set`: implicit nu se poate seta
- * NIMIC, iar ce se declara acolo e o alegere constienta. Lista de aici e a doua
- * treapta, pentru greselile evidente.
+ * **This list is not a boundary, and must not be mistaken for one.** Its first
+ * version looked complete and the second audit pass walked right past it with
+ * `NODE_PATH`, `JAVA_TOOL_OPTIONS`, `_JAVA_OPTIONS`, `RUBYOPT`, `PYTHONHOME` and
+ * `CLASSPATH`. Each ecosystem has its own code-loading variables, and new ones
+ * appear. The boundary is `env.set`: by default NOTHING can be set, and what is
+ * declared there is a conscious choice. The list here is the second stage, for
+ * the obvious mistakes.
  */
 const CODE_LOADING_ENV: readonly RegExp[] = [
   // Node
   /^NODE_OPTIONS$/i,
   /^NODE_PATH$/i,
   /^NODE_REPL_EXTERNAL_MODULE$/i,
-  // Incarcator dinamic (Linux / macOS / AIX)
+  // Dynamic loader (Linux / macOS / AIX)
   /^LD_/i,
   /^DYLD_/i,
   /^LDR_/i,
@@ -79,14 +80,14 @@ const CODE_LOADING_ENV: readonly RegExp[] = [
   /^BASH_ENV$/i,
   /^ENV$/i,
   /^ZDOTDIR$/i,
-  // git si unelte care cheama alte programe
+  // git and tools that call other programs
   /^GIT_SSH(_COMMAND)?$/i,
   /^GIT_EXTERNAL_DIFF$/i,
   /^GIT_PAGER$/i,
   /^PAGER$/i,
   /^EDITOR$/i,
   /^VISUAL$/i,
-  // Cautarea binarului insusi
+  // Looking up the binary itself
   /^PATH$/i,
 ];
 
@@ -94,10 +95,10 @@ function isCodeLoading(name: string): boolean {
   return CODE_LOADING_ENV.some((pattern) => pattern.test(name));
 }
 
-/** Plafon per flux capturat de la un copil (vezi `collect` in `spawn`). */
+/** Cap per stream captured from a child (see `collect` in `spawn`). */
 const MAX_CAPTURED_BYTES = 8 * 1024 * 1024;
 
-/** Cat asteptam dupa SIGTERM inainte de SIGKILL. */
+/** How long we wait after SIGTERM before SIGKILL. */
 const KILL_GRACE_MS = 2_000;
 
 export interface SpawnResult {
@@ -105,7 +106,7 @@ export interface SpawnResult {
   readonly signal: string | null;
   readonly stdout: string;
   readonly stderr: string;
-  /** `true` daca iesirea a depasit plafonul si a fost taiata. */
+  /** `true` if the output exceeded the cap and was truncated. */
   readonly truncated: boolean;
 }
 
@@ -122,10 +123,10 @@ export interface RaptorProcess {
   readonly platform: string;
   readonly pid: number;
   env(name: string): string | undefined;
-  /** Doar variabilele acoperite de `env.read`; restul nu sunt nici listate. */
+  /** Only the variables covered by `env.read`; the rest are not even listed. */
   envKeys(): readonly string[];
   spawn(command: string, options?: SpawnChildOptions): Promise<SpawnResult>;
-  /** Cere oprirea curata; nu omoara procesul pe loc. */
+  /** Requests a clean shutdown; does not kill the process on the spot. */
   requestExit(code?: number): void;
   onExitRequest(listener: (code: number) => void): void;
 }
@@ -152,9 +153,9 @@ export function createProcess(host: HostContext, source: NodeJS.ProcessEnv = pro
     async spawn(command: string, options: SpawnChildOptions = {}): Promise<SpawnResult> {
       host.broker.require("process.spawn", command);
 
-      // Directorul de lucru este acces la disc, deci trece prin aceeasi
-      // capability ca o citire. Fara asta, o comanda permisa poate fi pornita
-      // oriunde pe masina, in afara proiectului.
+      // The working directory is disk access, so it goes through the same
+      // capability as a read. Without this, an allowed command could be started
+      // anywhere on the machine, outside the project.
       const cwd = options.cwd === undefined ? host.projectRoot : resolvePath(host.projectRoot, options.cwd);
       if (options.cwd !== undefined && !containsPath(host.projectRoot, cwd)) {
         host.broker.require("files.read", cwd);
@@ -162,23 +163,24 @@ export function createProcess(host: HostContext, source: NodeJS.ProcessEnv = pro
 
       const span = host.observer.startSpan("process.spawn", { command, args: options.args ?? [], cwd });
 
-      // Mediul copilului contine doar variabilele pe care aplicatia le poate citi.
+      // The child's environment contains only the variables the application can read.
       const childEnv: Record<string, string> = {};
       for (const key of this.envKeys()) {
         const value = source[key];
         if (value !== undefined) childEnv[key] = value;
       }
 
-      // ...si atat. Ce vrea apelantul sa adauge peste mediul filtrat cere
-      // `env.set`, declarata pe nume - a citi si a scrie nu sunt acelasi lucru,
-      // iar scrierea e cea care poate schimba ce cod ruleaza copilul.
+      // ...and that is all. Whatever the caller wants to add on top of the
+      // filtered environment requires `env.set`, declared by name - reading and
+      // writing are not the same thing, and writing is what can change what code
+      // the child runs.
       for (const [key, value] of Object.entries(options.env ?? {})) {
         if (isCodeLoading(key)) {
           throw new CapabilityError(
             "raptor:capability/denied",
             "env.set",
             key,
-            `'${key}' incarca cod in proces inainte de comanda, deci ar ocoli lista de comenzi permise`,
+            `'${key}' loads code into the process before the command, so it would bypass the list of allowed commands`,
           );
         }
         host.broker.require("env.set", key);
@@ -194,9 +196,9 @@ export function createProcess(host: HostContext, source: NodeJS.ProcessEnv = pro
               shell: false,
             });
 
-            // Fluxurile copilului sunt date necontrolate: fara plafon, un copil
-            // vorbaret umple memoria runtime-ului. Peste limita taiem si
-            // marcam, ca apelantul sa stie ca vede o iesire trunchiata.
+            // The child's streams are uncontrolled data: without a cap, a
+            // talkative child fills the runtime's memory. Past the limit we
+            // truncate and mark it, so the caller knows it is seeing truncated output.
             let stdout = "";
             let stderr = "";
             let truncated = false;
@@ -217,8 +219,8 @@ export function createProcess(host: HostContext, source: NodeJS.ProcessEnv = pro
               stderr = collect(stderr, chunk);
             });
 
-            // Oprirea are doua trepte: intai cerem, apoi insistam. Un copil
-            // care ignora SIGTERM ar supravietui deadline-ului task-ului.
+            // Stopping has two stages: first we ask, then we insist. A child
+            // that ignores SIGTERM would survive the task's deadline.
             let escalation: NodeJS.Timeout | null = null;
             const abort = (): void => {
               child.kill();
@@ -235,7 +237,7 @@ export function createProcess(host: HostContext, source: NodeJS.ProcessEnv = pro
             child.on("error", (error) => {
               done();
               span.end({ error: String(error) });
-              reject(new RaptorError("raptor:module/unsupported", `nu am putut porni '${command}'`, { command, cause: String(error) }));
+              reject(new RaptorError("raptor:module/unsupported", `could not start '${command}'`, { command, cause: String(error) }));
             });
 
             child.on("close", (code, signal) => {

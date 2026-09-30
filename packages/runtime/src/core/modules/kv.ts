@@ -1,7 +1,7 @@
 /**
- * `raptor:kv` (spec sectiunea 6): interfata portabila de key-value, cu store
- * implicit in memorie pentru dezvoltare. Contractul este ce conteaza - backing
- * store-ul se inlocuieste fara sa schimbe codul aplicatiei.
+ * `raptor:kv` (spec section 6): a portable key-value interface, with a default
+ * in-memory store for development. The contract is what matters - the backing
+ * store can be swapped without changing application code.
  */
 import type { HostContext } from "../context.ts";
 
@@ -20,11 +20,11 @@ export interface KvStore {
 }
 
 export interface RaptorKv extends KvStore {
-  /** Deschide un spatiu de nume izolat pe acelasi backing store. */
+  /** Opens an isolated namespace on the same backing store. */
   namespace(name: string): KvStore;
 }
 
-/** Backing store implicit: in memorie, cu TTL evaluat lenes la citire. */
+/** Default backing store: in memory, with TTL evaluated lazily on read. */
 export function createMemoryBacking(now: () => number = () => Date.now()): Map<string, KvEntry> & { now: () => number } {
   const map = new Map<string, KvEntry>() as Map<string, KvEntry> & { now: () => number };
   map.now = now;
@@ -32,9 +32,9 @@ export function createMemoryBacking(now: () => number = () => Date.now()): Map<s
 }
 
 /**
- * Separatorul de spatiu de nume. Un prefix gol nu ar functiona: orice cheie
- * incepe cu el, deci store-ul radacina ar lista si cheile spatiilor de nume.
- * Cu un separator explicit, radacina este ea insasi un spatiu de nume ("").
+ * The namespace separator. An empty prefix would not work: every key starts
+ * with it, so the root store would also list the namespaces' keys. With an
+ * explicit separator, the root is itself a namespace ("").
  */
 const NAMESPACE_SEPARATOR = String.fromCharCode(0);
 

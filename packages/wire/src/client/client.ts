@@ -1,12 +1,12 @@
 /**
- * RaptorClient - sesiune RaptorWire pe partea de browser (whitepaper 14, 15).
- * Mentine o replica reactiva: fiecare handle devine un semnal @raptor/core, iar
- * operatiile delta actualizeaza doar semnalele afectate -> bindings DOM
- * fine-grained fara re-fetch si fara re-serializare.
+ * RaptorClient - a browser-side RaptorWire session (whitepaper 14, 15).
+ * Maintains a reactive replica: each handle becomes a @raptor/core signal, and
+ * delta operations update only the affected signals -> fine-grained DOM
+ * bindings with no re-fetch and no re-serialization.
  *
- * v0.2: primeste operatii pe Reactive Address Space (adrese compacte, 5.2),
- * aplica un frame atomic cu UN singur commit UI (batch, 16.1) si suporta
- * reconnect cu automatic delta resync (14.3) prin `resume`.
+ * v0.2: receives operations over the Reactive Address Space (compact addresses,
+ * 5.2), applies an atomic frame with ONE UI commit (batch, 16.1) and supports
+ * reconnect with automatic delta resync (14.3) via `resume`.
  */
 import { state, batch, type State, type Accessor } from "raptorjs";
 import {
@@ -26,7 +26,7 @@ import { type Transport } from "./transport.ts";
 export interface RaptorClientOptions {
   build?: string;
   protocolVersion?: number;
-  /** Notificat cand se detecteaza o gaura de secventa (resync necesar). */
+  /** Notified when a sequence gap is detected (resync needed). */
   onGap?: (queryId: number, expected: number, received: number) => void;
 }
 
@@ -54,7 +54,7 @@ export class RaptorClient {
 
   sessionId = "";
   epoch = 0;
-  // Contoare pentru bugetele de performanta (v0.2, 25.2).
+  // Counters for the performance budgets (v0.2, 25.2).
   snapshotsReceived = 0;
   opsFramesReceived = 0;
 
@@ -65,12 +65,12 @@ export class RaptorClient {
     this.onGap = options.onGap;
   }
 
-  /** Versiunea replicii locale (pentru resume). */
+  /** The local replica version (for resume). */
   get version(): number {
     return this.replica.version;
   }
 
-  /** Handshake: trimite HELLO si asteapta WELCOME. */
+  /** Handshake: send HELLO and wait for WELCOME. */
   connect(): Promise<void> {
     this.bindTransport();
     const promise = new Promise<void>((resolve) => (this.welcomeResolve = resolve));
@@ -84,13 +84,14 @@ export class RaptorClient {
   }
 
   /**
-   * Reconnect cu automatic delta resync (v0.2, 14.3): pastreaza replica si
-   * versiunea, reface handshake-ul pe noul transport si re-abonoaza cerand doar
-   * delta de la versiunea curenta (fara full resend cand serverul poate converge).
+   * Reconnect with automatic delta resync (v0.2, 14.3): keeps the replica and
+   * version, redoes the handshake on the new transport and re-subscribes asking
+   * only for the delta since the current version (no full resend when the
+   * server can converge).
    */
   async resume(transport: Transport, name: string, args: WireValue = null): Promise<void> {
     this.transport = transport;
-    this.book = new AddressBook(); // sesiune noua = address space nou; starea ramane
+    this.book = new AddressBook(); // new session = new address space; the state stays
     this.bindTransport();
     await new Promise<void>((resolve) => {
       this.welcomeResolve = resolve;
@@ -106,7 +107,7 @@ export class RaptorClient {
     this.subscribe(name, args, this.version);
   }
 
-  /** Aboneaza-te la un query numit; snapshot/ops vin asincron. */
+  /** Subscribe to a named query; snapshot/ops arrive asynchronously. */
   subscribe(name: string, args: WireValue = null, sinceVersion = 0): number {
     const queryId = this.nextQueryId++;
     this.lastSeq.set(queryId, 0);
@@ -119,12 +120,12 @@ export class RaptorClient {
     return queryId;
   }
 
-  /** Semnal reactiv pentru un handle (creat lazy). */
+  /** Reactive signal for a handle (created lazily). */
   signal<T extends WireValue = WireValue>(handle: string): Accessor<T | undefined> {
     return this.ensureSignal(handle) as Accessor<T | undefined>;
   }
 
-  /** Trimite o mutatie tipata; se rezolva la MUTATION_RESULT. */
+  /** Send a typed mutation; resolves on MUTATION_RESULT. */
   mutate(name: string, input: WireValue = null): Promise<{ ok: boolean; value: WireValue }> {
     const requestId = this.nextRequestId++;
     return new Promise((resolve) => {
@@ -141,11 +142,11 @@ export class RaptorClient {
     this.transport.close();
   }
 
-  // --- intern --------------------------------------------------------------
+  // --- internal ------------------------------------------------------------
   private bindTransport(): void {
     this.transport.onMessage((bytes) => {
-      // Fail-closed (§21): un frame invalid/corupt e ignorat, nu arunca in
-      // microtask. Hot path OPS decodat pe Reactive Address Space.
+      // Fail-closed (§21): an invalid/corrupt frame is ignored, not thrown in a
+      // microtask. OPS hot path decoded over the Reactive Address Space.
       try {
         if (peekFrameType(bytes) === FrameType.OPS) {
           this.handle(decodeOpsFrame(this.book, bytes));
@@ -153,7 +154,7 @@ export class RaptorClient {
           this.handle(decodeMessage(bytes));
         }
       } catch (err) {
-        console.warn(`[raptor] frame invalid ignorat: ${String(err)}`);
+        console.warn(`[raptor] invalid frame ignored: ${String(err)}`);
       }
     });
   }
@@ -203,7 +204,7 @@ export class RaptorClient {
         if (msg.sequence !== expected) {
           this.onGap?.(msg.queryId, expected, msg.sequence);
         }
-        // Tranzactie de retea: TOATE schimbarile intr-un singur DOM commit (16.1).
+        // Network transaction: ALL changes in a single DOM commit (16.1).
         batch(() => {
           const changes = this.replica.applyBatch(msg.batch);
           for (const change of changes) this.touch(change.handle);
@@ -222,7 +223,7 @@ export class RaptorClient {
         break;
       }
       case "error":
-        console.warn(`[raptor] eroare server ${msg.code}: ${msg.message}`);
+        console.warn(`[raptor] server error ${msg.code}: ${msg.message}`);
         break;
       default:
         break;

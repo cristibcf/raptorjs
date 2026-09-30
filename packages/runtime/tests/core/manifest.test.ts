@@ -4,17 +4,17 @@ import { CAPABILITY_KINDS, parseManifest, requireManifest, stableStringify } fro
 
 const MINIMAL = JSON.stringify({ name: "app", entry: "./src/main.ts" });
 
-test("manifestul minim cere doar nume si punct de intrare", () => {
+test("the minimal manifest requires only a name and an entry point", () => {
   const { manifest, issues } = parseManifest(MINIMAL);
   assert.equal(issues.length, 0);
   assert.equal(manifest?.name, "app");
   assert.equal(manifest?.entry, "./src/main.ts");
-  assert.equal(manifest?.policy, "development", "politica implicita este cea permisiva de dezvoltare");
+  assert.equal(manifest?.policy, "development", "the default policy is the permissive development one");
   assert.equal(manifest?.tasks.maxConcurrent, 64);
   assert.deepEqual(manifest?.dependencies, []);
 });
 
-test("parserul aduna toate problemele intr-un singur raport, nu se opreste la prima", () => {
+test("the parser gathers all problems into a single report, not stopping at the first", () => {
   const { manifest, issues } = parseManifest(
     JSON.stringify({ version: 7, policy: "staging", capabilities: { "files.teleport": ["/"] } }),
   );
@@ -23,7 +23,7 @@ test("parserul aduna toate problemele intr-un singur raport, nu se opreste la pr
   assert.deepEqual(paths, ["capabilities.files.teleport", "entry", "name", "policy", "version"]);
 });
 
-test("capabilitatile cu tinta sunt liste, cele ambientale sunt boolean", () => {
+test("capabilities with a target are lists, ambient ones are boolean", () => {
   const good = parseManifest(
     JSON.stringify({ name: "a", entry: "./m.ts", capabilities: { "files.read": ["./src"], "clock.real": false } }),
   );
@@ -37,15 +37,15 @@ test("capabilitatile cu tinta sunt liste, cele ambientale sunt boolean", () => {
   assert.equal(swapped.issues.length, 2);
 });
 
-test("fiecare capability cunoscuta este acceptata de parser", () => {
+test("every known capability is accepted by the parser", () => {
   for (const kind of CAPABILITY_KINDS) {
     const value = kind === "clock.real" || kind === "crypto.random" ? true : ["x:1"];
     const parsed = parseManifest(JSON.stringify({ name: "a", entry: "./m.ts", capabilities: { [kind]: value } }));
-    assert.equal(parsed.issues.length, 0, `${kind} ar trebui sa fie valida`);
+    assert.equal(parsed.issues.length, 0, `${kind} should be valid`);
   }
 });
 
-test("dependintele accepta forma scurta si forma cu integritate, si raman sortate", () => {
+test("dependencies accept the short form and the form with integrity, and stay sorted", () => {
   const { manifest } = parseManifest(
     JSON.stringify({
       name: "a",
@@ -58,7 +58,7 @@ test("dependintele accepta forma scurta si forma cu integritate, si raman sortat
   assert.equal(manifest?.dependencies[1]?.integrity, undefined);
 });
 
-test("requireManifest arunca o eroare Raptor care poarta toate diagnosticele", () => {
+test("requireManifest throws a Raptor error that carries all the diagnostics", () => {
   assert.throws(
     () => requireManifest("{}"),
     (error: unknown) => {
@@ -68,10 +68,10 @@ test("requireManifest arunca o eroare Raptor care poarta toate diagnosticele", (
       return true;
     },
   );
-  assert.match(parseManifest("{ nu e json").issues[0]!.message, /JSON invalid/);
+  assert.match(parseManifest("{ not json").issues[0]!.message, /invalid JSON/);
 });
 
-test("serializarea este determinista: aceeasi intrare, acelasi text", () => {
+test("serialization is deterministic: same input, same text", () => {
   const a = stableStringify({ b: 1, a: { d: [3, 2], c: true } });
   const b = stableStringify({ a: { c: true, d: [3, 2] }, b: 1 });
   assert.equal(a, b);

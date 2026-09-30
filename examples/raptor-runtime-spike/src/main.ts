@@ -1,14 +1,14 @@
 /**
- * Spike-ul de arhitectura RaptorRuntime (spec sectiunea 14).
+ * The RaptorRuntime architecture spike (spec section 14).
  *
- * Nu este un runtime de productie si nu incearca sa fie: demonstreaza cele
- * cinci comportamente din lista de acceptanta, fiecare cu dovada verificabila.
+ * It is not a production runtime and does not try to be: it demonstrates the
+ * five behaviors from the acceptance list, each with verifiable evidence.
  *
- *   1. lansare autonoma        - binarul porneste si evalueaza acest modul
- *   2. modul TypeScript        - tipurile de mai jos nu au pas de compilare separat
- *   3. refuz de permisiune     - o citire in afara domeniului declarat esueaza clar
- *   4. oprire curata           - task-urile in zbor sunt anulate si drenate
- *   5. teste de contract       - ./checks/spike.test.ts si ../tests/spike.test.ts
+ *   1. autonomous launch       - the binary starts and evaluates this module
+ *   2. TypeScript module       - the types below have no separate compile step
+ *   3. permission denial       - a read outside the declared scope fails clearly
+ *   4. clean shutdown          - in-flight tasks are cancelled and drained
+ *   5. contract tests          - ./checks/spike.test.ts and ../tests/spike.test.ts
  */
 import { readText } from "raptor:files";
 import observe from "raptor:observe";
@@ -16,7 +16,7 @@ import { requestExit } from "raptor:process";
 import tasks from "raptor:tasks";
 import type { HostContext } from "@raptor/runtime";
 
-/** Tipuri reale, sterse la incarcare - asta este verificarea "modul TypeScript". */
+/** Real types, erased at load time - this is the "TypeScript module" check. */
 interface SpikeEvidence {
   readonly check: string;
   readonly passed: boolean;
@@ -34,29 +34,29 @@ function failureOf(error: unknown): CapabilityFailure | null {
 export default async function main(context: HostContext): Promise<void> {
   const evidence: SpikeEvidence[] = [];
 
-  // (2) Modulul isi citeste propria sursa: acces permis, in domeniul declarat.
+  // (2) The module reads its own source: access allowed, within the declared scope.
   const source = await readText("./src/main.ts");
   evidence.push({
     check: "typescript-module",
     passed: source.includes("interface SpikeEvidence"),
-    detail: `modulul de intrare s-a evaluat si si-a citit sursa (${source.length} octeti)`,
+    detail: `the entry module evaluated and read its own source (${source.length} bytes)`,
   });
 
-  // (3) Acelasi API, tinta in afara domeniului declarat: trebuie sa fie refuzat.
+  // (3) The same API, target outside the declared scope: must be denied.
   let denial: CapabilityFailure | null = null;
   try {
     await readText("../../package.json");
-    evidence.push({ check: "permission-denial", passed: false, detail: "citirea in afara proiectului a reusit - regresie de securitate" });
+    evidence.push({ check: "permission-denial", passed: false, detail: "the read outside the project succeeded - a security regression" });
   } catch (error) {
     denial = failureOf(error);
     evidence.push({
       check: "permission-denial",
       passed: denial !== null && denial.capability === "files.read",
-      detail: denial ? `${denial.code} pentru ${denial.target}` : `eroare neasteptata: ${String(error)}`,
+      detail: denial ? `${denial.code} for ${denial.target}` : `unexpected error: ${String(error)}`,
     });
   }
 
-  // (4) Lucru in zbor la momentul opririi: un task lung, pe care shutdown-ul il anuleaza.
+  // (4) In-flight work at shutdown time: a long task that the shutdown cancels.
   let cancellationObserved = false;
   const lingering = tasks
     .spawn(
@@ -69,22 +69,22 @@ export default async function main(context: HostContext): Promise<void> {
           });
         });
         task.throwIfCancelled();
-        return "nu ar fi trebuit sa ajunga aici";
+        return "should not have reached here";
       },
       { name: "lingering" },
     )
     .then(
       () => undefined,
       (error: unknown) => {
-        cancellationObserved = failureOf(error)?.code === "raptor:task/cancelled" || String(error).includes("anulat");
+        cancellationObserved = failureOf(error)?.code === "raptor:task/cancelled" || String(error).includes("cancelled");
       },
     );
 
-  // Un task care esueaza: oprirea trebuie sa ramana curata si dupa o eroare.
+  // A failing task: shutdown must stay clean even after an error.
   await tasks
     .spawn(
       () => {
-        throw new Error("esec deliberat, pentru a verifica oprirea dupa eroare");
+        throw new Error("deliberate failure, to verify shutdown after an error");
       },
       { name: "deliberate-failure" },
     )
@@ -98,15 +98,16 @@ export default async function main(context: HostContext): Promise<void> {
     denial,
   });
 
-  // Nu asteptam `lingering`: ramane in zbor intentionat, ca `shutdown` sa aiba
-  // ce anula. Il legam de telemetrie ca dovada sa apara in urma de executie.
+  // We do not await `lingering`: it stays in flight on purpose, so `shutdown`
+  // has something to cancel. We hook it to telemetry so the evidence shows up
+  // in the execution trace.
   void lingering.then(() => {
     observe.log("info", "spike.lingeringSettled", { cancelled: cancellationObserved });
   });
 
   observe.metric("spike.checksPassed", evidence.filter((item) => item.passed).length, { total: evidence.length });
 
-  // Verificarea (4): cerem oprirea in timp ce `lingering` este inca in zbor.
-  // Runtime-ul trebuie sa o anuleze si sa dreneze, fara sa omoare procesul.
+  // Check (4): we request shutdown while `lingering` is still in flight.
+  // The runtime must cancel and drain it, without killing the process.
   requestExit(0);
 }

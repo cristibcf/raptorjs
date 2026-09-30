@@ -1,14 +1,15 @@
 /**
- * Primele teste ale lui `@raptor/wire-client`.
+ * The first tests for `@raptor/wire-client`.
  *
- * Pachetul a stat fara niciun test pana la auditul din 2026-09-24 (S10), desi e
- * tocmai componentul care ia octeti de la un peer si ii aplica pe starea locala.
- * Consecinta directa: fixul #3 din auditul din 21 septembrie - clientul
- * fail-closed la cadre corupte - nu avea nimic care sa-l apere de un refactor.
+ * The package went without a single test until the 2026-09-24 audit (S10),
+ * even though it is exactly the component that takes bytes from a peer and
+ * applies them to the local state. Direct consequence: fix #3 from the
+ * September 21 audit - the client failing closed on corrupt frames - had
+ * nothing to protect it from a refactor.
  *
- * Testele folosesc un server fals scris direct peste `Transport`, nu
- * `@raptor/server`: aici ne intereseaza ce face CLIENTUL cand primeste ceva,
- * inclusiv ceva ce un server cinstit n-ar trimite niciodata.
+ * The tests use a fake server written directly on top of `Transport`, not
+ * `@raptor/server`: here we care about what the CLIENT does when it receives
+ * something, including something an honest server would never send.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -17,10 +18,10 @@ import { Document, encodeMessage, encodeOpsFrame, AddressBook, type Operation } 
 import { RaptorClient, createLoopback, flushLoopback, type Transport } from "../../src/client/index.ts";
 
 /**
- * Celalalt capat al firului, sub controlul testului.
+ * The other end of the wire, under the test's control.
  *
- * `received` pastreaza tot ce a trimis clientul, ca sa putem verifica si ce NU
- * a trimis - de exemplu ca nu confirma un cadru pe care l-a aruncat.
+ * `received` keeps everything the client sent, so we can also check what it did
+ * NOT send - for example that it does not acknowledge a frame it dropped.
  */
 interface Peer {
   readonly client: RaptorClient;
@@ -45,7 +46,7 @@ function peer(options: ConstructorParameters<typeof RaptorClient>[1] = {}): Peer
   };
 }
 
-/** Un WELCOME minim, ca handshake-ul sa se poata incheia. */
+/** A minimal WELCOME, so the handshake can complete. */
 function welcome(sessionId = "s1", epoch = 1): Uint8Array {
   return encodeMessage({ type: "welcome", sessionId, epoch, serverBuild: "test" });
 }
@@ -61,21 +62,21 @@ async function connected(options: ConstructorParameters<typeof RaptorClient>[1] 
 
 /* ------------------------------------------------------------- handshake -- */
 
-test("handshake-ul se incheie abia la WELCOME, nu la trimiterea lui HELLO", async () => {
+test("the handshake completes only at WELCOME, not when HELLO is sent", async () => {
   const p = peer();
   try {
     let gata = false;
     const handshake = p.client.connect().then(() => (gata = true));
 
     await flushLoopback();
-    assert.equal(gata, false, "HELLO trimis nu inseamna sesiune deschisa");
-    assert.equal(p.received.length, 1, "clientul a trimis exact un HELLO");
+    assert.equal(gata, false, "sending HELLO does not mean the session is open");
+    assert.equal(p.received.length, 1, "the client sent exactly one HELLO");
 
-    p.send(welcome("sesiune-7", 3));
+    p.send(welcome("session-7", 3));
     await handshake;
 
     assert.equal(gata, true);
-    assert.equal(p.client.sessionId, "sesiune-7");
+    assert.equal(p.client.sessionId, "session-7");
     assert.equal(p.client.epoch, 3);
   } finally {
     p.close();
@@ -84,7 +85,7 @@ test("handshake-ul se incheie abia la WELCOME, nu la trimiterea lui HELLO", asyn
 
 /* -------------------------------------------------- fail-closed (audit #3) -- */
 
-test("un cadru corupt este ignorat, nu arunca (fail-closed, §21)", async () => {
+test("a corrupt frame is ignored, not thrown (fail-closed, §21)", async () => {
   const p = await connected();
   const erori: unknown[] = [];
   const onUnhandled = (error: unknown): void => {
@@ -93,21 +94,21 @@ test("un cadru corupt este ignorat, nu arunca (fail-closed, §21)", async () => 
   process.on("unhandledRejection", onUnhandled);
   process.on("uncaughtException", onUnhandled);
 
-  // `console.warn` e inlocuit ca iesirea testului sa ramana curata, dar si ca sa
-  // verificam ca refuzul chiar e raportat, nu inghitit in tacere.
+  // `console.warn` is replaced so the test output stays clean, but also so we
+  // can verify the rejection is actually reported, not swallowed silently.
   const avertismente: string[] = [];
   const realWarn = console.warn;
   console.warn = (...args: unknown[]) => void avertismente.push(args.map(String).join(" "));
 
   try {
-    // Trei forme de gunoi: octeti fara sens, un frame trunchiat, si unul gol.
+    // Three forms of garbage: meaningless bytes, a truncated frame, and an empty one.
     p.send(new Uint8Array([0xff, 0xfe, 0xfd, 0x07, 0x42]));
     p.send(new Uint8Array([0x01]));
     p.send(new Uint8Array([]));
     await flushLoopback();
 
-    assert.deepEqual(erori, [], "nicio exceptie nu a scapat in microtask");
-    assert.ok(avertismente.length >= 1, "cadrul aruncat e raportat, nu inghitit");
+    assert.deepEqual(erori, [], "no exception escaped into a microtask");
+    assert.ok(avertismente.length >= 1, "the dropped frame is reported, not swallowed");
     assert.ok(avertismente.every((line) => line.includes("[raptor]")), avertismente.join(" | "));
   } finally {
     console.warn = realWarn;
@@ -117,7 +118,7 @@ test("un cadru corupt este ignorat, nu arunca (fail-closed, §21)", async () => 
   }
 });
 
-test("dupa un cadru corupt, sesiunea ramane utilizabila", async () => {
+test("after a corrupt frame, the session stays usable", async () => {
   const realWarn = console.warn;
   console.warn = () => {};
   const p = await connected();
@@ -125,7 +126,7 @@ test("dupa un cadru corupt, sesiunea ramane utilizabila", async () => {
     p.send(new Uint8Array([0xff, 0xff, 0xff]));
     await flushLoopback();
 
-    // Acelasi client primeste acum un snapshot valid si il aplica.
+    // The same client now receives a valid snapshot and applies it.
     const doc = new Document();
     doc.set("cpu", 41);
     const queryId = p.client.subscribe("metrics");
@@ -133,7 +134,7 @@ test("dupa un cadru corupt, sesiunea ramane utilizabila", async () => {
     p.send(encodeMessage({ type: "snapshot", queryId, snapshot: doc.encodeSnapshot() }));
     await flushLoopback();
 
-    assert.equal(p.client.signal("cpu")(), 41, "un cadru aruncat nu otraveste sesiunea");
+    assert.equal(p.client.signal("cpu")(), 41, "a dropped frame does not poison the session");
   } finally {
     console.warn = realWarn;
     p.close();
@@ -142,11 +143,11 @@ test("dupa un cadru corupt, sesiunea ramane utilizabila", async () => {
 
 /* ------------------------------------------------------------- replica ---- */
 
-test("snapshot-ul umple replica, iar semnalele cerute dinainte se actualizeaza", async () => {
+test("the snapshot fills the replica, and signals requested beforehand update", async () => {
   const p = await connected();
   try {
-    // Semnalul e cerut INAINTE sa existe valoarea: cazul real dintr-o componenta
-    // montata inainte sa soseasca snapshot-ul.
+    // The signal is requested BEFORE the value exists: the real case of a
+    // component mounted before the snapshot arrives.
     const cpu = p.client.signal<number>("cpu");
     assert.equal(cpu(), undefined);
 
@@ -166,7 +167,7 @@ test("snapshot-ul umple replica, iar semnalele cerute dinainte se actualizeaza",
   }
 });
 
-test("un frame de operatii produce UN singur commit, oricate handle-uri atinge", async () => {
+test("an ops frame produces ONE commit, no matter how many handles it touches", async () => {
   const p = await connected();
   try {
     const queryId = p.client.subscribe("metrics");
@@ -174,7 +175,7 @@ test("un frame de operatii produce UN singur commit, oricate handle-uri atinge",
     p.send(encodeMessage({ type: "snapshot", queryId, snapshot: new Document().encodeSnapshot() }));
     await flushLoopback();
 
-    // Numaram rulari de effect peste TREI semnale atinse de acelasi frame.
+    // We count effect runs over THREE signals touched by the same frame.
     let rulari = 0;
     const dispose = createRoot((dispose) => {
       effect(() => {
@@ -188,8 +189,8 @@ test("un frame de operatii produce UN singur commit, oricate handle-uri atinge",
     const dupaMontare = rulari;
 
     const book = new AddressBook();
-    // `replace` pentru ca handle-urile astea sunt scalari: `set` tinteste un
-    // FIELD dintr-un obiect (`handle.field`), nu handle-ul insusi.
+    // `replace` because these handles are scalars: `set` targets a FIELD of an
+    // object (`handle.field`), not the handle itself.
     const ops: Operation[] = [
       { kind: "replace", handle: "a", value: 1 },
       { kind: "replace", handle: "b", value: 2 },
@@ -210,7 +211,7 @@ test("un frame de operatii produce UN singur commit, oricate handle-uri atinge",
     assert.equal(
       rulari - dupaMontare,
       1,
-      "tranzactia de retea trebuie sa fie un singur commit UI, nu unul per handle",
+      "the network transaction must be a single UI commit, not one per handle",
     );
     dispose();
   } finally {
@@ -218,7 +219,7 @@ test("un frame de operatii produce UN singur commit, oricate handle-uri atinge",
   }
 });
 
-test("o gaura de secventa este raportata, nu ascunsa", async () => {
+test("a sequence gap is reported, not hidden", async () => {
   const gauri: Array<{ expected: number; received: number }> = [];
   const p = await connected({ onGap: (_queryId, expected, received) => void gauri.push({ expected, received }) });
   try {
@@ -238,7 +239,7 @@ test("o gaura de secventa este raportata, nu ascunsa", async () => {
 
     p.send(frame(1, 1, 0));
     await flushLoopback();
-    // Sarim peste 2: exact situatia in care replica ar diverge tacut.
+    // We skip 2: exactly the situation where the replica would silently diverge.
     p.send(frame(3, 3, 1));
     await flushLoopback();
 
@@ -250,20 +251,20 @@ test("o gaura de secventa este raportata, nu ascunsa", async () => {
 
 /* -------------------------------------------------------------- mutatii --- */
 
-test("mutatia se rezolva cu rezultatul corelat, nu cu primul care vine", async () => {
+test("a mutation resolves with its correlated result, not the first one to arrive", async () => {
   const p = await connected();
   try {
-    const prima = p.client.mutate("adauga", { text: "a" });
-    const aDoua = p.client.mutate("adauga", { text: "b" });
+    const prima = p.client.mutate("add", { text: "a" });
+    const aDoua = p.client.mutate("add", { text: "b" });
     await flushLoopback();
 
-    // Raspunsurile vin INVERSATE fata de ordinea cererilor.
-    p.send(encodeMessage({ type: "mutationResult", requestId: 2, ok: true, value: "al-doilea" }));
-    p.send(encodeMessage({ type: "mutationResult", requestId: 1, ok: false, value: "primul" }));
+    // The responses arrive REVERSED relative to the order of the requests.
+    p.send(encodeMessage({ type: "mutationResult", requestId: 2, ok: true, value: "second" }));
+    p.send(encodeMessage({ type: "mutationResult", requestId: 1, ok: false, value: "first" }));
     await flushLoopback();
 
-    assert.deepEqual(await aDoua, { ok: true, value: "al-doilea" });
-    assert.deepEqual(await prima, { ok: false, value: "primul" }, "corelarea se face pe requestId, nu pe ordine");
+    assert.deepEqual(await aDoua, { ok: true, value: "second" });
+    assert.deepEqual(await prima, { ok: false, value: "first" }, "correlation is done by requestId, not by order");
   } finally {
     p.close();
   }
@@ -271,7 +272,7 @@ test("mutatia se rezolva cu rezultatul corelat, nu cu primul care vine", async (
 
 /* -------------------------------------------------------------- transport - */
 
-test("transportul inchis nu mai livreaza nimic in niciun sens", async () => {
+test("a closed transport no longer delivers anything in either direction", async () => {
   const loop = createLoopback();
   const primite: Uint8Array[] = [];
   loop.server.onMessage((bytes) => primite.push(bytes));
@@ -283,23 +284,23 @@ test("transportul inchis nu mai livreaza nimic in niciun sens", async () => {
   loop.client.close();
   loop.client.send(new Uint8Array([2]));
   await flushLoopback();
-  assert.equal(primite.length, 1, "un capat inchis nu mai trimite");
+  assert.equal(primite.length, 1, "a closed end no longer sends");
 });
 
-test("loopback-ul copiaza octetii, deci o mutatie dupa send nu se vede la celalalt capat", async () => {
+test("the loopback copies the bytes, so a mutation after send is not seen at the other end", async () => {
   const loop = createLoopback();
   let vazut: Uint8Array | null = null;
   loop.server.onMessage((bytes) => (vazut = bytes));
 
   const bytes = new Uint8Array([1, 2, 3]);
   loop.client.send(bytes);
-  bytes[0] = 99; // reutilizarea bufferului dupa trimitere
+  bytes[0] = 99; // reusing the buffer after sending
   await flushLoopback();
 
-  assert.deepEqual([...(vazut as unknown as Uint8Array)], [1, 2, 3], "receptorul vede ce s-a trimis, nu ce a urmat");
+  assert.deepEqual([...(vazut as unknown as Uint8Array)], [1, 2, 3], "the receiver sees what was sent, not what followed");
 });
 
-test("statisticile numara ambele sensuri separat", async () => {
+test("the stats count both directions separately", async () => {
   const loop = createLoopback();
   loop.server.onMessage(() => {});
   loop.client.onMessage(() => {});
@@ -315,9 +316,9 @@ test("statisticile numara ambele sensuri separat", async () => {
   assert.equal(loop.stats.serverToClientMessages, 2);
 });
 
-test("un transport propriu are nevoie de exact trei metode", async () => {
-  // Contractul e mic dinadins: cine vrea WebSocket real, QUIC sau un canal de
-  // worker implementeaza asta, nu o clasa de baza.
+test("a custom transport needs exactly three methods", async () => {
+  // The contract is small on purpose: whoever wants a real WebSocket, QUIC or a
+  // worker channel implements this, not a base class.
   const trimise: Uint8Array[] = [];
   let livreaza: ((data: Uint8Array) => void) | null = null;
   const propriu: Transport = {
@@ -328,9 +329,9 @@ test("un transport propriu are nevoie de exact trei metode", async () => {
 
   const client = new RaptorClient(propriu);
   const handshake = client.connect();
-  assert.equal(trimise.length, 1, "HELLO a plecat prin transportul propriu");
+  assert.equal(trimise.length, 1, "HELLO went out through the custom transport");
 
-  (livreaza as unknown as (data: Uint8Array) => void)(welcome("prin-transport-propriu"));
+  (livreaza as unknown as (data: Uint8Array) => void)(welcome("via-custom-transport"));
   await handshake;
-  assert.equal(client.sessionId, "prin-transport-propriu");
+  assert.equal(client.sessionId, "via-custom-transport");
 });

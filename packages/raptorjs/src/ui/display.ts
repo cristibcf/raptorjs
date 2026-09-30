@@ -1,11 +1,11 @@
 /**
- * Display - componente de continut: carduri, insigne, avataruri, stari.
+ * Display - content components: cards, badges, avatars, states.
  *
- * Majoritatea sunt functii pure fara stare. Valoarea lor e in detaliile de
- * accesibilitate pe care le rezolva o data pentru totdeauna: un `Badge` cu
- * numar trebuie sa aiba un nume citibil ("3 notificări necitite"), nu doar
- * cifra; un `Avatar` cu initiale e decorativ si nu trebuie citit de doua ori;
- * un `Skeleton` trebuie sa fie `aria-hidden` ca sa nu anunte zgomot.
+ * Most are pure, stateless functions. Their value is in the accessibility
+ * details they solve once and for all: a `Badge` with a number must have a
+ * readable name ("3 unread notifications"), not just the digit; an `Avatar`
+ * with initials is decorative and must not be read twice; a `Skeleton` must be
+ * `aria-hidden` so it doesn't announce noise.
  */
 import { derived, type Accessor } from "raptorjs";
 import { R, For, Show, type Child } from "raptorjs/dom";
@@ -21,11 +21,11 @@ export interface CardProps {
   children?: Child;
   header?: Child;
   footer?: Child;
-  /** Titlu simplu; ignorat daca dai `header`. */
+  /** Simple title; ignored if you pass `header`. */
   title?: Child;
-  /** Card interactiv: capata rol de buton si raspunde la Enter/Space. */
+  /** Interactive card: gets a button role and responds to Enter/Space. */
   onClick?: () => void;
-  /** Eticheta obligatorie cand cardul e interactiv fara text clar. */
+  /** Required label when the card is interactive without clear text. */
   label?: string;
   padded?: boolean;
   class?: string;
@@ -47,7 +47,7 @@ export function Card(props: CardProps): El {
             tabindex: "0",
             ...(props.label ? { "aria-label": props.label } : {}),
             "on:click": () => props.onClick!(),
-            // Un `div` cu `role=button` NU raspunde singur la tastatura.
+            // A `div` with `role=button` does NOT respond to the keyboard on its own.
             "on:keydown": (e: any) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault?.();
@@ -71,15 +71,15 @@ export function Card(props: CardProps): El {
 
 export interface BadgeProps {
   children?: Child;
-  /** Numar; peste `max` se afiseaza "99+". */
+  /** Number; above `max` it shows "99+". */
   count?: Accessor<number> | number;
   max?: number;
-  /** Doar un punct, fara continut. */
+  /** Just a dot, no content. */
   dot?: boolean;
   tone?: Tone;
-  /** Ascunde cand numarul e 0. Implicit `true`. */
+  /** Hide when the number is 0. Default `true`. */
   hideZero?: boolean;
-  /** Nume citibil; fara el, un badge cu "3" nu spune nimic. */
+  /** Readable name; without it, a badge showing "3" says nothing. */
   label?: string;
   class?: string;
 }
@@ -112,7 +112,7 @@ export function Badge(props: BadgeProps): El {
         (visible() ? "" : " rui-hidden") +
         (props.class ? " " + props.class : ""),
       ...(props.label ? { "aria-label": props.label, role: "status" } : {}),
-      // Punctul nu are continut: fara eticheta e pur decorativ.
+      // The dot has no content: without a label it is purely decorative.
       ...(props.dot && !props.label ? { "aria-hidden": "true" } : {}),
     },
     props.dot ? null : props.count !== undefined ? () => text() : (props.children ?? null),
@@ -124,9 +124,9 @@ export function Badge(props: BadgeProps): El {
 export interface TagProps {
   children: Child;
   tone?: Tone;
-  /** Arata ✕ si cheama `onRemove`. */
+  /** Shows ✕ and calls `onRemove`. */
   onRemove?: () => void;
-  /** Nume pentru butonul de stergere (ex. numele tagului). */
+  /** Name for the remove button (e.g. the tag's name). */
   removeLabel?: string;
   size?: "sm" | "md";
   class?: string;
@@ -148,7 +148,7 @@ export function Tag(props: TagProps): El {
           {
             type: "button",
             class: "rui-tag-remove",
-            "aria-label": props.removeLabel ?? "Elimină",
+            "aria-label": props.removeLabel ?? "Remove",
             "on:click": (e: any) => {
               e.stopPropagation?.();
               props.onRemove!();
@@ -163,17 +163,17 @@ export function Tag(props: TagProps): El {
 /* ---------------------------------------------------------------- Avatar -- */
 
 export interface AvatarProps {
-  /** URL de imagine. Lipsa sau eroare => initiale. */
+  /** Image URL. Missing or error => initials. */
   src?: Accessor<string | null> | string;
-  /** Numele persoanei; din el se scot initialele. */
+  /** The person's name; the initials are derived from it. */
   name?: string;
   size?: "xs" | "sm" | "md" | "lg" | "xl";
-  /** Forma. Implicit cerc. */
+  /** Shape. Default circle. */
   square?: boolean;
   class?: string;
 }
 
-/** Initialele: primul si ultimul cuvant, maxim doua litere. */
+/** The initials: first and last word, at most two letters. */
 export function initials(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean);
   if (words.length === 0) return "";
@@ -196,8 +196,8 @@ export function Avatar(props: AvatarProps): El {
   return R.span(
     {
       class: cls,
-      // Numele e pe container, o singura data: imaginea si initialele de
-      // dedesubt sunt decorative, altfel screen readerul l-ar citi de doua ori.
+      // The name is on the container, once: the image and initials below are
+      // decorative, otherwise the screen reader would read it twice.
       ...(props.name ? { role: "img", "aria-label": props.name } : { "aria-hidden": "true" }),
     },
     Show({
@@ -210,7 +210,7 @@ export function Avatar(props: AvatarProps): El {
 
 export interface AvatarGroupProps {
   people: readonly { name?: string; src?: string }[];
-  /** Cati se arata inainte de "+N". Implicit 4. */
+  /** How many are shown before "+N". Default 4. */
   max?: number;
   size?: AvatarProps["size"];
   class?: string;
@@ -229,7 +229,7 @@ export function AvatarGroup(props: AvatarGroupProps): El {
           {
             class: "rui-avatar rui-avatar-" + (props.size ?? "md") + " rui-avatar-more",
             role: "img",
-            "aria-label": "și încă " + rest,
+            "aria-label": "and " + rest + " more",
           },
           "+" + rest,
         )
@@ -242,9 +242,9 @@ export function AvatarGroup(props: AvatarGroupProps): El {
 export interface StatProps {
   label: Child;
   value: Accessor<Child> | Child;
-  /** Variatie fata de perioada anterioara, in procente. */
+  /** Change from the previous period, in percent. */
   delta?: Accessor<number> | number;
-  /** Pentru majoritatea metricilor cresterea e buna; la "churn" nu e. */
+  /** For most metrics growth is good; for "churn" it isn't. */
   invertDelta?: boolean;
   hint?: Child;
   class?: string;
@@ -289,7 +289,7 @@ export interface DescriptionItem {
 
 export interface DescriptionListProps {
   items: readonly DescriptionItem[] | Accessor<readonly DescriptionItem[]>;
-  /** Termenii pe aceeasi linie cu descrierea. */
+  /** Terms on the same line as the description. */
   inline?: boolean;
   class?: string;
 }
@@ -308,13 +308,13 @@ export function DescriptionList(props: DescriptionListProps): El {
   );
 }
 
-/* --------------------------------------------------------- stari si note -- */
+/* -------------------------------------------------------- states & notes -- */
 
 export interface AlertProps {
   children: Child;
   title?: Child;
   tone?: Tone;
-  /** Buton de inchidere. */
+  /** Close button. */
   onDismiss?: () => void;
   class?: string;
 }
@@ -328,7 +328,7 @@ export function Alert(props: AlertProps): El {
   return R.div(
     {
       class: "rui-alert rui-tone-" + tone + (props.class ? " " + props.class : ""),
-      // `alert` intrerupe cititorul; il folosim doar pentru erori.
+      // `alert` interrupts the reader; we use it only for errors.
       role: tone === "danger" ? "alert" : "status",
     },
     R.span({ class: "rui-alert-icon", "aria-hidden": "true" }, TONE_ICON[tone]),
@@ -339,7 +339,7 @@ export function Alert(props: AlertProps): El {
     ),
     props.onDismiss
       ? R.button(
-          { type: "button", class: "rui-alert-close", "aria-label": "Închide", "on:click": props.onDismiss },
+          { type: "button", class: "rui-alert-close", "aria-label": "Close", "on:click": props.onDismiss },
           "✕",
         )
       : null,
@@ -348,7 +348,7 @@ export function Alert(props: AlertProps): El {
 
 export interface CalloutProps extends Omit<AlertProps, "onDismiss"> {}
 
-/** Nota evidentiata in text. Ca `Alert`, dar fara rol de anunt. */
+/** A note highlighted inline. Like `Alert`, but without an announcement role. */
 export function Callout(props: CalloutProps): El {
   const tone = props.tone ?? "info";
   return R.div(
@@ -375,13 +375,13 @@ export function Banner(props: BannerProps): El {
     {
       class: "rui-banner rui-tone-" + (props.tone ?? "accent") + (props.class ? " " + props.class : ""),
       role: "region",
-      "aria-label": "Anunț",
+      "aria-label": "Announcement",
     },
     R.div({ class: "rui-banner-body" }, props.children),
     props.action ?? null,
     props.onDismiss
       ? R.button(
-          { type: "button", class: "rui-banner-close", "aria-label": "Închide anunțul", "on:click": props.onDismiss },
+          { type: "button", class: "rui-banner-close", "aria-label": "Close announcement", "on:click": props.onDismiss },
           "✕",
         )
       : null,
@@ -431,11 +431,11 @@ export function Result(props: ResultProps): El {
   );
 }
 
-/* ------------------------------------------------------------ incarcare -- */
+/* ------------------------------------------------------------- loading --- */
 
 export interface SpinnerProps {
   size?: "sm" | "md" | "lg";
-  /** Text citit de screen reader. Implicit "Se încarcă". */
+  /** Text read by the screen reader. Default "Loading". */
   label?: string;
   class?: string;
 }
@@ -444,16 +444,16 @@ export function Spinner(props: SpinnerProps): El {
   return R.span(
     { class: "rui-spinner rui-spinner-" + (props.size ?? "md") + (props.class ? " " + props.class : ""), role: "status" },
     R.span({ class: "rui-spinner-circle", "aria-hidden": "true" }),
-    R.span({ class: "rui-sr-only" }, props.label ?? "Se încarcă"),
+    R.span({ class: "rui-sr-only" }, props.label ?? "Loading"),
   );
 }
 
 export interface SkeletonProps {
-  /** `text`, `circle` sau `rect`. */
+  /** `text`, `circle` or `rect`. */
   variant?: "text" | "circle" | "rect";
   width?: string;
   height?: string;
-  /** Numar de randuri pentru varianta `text`. */
+  /** Number of rows for the `text` variant. */
   lines?: number;
   class?: string;
 }
@@ -467,8 +467,8 @@ export function Skeleton(props: SkeletonProps): El {
     .filter(Boolean)
     .join(";");
 
-  // `aria-hidden`: un placeholder nu are ce sa anunte. Starea de incarcare se
-  // comunica din containerul cu `aria-busy`, nu din fiecare dreptunghi gri.
+  // `aria-hidden`: a placeholder has nothing to announce. The loading state is
+  // conveyed from the container with `aria-busy`, not from each gray rectangle.
   const one = (extra?: string): El =>
     R.span({
       class: "rui-skeleton rui-skeleton-" + variant + (props.class ? " " + props.class : ""),
@@ -480,7 +480,7 @@ export function Skeleton(props: SkeletonProps): El {
     const lines = props.lines!;
     const out: El[] = [];
     for (let i = 0; i < lines; i++) {
-      // Ultimul rand mai scurt, ca un paragraf real.
+      // The last row shorter, like a real paragraph.
       out.push(one(i === lines - 1 ? "width:60%" : undefined));
     }
     return R.span({ class: "rui-skeleton-lines", "aria-hidden": "true" }, out);
@@ -495,7 +495,7 @@ export interface LoadingOverlayProps {
   class?: string;
 }
 
-/** Acopera o zona cat se incarca, pastrand continutul dedesubt. */
+/** Covers a region while it loads, keeping the content underneath. */
 export function LoadingOverlay(props: LoadingOverlayProps): El {
   return R.div(
     {
@@ -507,7 +507,7 @@ export function LoadingOverlay(props: LoadingOverlayProps): El {
       when: () => props.visible(),
       children: R.div(
         { class: "rui-loading-overlay" },
-        Spinner({ label: props.label ?? "Se încarcă" }),
+        Spinner({ label: props.label ?? "Loading" }),
       ),
     }),
   );
@@ -556,12 +556,12 @@ export function Timeline(props: TimelineProps): El {
 
 export interface ImageProps {
   src: Accessor<string> | string;
-  /** Gol INTENTIONAT pentru imagini decorative. */
+  /** INTENTIONALLY empty for decorative images. */
   alt: string;
   width?: string;
   height?: string;
   ratio?: number;
-  /** Imagine afisata la eroare de incarcare. */
+  /** Content shown on a load error. */
   fallback?: Child;
   lazy?: boolean;
   class?: string;

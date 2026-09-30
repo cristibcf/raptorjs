@@ -1,13 +1,13 @@
 /**
  * Input / Textarea / Checkbox / Switch / Radio / RadioGroup.
  *
- * Controale de formular legate de semnale. Toate primesc semnalul din afara:
- * componenta nu tine stare ascunsa, deci valoarea e mereu citibila si
- * scriibila din codul tau.
+ * Form controls bound to signals. They all receive the signal from outside: the
+ * component keeps no hidden state, so the value is always readable and writable
+ * from your code.
  *
- * `Checkbox` acopera si starea `indeterminate`, care nu e un atribut HTML ci o
- * proprietate DOM - motiv pentru care e uitata in majoritatea bibliotecilor si
- * arborele de accesibilitate ramane mincinos.
+ * `Checkbox` also covers the `indeterminate` state, which is not an HTML
+ * attribute but a DOM property - which is why it's forgotten in most libraries
+ * and the accessibility tree ends up lying.
  */
 import { type Accessor, type State } from "raptorjs";
 import { R, For, type Child } from "raptorjs/dom";
@@ -30,7 +30,7 @@ export interface InputProps {
   readonly?: boolean;
   id?: string;
   label?: string;
-  /** Continut inaintea/dupa camp (iconita, unitate de masura). */
+  /** Content before/after the field (icon, unit of measure). */
   before?: Child;
   after?: Child;
   invalid?: Accessor<boolean>;
@@ -60,7 +60,7 @@ export function Input(props: InputProps): El {
     ...(props.onBlur ? { "on:blur": props.onBlur } : {}),
   });
 
-  // Fara addon-uri nu mai invelim degeaba intr-un div.
+  // Without addons we don't wrap in a div for nothing.
   if (props.before === undefined && props.after === undefined && !props.class) return input;
 
   return R.div(
@@ -73,7 +73,7 @@ export function Input(props: InputProps): El {
 
 export interface TextareaProps extends Omit<InputProps, "type" | "before" | "after"> {
   rows?: number;
-  /** Creste singur cu continutul. */
+  /** Grows on its own with the content. */
   autosize?: boolean;
   maxRows?: number;
 }
@@ -83,7 +83,7 @@ export function Textarea(props: TextareaProps): El {
 
   const resize = (): void => {
     if (!props.autosize || !el || !el.style) return;
-    // Resetam inaltimea inainte de masurare, altfel nu poate scadea niciodata.
+    // We reset the height before measuring, otherwise it can never shrink.
     el.style.height = "auto";
     const max = props.maxRows ? props.maxRows * 20 : Number.POSITIVE_INFINITY;
     const needed = typeof el.scrollHeight === "number" ? el.scrollHeight : 0;
@@ -118,7 +118,7 @@ export function Textarea(props: TextareaProps): El {
 export interface CheckboxProps {
   checked: State<boolean>;
   label?: Child;
-  /** Stare partiala (ex. "unele sub-elemente sunt bifate"). */
+  /** Partial state (e.g. "some sub-items are checked"). */
   indeterminate?: Accessor<boolean>;
   disabled?: Accessor<boolean> | boolean;
   id?: string;
@@ -135,8 +135,8 @@ export function Checkbox(props: CheckboxProps): El {
     class: "rui-checkbox-box",
     checked: () => props.checked(),
     disabled: () => read(props.disabled),
-    // `indeterminate` NU e atribut HTML, ci proprietate DOM. Setat ca atribut
-    // n-ar avea niciun efect; `aria-checked="mixed"` transmite starea corect.
+    // `indeterminate` is NOT an HTML attribute, but a DOM property. Set as an
+    // attribute it would have no effect; `aria-checked="mixed"` conveys the state correctly.
     ...(props.indeterminate
       ? {
           "aria-checked": () => (props.indeterminate!() ? "mixed" : String(props.checked())),
@@ -170,8 +170,8 @@ export interface SwitchProps {
 }
 
 /**
- * Switch - buton cu `role="switch"`, nu checkbox stilizat: un comutator
- * comunica "porneste/opreste acum", nu "bifeaza pentru mai tarziu".
+ * Switch - a button with `role="switch"`, not a styled checkbox: a toggle
+ * communicates "turn on/off now", not "check for later".
  */
 export function Switch(props: SwitchProps): El {
   const id = props.id ?? "rui-sw-" + ++idSeq;
@@ -193,7 +193,7 @@ export function Switch(props: SwitchProps): El {
     ...(props.label === undefined && !props.id ? {} : {}),
     "on:click": toggle,
     "on:keydown": (e: any) => {
-      // Space e implicit pe button; adaugam sageti, ca la comutatoare native.
+      // Space is implicit on a button; we add arrows, as on native toggles.
       if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
         e.preventDefault?.();
         const next = e.key === "ArrowRight";
@@ -219,7 +219,7 @@ export interface RadioOption<T> {
 export interface RadioGroupProps<T> {
   value: State<T>;
   options: readonly RadioOption<T>[];
-  /** Nume HTML al grupului; generat daca lipseste. */
+  /** The group's HTML name; generated if missing. */
   name?: string;
   label?: string;
   orientation?: "horizontal" | "vertical";
@@ -229,11 +229,11 @@ export interface RadioGroupProps<T> {
 }
 
 /**
- * RadioGroup - `role="radiogroup"` cu roving tabindex.
+ * RadioGroup - `role="radiogroup"` with roving tabindex.
  *
- * Doar optiunea selectata e in ordinea de Tab; sagetile muta selectia in
- * interiorul grupului. Asa cere pattern-ul ARIA si asa se comporta radio-urile
- * native - un grup cu 8 optiuni nu trebuie sa coste 8 apasari de Tab.
+ * Only the selected option is in the Tab order; the arrows move the selection
+ * within the group. That's what the ARIA pattern requires and how native radios
+ * behave - a group with 8 options must not cost 8 Tab presses.
  */
 export function RadioGroup<T>(props: RadioGroupProps<T>): El {
   const name = props.name ?? "rui-rg-" + ++idSeq;
@@ -289,7 +289,7 @@ export function RadioGroup<T>(props: RadioGroupProps<T>): El {
             role: "radio",
             checked: () => selected(),
             disabled: () => off(),
-            // Roving tabindex: un singur element al grupului e tabbable.
+            // Roving tabindex: only a single element of the group is tabbable.
             tabindex: () => (selected() ? "0" : "-1"),
             "aria-checked": () => String(selected()),
             "on:change": () => {

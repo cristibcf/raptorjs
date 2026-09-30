@@ -1,9 +1,9 @@
 /**
- * Bundler: porneste din entry, transforma fiecare modul (transform.ts), descopera
- * dependentele din `require("spec")`-urile emise, le rezolva (resolve.ts) si le
- * rescrie la ID-uri numerice interne, apoi emite un singur fisier cu un registru
- * de module cu `require` lazy. Graful @raptor/* e ESM inchis si zero-dep, deci
- * impachetarea e deterministca si completa.
+ * Bundler: starts from the entry, transforms each module (transform.ts), discovers
+ * the dependencies from the emitted `require("spec")` calls, resolves them
+ * (resolve.ts) and rewrites them to internal numeric IDs, then emits a single file
+ * with a module registry using a lazy `require`. The @raptor/* graph is a closed,
+ * zero-dep ESM, so bundling is deterministic and complete.
  */
 import { readFileSync } from "node:fs";
 import { transpile, type TranspileOptions } from "./transform.ts";
@@ -11,32 +11,32 @@ import { resolveSpecifier } from "./resolve.ts";
 import { treeshake } from "./treeshake.ts";
 import { blankRanges } from "./esm-graph.ts";
 
-// TS emite require-uri cu string literal: `require("spec")`. Le rescriem selectiv,
-// doar cand `spec` se rezolva la un fisier bundle-abil (altfel il lasam extern).
+// TS emits requires with a string literal: `require("spec")`. We rewrite them selectively,
+// only when `spec` resolves to a bundleable file (otherwise we leave it external).
 const REQUIRE_RE = /require\(\s*(['"])(.*?)\1\s*\)/g;
 
 export interface BundleOptions extends TranspileOptions {
   /**
-   * Elimina re-exporturile nefolosite inainte de transpilare, ca modulele lor
-   * sa nu mai intre in graf. Implicit `true`. Vezi `treeshake.ts` pentru ce
-   * face si ce nu face.
+   * Removes unused re-exports before transpilation, so their modules no longer
+   * enter the graph. Defaults to `true`. See `treeshake.ts` for what it does and
+   * does not do.
    */
   treeshake?: boolean;
 }
 
 export interface BundleResult {
-  /** Codul final, un singur IIFE cu registru de module. */
+  /** The final code, a single IIFE with a module registry. */
   code: string;
-  /** Fisierele incluse, in ordinea descoperirii (entry primul). */
+  /** The included files, in discovery order (entry first). */
   files: string[];
-  /** Cate re-exporturi au fost taiate de tree-shaking. */
+  /** How many re-exports were cut by tree-shaking. */
   shaken: number;
 }
 
-/** Impacheteaza `entryFile` (cale absoluta) intr-un singur bundle browser. */
+/** Bundles `entryFile` (an absolute path) into a single browser bundle. */
 export function bundleApp(entryFile: string, options: BundleOptions = {}): BundleResult {
-  const ids = new Map<string, number>(); // cale absoluta -> ID numeric
-  const bodies = new Map<number, string>(); // ID -> corp de modul rescris
+  const ids = new Map<string, number>(); // absolute path -> numeric ID
+  const bodies = new Map<number, string>(); // ID -> rewritten module body
   const files: string[] = [];
 
   const idFor = (abs: string): number => {
@@ -48,14 +48,14 @@ export function bundleApp(entryFile: string, options: BundleOptions = {}): Bundl
     return id;
   };
 
-  // Analiza ESM ruleaza INAINTE de transpilare: dupa emisia CommonJS,
-  // `export * from "x"` devine un `require` dinamic, imposibil de analizat.
+  // ESM analysis runs BEFORE transpilation: after the CommonJS emit,
+  // `export * from "x"` becomes a dynamic `require`, impossible to analyze.
   const shake =
     options.treeshake === false ? null : treeshake(entryFile);
 
   const seen = new Set<string>();
   const queue: string[] = [entryFile];
-  idFor(entryFile); // entry devine ID 0
+  idFor(entryFile); // entry becomes ID 0
 
   while (queue.length > 0) {
     const abs = queue.shift()!;
@@ -63,14 +63,14 @@ export function bundleApp(entryFile: string, options: BundleOptions = {}): Bundl
     seen.add(abs);
 
     const raw = readFileSync(abs, "utf8");
-    // Taierea inlocuieste caracterele cu spatii, pastrand liniile: numerele din
-    // source map raman valabile pentru fisierul original.
+    // Pruning replaces the characters with spaces, preserving the lines: the
+    // source-map numbers stay valid for the original file.
     const source = shake ? blankRanges(raw, shake.pruned.get(abs) ?? []) : raw;
     const emitted = transpile(source, abs, options);
 
     const rewritten = emitted.replace(REQUIRE_RE, (match, _q, spec) => {
       const target = resolveSpecifier(String(spec), abs);
-      if (!target) return match; // builtin / extern -> lasat neatins
+      if (!target) return match; // builtin / external -> left untouched
       if (!seen.has(target)) queue.push(target);
       return `require(${idFor(target)})`;
     });

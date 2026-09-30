@@ -1,15 +1,15 @@
 /**
- * Diagnostics, inspect si analyze (whitepaper RaptorEngine 12, 27, 5).
+ * Diagnostics, inspect and analyze (RaptorEngine whitepaper 12, 27, 5).
  *
- * Un build rapid dar opac e greu de depanat. Aceste functii raspund intrebari
- * concrete: ce depinde de un signal, de ce editarea unui nod recompileaza altele
- * (invalidation trace), ce a fost eliminat/fuzionat (optimization trace).
+ * A fast but opaque build is hard to debug. These functions answer concrete
+ * questions: what depends on a signal, why editing one node recompiles others
+ * (invalidation trace), what was eliminated/fused (optimization trace).
  */
 import { GraphNodeKind, type SemanticGraph } from "@raptor/engine/compiler";
 import type { OptEntry } from "./optimize.ts";
 import type { BuildResult } from "./build.ts";
 
-/** Reachability forward peste flow edges: "blast radius"-ul unei schimbari. */
+/** Forward reachability over flow edges: the "blast radius" of a change. */
 export function invalidationTrace(graph: SemanticGraph, startId: string): string[] {
   const seen = new Set<string>();
   const order: string[] = [];
@@ -27,10 +27,10 @@ export function invalidationTrace(graph: SemanticGraph, startId: string): string
   return order;
 }
 
-/** Dump lizibil al grafului semantic (`raptor inspect graph`). */
+/** Readable dump of the semantic graph (`raptor inspect graph`). */
 export function inspectGraph(graph: SemanticGraph): string {
   const lines: string[] = [
-    `Semantic Application Graph (${graph.nodes.size} noduri, ${graph.edges.length} edges)`,
+    `Semantic Application Graph (${graph.nodes.size} nodes, ${graph.edges.length} edges)`,
   ];
   for (const node of graph.nodes.values()) {
     const consumers = graph.consumers(node.id);
@@ -40,15 +40,15 @@ export function inspectGraph(graph: SemanticGraph): string {
   return lines.join("\n");
 }
 
-/** Trace-ul optimizarilor (`raptor inspect` / report). */
+/** The optimization trace (`raptor inspect` / report). */
 export function formatOptimizationTrace(trace: OptEntry[]): string {
-  if (trace.length === 0) return "Optimization trace: (nicio optimizare aplicata)";
+  if (trace.length === 0) return "Optimization trace: (no optimization applied)";
   const lines = ["Optimization trace:"];
   for (const e of trace) lines.push(`  [${e.pass}] ${e.action} ${e.target} - ${e.detail}`);
   return lines.join("\n");
 }
 
-/** Sumar `raptor analyze`: bundle, signals, wire, costuri (5). */
+/** `raptor analyze` summary: bundle, signals, wire, costs (5). */
 export function analyzeReport(result: BuildResult): string {
   const m = result.manifest.metrics;
   const reactiveCount = result.ir.components.reduce(
@@ -58,19 +58,19 @@ export function analyzeReport(result: BuildResult): string {
   const addresses = result.wire.addresses.map((a) => `${a.logical}=${a.ras}[slot ${a.decoderSlot}]`);
   return [
     `raptor analyze - ${result.path}`,
-    `  profil: ${result.config.profile} | target: ${result.config.target}`,
-    `  componente: ${m.components}`,
-    `  noduri reactive (post-optim): ${reactiveCount}`,
+    `  profile: ${result.config.profile} | target: ${result.config.target}`,
+    `  components: ${m.components}`,
+    `  reactive nodes (post-optim): ${reactiveCount}`,
     `  DOM bindings: ${m.domBindings}`,
-    `  eliminate (DSE): ${m.eliminated} | fuzionate (Fusion): ${m.fused}`,
+    `  eliminated (DSE): ${m.eliminated} | fused (Fusion): ${m.fused}`,
     `  chunks: ${result.chunks.map((c) => `${c.name}[${c.components.join("+")}]`).join(", ")}`,
-    `  wire schemas: ${result.wire.schemas.join(", ") || "(niciuna)"}`,
-    `  RAS addresses: ${addresses.join(", ") || "(niciuna)"}`,
+    `  wire schemas: ${result.wire.schemas.join(", ") || "(none)"}`,
+    `  RAS addresses: ${addresses.join(", ") || "(none)"}`,
     `  inputsHash: ${result.manifest.inputsHash.slice(0, 12)}…`,
   ].join("\n");
 }
 
-/** Utilitar: gaseste id-ul unui nod reactiv dupa nume componenta.nume. */
+/** Utility: finds the id of a reactive node by component.name. */
 export function reactiveNodeId(graph: SemanticGraph, name: string): string | null {
   for (const node of graph.nodes.values()) {
     const reactive =

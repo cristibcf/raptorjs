@@ -1,10 +1,10 @@
 /**
- * Scenarii de profilare (whitepaper RaptorEngine 22, 23).
+ * Profiling scenarios (whitepaper RaptorEngine 22, 23).
  *
- * Un scenariu determinist conduce runtime-ul prin vizite de routes si update-uri
- * de server signals, alimentand Profiler-ul. Modeleaza si "behavior-guided"
- * (23): fiecare sesiune = un flow reprezentativ; routes vizitate impreuna devin
- * co-usage. Determinist = reproductibil (fara timere, fara retea reala).
+ * A deterministic scenario drives the runtime through route visits and server
+ * signal updates, feeding the Profiler. It also models "behavior-guided"
+ * (23): each session = a representative flow; routes visited together become
+ * co-usage. Deterministic = reproducible (no timers, no real network).
  */
 import { Writer } from "@raptor/wire/codec";
 import { SchemaCodec, type WireValue } from "@raptor/wire";
@@ -18,7 +18,7 @@ export type ScenarioStep =
 
 export interface Scenario {
   name?: string;
-  /** Fiecare sesiune = un flow (secventa de pasi). */
+  /** Each session = a flow (sequence of steps). */
   sessions: ScenarioStep[][];
 }
 
@@ -33,7 +33,7 @@ const KNOWN_SCHEMA = new Set([
   "string",
 ]);
 
-/** Marimea reala a payload-ului wire pentru o valoare, dupa schema (22). */
+/** Real wire payload size for a value, per schema (22). */
 export function wireByteSize(value: WireValue, schema: string | null): number {
   const w = new Writer();
   const codec = new SchemaCodec(
@@ -43,7 +43,7 @@ export function wireByteSize(value: WireValue, schema: string | null): number {
   return w.length;
 }
 
-/** Ruleaza un scenariu pe runtime, alimentand profiler-ul (determinist). */
+/** Runs a scenario on the runtime, feeding the profiler (deterministic). */
 export function runScenario(runtime: RaptorRuntime, profiler: Profiler, scenario: Scenario): void {
   for (const session of scenario.sessions) {
     profiler.beginSession();

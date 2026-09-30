@@ -1,10 +1,10 @@
 /**
- * `raptor-runtime trace` (spec sectiunea 4): scrie date de urmarire compatibile
- * OpenTelemetry si timpii cererilor.
+ * `raptor-runtime trace` (spec section 4): writes OpenTelemetry-compatible trace
+ * data and request timings.
  *
- * Formatul de iesire urmeaza structura OTLP/JSON (resourceSpans -> scopeSpans ->
- * spans), ca sa poata fi trimis unui colector existent fara conversie. Nu
- * importam nicio biblioteca: scriem forma documentata public.
+ * The output format follows the OTLP/JSON structure (resourceSpans -> scopeSpans
+ * -> spans), so it can be sent to an existing collector without conversion. We
+ * import no library: we write the publicly documented shape.
  */
 import { mkdir, writeFile } from "node:fs/promises";
 import { createHash, randomBytes } from "node:crypto";
@@ -34,7 +34,7 @@ function attributes(source: Readonly<Record<string, unknown>>): OtlpAttribute[] 
     .map(([key, value]) => ({ key, value: attributeValue(value) }));
 }
 
-/** Id-uri stabile pe rulare: derivate din numele span-ului, nu aleatorii. */
+/** Stable ids per run: derived from the span's name, not random. */
 function spanId(traceId: string, key: string): string {
   return createHash("sha256").update(traceId + key).digest("hex").slice(0, 16);
 }
@@ -102,8 +102,8 @@ export async function traceCommand(input: CommandInput): Promise<CommandResult> 
 
   const outcome = await runCommand(input, { onEvent: (event) => collected.push(event) });
   if (!outcome.host) {
-    // Rularea a esuat inainte sa existe un host: raportam esecul ca atare, fara
-    // sa scurgem obiectul de host in rezultatul comenzii.
+    // The run failed before there was a host: we report the failure as such,
+    // without leaking the host object into the command result.
     const { host: _host, ...failure } = outcome;
     return failure;
   }
@@ -118,7 +118,7 @@ export async function traceCommand(input: CommandInput): Promise<CommandResult> 
   await mkdir(dirname(output), { recursive: true });
   await writeFile(output, JSON.stringify(document, null, 2) + "\n", "utf8");
 
-  // Timpii cererilor: span-urile serverului, ordonate descrescator dupa durata.
+  // Request timings: the server's spans, ordered by duration descending.
   const requests = collected
     .filter((event) => event.kind === "span" && event.name.endsWith("serve.request"))
     .map((event) => ({
@@ -133,13 +133,13 @@ export async function traceCommand(input: CommandInput): Promise<CommandResult> 
   const out = [
     outcome.out,
     "",
-    `urmarire scrisa in ${output}`,
+    `trace written to ${output}`,
     table([
-      ["span-uri", String(spanCount)],
-      ["evenimente", String(collected.length)],
-      ["cereri", String(requests.length)],
+      ["spans", String(spanCount)],
+      ["events", String(collected.length)],
+      ["requests", String(requests.length)],
       ...(requests.length > 0
-        ? ([["cea mai lenta", `${requests[0]!.method} ${requests[0]!.path} ${formatMs(requests[0]!.durationMs)}`]] as const)
+        ? ([["slowest", `${requests[0]!.method} ${requests[0]!.path} ${formatMs(requests[0]!.durationMs)}`]] as const)
         : []),
     ]),
   ].join("\n");
@@ -147,7 +147,7 @@ export async function traceCommand(input: CommandInput): Promise<CommandResult> 
   return ok(out, { ...outcome.data, trace: output, spanCount, requests });
 }
 
-/** Rezervat pentru corelarea cu urmele primite de la client (faza 2). */
+/** Reserved for correlation with traces received from the client (phase 2). */
 export function newTraceId(): string {
   return randomBytes(16).toString("hex");
 }

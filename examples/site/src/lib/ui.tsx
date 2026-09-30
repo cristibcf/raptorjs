@@ -13,10 +13,10 @@ export function slug(text: string): string {
 /** Inline markup: `code` spans and [label](path) internal links. */
 export function inline(text: string): any[] {
   const out: any[] = [];
-  // Ordinea alternativelor conteaza: `**tare**` trebuie incercat inaintea lui
-  // `*inclinat*`, altfel primul ar fi citit ca al doilea, gol. Cursivele refuza
-  // backtick-urile in interior, ca `packages/*/src` sa ramana cod, nu inceput de
-  // italice - si oricum un span de cod incepe mai la stanga, deci castiga.
+  // The order of the alternatives matters: `**bold**` must be tried before
+  // `*italic*`, otherwise the first would be read as the second, empty. Italics
+  // reject backticks inside, so that `packages/*/src` stays code, not the start of
+  // italics - and a code span starts further left anyway, so it wins.
   const re = /\*\*([^*]+)\*\*|`([^`]+)`|\[([^\]]+)\]\(([^)]+)\)|\*([^*`\n]+)\*/g;
   let last = 0;
   let m: RegExpExecArray | null;
@@ -141,12 +141,12 @@ export type Block =
       t: "table";
       head: string[];
       rows: string[][];
-      /** Indici de coloana aliniate la dreapta (numere). */
+      /** Indices of right-aligned columns (numbers). */
       numeric?: number[];
       /**
-       * Per rand, indicele coloanei de evidentiat (cel mai bun rezultat), sau
-       * null. Tinut separat de date: un marcaj in text s-ar ciocni cu markup-ul
-       * inline — `**bold**` incepe si el cu un asterisc.
+       * Per row, the index of the column to highlight (the best result), or
+       * null. Kept separate from the data: a marker in the text would collide with
+       * the inline markup — `**bold**` also starts with an asterisk.
        */
       best?: (number | null)[];
       caption?: string;

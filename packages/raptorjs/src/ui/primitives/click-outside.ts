@@ -1,19 +1,19 @@
 /**
- * clickOutside - ruleaza un handler cand se face click in afara elementului.
+ * clickOutside - runs a handler when a click happens outside the element.
  *
- * Se foloseste ca `ref`: `R.div({ ref: clickOutside(() => close()) })`.
- * Listener-ul global exista doar cat traieste elementul (scos in `onCleanup`),
- * ca sa nu ramana agatat de document dupa dispose.
+ * Used as a `ref`: `R.div({ ref: clickOutside(() => close()) })`.
+ * The global listener exists only while the element lives (removed in
+ * `onCleanup`), so it doesn't stay attached to the document after dispose.
  */
 import { onCleanup } from "raptorjs";
 import { onDoc, type El } from "./env.ts";
 
 export interface ClickOutsideOptions {
-  /** Tipul de eveniment ascultat. `pointerdown` reactioneaza mai devreme. */
+  /** The event type listened for. `pointerdown` reacts earlier. */
   event?: string;
-  /** Noduri suplimentare considerate "inauntru" (ex. trigger-ul unui popover). */
+  /** Extra nodes considered "inside" (e.g. a popover's trigger). */
   ignore?: () => readonly El[];
-  /** Cat timp intoarce `false`, handlerul nu ruleaza. */
+  /** While this returns `false`, the handler does not run. */
   enabled?: () => boolean;
 }
 

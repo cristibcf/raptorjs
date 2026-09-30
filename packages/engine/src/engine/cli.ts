@@ -1,9 +1,9 @@
 /**
- * raptor CLI (whitepaper RaptorEngine 5 + Appendix A).
+ * raptor CLI (RaptorEngine whitepaper 5 + Appendix A).
  *
- * Contractul public este CLI-ul, nu bundler-ul intern. `runCli` e testabil:
- * primeste argv + un cititor de fisiere si intoarce { code, out }. `bin.ts`
- * o leaga la process.argv si stdout.
+ * The public contract is the CLI, not the internal bundler. `runCli` is
+ * testable: it takes argv + a file reader and returns { code, out }. `bin.ts`
+ * wires it to process.argv and stdout.
  */
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { buildModule, buildModuleAsync } from "./build.ts";
@@ -54,12 +54,12 @@ const HELP = `raptor v${ENGINE_VERSION} - RaptorEngine CLI
 
   raptor build <file.raptor> [--profile <name>] [--target web|server|edge] [--out <dir>] [--no-fusion]
                              [--engine naive|rolldown|auto] [--minify]
-  raptor dev <file.raptor>            simuleaza un ciclu de incarcare (dev engine)
-  raptor inspect graph <file>         dump al grafului semantic
-  raptor inspect optim <file>         trace-ul optimizarilor (DSE, Fusion)
-  raptor inspect invalidate <file> <nodeId>   blast radius al unei schimbari
-  raptor analyze <file>               sumar bundle/signals/wire/costuri
-  raptor toolchain                    detecteaza engine-ul low-level (Rolldown/Oxc)
+  raptor dev <file.raptor>            simulate a load cycle (dev engine)
+  raptor inspect graph <file>         dump of the semantic graph
+  raptor inspect optim <file>         optimization trace (DSE, Fusion)
+  raptor inspect invalidate <file> <nodeId>   blast radius of a change
+  raptor analyze <file>               bundle/signals/wire/cost summary
+  raptor toolchain                    detect the low-level engine (Rolldown/Oxc)
   raptor --version`;
 
 export function runCli(argv: string[], readFile: (p: string) => string = defaultRead): CliResult {
@@ -77,7 +77,7 @@ export function runCli(argv: string[], readFile: (p: string) => string = default
   try {
     if (command === "build") {
       const file = positional[1];
-      if (!file) return { code: 1, out: "eroare: build cere <file.raptor>" };
+      if (!file) return { code: 1, out: "error: build requires <file.raptor>" };
       const source = readFile(file);
       const result = buildModule(source, file, { config: configFromFlags(flags) });
       const out = flags.get("out");
@@ -89,10 +89,10 @@ export function runCli(argv: string[], readFile: (p: string) => string = default
         writeFileSync(`${out}/ras.manifest.json`, JSON.stringify(result.wire, null, 2));
       }
       const report = [
-        `✓ build ${file} (profil ${result.config.profile}, target ${result.config.target})`,
+        `✓ build ${file} (profile ${result.config.profile}, target ${result.config.target})`,
         `  chunks: ${result.chunks.map((c) => c.name).join(", ")}`,
-        `  eliminate ${result.manifest.metrics.eliminated}, fuzionate ${result.manifest.metrics.fused}, DOM bindings ${result.manifest.metrics.domBindings}`,
-        `  wire: ${result.wire.addresses.length} adrese RAS, ${result.wire.schemas.length} scheme`,
+        `  eliminated ${result.manifest.metrics.eliminated}, fused ${result.manifest.metrics.fused}, DOM bindings ${result.manifest.metrics.domBindings}`,
+        `  wire: ${result.wire.addresses.length} RAS addresses, ${result.wire.schemas.length} schemas`,
         `  inputsHash ${result.manifest.inputsHash.slice(0, 12)}…`,
       ];
       if (flags.get("report")) report.push("", formatOptimizationTrace(result.optimization));
@@ -101,7 +101,7 @@ export function runCli(argv: string[], readFile: (p: string) => string = default
 
     if (command === "dev") {
       const file = positional[1];
-      if (!file) return { code: 1, out: "eroare: dev cere <file.raptor>" };
+      if (!file) return { code: 1, out: "error: dev requires <file.raptor>" };
       const engine = new DevEngine();
       const update = engine.update(file, readFile(file));
       return { code: 0, out: formatUpdateLog(update) };
@@ -110,29 +110,29 @@ export function runCli(argv: string[], readFile: (p: string) => string = default
     if (command === "inspect") {
       const sub = positional[1];
       const file = positional[2];
-      if (!file) return { code: 1, out: "eroare: inspect cere <file.raptor>" };
+      if (!file) return { code: 1, out: "error: inspect requires <file.raptor>" };
       const result = buildModule(readFile(file), file);
       if (sub === "graph") return { code: 0, out: inspectGraph(result.graph) };
       if (sub === "optim") return { code: 0, out: formatOptimizationTrace(result.optimization) };
       if (sub === "invalidate") {
         const nodeId = positional[3];
-        if (!nodeId) return { code: 1, out: "eroare: invalidate cere <nodeId>" };
+        if (!nodeId) return { code: 1, out: "error: invalidate requires <nodeId>" };
         const trace = invalidationTrace(result.graph, nodeId);
-        return { code: 0, out: `invalidate ${nodeId} -> ${trace.join(", ") || "(niciun nod)"}` };
+        return { code: 0, out: `invalidate ${nodeId} -> ${trace.join(", ") || "(no nodes)"}` };
       }
-      return { code: 1, out: "eroare: inspect <graph|optim|invalidate> <file>" };
+      return { code: 1, out: "error: inspect <graph|optim|invalidate> <file>" };
     }
 
     if (command === "analyze") {
       const file = positional[1];
-      if (!file) return { code: 1, out: "eroare: analyze cere <file.raptor>" };
+      if (!file) return { code: 1, out: "error: analyze requires <file.raptor>" };
       const result = buildModule(readFile(file), file);
       return { code: 0, out: analyzeReport(result) };
     }
 
-    return { code: 1, out: `comanda necunoscuta '${command}'\n\n${HELP}` };
+    return { code: 1, out: `unknown command '${command}'\n\n${HELP}` };
   } catch (err) {
-    return { code: 1, out: `eroare: ${(err as Error).message}` };
+    return { code: 1, out: `error: ${(err as Error).message}` };
   }
 }
 
@@ -141,8 +141,9 @@ function defaultRead(path: string): string {
 }
 
 /**
- * Varianta asincrona: gestioneaza `raptor toolchain` si `raptor build` cu engine
- * low-level Rolldown/Oxc (`--engine`/`--minify`); restul deleaga la runCli sincron.
+ * Async variant: handles `raptor toolchain` and `raptor build` with the
+ * low-level Rolldown/Oxc engine (`--engine`/`--minify`); the rest delegates to
+ * the synchronous runCli.
  */
 export async function runCliAsync(
   argv: string[],
@@ -156,10 +157,10 @@ export async function runCliAsync(
     return {
       code: 0,
       out: [
-        "raptor toolchain (engine low-level, §37)",
+        "raptor toolchain (low-level engine, §37)",
         `  rolldown: ${tc.rolldown ?? "absent (npm i -D rolldown)"}`,
         `  oxc:      ${tc.oxc ?? "absent (npm i -D oxc-minify)"}`,
-        tc.rolldown ? "  -> build de productie foloseste Rolldown/Oxc" : "  -> fallback: engine naiv (zero-dep)",
+        tc.rolldown ? "  -> production build uses Rolldown/Oxc" : "  -> fallback: naive engine (zero-dep)",
       ].join("\n"),
     };
   }
@@ -168,7 +169,7 @@ export async function runCliAsync(
   if (!wantsLowLevel) return runCli(argv, readFile);
 
   const file = positional[1];
-  if (!file) return { code: 1, out: "eroare: build cere <file.raptor>" };
+  if (!file) return { code: 1, out: "error: build requires <file.raptor>" };
   try {
     const engineName = (typeof flags.get("engine") === "string" ? flags.get("engine") : "auto") as EngineName;
     const minify = flags.get("minify") === true;
@@ -190,10 +191,10 @@ export async function runCliAsync(
         `✓ build ${file} (engine ${engine.name}, minify ${minify})`,
         `  toolchain: ${Object.entries(tc).map(([k, v]) => `${k}=${v}`).join(", ")}`,
         `  bundle: ${result.bundleCode.length} bytes`,
-        `  eliminate ${result.manifest.metrics.eliminated}, fuzionate ${result.manifest.metrics.fused}`,
+        `  eliminated ${result.manifest.metrics.eliminated}, fused ${result.manifest.metrics.fused}`,
       ].join("\n"),
     };
   } catch (err) {
-    return { code: 1, out: `eroare: ${(err as Error).message}` };
+    return { code: 1, out: `error: ${(err as Error).message}` };
   }
 }

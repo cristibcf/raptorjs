@@ -1,10 +1,10 @@
 /**
- * Typography - text cu scara consistenta.
+ * Typography - text with a consistent scale.
  *
- * `Heading` separa NIVELUL semantic de MARIMEA vizuala: `level` alege tagul
- * (`h1`..`h6`), `size` alege cum arata. Fara separarea asta, oamenii sar de la
- * `h2` la `h4` doar ca sa obtina un text mai mic, si structura documentului
- * devine de necitit pentru un screen reader.
+ * `Heading` separates the semantic LEVEL from the visual SIZE: `level` picks the
+ * tag (`h1`..`h6`), `size` picks how it looks. Without this separation, people
+ * jump from `h2` to `h4` just to get smaller text, and the document structure
+ * becomes unreadable for a screen reader.
  */
 import { R, For, type Child } from "raptorjs/dom";
 import { type Accessor } from "raptorjs";
@@ -23,13 +23,13 @@ export interface TextProps {
   tone?: TextTone;
   weight?: TextWeight;
   align?: "left" | "center" | "right";
-  /** Cifre de latime egala - obligatoriu pentru numere care se schimba. */
+  /** Equal-width digits - mandatory for numbers that change. */
   tabular?: boolean;
-  /** Taie la N randuri cu elipsa. */
+  /** Clamps to N lines with an ellipsis. */
   clamp?: number;
   class?: string;
-  /** Atribute puse direct pe element. Explicit, nu index signature: altfel
-   *  `Omit<TextProps, "as">` ar sterge toti membrii declarati. */
+  /** Attributes set directly on the element. Explicit, not an index signature:
+   *  otherwise `Omit<TextProps, "as">` would drop all the declared members. */
   attrs?: Record<string, unknown>;
 }
 
@@ -57,13 +57,13 @@ export function Text(props: TextProps): El {
 }
 
 export interface HeadingProps extends Omit<TextProps, "as"> {
-  /** Nivelul SEMANTIC (h1..h6). Alege-l după structura documentului. */
+  /** The SEMANTIC level (h1..h6). Choose it by the document structure. */
   level?: 1 | 2 | 3 | 4 | 5 | 6;
 }
 
 export function Heading(props: HeadingProps): El {
   const level = props.level ?? 2;
-  // Marimea implicita urmeaza nivelul, dar poate fi suprascrisa independent.
+  // The default size follows the level, but can be overridden independently.
   const size: TextSize = props.size ?? (["3xl", "2xl", "xl", "lg", "md", "md"] as const)[level - 1]!;
   return R["h" + level]!(
     {
@@ -77,7 +77,7 @@ export function Heading(props: HeadingProps): El {
 export interface LinkProps {
   children: Child;
   href?: string;
-  /** Navigare in aplicatie; primeste `href` si evenimentul. */
+  /** In-app navigation; receives `href` and the event. */
   onNavigate?: (href: string, event: any) => void;
   external?: boolean;
   tone?: TextTone;
@@ -91,7 +91,7 @@ export function Link(props: LinkProps): El {
       ...(props.attrs ?? {}),
       class: "rui-link" + (props.tone ? " rui-tone-" + props.tone : "") + (props.class ? " " + props.class : ""),
       ...(props.href ? { href: props.href } : {}),
-      // Fara `href`, o ancora nu e focusabila si nu e anuntata ca link.
+      // Without `href`, an anchor isn't focusable and isn't announced as a link.
       ...(props.href ? {} : { role: "link", tabindex: "0" }),
       ...(props.external
         ? { target: "_blank", rel: "noopener noreferrer" }
@@ -99,7 +99,7 @@ export function Link(props: LinkProps): El {
       ...(props.onNavigate && props.href
         ? {
             "on:click": (e: any) => {
-              // Lasam browserul sa faca ce stie pentru click-mijloc / Ctrl+click.
+              // We let the browser do its thing for middle-click / Ctrl+click.
               if (e.metaKey || e.ctrlKey || e.shiftKey || (e.button != null && e.button !== 0)) return;
               e.preventDefault?.();
               props.onNavigate!(props.href!, e);
@@ -109,7 +109,7 @@ export function Link(props: LinkProps): El {
     },
     props.children,
     props.external
-      ? R.span({ class: "rui-link-external", "aria-label": " (se deschide în filă nouă)" }, " ↗")
+      ? R.span({ class: "rui-link-external", "aria-label": " (opens in a new tab)" }, " ↗")
       : null,
   );
 }
@@ -125,11 +125,11 @@ export function Code(props: CodeProps): El {
 
 export interface CodeBlockProps {
   code: Accessor<string> | string;
-  /** Eticheta afisata in bara de sus (nume de fisier, limbaj). */
+  /** Label shown in the top bar (file name, language). */
   file?: string;
-  /** Tokenizer extern; primeste codul si intoarce noduri. */
+  /** External tokenizer; receives the code and returns nodes. */
   highlight?: (code: string) => Child;
-  /** Arata butonul de copiere. Implicit `true`. */
+  /** Shows the copy button. Defaults to `true`. */
   copyable?: boolean;
   onCopy?: (code: string) => void;
   class?: string;
@@ -150,10 +150,10 @@ export function CodeBlock(props: CodeBlockProps): El {
                 {
                   type: "button",
                   class: "rui-codeblock-copy",
-                  "aria-label": "Copiază codul",
+                  "aria-label": "Copy code",
                   "on:click": () => props.onCopy?.(read()),
                 },
-                "copiază",
+                "copy",
               ),
         )
       : null,
@@ -175,9 +175,9 @@ export function Kbd(props: KbdProps): El {
 
 export interface TextListProps {
   items: readonly Child[] | Accessor<readonly Child[]>;
-  /** `ul` (implicit) sau `ol`. */
+  /** `ul` (default) or `ol`. */
   ordered?: boolean;
-  /** Fara bulinele/numerele implicite. */
+  /** Without the default bullets/numbers. */
   unstyled?: boolean;
   class?: string;
 }
@@ -195,9 +195,9 @@ export function TextList(props: TextListProps): El {
 
 export interface TruncateProps {
   children: Child;
-  /** Numarul de randuri pastrate. Implicit 1. */
+  /** The number of lines kept. Defaults to 1. */
   lines?: number;
-  /** Pune textul complet in `title`, pentru hover. */
+  /** Puts the full text in `title`, for hover. */
   title?: string;
   class?: string;
 }
@@ -229,18 +229,18 @@ export function Blockquote(props: BlockquoteProps): El {
 }
 
 export interface MarkProps {
-  /** Textul in care se cauta. */
+  /** The text to search in. */
   text: Accessor<string> | string;
-  /** Ce se evidentiaza. Gol => text simplu. */
+  /** What gets highlighted. Empty => plain text. */
   query: Accessor<string> | string;
   class?: string;
 }
 
 /**
- * Mark - evidentiaza potrivirile dintr-un text (rezultate de cautare).
+ * Mark - highlights the matches within a text (search results).
  *
- * Cautarea e case-insensitive dar pastreaza textul original: evidentierea nu
- * trebuie sa schimbe ce citeste utilizatorul.
+ * The search is case-insensitive but keeps the original text: highlighting must
+ * not change what the user reads.
  */
 export function Mark(props: MarkProps): El {
   const text = (): string => (typeof props.text === "function" ? props.text() : props.text);

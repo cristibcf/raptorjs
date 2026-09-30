@@ -1,7 +1,7 @@
 /**
- * `raptor:files` (spec sectiunea 6): fisiere cu domeniu, scrieri atomice si
- * parcurgere de directoare. Fiecare operatie cere explicit `files.read` sau
- * `files.write` - nu exista acces ambiental la disc.
+ * `raptor:files` (spec section 6): scoped files, atomic writes and directory
+ * traversal. Every operation explicitly requires `files.read` or `files.write` -
+ * there is no ambient access to the disk.
  */
 import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -24,7 +24,7 @@ export interface FileInfo {
 export interface RaptorFiles {
   readText(path: string): Promise<string>;
   readBytes(path: string): Promise<Uint8Array>;
-  /** Scriere atomica: fisier temporar + rename in aceeasi partitie. */
+  /** Atomic write: temporary file + rename within the same partition. */
   write(path: string, data: string | Uint8Array): Promise<void>;
   append(path: string, data: string): Promise<void>;
   list(path: string): Promise<readonly FileEntry[]>;

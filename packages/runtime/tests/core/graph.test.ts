@@ -15,7 +15,7 @@ function fixture(files: Record<string, string>): { root: string; dispose(): void
   return { root, dispose: () => rmSync(root, { recursive: true, force: true }) };
 }
 
-test("scanerul gaseste importuri si reexporturi statice, si numara dinamicele", () => {
+test("the scanner finds static imports and re-exports, and counts the dynamic ones", () => {
   const { specifiers, dynamicCount } = scanImports(
     [
       'import a from "./a.ts";',
@@ -26,16 +26,16 @@ test("scanerul gaseste importuri si reexporturi statice, si numara dinamicele", 
     ].join("\n"),
   );
   assert.deepEqual(specifiers.sort(), ["./a.ts", "./b.ts", "./c.ts", "./d.ts"]);
-  assert.equal(dynamicCount, 1, "doar importul cu specificator calculat este nerezolvabil");
+  assert.equal(dynamicCount, 1, "only the import with a computed specifier is unresolvable");
 });
 
-test("integritatea este un sha256 stabil peste acelasi continut", () => {
+test("integrity is a stable sha256 over the same content", () => {
   assert.equal(integrityOf("raptor"), integrityOf("raptor"));
   assert.notEqual(integrityOf("raptor"), integrityOf("raptor "));
   assert.match(integrityOf("raptor"), /^sha256-[A-Za-z0-9+/]+=*$/);
 });
 
-test("graful parcurge tranzitiv si raporteaza cai relative stabile intre platforme", async () => {
+test("the graph traverses transitively and reports relative paths stable across platforms", async () => {
   const files = fixture({
     "src/main.ts": 'import "./util.ts";\nimport "./adanc/nested.ts";',
     "src/util.ts": "export const x = 1;",
@@ -51,13 +51,13 @@ test("graful parcurge tranzitiv si raporteaza cai relative stabile intre platfor
     assert.ok(graph.modules.every((module) => module.integrity.startsWith("sha256-")));
     assert.ok(graph.modules.every((module) => module.byteLength > 0));
     const nested = graph.modules.find((module) => module.path === "./src/adanc/nested.ts");
-    assert.deepEqual(nested?.imports, ["./src/util.ts"], "importurile sunt normalizate fata de radacina");
+    assert.deepEqual(nested?.imports, ["./src/util.ts"], "imports are normalized relative to the root");
   } finally {
     files.dispose();
   }
 });
 
-test("modulele de host si pachetele externe sunt separate, nu cautate pe disc", async () => {
+test("host modules and external packages are separated, not searched on disk", async () => {
   const files = fixture({
     "src/main.ts": ['import "raptor:files";', 'import "node:crypto";', 'import "zod";'].join("\n"),
   });
@@ -71,33 +71,33 @@ test("modulele de host si pachetele externe sunt separate, nu cautate pe disc", 
   }
 });
 
-test("un import care iese din radacina proiectului este raportat, nu inclus tacit", async () => {
+test("an import that escapes the project root is reported, not silently included", async () => {
   const outside = fixture({ "afara.ts": "export const x = 1;" });
   const files = fixture({ "src/main.ts": 'import "../../afara.ts";' });
   try {
     const graph = await buildStaticGraph(files.root, "./src/main.ts");
     assert.equal(graph.modules.length, 1);
     assert.equal(graph.unresolved.length, 1);
-    assert.match(graph.unresolved[0]!.reason, /gasit|radacina/);
+    assert.match(graph.unresolved[0]!.reason, /found|root/);
   } finally {
     files.dispose();
     outside.dispose();
   }
 });
 
-test("importul dinamic cu specificator calculat este raportat ca nerezolvabil", async () => {
+test("a dynamic import with a computed specifier is reported as unresolvable", async () => {
   const files = fixture({ "src/main.ts": "const mod = await import(numeModul);" });
   try {
     const graph = await buildStaticGraph(files.root, "./src/main.ts");
     assert.equal(graph.unresolved.length, 1);
     assert.equal(graph.unresolved[0]!.from, "./src/main.ts");
-    assert.match(graph.unresolved[0]!.reason, /dinamice/);
+    assert.match(graph.unresolved[0]!.reason, /dynamic/);
   } finally {
     files.dispose();
   }
 });
 
-test("ciclurile nu blocheaza parcurgerea", async () => {
+test("cycles do not block the traversal", async () => {
   const files = fixture({
     "src/main.ts": 'import "./a.ts";',
     "src/a.ts": 'import "./b.ts";',
@@ -111,7 +111,7 @@ test("ciclurile nu blocheaza parcurgerea", async () => {
   }
 });
 
-test("un punct de intrare inexistent este o eroare Raptor, nu un graf gol", async () => {
+test("a nonexistent entry point is a Raptor error, not an empty graph", async () => {
   const files = fixture({ "src/altceva.ts": "export const x = 1;" });
   try {
     await assert.rejects(

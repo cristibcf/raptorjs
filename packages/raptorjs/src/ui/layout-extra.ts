@@ -1,8 +1,8 @@
 /**
  * Masonry, Affix, SafeArea, SkipNav, BottomNavigation, Dock, SplitButton, FAB.
  *
- * Bucati de layout si actiuni care apar destul de des cat sa merite scrise o
- * data, dar nu atat cat sa fie in nucleu.
+ * Bits of layout and actions that come up often enough to be worth writing
+ * once, but not so often that they belong in the core.
  */
 import { state, derived, effect, onCleanup, type Accessor } from "raptorjs";
 import { R, For, Show, type Child } from "raptorjs/dom";
@@ -17,20 +17,20 @@ import { type Space, SPACE } from "./layout.ts";
 
 export interface MasonryProps {
   items: readonly Child[] | Accessor<readonly Child[]>;
-  /** Numarul de coloane. Implicit 3. */
+  /** The number of columns. Default 3. */
   columns?: number | Accessor<number>;
   gap?: Space;
   class?: string;
 }
 
 /**
- * Masonry - coloane de inaltimi inegale.
+ * Masonry - columns of unequal heights.
  *
- * Distribuie itemii pe coloane in ordine ciclica (1,2,3,1,2,3...), NU dupa
- * inaltimea masurata. Masurarea ar cere layout real si ar produce salturi la
- * fiecare imagine incarcata; ordinea ciclica e stabila, previzibila si pastreaza
- * ordinea logica pe verticala. Daca ai nevoie de echilibrare perfecta, CSS
- * `columns` o face nativ - cu pretul citirii pe coloane, nu pe randuri.
+ * Distributes items across columns in round-robin order (1,2,3,1,2,3...), NOT
+ * by measured height. Measuring would require real layout and would cause jumps
+ * as each image loads; round-robin order is stable, predictable and preserves
+ * the logical order vertically. If you need perfect balancing, CSS `columns`
+ * does it natively - at the cost of reading down columns, not across rows.
  */
 export function Masonry(props: MasonryProps): El {
   const items = typeof props.items === "function" ? props.items : () => props.items as readonly Child[];
@@ -67,20 +67,20 @@ export function Masonry(props: MasonryProps): El {
 
 export interface AffixProps {
   children: Child;
-  /** Distanta de sus la care se lipeste. Implicit 0. */
+  /** The distance from the top at which it sticks. Default 0. */
   offsetTop?: number;
-  /** Sau de jos, daca vrei sa se lipeasca la baza. */
+  /** Or from the bottom, if you want it to stick to the base. */
   offsetBottom?: number;
   onChange?: (affixed: boolean) => void;
   class?: string;
 }
 
 /**
- * Affix - element care se lipeste la scroll.
+ * Affix - element that sticks on scroll.
  *
- * Foloseste `position: sticky`, nu calcule de scroll: browserul o face mai bine
- * si fara salturi. Semnalul `affixed` e doar pentru stilizare (umbra la lipire),
- * nu pentru pozitionare.
+ * Uses `position: sticky`, not scroll calculations: the browser does it better
+ * and without jumps. The `affixed` signal is only for styling (a shadow when
+ * stuck), not for positioning.
  */
 export function Affix(props: AffixProps): El {
   const affixed = state(false);
@@ -126,18 +126,18 @@ export function Affix(props: AffixProps): El {
 
 export interface SafeAreaProps {
   children: Child;
-  /** Ce margini primesc padding. Implicit toate. */
+  /** Which edges get padding. Default all. */
   edges?: ReadonlyArray<"top" | "right" | "bottom" | "left">;
-  /** Padding minim, chiar si fara notch. */
+  /** Minimum padding, even without a notch. */
   minimum?: Space;
   class?: string;
 }
 
 /**
- * SafeArea - padding care ocoleste notch-ul si bara de gesturi.
+ * SafeArea - padding that avoids the notch and the gesture bar.
  *
- * `env(safe-area-inset-*)` e zero pe desktop, deci componenta e inofensiva
- * acolo. `max()` garanteaza un padding minim chiar si fara notch.
+ * `env(safe-area-inset-*)` is zero on desktop, so the component is harmless
+ * there. `max()` guarantees a minimum padding even without a notch.
  */
 export function SafeArea(props: SafeAreaProps): El {
   const edges = props.edges ?? (["top", "right", "bottom", "left"] as const);
@@ -155,18 +155,18 @@ export function SafeArea(props: SafeAreaProps): El {
 /* --------------------------------------------------------------- SkipNav -- */
 
 export interface SkipNavProps {
-  /** `id`-ul elementului tinta. Implicit `rui-main` (cel din `AppShell`). */
+  /** The target element's `id`. Default `rui-main` (the one from `AppShell`). */
   target?: string;
   children?: Child;
   class?: string;
 }
 
 /**
- * SkipNav - "sari la conținut".
+ * SkipNav - "skip to content".
  *
- * Trebuie sa fie **primul element focusabil din pagina** si sa devina vizibil la
- * focus. Fara el, cine navigheaza la tastatura trece prin tot meniul la fiecare
- * pagina.
+ * It must be the **first focusable element on the page** and must become
+ * visible on focus. Without it, anyone navigating by keyboard goes through the
+ * whole menu on every page.
  */
 export function SkipNav(props: SkipNavProps): El {
   const target = props.target ?? "rui-main";
@@ -178,12 +178,12 @@ export function SkipNav(props: SkipNavProps): El {
         const el = (globalThis as any).document?.getElementById?.(target);
         if (!el) return;
         e.preventDefault?.();
-        // `focus()` pe langa scroll: altfel Tab continua din locul vechi.
+        // `focus()` besides scroll: otherwise Tab continues from the old place.
         if (typeof el.focus === "function") el.focus();
         el.scrollIntoView?.({ block: "start" });
       },
     },
-    props.children ?? "Sari la conținut",
+    props.children ?? "Skip to content",
   );
 }
 
@@ -201,13 +201,13 @@ export interface BottomNavigationProps {
   items: readonly BottomNavItem[];
   active: Accessor<string>;
   onSelect: (key: string) => void;
-  /** Peste aceasta latime nu se mai afiseaza. Implicit 768px. */
+  /** Above this width it is no longer shown. Default 768px. */
   breakpoint?: number;
   label?: string;
   class?: string;
 }
 
-/** Navigare mobila, lipita jos. Se ascunde singura pe ecrane late. */
+/** Mobile navigation, stuck at the bottom. Hides itself on wide screens. */
 export function BottomNavigation(props: BottomNavigationProps): Child {
   const narrow = mediaQuery(`(max-width: ${(props.breakpoint ?? 768) - 1}px)`, false);
 
@@ -216,7 +216,7 @@ export function BottomNavigation(props: BottomNavigationProps): Child {
     children: R.nav(
       {
         class: props.class ? "rui-bottomnav " + props.class : "rui-bottomnav",
-        "aria-label": props.label ?? "Navigare principală",
+        "aria-label": props.label ?? "Main navigation",
       },
       props.items.map((item) =>
         R.button({
@@ -251,13 +251,13 @@ export interface DockProps {
   class?: string;
 }
 
-/** Bara de actiuni flotanta. Fiecare buton are nume, fiind doar-icon. */
+/** Floating action bar. Each button has a name, being icon-only. */
 export function Dock(props: DockProps): El {
   return R.div(
     {
       class: "rui-dock rui-dock-" + (props.position ?? "bottom") + (props.class ? " " + props.class : ""),
       role: "toolbar",
-      "aria-label": props.label ?? "Acțiuni",
+      "aria-label": props.label ?? "Actions",
     },
     props.items.map((item) =>
       R.button({
@@ -275,10 +275,10 @@ export function Dock(props: DockProps): El {
 /* --------------------------------------------- SplitButton / FAB --------- */
 
 export interface SplitButtonProps {
-  /** Actiunea principala. */
+  /** The primary action. */
   children: Child;
   onClick: () => void;
-  /** Optiunile din dropdown. */
+  /** The dropdown options. */
   entries: readonly MenuEntry[];
   variant?: "primary" | "secondary" | "ghost" | "danger";
   size?: "sm" | "md" | "lg";
@@ -288,10 +288,10 @@ export interface SplitButtonProps {
 }
 
 /**
- * SplitButton - actiune principala + meniu.
+ * SplitButton - primary action + menu.
  *
- * Doua butoane, nu unul: altfel nu poti apasa actiunea implicita fara sa
- * deschizi meniul. Sageata are propriul nume accesibil.
+ * Two buttons, not one: otherwise you can't press the default action without
+ * opening the menu. The arrow has its own accessible name.
  */
 export function SplitButton(props: SplitButtonProps): El {
   const off = (): boolean =>
@@ -309,7 +309,7 @@ export function SplitButton(props: SplitButtonProps): El {
     }, props.children),
     DropdownMenu({
       trigger: R.span({ "aria-hidden": "true" }, "▾"),
-      label: props.menuLabel ?? "Mai multe acțiuni",
+      label: props.menuLabel ?? "More actions",
       entries: props.entries,
       placement: "bottom-end",
       class: "rui-split-menu",
@@ -322,7 +322,7 @@ export interface FloatingActionButtonProps {
   label: string;
   onClick: () => void;
   position?: "bottom-right" | "bottom-left" | "bottom-center";
-  /** Eticheta afisata langa icon (FAB extins). */
+  /** Label shown next to the icon (extended FAB). */
   extended?: Child;
   class?: string;
 }

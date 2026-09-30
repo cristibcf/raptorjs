@@ -1,22 +1,22 @@
 /**
- * Varianta TSX (browser, prin RaptorBundle) a counter-ului - API-ul developerului
- * din whitepaper sectiunea 9. RaptorBundle transforma JSX cu jsx-runtime-ul
- * fine-grained @raptor/dom -> bindings DOM directe, fara Virtual DOM si fara Vite.
+ * TSX variant (browser, via RaptorBundle) of the counter - the developer API
+ * from whitepaper section 9. RaptorBundle transforms JSX with the fine-grained
+ * @raptor/dom jsx-runtime -> direct DOM bindings, with no Virtual DOM and no Vite.
  *
- * Ruleaza:  cd examples/counter && pnpm install && pnpm dev
+ * Run:  cd examples/counter && pnpm install && pnpm dev
  */
 import { render, state, derived } from "raptorjs/dom";
 
 function Counter() {
   const count = state(0);
-  const parity = derived(() => (count() % 2 === 0 ? "par" : "impar"));
+  const parity = derived(() => (count() % 2 === 0 ? "even" : "odd"));
 
   return (
     <section>
       <h1>RaptorJS counter</h1>
-      {/* {count} paseaza accesorul -> text-node legat fine-grained */}
+      {/* {count} passes the accessor -> fine-grained bound text node */}
       <h2>{count}</h2>
-      <p>Valoare {parity}</p>
+      <p>Value {parity}</p>
       <button on:click={() => count.update((n) => n + 1)}>+1</button>
       <button on:click={() => count.update((n) => n - 1)}>-1</button>
     </section>

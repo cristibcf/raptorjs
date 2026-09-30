@@ -1,7 +1,7 @@
 /**
- * Server de chat: mesajele sunt obiecte "message:ID", ordinea in colectia
- * "messages". Operatii: APPEND la trimitere, PATCH pe status (sent ->
- * delivered -> read), REMOVE la stergere (whitepaper 26.2, Anexa A.3).
+ * Chat server: messages are "message:ID" objects, their order lives in the
+ * "messages" collection. Operations: APPEND on send, PATCH on status (sent ->
+ * delivered -> read), REMOVE on delete (whitepaper 26.2, Appendix A.3).
  */
 import { raptorServer, type RaptorServer } from "@raptor/wire/server";
 

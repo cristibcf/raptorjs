@@ -1,15 +1,15 @@
 /**
- * Parser de argumente al launcher-ului.
+ * The launcher's argument parser.
  *
- * Spec sectiunea 4: fiecare comanda suporta atat iesire lizibila, cat si
- * `--json` pentru automatizare. Separatorul `--` trece restul argumentelor
- * aplicatiei, ca `raptor-runtime run app.ts -- --port 8080` sa fie neambiguu.
+ * Spec section 4: every command supports both readable output and `--json` for
+ * automation. The `--` separator passes the rest of the arguments to the
+ * application, so that `raptor-runtime run app.ts -- --port 8080` is unambiguous.
  */
 export interface ParsedArgs {
   readonly command: string | null;
   readonly positionals: readonly string[];
   readonly flags: Readonly<Record<string, string | boolean>>;
-  /** Argumentele de dupa `--`, destinate aplicatiei. */
+  /** The arguments after `--`, intended for the application. */
   readonly appArgs: readonly string[];
 }
 

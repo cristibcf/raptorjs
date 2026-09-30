@@ -17,17 +17,17 @@ async function started(options: Parameters<typeof createSession>[0] = {}): Promi
   return session;
 }
 
-test("aplicatia afla la pornire pe ce ecran a deschis-o adaptorul", async () => {
+test("at startup the app finds out which screen the adapter opened it on", async () => {
   const session = await started({ initialRoute: "/note/7" });
   try {
-    assert.equal(session.shell.route(), "/note/7", "ruta initiala nu se presupune, se cere");
+    assert.equal(session.shell.route(), "/note/7", "the initial route is not assumed, it is requested");
     assert.equal(session.shell.lifecycle(), "foreground");
   } finally {
     session.close();
   }
 });
 
-test("navigarea vine de la adaptor, inclusiv back-ul sistemului", async () => {
+test("navigation comes from the adapter, including the system back", async () => {
   const session = await started({ initialRoute: "/note" });
   try {
     session.host.navigate("/note/1");
@@ -40,22 +40,22 @@ test("navigarea vine de la adaptor, inclusiv back-ul sistemului", async () => {
 
     assert.equal(session.host.back(), true);
     await tick();
-    assert.equal(session.shell.route(), "/note/1", "gestul de back a mutat ecranul, fara sa treaca prin JS");
+    assert.equal(session.shell.route(), "/note/1", "the back gesture moved the screen, without going through JS");
 
     assert.equal(session.host.back(), true);
     await tick();
-    assert.equal(session.host.back(), false, "din ecranul radacina nu se mai iese");
+    assert.equal(session.host.back(), false, "you cannot leave the root screen anymore");
     assert.deepEqual(session.host.stack, ["/note"]);
   } finally {
     session.close();
   }
 });
 
-test("aplicatia nu are voie sa conduca ea navigarea", async () => {
+test("the app is not allowed to drive navigation itself", async () => {
   const session = await started();
   try {
-    // Sectiunea 6: ferestrele si meniurile nu exista pe mobil, iar ruta este a
-    // adaptorului. A citi ruta este permis; a o schimba nu are nici macar metoda.
+    // Section 6: windows and menus do not exist on mobile, and the route belongs
+    // to the adapter. Reading the route is allowed; changing it has no method at all.
     assert.equal(session.bridge.allows("window.open"), false);
     assert.equal(session.bridge.allows("window.navigate"), false);
     assert.equal(session.bridge.allows("menu.set"), false);
@@ -74,29 +74,29 @@ test("aplicatia nu are voie sa conduca ea navigarea", async () => {
   }
 });
 
-test("notele traiesc in magazinul securizat al platformei si supravietuiesc repornirii", async () => {
+test("notes live in the platform's secure store and survive a restart", async () => {
   const secureStore = new Map<string, string>();
   const first = await started({ secureStore });
   try {
-    await first.shell.addNote("prima");
-    assert.equal(secureStore.get("notes"), '[{"text":"prima","photo":null}]');
+    await first.shell.addNote("first");
+    assert.equal(secureStore.get("notes"), '[{"text":"first","photo":null}]');
   } finally {
     first.close();
   }
 
   const second = await started({ secureStore });
   try {
-    assert.deepEqual(second.shell.notes(), [{ text: "prima", photo: null }]);
+    assert.deepEqual(second.shell.notes(), [{ text: "first", photo: null }]);
   } finally {
     second.close();
   }
 });
 
-test("camera este un modul optional: fara ea aplicatia merge, doar fara poze", async () => {
+test("the camera is an optional module: without it the app works, just without photos", async () => {
   const fara = await started({ capabilities: ["device.notifications"] });
   try {
-    await fara.shell.addNote("fara poza");
-    assert.equal(await fara.shell.attachPhoto(), false, "aplicatia afla ca nu poate, fara sa crape");
+    await fara.shell.addNote("no photo");
+    assert.equal(await fara.shell.attachPhoto(), false, "the app learns it cannot, without crashing");
     assert.equal(fara.shell.notes()[0]?.photo, null);
   } finally {
     fara.close();
@@ -104,15 +104,15 @@ test("camera este un modul optional: fara ea aplicatia merge, doar fara poze", a
 
   const cu = await started({ capabilities: ["device.notifications", "device.camera"] });
   try {
-    await cu.shell.addNote("cu poza");
+    await cu.shell.addNote("with photo");
     assert.equal(await cu.shell.attachPhoto(), true);
-    assert.match(String(cu.shell.notes()[0]?.photo), /^foto-\d+$/);
+    assert.match(String(cu.shell.notes()[0]?.photo), /^photo-\d+$/);
   } finally {
     cu.close();
   }
 });
 
-test("ciclul de viata al telefonului: fundal, suspendare si reluare, fara oprire", async () => {
+test("the phone lifecycle: background, suspend and resume, without stopping", async () => {
   const session = await started();
   try {
     const stari: string[] = [];
@@ -126,35 +126,35 @@ test("ciclul de viata al telefonului: fundal, suspendare si reluare, fara oprire
     session.host.lifecycle.to("foreground");
     await tick();
     assert.deepEqual(stari, ["background", "suspended", "foreground"]);
-    assert.notEqual(session.host.lifecycle.state, "stopped", "suspendarea nu inchide aplicatia");
+    assert.notEqual(session.host.lifecycle.state, "stopped", "suspending does not close the app");
   } finally {
     session.close();
   }
 });
 
-test("o cerere de oprire trimite aplicatia in fundal, nu o inchide", async () => {
+test("a stop request sends the app to the background, it does not close it", async () => {
   const session = await started();
   try {
     const raspuns = (await session.bridge.call("lifecycle.requestStop")) as { state: string };
-    assert.equal(raspuns.state, "background", "sistemul decide suspendarea, nu aplicatia");
+    assert.equal(raspuns.state, "background", "the system decides to suspend, not the app");
   } finally {
     session.close();
   }
 });
 
-test("deep link-urile declarate ajung in aplicatie, restul nu", async () => {
+test("declared deep links reach the app, the rest do not", async () => {
   const session = await started();
   try {
     session.host.deliverDeepLink("raptor-shell://nota/3");
     await tick();
     assert.equal(session.shell.lastLink(), "raptor-shell://nota/3");
-    assert.throws(() => session.host.deliverDeepLink("altceva://nota/3"), /nu este declarata/);
+    assert.throws(() => session.host.deliverDeepLink("altceva://nota/3"), /is not declared/);
   } finally {
     session.close();
   }
 });
 
-test("actualizarile sunt ale magazinului, nu ale aplicatiei", async () => {
+test("updates belong to the store, not to the app", async () => {
   const session = await started();
   try {
     assert.deepEqual(await session.bridge.call("update.check"), {
@@ -167,24 +167,24 @@ test("actualizarile sunt ale magazinului, nu ale aplicatiei", async () => {
   }
 });
 
-test("randarea ramane fine-grained cand adaptorul schimba ecranul si starea", async () => {
+test("rendering stays fine-grained when the adapter changes the screen and the state", async () => {
   const session = await started({ initialRoute: "/note" });
   try {
     const root = doc.createElement("div");
     render(() => session.shell.view(doc as never) as never, root);
-    assert.ok(stats.createElement > 0, "prima randare chiar construieste ceva");
+    assert.ok(stats.createElement > 0, "the first render really does build something");
 
     resetStats();
-    await session.shell.addNote("una");
+    await session.shell.addNote("one");
     session.host.navigate("/note/1");
     session.host.lifecycle.to("background");
     session.host.deliverDeepLink("raptor-shell://nota/1");
     await tick();
 
-    assert.equal(stats.createElement, 0, "niciun element nou dupa patru schimbari");
+    assert.equal(stats.createElement, 0, "no new elements after four changes");
     assert.ok(stats.textUpdate > 0);
-    assert.match(root.toHTML(), /ecran: \/note\/1/);
-    assert.match(root.toHTML(), /stare: background - 1 note/);
+    assert.match(root.toHTML(), /screen: \/note\/1/);
+    assert.match(root.toHTML(), /status: background - 1 notes/);
   } finally {
     resetStats();
     Object.assign(stats, newStats());

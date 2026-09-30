@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { LIFECYCLE_STATES, canTransition, createLifecycle } from "../../src/core/index.ts";
 
-test("drumul normal al unei aplicatii trece prin toate starile de lucru", () => {
+test("an app's normal path goes through all the working states", () => {
   const lifecycle = createLifecycle();
   assert.equal(lifecycle.state, "launching");
   lifecycle.to("ready");
@@ -13,16 +13,16 @@ test("drumul normal al unei aplicatii trece prin toate starile de lucru", () => 
   assert.deepEqual(lifecycle.history, ["launching", "ready", "foreground", "background", "foreground", "stopped"]);
 });
 
-test("un telefon poate suspenda si relua fara sa inchida aplicatia", () => {
+test("a phone can suspend and resume without closing the app", () => {
   const lifecycle = createLifecycle();
   lifecycle.to("ready");
   lifecycle.to("foreground");
   lifecycle.to("background");
   lifecycle.to("suspended");
-  assert.equal(lifecycle.to("foreground"), "foreground", "reluarea din suspendare este legala");
+  assert.equal(lifecycle.to("foreground"), "foreground", "resuming from suspension is legal");
 });
 
-test("sariturile ilegale sunt erori de host, nu stari noi", () => {
+test("illegal jumps are host errors, not new states", () => {
   const lifecycle = createLifecycle();
   assert.throws(
     () => lifecycle.to("foreground"),
@@ -33,38 +33,38 @@ test("sariturile ilegale sunt erori de host, nu stari noi", () => {
       return true;
     },
   );
-  assert.equal(lifecycle.state, "launching", "o tranzitie refuzata nu schimba starea");
+  assert.equal(lifecycle.state, "launching", "a denied transition does not change the state");
   assert.equal(canTransition("launching", "foreground"), false);
   assert.equal(canTransition("launching", "ready"), true);
 });
 
-test("din 'stopped' nu mai exista iesire", () => {
+test("from 'stopped' there is no way out", () => {
   const lifecycle = createLifecycle("stopped");
   for (const state of LIFECYCLE_STATES) {
     if (state === "stopped") continue;
-    assert.equal(canTransition("stopped", state), false, `stopped -> ${state} nu are voie sa existe`);
+    assert.equal(canTransition("stopped", state), false, `stopped -> ${state} must not be allowed to exist`);
   }
   assert.throws(() => lifecycle.to("ready"));
 });
 
-test("orice stare de lucru poate fi oprita direct", () => {
+test("any working state can be stopped directly", () => {
   for (const state of LIFECYCLE_STATES) {
     if (state === "stopped") continue;
-    assert.equal(canTransition(state, "stopped"), true, `${state} trebuie sa poata fi oprita`);
+    assert.equal(canTransition(state, "stopped"), true, `${state} must be stoppable`);
   }
 });
 
-test("settle este idempotent si nu anunta o schimbare care nu s-a petrecut", () => {
+test("settle is idempotent and does not announce a change that did not happen", () => {
   const lifecycle = createLifecycle();
   const changes: string[] = [];
   lifecycle.onChange((state, reason) => changes.push(`${state}:${reason}`));
 
-  assert.equal(lifecycle.settle("ready", "pornire"), true);
-  assert.equal(lifecycle.settle("ready", "pornire"), false);
-  assert.deepEqual(changes, ["ready:pornire"]);
+  assert.equal(lifecycle.settle("ready", "startup"), true);
+  assert.equal(lifecycle.settle("ready", "startup"), false);
+  assert.deepEqual(changes, ["ready:startup"]);
 });
 
-test("masina ramane corecta si destructurata din obiect", () => {
+test("the machine stays correct even when destructured from the object", () => {
   const lifecycle = createLifecycle();
   const { settle } = lifecycle;
   assert.equal(settle("ready"), true);

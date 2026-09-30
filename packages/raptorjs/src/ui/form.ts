@@ -1,14 +1,14 @@
 /**
- * Form / FormField / Label / ErrorMessage - formulare cu validare derivata.
+ * Form / FormField / Label / ErrorMessage - forms with derived validation.
  *
- * Componenta-teza a formularelor. Validarea nu e un pas care ruleaza "la
- * submit" sau la fiecare re-randare: fiecare regula e un `derived` peste
- * semnalul campului, deci o tastare recalculeaza DOAR erorile care depind de
- * acel camp si rescrie DOAR text-node-ul erorii lui. Un formular cu 30 de
- * campuri nu atinge nimic din celelalte 29.
+ * The thesis component of forms. Validation is not a step that runs "on
+ * submit" or on every re-render: each rule is a `derived` over the field's
+ * signal, so a keystroke recomputes ONLY the errors that depend on that field
+ * and rewrites ONLY that field's error text node. A form with 30 fields
+ * touches nothing in the other 29.
  *
- * Testul verifica exact asta: tastarea intr-un camp face `createElement === 0`
- * si exact o actualizare de text.
+ * The test checks exactly this: typing in a field makes `createElement === 0`
+ * and exactly one text update.
  */
 import { state, derived, untracked, type Accessor, type State } from "raptorjs";
 import { R, For, Show, type Child } from "raptorjs/dom";
@@ -21,37 +21,37 @@ let idSeq = 0;
 export type Validator<T> = (value: T) => string | null;
 
 export interface FieldOptions<T> {
-  /** Reguli aplicate in ordine; prima care intoarce un mesaj castiga. */
+  /** Rules applied in order; the first one that returns a message wins. */
   validate?: Validator<T> | Validator<T>[];
-  /** Arata eroarea abia dupa prima iesire din camp. Implicit `true`. */
+  /** Show the error only after the first exit from the field. Default `true`. */
   validateOnBlur?: boolean;
   label?: string;
 }
 
 export interface Field<T> {
   value: State<T>;
-  /** Eroarea curenta, indiferent daca e afisata. */
+  /** The current error, whether or not it is displayed. */
   error: Accessor<string | null>;
-  /** Eroarea de AFISAT (tine cont de `touched`). */
+  /** The error to DISPLAY (takes `touched` into account). */
   visibleError: Accessor<string | null>;
   touched: Accessor<boolean>;
   dirty: Accessor<boolean>;
   valid: Accessor<boolean>;
   touch: () => void;
   reset: () => void;
-  /** Props gata de aplicat pe un `input`. */
+  /** Props ready to apply to an `input`. */
   props: () => Record<string, unknown>;
   id: string;
   label?: string;
 }
 
 /**
- * Creeaza un camp. Valoarea e un semnal pe care il detii tu; validarea e un
- * `derived` peste el, deci nu exista niciun "ciclu de validare" de declansat.
+ * Creates a field. The value is a signal you own; validation is a `derived`
+ * over it, so there is no "validation cycle" to trigger.
  *
- * `NoInfer` pe `options`: fara el, un validator de `string` ar fixa `T` la tipul
- * literal al valorii initiale (`field("")` => `Field<"">`), si n-ai mai putea
- * scrie nimic altceva in camp.
+ * `NoInfer` on `options`: without it, a `string` validator would pin `T` to the
+ * literal type of the initial value (`field("")` => `Field<"">`), and you
+ * couldn't type anything else into the field.
  */
 export function field<T>(initial: T, options?: FieldOptions<NoInfer<T>>): Field<T> {
   const id = "rui-f-" + ++idSeq;
@@ -106,17 +106,17 @@ export function field<T>(initial: T, options?: FieldOptions<NoInfer<T>>): Field<
 }
 
 export interface FormGroup {
-  /** `true` daca toate campurile sunt valide. */
+  /** `true` if all fields are valid. */
   valid: Accessor<boolean>;
-  /** `true` daca vreun camp a fost modificat. */
+  /** `true` if any field has been modified. */
   dirty: Accessor<boolean>;
-  /** Marcheaza toate campurile ca atinse (la submit esuat). */
+  /** Marks all fields as touched (on a failed submit). */
   touchAll: () => void;
   reset: () => void;
   errors: Accessor<string[]>;
 }
 
-/** Agrega mai multe campuri intr-un grup cu stare globala. */
+/** Aggregates several fields into a group with global state. */
 export function formGroup(fields: readonly Field<any>[]): FormGroup {
   const valid = derived(() => fields.every((f) => f.valid()));
   const dirty = derived(() => fields.some((f) => f.dirty()));
@@ -142,11 +142,11 @@ export function formGroup(fields: readonly Field<any>[]): FormGroup {
   };
 }
 
-/* ------------------------------------------------------------- validatori -- */
+/* ------------------------------------------------------------- validators - */
 
 export const validators = {
   required:
-    (message = "Câmp obligatoriu"): Validator<unknown> =>
+    (message = "Required field"): Validator<unknown> =>
     (value) => {
       if (value === null || value === undefined) return message;
       if (typeof value === "string" && value.trim() === "") return message;
@@ -155,31 +155,31 @@ export const validators = {
     },
   minLength:
     (n: number, message?: string): Validator<string> =>
-    (value) => (value.length < n ? message ?? `Minim ${n} caractere` : null),
+    (value) => (value.length < n ? message ?? `At least ${n} characters` : null),
   maxLength:
     (n: number, message?: string): Validator<string> =>
-    (value) => (value.length > n ? message ?? `Maxim ${n} caractere` : null),
+    (value) => (value.length > n ? message ?? `At most ${n} characters` : null),
   pattern:
-    (re: RegExp, message = "Format invalid"): Validator<string> =>
+    (re: RegExp, message = "Invalid format"): Validator<string> =>
     (value) => (value === "" || re.test(value) ? null : message),
-  /** Verificare pragmatica, nu RFC 5322: un `@` cu text de ambele parti si un punct. */
+  /** Pragmatic check, not RFC 5322: an `@` with text on both sides and a dot. */
   email:
-    (message = "Adresă de email invalidă"): Validator<string> =>
+    (message = "Invalid email address"): Validator<string> =>
     (value) => (value === "" || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? null : message),
   range:
     (min: number, max: number, message?: string): Validator<number> =>
-    (value) => (value < min || value > max ? message ?? `Între ${min} și ${max}` : null),
-  /** Compara cu alt camp, fara sa se aboneze la el de doua ori. */
+    (value) => (value < min || value > max ? message ?? `Between ${min} and ${max}` : null),
+  /** Compares against another field, without subscribing to it twice. */
   matches:
-    (other: Accessor<string>, message = "Valorile nu coincid"): Validator<string> =>
+    (other: Accessor<string>, message = "Values do not match"): Validator<string> =>
     (value) => (value === other() ? null : message),
 };
 
-/* ------------------------------------------------------------- componente -- */
+/* ------------------------------------------------------------- components - */
 
 export interface LabelProps {
   children: Child;
-  /** `id`-ul controlului. Fara el eticheta nu e legata de nimic. */
+  /** The control's `id`. Without it the label isn't tied to anything. */
   for?: string;
   required?: boolean;
   class?: string;
@@ -197,15 +197,15 @@ export function Label(props: LabelProps): El {
 }
 
 export interface ErrorMessageProps {
-  /** Mesajul; `null` inseamna fara eroare. */
+  /** The message; `null` means no error. */
   message: Accessor<string | null>;
   id?: string;
   class?: string;
 }
 
 export function ErrorMessage(props: ErrorMessageProps): El {
-  // `aria-live` pe containerul MEREU montat: daca ar aparea odata cu textul,
-  // multe screen readere n-ar anunta nimic.
+  // `aria-live` on the ALWAYS-mounted container: if it appeared together with
+  // the text, many screen readers would announce nothing.
   return R.div(
     {
       ...(props.id ? { id: props.id } : {}),
@@ -222,7 +222,7 @@ export interface FormFieldProps {
   label?: Child;
   required?: boolean;
   hint?: Child;
-  /** Controlul. Primeste `field.props()` aplicate de tine. */
+  /** The control. Receives `field.props()` applied by you. */
   children: Child;
   class?: string;
 }
@@ -251,7 +251,7 @@ export function FormField(props: FormFieldProps): El {
 export interface FormProps {
   children: Child;
   group?: FormGroup;
-  /** Ruleaza doar daca grupul e valid; altfel marcheaza toate campurile. */
+  /** Runs only if the group is valid; otherwise marks all fields. */
   onSubmit?: () => void | Promise<unknown>;
   class?: string;
   label?: string;
@@ -266,7 +266,7 @@ export function Form(props: FormProps): El {
 
     const group = props.group;
     if (group) {
-      // `untracked`: submit-ul citeste validitatea, nu se aboneaza la ea.
+      // `untracked`: submit reads the validity, it doesn't subscribe to it.
       const ok = untracked(() => group.valid());
       if (!ok) {
         group.touchAll();
@@ -300,12 +300,12 @@ export interface FormSectionProps {
   title: Child;
   description?: Child;
   children: Child;
-  /** Sectiune pliabila. */
+  /** Collapsible section. */
   collapsible?: boolean;
   class?: string;
 }
 
-/** Grupare vizuala de campuri, cu titlu legat prin `aria-labelledby`. */
+/** Visual grouping of fields, with a title linked via `aria-labelledby`. */
 export function FormSection(props: FormSectionProps): El {
   const id = "rui-fs-" + ++idSeq;
   const open = state(true);
@@ -343,20 +343,20 @@ export function FormSection(props: FormSectionProps): El {
 }
 
 export interface ValidationSummaryProps {
-  /** Campurile urmarite, in ordinea din formular. */
+  /** The tracked fields, in form order. */
   fields: readonly Field<any>[];
-  /** Arata sumarul doar dupa o incercare de trimitere. */
+  /** Show the summary only after a submit attempt. */
   visible?: Accessor<boolean>;
   title?: Child;
   class?: string;
 }
 
 /**
- * ValidationSummary - lista erorilor, cu linkuri catre campuri.
+ * ValidationSummary - list of errors, with links to the fields.
  *
- * Obligatorie pentru formularele lungi: fara ea, dupa un submit esuat
- * utilizatorul trebuie sa caute singur care dintre cele 20 de campuri e rosu.
- * Clickul pe o eroare muta focusul pe campul vinovat.
+ * Required for long forms: without it, after a failed submit the user has to
+ * hunt on their own for which of the 20 fields is red. Clicking an error moves
+ * focus to the offending field.
  */
 export function ValidationSummary(props: ValidationSummaryProps): Child {
   const errors = derived(() =>
@@ -377,7 +377,7 @@ export function ValidationSummary(props: ValidationSummaryProps): Child {
         tabindex: "-1",
       },
       R.div({ class: "rui-validation-title" }, () =>
-        props.title ?? `${errors().length} ${errors().length === 1 ? "eroare" : "erori"} de corectat`,
+        props.title ?? `${errors().length} ${errors().length === 1 ? "error" : "errors"} to fix`,
       ),
       R.ul(
         { class: "rui-validation-list" },

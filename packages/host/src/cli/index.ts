@@ -1,14 +1,14 @@
 /**
- * @raptor/cli-host - terminalul ca host Raptor.
+ * @raptor/cli-host - the terminal as a Raptor host.
  *
- * Roadmap-ul §4 pune uneltele intr-un strat propriu (`raptor-create`,
- * `raptor-bundle`, `raptor-runtime`). Pachetul acesta le da acelasi contract ca
- * aplicatiilor: o unealta scrisa pe punte primeste argumente, fluxuri si
- * intrebari de la host, si nu atinge `process` direct - deci poate fi testata
- * fara terminal si mutata pe alt host fara sa se schimbe.
+ * Roadmap §4 puts the tools in a layer of their own (`raptor-create`,
+ * `raptor-bundle`, `raptor-runtime`). This package gives them the same contract
+ * as the apps: a tool written to the bridge gets arguments, streams and
+ * questions from the host, and does not touch `process` directly - so it can be
+ * tested without a terminal and moved to another host without changing.
  *
- * Ca si `web` si `server`, coloana `cli` din matricea de capabilitati este
- * derivata, nu citita din tabelul sectiunii 6.
+ * Like `web` and `server`, the `cli` column in the capability matrix is derived,
+ * not read from the section 6 table.
  */
 export { createCliHost } from "./host.ts";
 export type { CliHost, CliHostOptions } from "./host.ts";

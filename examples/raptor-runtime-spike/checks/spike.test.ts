@@ -1,11 +1,11 @@
 /**
- * Lista de acceptanta a spike-ului, in formatul nativ RaptorRuntime
- * (spec sectiunea 14). Se ruleaza cu `raptor-runtime test`.
+ * The spike's acceptance list, in the native RaptorRuntime format
+ * (spec section 14). Run with `raptor-runtime test`.
  *
- * Un modul de test exporta `tests`: nume -> functie. Fiecare caz primeste
- * contextul de host, deci ruleaza sub exact aceleasi capabilitati ca aplicatia.
- * Asta este si ideea: daca testul poate face ceva ce aplicatia nu poate, testul
- * nu demonstreaza nimic despre aplicatie.
+ * A test module exports `tests`: name -> function. Each case receives the host
+ * context, so it runs under exactly the same capabilities as the application.
+ * That is the whole point: if the test can do something the application cannot,
+ * the test proves nothing about the application.
  */
 import { readText } from "raptor:files";
 import tasks from "raptor:tasks";
@@ -20,49 +20,49 @@ async function expectDenied(body: () => Promise<unknown>, capability: string): P
     await body();
   } catch (error) {
     const candidate = error as { code?: unknown; capability?: unknown; target?: unknown };
-    assert(typeof candidate.code === "string", `eroare fara cod stabil: ${String(error)}`);
-    assert(candidate.capability === capability, `asteptam capability '${capability}', am primit '${String(candidate.capability)}'`);
+    assert(typeof candidate.code === "string", `error without a stable code: ${String(error)}`);
+    assert(candidate.capability === capability, `expected capability '${capability}', got '${String(candidate.capability)}'`);
     return { code: String(candidate.code), target: String(candidate.target ?? "") };
   }
-  throw new Error(`accesul la '${capability}' ar fi trebuit refuzat, dar a reusit`);
+  throw new Error(`access to '${capability}' should have been denied, but it succeeded`);
 }
 
 export const tests = {
-  /** (2) Modulul TypeScript se evalueaza si raporteaza structurat. */
-  async "modulul TypeScript se incarca fara pas de compilare"(context: HostContext): Promise<void> {
+  /** (2) The TypeScript module evaluates and reports in a structured way. */
+  async "the TypeScript module loads with no compile step"(context: HostContext): Promise<void> {
     const source = await readText("./src/main.ts");
-    assert(source.includes("interface SpikeEvidence"), "sursa de intrare nu a fost citita");
-    assert(context.manifest.name === "raptor-runtime-spike", "manifestul nu a ajuns in context");
+    assert(source.includes("interface SpikeEvidence"), "the entry source was not read");
+    assert(context.manifest.name === "raptor-runtime-spike", "the manifest did not reach the context");
   },
 
-  /** (3) Citirea in afara domeniului declarat esueaza cu eroare clara. */
-  async "citirea in afara proiectului este refuzata"(): Promise<void> {
+  /** (3) A read outside the declared scope fails with a clear error. */
+  async "a read outside the project is denied"(): Promise<void> {
     const denial = await expectDenied(() => readText("../../package.json"), "files.read");
-    assert(denial.code.startsWith("raptor:capability/"), `cod neasteptat: ${denial.code}`);
-    assert(denial.target.length > 0, "eroarea nu spune ce tinta a fost refuzata");
+    assert(denial.code.startsWith("raptor:capability/"), `unexpected code: ${denial.code}`);
+    assert(denial.target.length > 0, "the error does not say which target was denied");
   },
 
-  /** (3) Granularitatea conteaza: un fisier din proiect, dar nedeclarat, e refuzat. */
-  async "un fisier din proiect nedeclarat este refuzat"(): Promise<void> {
+  /** (3) Granularity matters: a file inside the project, but undeclared, is denied. */
+  async "an undeclared file inside the project is denied"(): Promise<void> {
     await expectDenied(() => readText("./raptor.policy.json"), "files.read");
   },
 
-  /** (3) Capabilitatile nedeclarate nu se activeaza accidental. */
-  async "reteaua si procesele copil nu sunt disponibile implicit"(context: HostContext): Promise<void> {
-    assert(!context.broker.check("net.connect", "example.com:443").granted, "net.connect nu ar trebui acordata");
-    assert(!context.broker.check("process.spawn", "git").granted, "process.spawn nu ar trebui acordata");
-    assert(!context.broker.check("env.read", "PATH").granted, "env.read nu ar trebui acordata");
+  /** (3) Undeclared capabilities are not enabled by accident. */
+  async "the network and child processes are not available by default"(context: HostContext): Promise<void> {
+    assert(!context.broker.check("net.connect", "example.com:443").granted, "net.connect should not be granted");
+    assert(!context.broker.check("process.spawn", "git").granted, "process.spawn should not be granted");
+    assert(!context.broker.check("env.read", "PATH").granted, "env.read should not be granted");
   },
 
-  /** (3) Delegarea este explicita: un sub-broker nu mosteneste nimic necerut. */
-  async "delegarea nu transmite capabilitati necerute"(context: HostContext): Promise<void> {
+  /** (3) Delegation is explicit: a sub-broker inherits nothing that was not requested. */
+  async "delegation does not pass on unrequested capabilities"(context: HostContext): Promise<void> {
     const child = context.broker.delegate(["files.read"], "worker");
-    assert(child.check("files.read", "./src/main.ts").granted, "subsetul cerut ar fi trebuit pastrat");
-    assert(!child.check("clock.real").granted, "clock.real nu a fost ceruta, deci nu trebuie mostenita");
+    assert(child.check("files.read", "./src/main.ts").granted, "the requested subset should have been kept");
+    assert(!child.check("clock.real").granted, "clock.real was not requested, so it must not be inherited");
   },
 
-  /** (4) Anularea ajunge la codul in zbor, nu doar la planificator. */
-  async "un task anulat se opreste si raporteaza anularea"(): Promise<void> {
+  /** (4) Cancellation reaches the in-flight code, not just the scheduler. */
+  async "a cancelled task stops and reports the cancellation"(): Promise<void> {
     const controller = new AbortController();
     const started = tasks.spawn(
       async (task) => {
@@ -74,7 +74,7 @@ export const tests = {
           });
         });
         task.throwIfCancelled();
-        return "nu ar fi trebuit sa ajunga aici";
+        return "should not have reached here";
       },
       { name: "cancellable", signal: controller.signal },
     );
@@ -82,15 +82,15 @@ export const tests = {
     controller.abort();
     try {
       await started;
-      throw new Error("task-ul anulat ar fi trebuit sa arunce");
+      throw new Error("the cancelled task should have thrown");
     } catch (error) {
       const code = (error as { code?: unknown }).code;
-      assert(code === "raptor:task/cancelled", `asteptam raptor:task/cancelled, am primit ${String(code)}`);
+      assert(code === "raptor:task/cancelled", `expected raptor:task/cancelled, got ${String(code)}`);
     }
   },
 
-  /** (4) Deadline-ul este aplicat de fabric, nu lasat pe seama aplicatiei. */
-  async "un task care depaseste deadline-ul este oprit"(): Promise<void> {
+  /** (4) The deadline is enforced by the fabric, not left to the application. */
+  async "a task that exceeds its deadline is stopped"(): Promise<void> {
     try {
       await tasks.spawn(
         async (task) => {
@@ -105,19 +105,19 @@ export const tests = {
         },
         { name: "slow", deadlineMs: 20 },
       );
-      throw new Error("task-ul ar fi trebuit sa depaseasca deadline-ul");
+      throw new Error("the task should have exceeded its deadline");
     } catch (error) {
       const code = (error as { code?: unknown }).code;
-      assert(code === "raptor:task/deadline", `asteptam raptor:task/deadline, am primit ${String(code)}`);
+      assert(code === "raptor:task/deadline", `expected raptor:task/deadline, got ${String(code)}`);
     }
   },
 
-  /** Fiecare decizie de capability ajunge in diagnostic (spec sectiunea 7). */
-  async "deciziile de capability sunt inregistrate"(context: HostContext): Promise<void> {
+  /** Every capability decision reaches diagnostics (spec section 7). */
+  async "capability decisions are recorded"(context: HostContext): Promise<void> {
     context.broker.check("net.connect", "audit.example.com:443");
     const usage = context.broker.diagnostics().usage;
     const entry = usage.find((item) => item.capability === "net.connect" && item.target === "audit.example.com:443");
-    assert(entry !== undefined, "verificarea nu a fost inregistrata in diagnostic");
-    assert(entry!.granted === false, "refuzul nu a fost inregistrat ca refuz");
+    assert(entry !== undefined, "the check was not recorded in diagnostics");
+    assert(entry!.granted === false, "the denial was not recorded as a denial");
   },
 };

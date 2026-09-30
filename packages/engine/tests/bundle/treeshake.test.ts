@@ -7,9 +7,9 @@ import { analyzeModule, blankRanges } from "../../src/bundle/esm-graph.ts";
 import { treeshake, resetSideEffectsCache } from "../../src/bundle/treeshake.ts";
 import { bundleApp } from "../../src/bundle/bundle.ts";
 
-/* ---------------------------------------------------------- analiza ESM -- */
+/* ---------------------------------------------------------- ESM analysis -- */
 
-test("analyzeModule citește importuri, exporturi locale și re-exporturi", () => {
+test("analyzeModule reads imports, local exports and re-exports", () => {
   const info = analyzeModule(
     `
     import { a, b as c } from "./x.ts";
@@ -37,41 +37,41 @@ test("analyzeModule citește importuri, exporturi locale și re-exporturi", () =
     ],
   );
   for (const name of ["f", "g", "h", "K", "T", "local", "bag"]) {
-    assert.ok(info.localExports.has(name), "lipsește " + name);
+    assert.ok(info.localExports.has(name), "missing " + name);
   }
   assert.equal(info.reExports.length, 3);
   assert.equal(info.hasTopLevelStatements, false);
 });
 
-test("analyzeModule detectează instrucțiuni de nivel înalt", () => {
+test("analyzeModule detects top-level statements", () => {
   assert.equal(analyzeModule("export const a = 1;", "m.ts").hasTopLevelStatements, false);
   assert.equal(analyzeModule("const a = 1;\nconsole.log(a);", "m.ts").hasTopLevelStatements, true);
   assert.equal(analyzeModule("if (globalThis.x) { doStuff(); }", "m.ts").hasTopLevelStatements, true);
-  // Un IIFE care umple tabele locale e tot o instrucțiune de nivel înalt.
+  // An IIFE that fills local tables is still a top-level statement.
   assert.equal(analyzeModule("(function(){})();", "m.ts").hasTopLevelStatements, true);
 });
 
-test("analyzeModule tratează `export { a, b }` fără `from`", () => {
+test("analyzeModule handles `export { a, b }` without `from`", () => {
   const info = analyzeModule("const a = 1, b = 2;\nexport { a, b };", "m.ts");
   assert.ok(info.localExports.has("a") && info.localExports.has("b"));
   assert.equal(info.reExports.length, 0);
 });
 
-test("blankRanges păstrează liniile", () => {
-  const src = "linia1\nlinia2\nlinia3";
-  const out = blankRanges(src, [[7, 13]]);
-  assert.equal(out.split("\n").length, 3, "același număr de linii");
-  assert.equal(out, "linia1\n      \nlinia3");
+test("blankRanges preserves the lines", () => {
+  const src = "line1\nline2\nline3";
+  const out = blankRanges(src, [[6, 11]]);
+  assert.equal(out.split("\n").length, 3, "same number of lines");
+  assert.equal(out, "line1\n     \nline3");
   assert.equal(out.length, src.length);
 });
 
-/* ----------------------------------------------------- shaking pe fals -- */
+/* ----------------------------------------------------- shaking on a fake -- */
 
-/** Mini-proiect in memorie, ca sa testam algoritmul fara disc. */
+/** In-memory mini-project, so we can test the algorithm without disk. */
 function fakeProject(files: Record<string, string>) {
   const read = (file: string): string => {
     const found = files[file];
-    if (found === undefined) throw new Error("fișier inexistent: " + file);
+    if (found === undefined) throw new Error("nonexistent file: " + file);
     return found;
   };
   const resolve = (spec: string, importer: string): string | null => {
@@ -81,7 +81,7 @@ function fakeProject(files: Record<string, string>) {
   return { read, resolve };
 }
 
-test("barrel: se urmează doar steaua care furnizează simbolul cerut", () => {
+test("barrel: only the star that provides the requested symbol is followed", () => {
   const project = fakeProject({
     "entry.ts": 'import { Button } from "barrel.ts";\nexport const x = Button;',
     "barrel.ts": 'export * from "button.ts";\nexport * from "chart.ts";\nexport * from "table.ts";',
@@ -93,11 +93,11 @@ test("barrel: se urmează doar steaua care furnizează simbolul cerut", () => {
 
   const result = treeshake("entry.ts", project);
   assert.deepEqual([...result.included].sort(), ["barrel.ts", "button.ts", "entry.ts"]);
-  assert.equal(result.prunedEdges, 2, "stelele către chart și table s-au tăiat");
-  assert.ok(!result.included.has("heavy.ts"), "dependința tranzitivă a dispărut și ea");
+  assert.equal(result.prunedEdges, 2, "the stars to chart and table were cut");
+  assert.ok(!result.included.has("heavy.ts"), "the transitive dependency disappeared too");
 });
 
-test("re-export cu nume: doar modulul care are simbolul intră", () => {
+test("named re-export: only the module that has the symbol is included", () => {
   const project = fakeProject({
     "entry.ts": 'import { B } from "barrel.ts";\nexport const x = B;',
     "barrel.ts": 'export { A } from "a.ts";\nexport { B } from "b.ts";',
@@ -110,7 +110,7 @@ test("re-export cu nume: doar modulul care are simbolul intră", () => {
   assert.equal(result.prunedEdges, 1);
 });
 
-test("redenumirea la re-export urmărește numele LOCAL din țintă", () => {
+test("renaming at re-export follows the LOCAL name in the target", () => {
   const project = fakeProject({
     "entry.ts": 'import { Public } from "barrel.ts";\nexport const x = Public;',
     "barrel.ts": 'export { internal as Public } from "impl.ts";',
@@ -121,7 +121,7 @@ test("redenumirea la re-export urmărește numele LOCAL din țintă", () => {
   assert.equal(result.prunedEdges, 0);
 });
 
-test("import namespace: nu știm ce se folosește, deci se ia tot", () => {
+test("namespace import: we don't know what is used, so everything is taken", () => {
   const project = fakeProject({
     "entry.ts": 'import * as ui from "barrel.ts";\nexport const x = ui;',
     "barrel.ts": 'export * from "a.ts";\nexport * from "b.ts";',
@@ -133,7 +133,7 @@ test("import namespace: nu știm ce se folosește, deci se ia tot", () => {
   assert.equal(result.prunedEdges, 0);
 });
 
-test("import bare păstrează modulul: e cerut tocmai pentru efecte", () => {
+test("bare import keeps the module: it is requested precisely for its effects", () => {
   const project = fakeProject({
     "entry.ts": 'import "polyfill.ts";\nexport const x = 1;',
     "polyfill.ts": "globalThis.foo = 1;",
@@ -142,21 +142,21 @@ test("import bare păstrează modulul: e cerut tocmai pentru efecte", () => {
   assert.ok(result.included.has("polyfill.ts"));
 });
 
-test("un re-export către un modul cu efecte secundare NU se taie", () => {
+test("a re-export to a module with side effects is NOT cut", () => {
   resetSideEffectsCache();
   const project = fakeProject({
     "entry.ts": 'import { A } from "barrel.ts";\nexport const x = A;',
     "barrel.ts": 'export * from "a.ts";\nexport * from "impure.ts";',
     "a.ts": "export function A() {}",
-    // Fără package.json prin preajmă, euristica decide: are instrucțiuni.
+    // With no package.json nearby, the heuristic decides: it has statements.
     "impure.ts": 'globalThis.__installed = true;\nexport function B() {}',
   });
   const result = treeshake("entry.ts", project);
-  assert.ok(result.included.has("impure.ts"), "modulul impur rămâne în graf");
+  assert.ok(result.included.has("impure.ts"), "the impure module stays in the graph");
   assert.equal(result.prunedEdges, 0);
 });
 
-test("barrel-uri înlănțuite: simbolul e urmărit prin mai multe niveluri", () => {
+test("chained barrels: the symbol is tracked through several levels", () => {
   const project = fakeProject({
     "entry.ts": 'import { Deep } from "l1.ts";\nexport const x = Deep;',
     "l1.ts": 'export * from "l2.ts";\nexport * from "noise1.ts";',
@@ -170,7 +170,7 @@ test("barrel-uri înlănțuite: simbolul e urmărit prin mai multe niveluri", ()
   assert.equal(result.prunedEdges, 2);
 });
 
-test("ciclu de re-exporturi: se termină, nu se blochează", () => {
+test("re-export cycle: it terminates, does not hang", () => {
   const project = fakeProject({
     "entry.ts": 'import { X } from "a.ts";\nexport const y = X;',
     "a.ts": 'export * from "b.ts";\nexport function X() {}',
@@ -180,20 +180,20 @@ test("ciclu de re-exporturi: se termină, nu se blochează", () => {
   assert.ok(result.included.has("a.ts"));
 });
 
-test("simbol negăsit: păstrăm toate stelele, ca să nu stricăm build-ul", () => {
+test("symbol not found: we keep all stars, so we don't break the build", () => {
   const project = fakeProject({
-    // `Type` poate fi un tip șters la transpilare, deci absent din analiza noastră.
+    // `Type` may be a type erased during transpilation, so absent from our analysis.
     "entry.ts": 'import { Necunoscut } from "barrel.ts";\nexport const x = Necunoscut;',
     "barrel.ts": 'export * from "a.ts";\nexport * from "b.ts";',
     "a.ts": "export function A() {}",
     "b.ts": "export function B() {}",
   });
   const result = treeshake("entry.ts", project);
-  assert.equal(result.included.size, 4, "fallback conservator");
+  assert.equal(result.included.size, 4, "conservative fallback");
   assert.equal(result.prunedEdges, 0);
 });
 
-/* ------------------------------------------------------ pe disc, real -- */
+/* ------------------------------------------------------ on disk, real -- */
 
 function scratchProject(files: Record<string, string>): { dir: string; cleanup: () => void } {
   const dir = mkdtempSync(join(tmpdir(), "raptor-shake-"));
@@ -205,33 +205,33 @@ function scratchProject(files: Record<string, string>): { dir: string; cleanup: 
   return { dir, cleanup: () => rmSync(dir, { recursive: true, force: true }) };
 }
 
-test("bundleApp elimină modulele nefolosite dintr-un barrel real", () => {
+test("bundleApp removes the unused modules from a real barrel", () => {
   resetSideEffectsCache();
   const { dir, cleanup } = scratchProject({
     "package.json": JSON.stringify({ name: "scratch", type: "module", sideEffects: false }),
     "entry.ts": 'import { used } from "./barrel.ts";\nexport const out = used();',
     "barrel.ts": 'export * from "./used.ts";\nexport * from "./unused.ts";',
-    "used.ts": 'export function used() { return "DA"; }',
-    "unused.ts": 'export function unused() { return "NU-TREBUIE-SA-APARA"; }',
+    "used.ts": 'export function used() { return "YES"; }',
+    "unused.ts": 'export function unused() { return "MUST-NOT-APPEAR"; }',
   });
 
   try {
     const shaken = bundleApp(join(dir, "entry.ts"));
     assert.equal(shaken.files.length, 3, "entry + barrel + used");
-    assert.ok(!shaken.code.includes("NU-TREBUIE-SA-APARA"), "modulul nefolosit a dispărut din output");
-    assert.ok(shaken.code.includes("DA"));
+    assert.ok(!shaken.code.includes("MUST-NOT-APPEAR"), "the unused module disappeared from the output");
+    assert.ok(shaken.code.includes("YES"));
     assert.equal(shaken.shaken, 1);
 
     const whole = bundleApp(join(dir, "entry.ts"), { treeshake: false });
     assert.equal(whole.files.length, 4);
-    assert.ok(whole.code.includes("NU-TREBUIE-SA-APARA"), "fără shaking, intră tot");
+    assert.ok(whole.code.includes("MUST-NOT-APPEAR"), "without shaking, everything is included");
     assert.equal(whole.shaken, 0);
   } finally {
     cleanup();
   }
 });
 
-test("bundle-ul tăiat se evaluează și dă același rezultat ca cel întreg", () => {
+test("the pruned bundle evaluates and gives the same result as the whole one", () => {
   resetSideEffectsCache();
   const { dir, cleanup } = scratchProject({
     "package.json": JSON.stringify({ name: "scratch2", type: "module", sideEffects: false }),
@@ -256,14 +256,14 @@ test("bundle-ul tăiat se evaluează și dă același rezultat ca cel întreg", 
   }
 });
 
-test("`sideEffects: false` din package.json permite tăierea unui modul cu IIFE", () => {
+test("`sideEffects: false` in package.json allows cutting a module with an IIFE", () => {
   resetSideEffectsCache();
   const { dir, cleanup } = scratchProject({
     "package.json": JSON.stringify({ name: "scratch3", type: "module", sideEffects: false }),
     "entry.ts": 'import { a } from "./barrel.ts";\nexport const x = a;',
     "barrel.ts": 'export * from "./a.ts";\nexport * from "./tabele.ts";',
     "a.ts": "export const a = 1;",
-    // Fără declarația din package.json, euristica ar păstra acest modul.
+    // Without the declaration in package.json, the heuristic would keep this module.
     "tabele.ts": "const T = new Uint8Array(8);\n(function(){ T[0] = 1; })();\nexport const TABEL = T;",
   });
 
@@ -276,7 +276,7 @@ test("`sideEffects: false` din package.json permite tăierea unui modul cu IIFE"
   }
 });
 
-test("fără `sideEffects`, euristica păstrează modulul cu IIFE", () => {
+test("without `sideEffects`, the heuristic keeps the module with an IIFE", () => {
   resetSideEffectsCache();
   const { dir, cleanup } = scratchProject({
     "package.json": JSON.stringify({ name: "scratch4", type: "module" }),
@@ -288,7 +288,7 @@ test("fără `sideEffects`, euristica păstrează modulul cu IIFE", () => {
 
   try {
     const result = bundleApp(join(dir, "entry.ts"));
-    assert.equal(result.shaken, 0, "conservator: nu taie ce nu poate dovedi că e pur");
+    assert.equal(result.shaken, 0, "conservative: it doesn't cut what it can't prove is pure");
     assert.ok(result.files.some((f) => f.endsWith("tabele.ts")));
   } finally {
     cleanup();

@@ -19,11 +19,11 @@ function roundtripOp(op: Operation): Operation {
   return decodeOp(new Reader(w.finish()));
 }
 
-test("roundtrip pentru toate opcodes", () => {
+test("roundtrip for all opcodes", () => {
   const ops: Operation[] = [
     { kind: "set", handle: "user:42", field: "name", value: "Cristian" },
     { kind: "inc", handle: "user:42", field: "score", delta: 1 },
-    { kind: "append", handle: "messages", value: { id: 1, text: "salut" } },
+    { kind: "append", handle: "messages", value: { id: 1, text: "hi" } },
     { kind: "insert", handle: "list:9", index: 2, value: "x" },
     { kind: "remove", handle: "list:9", index: 3 },
     { kind: "move", handle: "list:9", from: 5, to: 1 },
@@ -36,7 +36,7 @@ test("roundtrip pentru toate opcodes", () => {
   }
 });
 
-test("Document: SET / INC pe field (exemplul din whitepaper 13)", () => {
+test("Document: SET / INC on a field (the example from whitepaper 13)", () => {
   const doc = new Document();
   doc.apply({ kind: "set", handle: "object:17", field: "score", value: 920 });
   assert.equal((doc.get("object:17") as any).score, 920);
@@ -46,7 +46,7 @@ test("Document: SET / INC pe field (exemplul din whitepaper 13)", () => {
   assert.equal(change.list, false);
 });
 
-test("Document: operatii de colectie", () => {
+test("Document: collection operations", () => {
   const doc = new Document();
   doc.apply({ kind: "append", handle: "list", value: "a" });
   doc.apply({ kind: "append", handle: "list", value: "b" });
@@ -61,7 +61,7 @@ test("Document: operatii de colectie", () => {
   assert.deepEqual(doc.get("list"), []);
 });
 
-test("Document: PATCH si REPLACE", () => {
+test("Document: PATCH and REPLACE", () => {
   const doc = new Document();
   doc.apply({ kind: "patch", handle: "obj", fields: { a: 1, b: 2 } });
   assert.deepEqual(doc.get("obj"), { a: 1, b: 2 });
@@ -69,7 +69,7 @@ test("Document: PATCH si REPLACE", () => {
   assert.deepEqual(doc.get("obj"), { c: 3 });
 });
 
-test("batch versionat roundtrip + aplicare", () => {
+test("versioned batch roundtrip + apply", () => {
   const batch: OpsBatch = {
     transactionId: 7,
     baseVersion: 10,
@@ -92,7 +92,7 @@ test("batch versionat roundtrip + aplicare", () => {
   assert.equal((doc.get("u:1") as any).score, 5);
 });
 
-test("snapshot roundtrip pastreaza starea si versiunea", () => {
+test("snapshot roundtrip preserves state and version", () => {
   const doc = new Document();
   doc.version = 3;
   doc.apply({ kind: "set", handle: "cpu", field: "v", value: 42.5 });
@@ -104,7 +104,7 @@ test("snapshot roundtrip pastreaza starea si versiunea", () => {
   assert.deepEqual(restored.get("jobs"), [{ id: 1, name: "build" }]);
 });
 
-test("mesaje protocol roundtrip", () => {
+test("protocol messages roundtrip", () => {
   const msgs = [
     { type: "hello", protocolVersion: 1, clientBuild: "0.1.0", capabilities: ["webtransport", "resume"] },
     { type: "welcome", sessionId: "s1", epoch: 1, serverBuild: "0.1.0" },
@@ -119,28 +119,28 @@ test("mesaje protocol roundtrip", () => {
   }
 });
 
-test("TEZA: delta INC este mult mai mic decat re-snapshot al obiectului", () => {
-  // Obiect cu 50 de field-uri; se schimba unul singur.
+test("THESIS: an INC delta is much smaller than re-snapshotting the object", () => {
+  // An object with 50 fields; only one changes.
   const bigObject: Record<string, unknown> = {};
-  for (let i = 0; i < 50; i++) bigObject[`field${i}`] = `valoare-text-${i}`;
+  for (let i = 0; i < 50; i++) bigObject[`field${i}`] = `text-value-${i}`;
   bigObject.score = 920;
 
-  // Cost RaptorWire: o operatie INC pe un field.
+  // RaptorWire cost: one INC operation on a field.
   const wDelta = new Writer();
   encodeOp(wDelta, { kind: "inc", handle: "object:17", field: "score", delta: 1 });
   const deltaBytes = wDelta.length;
 
-  // Cost "re-serializare document": tot obiectul ca JSON.
+  // "Document re-serialization" cost: the whole object as JSON.
   const jsonBytes = new TextEncoder().encode(JSON.stringify(bigObject)).length;
 
   assert.ok(deltaBytes < jsonBytes / 10, `delta=${deltaBytes} vs json=${jsonBytes}`);
 });
 
-test("idempotenta: replay-ul unui INC ar dubla efectul (deci dedup e necesar)", () => {
-  // Documenteaza contractul din sectiunea 14.2: INC nu e idempotent.
+test("idempotency: replaying an INC would double the effect (so dedup is needed)", () => {
+  // Documents the contract from section 14.2: INC is not idempotent.
   const doc = new Document();
   const op: Operation = { kind: "inc", handle: "u", field: "n", delta: 1 };
   doc.apply(op);
-  doc.apply(op); // replay accidental
-  assert.equal((doc.get("u") as any).n, 2); // de aceea batch-urile au transactionId
+  doc.apply(op); // accidental replay
+  assert.equal((doc.get("u") as any).n, 2); // this is why batches have a transactionId
 });

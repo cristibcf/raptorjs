@@ -1,11 +1,10 @@
 /**
  * @raptor/desktop - Raptor Desktop Adapter.
  *
- * Roadmap sectiunea 7 il pune imediat dupa runtime, ca "prima cale spre
- * aplicatii native pentru PC". Pachetul contine trei lucruri: descrierea
- * back-end-urilor de WebView, host-ul de referinta care fixeaza comportamentul
- * asteptat de la binarul nativ, si planul de impachetare din care se genereaza
- * CI-ul de instalatoare.
+ * Roadmap section 7 places it right after the runtime, as "the first path to
+ * native PC apps". The package contains three things: the description of the
+ * WebView back-ends, the reference host that pins down the behavior expected of
+ * the native binary, and the packaging plan the installer CI is generated from.
  */
 export { DESKTOP_BACKENDS, DESKTOP_PLATFORMS, desktopBackend } from "./backends.ts";
 export type { DesktopBackend } from "./backends.ts";

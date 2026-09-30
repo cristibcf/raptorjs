@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Exemplu: aceeasi aplicatie ca desktop/mobile/web/service-shell, de data asta ca unealta de linie de comanda.",
+  "description": "Example: the same app as desktop/mobile/web/service-shell, this time as a command-line tool.",
   "bin": {
     "raptor-notes": "./src/bin.ts"
   },

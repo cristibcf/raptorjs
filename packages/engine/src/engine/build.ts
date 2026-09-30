@@ -1,9 +1,9 @@
 /**
- * RaptorBuild - orchestrare (whitepaper RaptorEngine 6, 13, 16).
+ * RaptorBuild - orchestration (RaptorEngine whitepaper 6, 13, 16).
  *
- * Pipeline: parse -> optimize (semantic) -> graf -> codegen multi-target ->
- * chunk planning -> manifest -> bundle low-level. Compilerul e separat de
- * bundler; engine-ul low-level e consumat printr-un adapter (37).
+ * Pipeline: parse -> optimize (semantic) -> graph -> multi-target codegen ->
+ * chunk planning -> manifest -> low-level bundle. The compiler is separate from
+ * the bundler; the low-level engine is consumed through an adapter (37).
  */
 import {
   parseModule,
@@ -61,10 +61,10 @@ function countDomBindings(module: IRModule): number {
   return n;
 }
 
-/** Chunk planning semantic + route-aware (16). v0.1: profil + hints PGO. */
+/** Semantic + route-aware chunk planning (16). v0.1: profile + PGO hints. */
 function planChunks(module: IRModule, config: RaptorConfig, hints: PlanHints): Chunk[] {
-  // Chunk folding ghidat de profil (co-usage, §22/§24): componentele grupate
-  // impreuna merg intr-un chunk; restul in "main". NU elimina nimic.
+  // Profile-guided chunk folding (co-usage, §22/§24): components grouped
+  // together go into one chunk; the rest into "main". Eliminates NOTHING.
   if (hints.foldChunks.length > 0) {
     const known = new Set(module.components.map((c) => c.name));
     const grouped = new Set<string>();
@@ -98,7 +98,7 @@ function planChunks(module: IRModule, config: RaptorConfig, hints: PlanHints): C
 export interface BuildOptions {
   config?: UserConfig;
   engine?: LowLevelEngine;
-  /** Hints profile-guided (whitepaper 22-24). Influenteaza strategia, nu semantica. */
+  /** Profile-guided hints (whitepaper 22-24). Influence the strategy, not the semantics. */
   planHints?: PlanHints;
 }
 
@@ -119,7 +119,7 @@ interface Prepared {
   moduleName: string;
 }
 
-/** Pipeline-ul semantic (parse -> optimize -> graf -> codegen -> chunks). */
+/** The semantic pipeline (parse -> optimize -> graph -> codegen -> chunks). */
 function prepare(source: string, path: string, options: BuildOptions): Prepared {
   const config = resolveConfig(options.config);
   const engine = options.engine ?? NaiveEngine;
@@ -201,7 +201,7 @@ function finalize(path: string, prep: Prepared, bundle: { code: string }): Build
   };
 }
 
-/** Compileaza un modul .raptor (sincron, engine naiv sau injectat sincron). */
+/** Compiles a .raptor module (synchronous, naive engine or a synchronous injected one). */
 export function buildModule(source: string, path: string, options: BuildOptions = {}): BuildResult {
   const prep = prepare(source, path, options);
   const bundle = prep.engine.bundle([{ name: `${prep.moduleName}.browser.js`, code: prep.browser }]);
@@ -209,8 +209,8 @@ export function buildModule(source: string, path: string, options: BuildOptions 
 }
 
 /**
- * Compileaza asincron - necesar pentru engine-ul low-level Rolldown/Oxc
- * (bundling asincron). Foloseste bundleAsync cand exista, altfel bundle sincron.
+ * Compiles asynchronously - required for the low-level Rolldown/Oxc engine
+ * (async bundling). Uses bundleAsync when available, otherwise synchronous bundle.
  */
 export async function buildModuleAsync(
   source: string,

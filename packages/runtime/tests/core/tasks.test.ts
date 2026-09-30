@@ -4,7 +4,7 @@ import { createObserver, createTaskFabric } from "../../src/core/index.ts";
 
 const tick = (ms = 0): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
-test("un task terminat cu bine intra in statistici si elibereaza slotul", async () => {
+test("a successfully completed task enters the statistics and releases the slot", async () => {
   const tasks = createTaskFabric();
   assert.equal(await tasks.spawn(() => 42), 42);
   const stats = tasks.stats();
@@ -14,14 +14,14 @@ test("un task terminat cu bine intra in statistici si elibereaza slotul", async 
   );
 });
 
-test("esecul aplicatiei ramane esec, nu devine anulare", async () => {
+test("an application failure stays a failure, it does not become a cancellation", async () => {
   const tasks = createTaskFabric();
   await assert.rejects(tasks.spawn(() => { throw new Error("boom"); }), /boom/);
   assert.equal(tasks.stats().failed, 1);
   assert.equal(tasks.stats().cancelled, 0);
 });
 
-test("cota de concurenta este respectata, iar varful este raportat", async () => {
+test("the concurrency quota is respected, and the peak is reported", async () => {
   const tasks = createTaskFabric({ maxConcurrent: 2 });
   let concurrent = 0;
   let observedPeak = 0;
@@ -34,31 +34,31 @@ test("cota de concurenta este respectata, iar varful este raportat", async () =>
   };
 
   await Promise.all([tasks.spawn(body), tasks.spawn(body), tasks.spawn(body), tasks.spawn(body)]);
-  assert.equal(observedPeak, 2, "niciodata mai multe task-uri active decat cota");
+  assert.equal(observedPeak, 2, "never more active tasks than the quota");
   assert.equal(tasks.stats().peakActive, 2);
   assert.equal(tasks.stats().completed, 4);
 });
 
-test("deadline-ul anuleaza task-ul cu un cod stabil", async () => {
+test("the deadline cancels the task with a stable code", async () => {
   const tasks = createTaskFabric();
   await assert.rejects(
     tasks.spawn(async (context) => {
       await tick(50);
       context.throwIfCancelled();
-    }, { deadlineMs: 5, name: "lent" }),
+    }, { deadlineMs: 5, name: "slow" }),
     (error: unknown) => (error as { code: string }).code === "raptor:task/deadline",
   );
   assert.equal(tasks.stats().cancelled, 1);
 });
 
-test("contextul raporteaza timpul ramas pana la deadline", async () => {
+test("the context reports the time remaining until the deadline", async () => {
   const tasks = createTaskFabric();
   const remaining = await tasks.spawn((context) => context.remainingMs, { deadlineMs: 1000 });
   assert.ok(remaining !== null && remaining > 0 && remaining <= 1000);
-  assert.equal(await tasks.spawn((context) => context.remainingMs), null, "fara deadline nu exista timp ramas");
+  assert.equal(await tasks.spawn((context) => context.remainingMs), null, "without a deadline there is no remaining time");
 });
 
-test("un semnal extern anuleaza task-ul cu codul de anulare", async () => {
+test("an external signal cancels the task with the cancellation code", async () => {
   const tasks = createTaskFabric();
   const controller = new AbortController();
   const promise = tasks.spawn(async (context) => {
@@ -69,7 +69,7 @@ test("un semnal extern anuleaza task-ul cu codul de anulare", async () => {
   await assert.rejects(promise, (error: unknown) => (error as { code: string }).code === "raptor:task/cancelled");
 });
 
-test("shutdown anuleaza lucrul in zbor, dreneaza si refuza lucru nou", async () => {
+test("shutdown cancels in-flight work, drains and rejects new work", async () => {
   const tasks = createTaskFabric();
   let cooperated = false;
 
@@ -83,10 +83,10 @@ test("shutdown anuleaza lucrul in zbor, dreneaza si refuza lucru nou", async () 
   await tasks.shutdown("test");
   const outcome = await settled;
 
-  assert.equal(cooperated, false, "task-ul anulat nu isi termina corpul");
+  assert.equal(cooperated, false, "the cancelled task does not finish its body");
   assert.equal((outcome as { code: string }).code, "raptor:task/cancelled");
   assert.equal(tasks.closed, true);
-  assert.equal(tasks.stats().active, 0, "drenarea asteapta eliberarea slotului");
+  assert.equal(tasks.stats().active, 0, "draining waits for the slot to be released");
 
   await assert.rejects(
     tasks.spawn(() => 1),
@@ -94,14 +94,14 @@ test("shutdown anuleaza lucrul in zbor, dreneaza si refuza lucru nou", async () 
   );
 });
 
-test("shutdown este idempotent", async () => {
+test("shutdown is idempotent", async () => {
   const tasks = createTaskFabric();
   await tasks.shutdown();
   await tasks.shutdown();
   assert.equal(tasks.closed, true);
 });
 
-test("drain asteapta fara sa anuleze", async () => {
+test("drain waits without cancelling", async () => {
   const tasks = createTaskFabric();
   let done = false;
   void tasks.spawn(async () => { await tick(10); done = true; });
@@ -110,14 +110,14 @@ test("drain asteapta fara sa anuleze", async () => {
   assert.equal(tasks.closed, false);
 });
 
-test("fiecare task produce un span cu rezultatul lui", async () => {
+test("every task produces a span with its outcome", async () => {
   const observer = createObserver({ now: () => 0 });
   const tasks = createTaskFabric({ observer });
-  await tasks.spawn(() => 1, { name: "bun" });
-  await tasks.spawn(() => { throw new Error("rau"); }, { name: "rau" }).catch(() => undefined);
+  await tasks.spawn(() => 1, { name: "good" });
+  await tasks.spawn(() => { throw new Error("bad"); }, { name: "bad" }).catch(() => undefined);
 
   const spans = observer.events().filter((event) => event.kind === "span");
-  assert.deepEqual(spans.map((span) => span.name), ["task.bun", "task.rau"]);
+  assert.deepEqual(spans.map((span) => span.name), ["task.good", "task.bad"]);
   assert.equal(spans[0]!.attributes["outcome"], "completed");
   assert.equal(spans[1]!.attributes["outcome"], "failed");
 });

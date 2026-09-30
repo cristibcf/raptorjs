@@ -1,22 +1,23 @@
 /**
- * Plan hints - intrarea profile-guided in RaptorBuild (whitepaper RaptorEngine
- * 22-24). Sunt HINTS de STRATEGIE, nu de corectitudine (§24: "profilele pot
- * influenta strategia, nu semantica"). Tipul traieste in engine fiindca build-ul
- * il consuma; @raptor/profile il PRODUCE dintr-un profil + graf (fara ciclu).
+ * Plan hints - the profile-guided input into RaptorBuild (RaptorEngine
+ * whitepaper 22-24). These are STRATEGY hints, not correctness hints (§24:
+ * "profiles may influence strategy, not semantics"). The type lives in the
+ * engine because the build consumes it; @raptor/profile PRODUCES it from a
+ * profile + graph (no cycle).
  *
- * Regula de aur: un hint poate reorganiza chunks/preload/batch/encoding, dar NU
- * poate elimina cod, nu poate schimba ordinea semantica a effects si nu poate
- * ignora routes rare. Eliminarea ramane treaba DSE-ului (analiza statica, 14.1).
+ * The golden rule: a hint may reorganize chunks/preload/batch/encoding, but it
+ * may NOT eliminate code, may not change the semantic order of effects and may
+ * not ignore rare routes. Elimination remains the DSE's job (static analysis, 14.1).
  */
 
 export interface PlanHints {
-  /** Grupuri de componente plasate impreuna intr-un chunk (chunk folding, 16). */
+  /** Groups of components placed together in one chunk (chunk folding, 16). */
   foldChunks: string[][];
-  /** Routes de preincarcat (preload agresiv pentru cele frecvente, 16/24). */
+  /** Routes to preload (aggressive preload for frequent ones, 16/24). */
   preloadRoutes: string[];
-  /** Batch size sugerat per componenta (din DOM mutation bursts, 22). */
+  /** Suggested batch size per component (from DOM mutation bursts, 22). */
   batchSizes: Record<string, number>;
-  /** Adrese wire candidate pentru encoding specializat cu fallback (15/24). */
+  /** Wire addresses that are candidates for specialized encoding with fallback (15/24). */
   encodingSpecialization: string[];
 }
 

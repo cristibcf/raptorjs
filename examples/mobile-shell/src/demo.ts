@@ -1,12 +1,12 @@
 /**
- * Demo: o aplicatie RaptorJS pornita de un host mobil.
+ * Demo: a RaptorJS application launched by a mobile host.
  *
  *   node examples/mobile-shell/src/demo.ts
  *
- * Perechea lui de desktop este `examples/desktop-shell/src/demo.ts`. Rulate unul
- * dupa altul, se vede ce ramane la fel (aceeasi punte, aceleasi semnale, aceeasi
- * randare fine-grained) si ce se schimba: navigarea vine de la adaptor, exista
- * suspendare si reluare, iar ferestrele si subprocesele nu exista deloc.
+ * Its desktop counterpart is `examples/desktop-shell/src/demo.ts`. Run one after
+ * the other, you can see what stays the same (same bridge, same signals, same
+ * fine-grained rendering) and what changes: navigation comes from the adapter,
+ * there is suspend and resume, and windows and subprocesses do not exist at all.
  */
 import { installMiniDom, resetStats, stats } from "raptorjs/dom/testing";
 import { render } from "raptorjs/dom";
@@ -25,64 +25,64 @@ const session = createSession({
 const root = doc.createElement("div");
 render(() => session.shell.view(doc as never) as never, root);
 
-console.log("=== RaptorJS pe un host mobil ===\n");
+console.log("=== RaptorJS on a mobile host ===\n");
 
 await session.shell.start();
 session.host.lifecycle.to("ready");
 session.host.lifecycle.to("foreground");
 await tick();
 
-console.log("Dupa pornire:", root.toHTML());
+console.log("After startup:", root.toHTML());
 
 resetStats();
 
-await session.shell.addNote("de verificat gardul");
+await session.shell.addNote("check the fence");
 await session.shell.attachPhoto();
-await session.shell.announce("nota salvata");
+await session.shell.announce("note saved");
 await tick();
 
-console.log("\nDupa o nota cu poza:", root.toHTML());
-console.log("  stocare securizata :", secureStore.get("notes"));
-console.log("  notificari         :", session.host.notifications.map((entry) => entry.body).join(", "));
+console.log("\nAfter a note with a photo:", root.toHTML());
+console.log("  secure storage :", secureStore.get("notes"));
+console.log("  notifications  :", session.host.notifications.map((entry) => entry.body).join(", "));
 
-// Navigarea nu este ceruta de aplicatie: adaptorul o conduce, aplicatia afla.
+// Navigation is not requested by the app: the adapter drives it, the app finds out.
 session.host.navigate("/note/1");
 await tick();
-console.log("\nAdaptorul a navigat:", root.toHTML());
+console.log("\nThe adapter navigated:", root.toHTML());
 
 session.host.back();
 await tick();
-console.log("Back-ul sistemului:", root.toHTML());
-console.log("  stiva ramasa:", session.host.stack.join(" -> "));
+console.log("The system back:", root.toHTML());
+console.log("  remaining stack:", session.host.stack.join(" -> "));
 
 session.host.deliverDeepLink("raptor-shell://nota/1");
 await tick();
-console.log("\nDupa un deep link:", root.toHTML());
+console.log("\nAfter a deep link:", root.toHTML());
 
-// Ciclul propriu telefonului: fundal, suspendare, reluare - fara sa se inchida.
+// The phone's own cycle: background, suspend, resume - without closing.
 session.host.lifecycle.to("background");
 session.host.lifecycle.to("suspended");
 await tick();
-console.log("\nSuspendata de sistem:", root.toHTML());
+console.log("\nSuspended by the system:", root.toHTML());
 
 session.host.lifecycle.to("foreground");
 await tick();
-console.log("Reluata:", root.toHTML());
+console.log("Resumed:", root.toHTML());
 
 for (const method of ["window.open", "menu.set", "process.spawn"]) {
   try {
     await session.bridge.call(method, { command: "sh" });
-    console.log(`\nNEASTEPTAT: '${method}' a trecut`);
+    console.log(`\nUNEXPECTED: '${method}' went through`);
   } catch (error) {
-    console.log(`\nRefuz asteptat pentru '${method}':`, (error as { code: string }).code);
+    console.log(`\nExpected denial for '${method}':`, (error as { code: string }).code);
   }
 }
 
-console.log("\nActualizari:", JSON.stringify(await session.bridge.call("update.check")));
+console.log("\nUpdates:", JSON.stringify(await session.bridge.call("update.check")));
 
-console.log("\nMutatii DOM de la prima nota incoace:");
-console.log(`  elemente noi create : ${stats.createElement}   (asteptat: 0)`);
-console.log(`  actualizari de text : ${stats.textUpdate}`);
-console.log("\n-> Aceeasi aplicatie, alt host: navigarea a venit din afara, nu din JavaScript.");
+console.log("\nDOM mutations since the first note:");
+console.log(`  new elements created : ${stats.createElement}   (expected: 0)`);
+console.log(`  text updates         : ${stats.textUpdate}`);
+console.log("\n-> Same app, different host: navigation came from the outside, not from JavaScript.");
 
 session.close();

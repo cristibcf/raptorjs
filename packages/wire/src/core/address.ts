@@ -1,11 +1,12 @@
 /**
- * Reactive Address Space (RAS) - whitepaper v0.2 sectiunea 5.2.
+ * Reactive Address Space (RAS) - whitepaper v0.2 section 5.2.
  *
- * Atribuie identitati compacte, stabile pe durata sesiunii, nodurilor reactive
- * care traverseaza reteaua. Numele de domeniu ("BTC.price", "cpu", "job:1")
- * raman pentru authoring/bootstrap, dar hot path-ul foloseste adresa numerica.
- * Astfel dispar numele de field repetate de pe fir (buget de performanta v0.2:
- * "Repeated field names pe RaptorWire = 0 dupa address negotiation").
+ * Assigns compact identities, stable for the duration of the session, to the
+ * reactive nodes that traverse the network. Scope names ("BTC.price", "cpu",
+ * "job:1") remain for authoring/bootstrap, but the hot path uses the numeric
+ * address. This way repeated field names disappear from the wire (v0.2
+ * performance budget: "Repeated field names on RaptorWire = 0 after address
+ * negotiation").
  */
 
 export class AddressBook {
@@ -17,7 +18,7 @@ export class AddressBook {
     this.next = start;
   }
 
-  /** Server: obtine adresa pentru un handle, alocand una noua la nevoie. */
+  /** Server: get the address for a handle, allocating a new one if needed. */
   assign(handle: string): { address: number; isNew: boolean } {
     const existing = this.toAddr.get(handle);
     if (existing !== undefined) return { address: existing, isNew: false };
@@ -27,7 +28,7 @@ export class AddressBook {
     return { address, isNew: true };
   }
 
-  /** Client: inregistreaza o pereche adresa->handle primita in dictionar. */
+  /** Client: register an address->handle pair received in the dictionary. */
   define(address: number, handle: string): void {
     this.toAddr.set(handle, address);
     this.toHandle.set(address, handle);

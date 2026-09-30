@@ -18,13 +18,13 @@ function setup(entries: readonly MenuEntry[], props: Record<string, unknown> = {
   return { root, dispose, trigger, menu, items, active };
 }
 
-test("meniul nu exista in DOM cat timp e inchis", () => {
+test("the menu doesn't exist in the DOM while it's closed", () => {
   const { menu, trigger } = setup([menuItem("A", () => {})]);
   assert.equal(menu(), null);
   assert.equal(trigger().getAttribute("aria-expanded"), "false");
 });
 
-test("click pe trigger deschide si inchide; aria-expanded urmeaza", () => {
+test("clicking the trigger opens and closes; aria-expanded follows", () => {
   const { trigger, menu } = setup([menuItem("A", () => {})]);
 
   trigger().click();
@@ -37,7 +37,7 @@ test("click pe trigger deschide si inchide; aria-expanded urmeaza", () => {
   assert.equal(trigger().getAttribute("aria-expanded"), "false");
 });
 
-test("selectarea unui item ruleaza onSelect si inchide meniul", () => {
+test("selecting an item runs onSelect and closes the menu", () => {
   const picked: string[] = [];
   const { trigger, menu, items } = setup([
     menuItem("Copy", () => picked.push("copy")),
@@ -50,7 +50,7 @@ test("selectarea unui item ruleaza onSelect si inchide meniul", () => {
   assert.equal(menu(), null);
 });
 
-test("itemii dezactivati nu se selecteaza si sunt marcati ARIA", () => {
+test("disabled items don't get selected and are marked in ARIA", () => {
   const picked: string[] = [];
   const { trigger, items } = setup([
     menuItem("Copy", () => picked.push("copy")),
@@ -63,7 +63,7 @@ test("itemii dezactivati nu se selecteaza si sunt marcati ARIA", () => {
   assert.deepEqual(picked, []);
 });
 
-test("sagetile ciclesc si sar peste separatoare si itemi dezactivati", () => {
+test("the arrows cycle and skip separators and disabled items", () => {
   const { trigger, items, active } = setup([
     menuItem("A", () => {}),
     menuSeparator(),
@@ -76,16 +76,16 @@ test("sagetile ciclesc si sar peste separatoare si itemi dezactivati", () => {
   assert.equal(active(), 0); // A
 
   trigger().dispatch("keydown", { key: "ArrowDown" });
-  assert.equal(active(), 2); // sare separatorul si pe B (disabled) -> C
+  assert.equal(active(), 2); // skips the separator and B (disabled) -> C
 
   trigger().dispatch("keydown", { key: "ArrowDown" });
-  assert.equal(active(), 0); // cicleaza inapoi la A
+  assert.equal(active(), 0); // cycles back to A
 
   trigger().dispatch("keydown", { key: "ArrowUp" });
   assert.equal(active(), 2);
 });
 
-test("Enter selecteaza itemul activ", () => {
+test("Enter selects the active item", () => {
   const picked: string[] = [];
   const { trigger, menu } = setup([menuItem("A", () => picked.push("a")), menuItem("B", () => picked.push("b"))]);
 
@@ -98,7 +98,7 @@ test("Enter selecteaza itemul activ", () => {
   assert.equal(menu(), null);
 });
 
-test("Escape inchide meniul", () => {
+test("Escape closes the menu", () => {
   const { trigger, menu } = setup([menuItem("A", () => {})]);
   trigger().click();
   assert.ok(menu());
@@ -106,7 +106,7 @@ test("Escape inchide meniul", () => {
   assert.equal(menu(), null);
 });
 
-test("click in afara inchide; click inauntru nu", () => {
+test("click outside closes; click inside doesn't", () => {
   const outside = doc.createElement("div") as MiniElement;
   const { root, trigger, menu, items } = setup([menuItem("A", () => {})]);
   const page = doc.createElement("div") as MiniElement;
@@ -116,9 +116,9 @@ test("click in afara inchide; click inauntru nu", () => {
   trigger().click();
   assert.ok(menu());
 
-  // Click pe un item nu trebuie sa fie tratat ca "afara".
+  // A click on an item must not be treated as "outside".
   items()[0]!.click();
-  assert.equal(menu(), null, "itemul isi inchide meniul singur, prin selectie");
+  assert.equal(menu(), null, "the item closes its own menu, via selection");
 
   trigger().click();
   assert.ok(menu());
@@ -126,7 +126,7 @@ test("click in afara inchide; click inauntru nu", () => {
   assert.equal(menu(), null);
 });
 
-test("mutarea itemului activ rescrie atribute, nu recreeaza itemii", () => {
+test("moving the active item rewrites attributes, doesn't recreate the items", () => {
   const { trigger, items } = setup([menuItem("A", () => {}), menuItem("B", () => {}), menuItem("C", () => {})]);
   trigger().click();
   const before = items().map((li) => li.id);
@@ -137,22 +137,22 @@ test("mutarea itemului activ rescrie atribute, nu recreeaza itemii", () => {
 
   assert.equal(stats.createElement, 0);
   assert.equal(stats.createText, 0);
-  assert.deepEqual(items().map((li) => li.id), before, "aceleasi noduri");
+  assert.deepEqual(items().map((li) => li.id), before, "the same nodes");
 });
 
-test("dispose scoate handlerele globale", () => {
+test("dispose removes the global handlers", () => {
   const { trigger, dispose, menu } = setup([menuItem("A", () => {})]);
   trigger().click();
   assert.ok(menu());
 
   dispose();
 
-  // Daca handlerele ar fi ramas, un keydown global ar atinge semnale distruse.
+  // If the handlers had stayed, a global keydown would touch destroyed signals.
   const other = doc.createElement("div") as MiniElement;
   assert.doesNotThrow(() => other.dispatch("keydown", { key: "Escape" }));
 });
 
-test("semnalul `open` controlat din afara deschide meniul", () => {
+test("the externally controlled `open` signal opens the menu", () => {
   const open = state(false);
   const { menu } = setup([menuItem("A", () => {})], { open });
 

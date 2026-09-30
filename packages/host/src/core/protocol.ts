@@ -1,14 +1,14 @@
 /**
- * Protocolul puntii JS <-> host nativ (roadmap sectiunea 6).
+ * The JS <-> native host bridge protocol (roadmap section 6).
  *
- * Este un protocol de cereri corelate plus evenimente, serializat ca JSON pe
- * linie. Formatul este deliberat plictisitor: granita trece printr-un proces
- * nativ scris in alta limba, deci trebuie sa fie trivial de implementat corect
- * si in Rust, nu doar in JavaScript.
+ * It is a protocol of correlated requests plus events, serialized as JSON per
+ * line. The format is deliberately boring: the boundary crosses into a native
+ * process written in another language, so it must be trivial to implement
+ * correctly in Rust too, not just in JavaScript.
  *
- * Decodarea trateaza intrarea ca ostila: orice cadru care nu respecta forma este
- * respins cu `raptor:host/protocol`, iar cheile mostenite (`__proto__`) nu ajung
- * niciodata pe un obiect construit de noi.
+ * Decoding treats the input as hostile: any frame that does not match the shape
+ * is rejected with `raptor:host/protocol`, and inherited keys (`__proto__`)
+ * never end up on an object we built.
  */
 import { HostError } from "./errors.ts";
 
@@ -42,18 +42,18 @@ export interface EventFrame {
 export type Frame = CallFrame | ResultFrame | FailureFrame | EventFrame;
 
 /**
- * Metodele puntii si capabilitatea ceruta de fiecare.
+ * The bridge methods and the capability each one requires.
  *
- * `null` inseamna functionalitate de baza a host-ului: ciclul de viata, deep
- * link-urile si actualizarile nu sunt module optionale, ci responsabilitati ale
- * adaptorului insusi (sectiunea 6). Tot restul este legat de matrice.
+ * `null` means core host functionality: the lifecycle, deep links and updates
+ * are not optional modules but responsibilities of the adapter itself
+ * (section 6). Everything else is tied to the matrix.
  */
 export const METHOD_CAPABILITY: Readonly<Record<string, string | null>> = {
   /**
-   * Ce implementeaza efectiv adaptorul din spate. O capabilitate acordata spune
-   * doar ca aplicatia *are voie*; nu spune ca host-ul curent *poate* - meniurile
-   * exista pe desktop si nu exista in browser, desi tin de aceeasi capabilitate.
-   * Fara asta, o interfata care isi arata singura posibilitatile ar minti.
+   * What the backing adapter actually implements. A granted capability only
+   * says the app *is allowed*; it does not say the current host *can* - menus
+   * exist on desktop and not in the browser, though both belong to the same
+   * capability. Without this, an interface that shows its own options would lie.
    */
   "host.describe": null,
   "lifecycle.state": null,
@@ -62,10 +62,10 @@ export const METHOD_CAPABILITY: Readonly<Record<string, string | null>> = {
   "update.check": null,
   "update.apply": null,
   /**
-   * A *citi* ruta curenta nu inseamna a controla navigarea: aplicatia trebuie sa
-   * stie ce ecran deseneaza, mai ales la pornire si dupa o reluare din
-   * suspendare, cand nu a vazut niciun `navigation.changed`. Controlul ramane la
-   * adaptor - nu exista o metoda prin care aplicatia sa ceara o ruta.
+   * *Reading* the current route does not mean controlling navigation: the app
+   * needs to know which screen it is drawing, especially at startup and after
+   * a resume from suspension, when it has seen no `navigation.changed`. Control
+   * stays with the adapter - there is no method for the app to request a route.
    */
   "navigation.current": null,
 
@@ -74,8 +74,8 @@ export const METHOD_CAPABILITY: Readonly<Record<string, string | null>> = {
   "window.setTitle": "window.manage",
   "window.navigate": "window.manage",
   "window.list": "window.manage",
-  // Meniurile sunt o responsabilitate de desktop (sectiunea 6) si tin de acelasi
-  // domeniu ca ferestrele: pe mobil nu exista, deci nici metoda nu raspunde.
+  // Menus are a desktop responsibility (section 6) and belong to the same
+  // scope as windows: on mobile they do not exist, so the method does not answer.
   "menu.set": "window.manage",
 
   "storage.get": "app.storage",
@@ -84,24 +84,24 @@ export const METHOD_CAPABILITY: Readonly<Record<string, string | null>> = {
   "storage.keys": "app.storage",
 
   /**
-   * Un serviciu raporteaza singur daca poate primi trafic. Nu cere capabilitate:
-   * un host care nu stie ca aplicatia nu mai e gata ar trimite cereri intr-un
-   * proces care tocmai se dreneaza.
+   * A service reports on its own whether it can take traffic. It requires no
+   * capability: a host that does not know the app is no longer ready would send
+   * requests into a process that is draining.
    */
   /**
-   * Argumentele, fluxurile si codul de iesire sunt pentru o unealta ce sunt
-   * fereastra si ecranul pentru o aplicatie cu interfata: nu module optionale,
-   * ci chiar substanta ei. De aceea nu cer capabilitate.
+   * Arguments, streams and the exit code are to a tool what the window and the
+   * screen are to an app with a UI: not optional modules, but its very
+   * substance. That is why they require no capability.
    */
   /**
-   * Watchdog-ul nu cere capabilitate, si nici nu poate fi oprit din aplicatie:
-   * este singurul loc din tot contractul unde host-ul **nu are incredere** in ea.
-   * O capabilitate care s-ar putea refuza ar transforma exact mecanismul care
-   * salveaza placheta intr-unul optional.
+   * The watchdog requires no capability, nor can it be turned off from the app:
+   * it is the only place in the whole contract where the host **does not trust**
+   * it. A capability that could be denied would turn the very mechanism that
+   * saves the board into an optional one.
    */
   "watchdog.pet": null,
   "device.info": null,
-  /** Confirma ca firmware-ul nou a pornit bine; fara ea, urmeaza rollback. */
+  /** Confirms the new firmware booted fine; without it, a rollback follows. */
   "update.confirm": null,
 
   "hw.gpio.read": "hw.gpio",
@@ -113,13 +113,13 @@ export const METHOD_CAPABILITY: Readonly<Record<string, string | null>> = {
   "cli.write": null,
   "cli.exit": null,
   "tty.info": null,
-  /** A *intreba* utilizatorul cere insa terminal interactiv. */
+  /** *Asking* the user, however, requires an interactive terminal. */
   "cli.prompt": "tty.interact",
   "cli.confirm": "tty.interact",
 
   "health.set": null,
   "serve.listen": "net.listen",
-  /** Raspunsul aplicatiei la un `serve.request` primit ca eveniment. */
+  /** The app's response to a `serve.request` received as an event. */
   "serve.respond": "net.listen",
   "serve.stop": "net.listen",
   "serve.status": "net.listen",
@@ -136,7 +136,7 @@ export const METHODS: readonly string[] = Object.keys(METHOD_CAPABILITY).sort();
 
 export function capabilityForMethod(method: string): string | null {
   if (!Object.prototype.hasOwnProperty.call(METHOD_CAPABILITY, method)) {
-    throw new HostError("raptor:host/method-unknown", `metoda '${method}' nu exista in puntea de host`, {
+    throw new HostError("raptor:host/method-unknown", `method '${method}' does not exist in the host bridge`, {
       method,
       known: METHODS,
     });
@@ -148,37 +148,38 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** Chei care, la atribuire, ating prototipul in loc sa devina proprietati. */
+/** Keys that, when assigned, touch the prototype instead of becoming properties. */
 const DANGEROUS_KEYS = new Set(["__proto__", "constructor", "prototype"]);
 
 /**
- * Cat de adanc poate fi imbricat un cadru.
+ * How deeply a frame may be nested.
  *
- * `JSON.parse` din V8 e iterativ si duce zeci de mii de niveluri fara sa
- * clipeasca; `sanitize` e recursiv si cadea cu `RangeError: Maximum call stack
- * size exceeded` pe la 5000. Era prins de `try/catch`-ul apelantilor, deci nu
- * dobora nimic - dar un cadru refuzat cu "stiva plina" in loc de "prea adanc"
- * spune ca s-a stricat ceva la noi, cand de fapt limita e o alegere.
+ * V8's `JSON.parse` is iterative and handles tens of thousands of levels
+ * without blinking; `sanitize` is recursive and fell over with `RangeError:
+ * Maximum call stack size exceeded` around 5000. It was caught by the callers'
+ * `try/catch`, so it took nothing down - but a frame rejected with "stack full"
+ * instead of "too deep" says something broke on our side, when in fact the
+ * limit is a choice.
  *
- * 64 e cu mult peste orice cadru real de punte si cu mult sub stiva.
+ * 64 is well above any real bridge frame and well below the stack.
  */
 const MAX_FRAME_DEPTH = 64;
 
 /**
- * Curata RECURSIV cheile periculoase dintr-o valoare venita de pe punte.
+ * RECURSIVELY strips dangerous keys from a value that came off the bridge.
  *
- * `JSON.parse` produce `__proto__` ca proprietate **proprie**, deci obiectul
- * decodat e inofensiv in sine. Pericolul apare la primul consumator care face
- * `Object.assign({}, ...)` sau `tinta[cheie] = valoare` cu ea - acolo setter-ul
- * de prototip se declanseaza.
+ * `JSON.parse` produces `__proto__` as an **own** property, so the decoded
+ * object is harmless in itself. The danger appears at the first consumer that
+ * does `Object.assign({}, ...)` or `target[key] = value` with it - that is
+ * where the prototype setter fires.
  *
- * O curatare doar la primul nivel ar lasa `{ optiuni: { __proto__: {...} } }`
- * intact, iar fisierul asta isi pune ca titlu ca nimic din cadru nu poate
- * atinge prototipul. Deci coboara peste tot (audit 2026-09-24, S9).
+ * Cleaning only the first level would leave `{ options: { __proto__: {...} } }`
+ * intact, and this file's premise is that nothing in a frame can touch the
+ * prototype. So it descends everywhere (audit 2026-09-24, S9).
  */
 function sanitize(value: unknown, depth = 0): unknown {
   if (depth > MAX_FRAME_DEPTH) {
-    throw new HostError("raptor:host/protocol", `cadru imbricat pe mai mult de ${MAX_FRAME_DEPTH} niveluri`, {
+    throw new HostError("raptor:host/protocol", `frame nested more than ${MAX_FRAME_DEPTH} levels deep`, {
       limit: MAX_FRAME_DEPTH,
     });
   }
@@ -192,11 +193,11 @@ function sanitize(value: unknown, depth = 0): unknown {
   return out;
 }
 
-/** Copie fara chei mostenite: nimic din cadru nu poate atinge prototipul. */
+/** A copy without inherited keys: nothing in a frame can touch the prototype. */
 function plain(value: unknown, where: string): Record<string, unknown> {
   if (value === undefined) return {};
   if (!isRecord(value)) {
-    throw new HostError("raptor:host/protocol", `${where} trebuie sa fie un obiect`, { received: typeof value });
+    throw new HostError("raptor:host/protocol", `${where} must be an object`, { received: typeof value });
   }
   return sanitize(value) as Record<string, unknown>;
 }
@@ -210,10 +211,10 @@ export function decodeFrame(line: string): Frame {
   try {
     raw = JSON.parse(line);
   } catch (error) {
-    throw new HostError("raptor:host/protocol", `cadru care nu este JSON: ${(error as Error).message}`, {});
+    throw new HostError("raptor:host/protocol", `frame that is not JSON: ${(error as Error).message}`, {});
   }
   if (!isRecord(raw)) {
-    throw new HostError("raptor:host/protocol", "cadrul trebuie sa fie un obiect JSON", {});
+    throw new HostError("raptor:host/protocol", "the frame must be a JSON object", {});
   }
 
   const kind = raw["kind"];
@@ -221,10 +222,10 @@ export function decodeFrame(line: string): Frame {
     const id = raw["id"];
     const method = raw["method"];
     if (typeof id !== "number" || !Number.isInteger(id)) {
-      throw new HostError("raptor:host/protocol", "cadrul 'call' cere un id intreg", { id });
+      throw new HostError("raptor:host/protocol", "a 'call' frame requires an integer id", { id });
     }
     if (typeof method !== "string" || method.length === 0) {
-      throw new HostError("raptor:host/protocol", "cadrul 'call' cere un nume de metoda", { method });
+      throw new HostError("raptor:host/protocol", "a 'call' frame requires a method name", { method });
     }
     return { kind: "call", id, method, params: plain(raw["params"], "params") };
   }
@@ -232,7 +233,7 @@ export function decodeFrame(line: string): Frame {
   if (kind === "result") {
     const id = raw["id"];
     if (typeof id !== "number" || !Number.isInteger(id)) {
-      throw new HostError("raptor:host/protocol", "cadrul 'result' cere un id intreg", { id });
+      throw new HostError("raptor:host/protocol", "a 'result' frame requires an integer id", { id });
     }
     return { kind: "result", id, value: raw["value"] };
   }
@@ -241,10 +242,10 @@ export function decodeFrame(line: string): Frame {
     const id = raw["id"];
     const error = raw["error"];
     if (typeof id !== "number" || !Number.isInteger(id)) {
-      throw new HostError("raptor:host/protocol", "cadrul 'failure' cere un id intreg", { id });
+      throw new HostError("raptor:host/protocol", "a 'failure' frame requires an integer id", { id });
     }
     if (!isRecord(error) || typeof error["code"] !== "string" || typeof error["message"] !== "string") {
-      throw new HostError("raptor:host/protocol", "cadrul 'failure' cere { code, message }", {});
+      throw new HostError("raptor:host/protocol", "a 'failure' frame requires { code, message }", {});
     }
     const detail = error["detail"] === undefined ? undefined : plain(error["detail"], "error.detail");
     return {
@@ -257,10 +258,10 @@ export function decodeFrame(line: string): Frame {
   if (kind === "event") {
     const name = raw["name"];
     if (typeof name !== "string" || name.length === 0) {
-      throw new HostError("raptor:host/protocol", "cadrul 'event' cere un nume", { name });
+      throw new HostError("raptor:host/protocol", "an 'event' frame requires a name", { name });
     }
     return { kind: "event", name, payload: plain(raw["payload"], "payload") };
   }
 
-  throw new HostError("raptor:host/protocol", `tip de cadru necunoscut: ${String(kind)}`, { kind });
+  throw new HostError("raptor:host/protocol", `unknown frame type: ${String(kind)}`, { kind });
 }

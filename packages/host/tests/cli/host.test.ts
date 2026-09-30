@@ -7,8 +7,8 @@ import type { CliHost, ProcessLike, Terminal } from "../../src/cli/index.ts";
 
 const BASE = {
   target: "cli",
-  bundleId: "com.exemplu.unealta",
-  displayName: "exemplu",
+  bundleId: "com.example.tool",
+  displayName: "example",
   version: "1.0.0",
   entry: "./src/bin.ts",
   capabilities: ["tty.interact"] as string[],
@@ -95,7 +95,7 @@ function connect(manifest: HostManifest, fake: Fake, storage?: Map<string, strin
   };
 }
 
-test("adaptorul refuza un manifest care nu este de cli", () => {
+test("the adapter rejects a manifest that is not for cli", () => {
   const desktop = requireHostManifest(JSON.stringify({ ...BASE, target: "desktop", capabilities: [] }));
   assert.throws(
     () => createCliHost({ manifest: desktop, transport: createMemoryChannel().host, terminal: fakeTerminal().terminal }),
@@ -103,11 +103,11 @@ test("adaptorul refuza un manifest care nu este de cli", () => {
   );
 });
 
-test("o unealta nu are ferestre, ecrane, camera sau socketi de serviciu", async () => {
+test("a tool has no windows, screens, camera or service sockets", async () => {
   const link = connect(manifestWith(), fakeTerminal());
   try {
     for (const method of ["window.open", "menu.set", "camera.capture", "notify.show", "config.get"]) {
-      assert.equal(link.app.allows(method), false, `${method} nu are ce cauta intr-o unealta`);
+      assert.equal(link.app.allows(method), false, `${method} has no place in a tool`);
     }
     await assert.rejects(
       link.app.call("window.open", {}),
@@ -118,21 +118,21 @@ test("o unealta nu are ferestre, ecrane, camera sau socketi de serviciu", async 
   }
 });
 
-test("argumentele si fluxurile vin de la host, nu din process", async () => {
-  const link = connect(manifestWith(), fakeTerminal(["add", "ceva"]));
+test("the arguments and streams come from the host, not from process", async () => {
+  const link = connect(manifestWith(), fakeTerminal(["add", "something"]));
   try {
-    assert.deepEqual(await link.app.call("cli.args"), ["add", "ceva"]);
+    assert.deepEqual(await link.app.call("cli.args"), ["add", "something"]);
 
-    await link.app.call("cli.write", { text: "gata\n" });
-    await link.app.call("cli.write", { stream: "err", text: "atentie\n" });
-    assert.deepEqual(link.fake.out, ["gata\n"]);
-    assert.deepEqual(link.fake.err, ["atentie\n"]);
+    await link.app.call("cli.write", { text: "done\n" });
+    await link.app.call("cli.write", { stream: "err", text: "warning\n" });
+    assert.deepEqual(link.fake.out, ["done\n"]);
+    assert.deepEqual(link.fake.err, ["warning\n"]);
   } finally {
     link.dispose();
   }
 });
 
-test("informatiile despre terminal sunt raportate, nu ghicite", async () => {
+test("the terminal info is reported, not guessed", async () => {
   const link = connect(manifestWith(), fakeTerminal([], { interactive: true }));
   try {
     assert.deepEqual(await link.app.call("tty.info"), {
@@ -146,10 +146,10 @@ test("informatiile despre terminal sunt raportate, nu ghicite", async () => {
   }
 });
 
-test("codul de iesire il cere aplicatia si il tine host-ul", async () => {
+test("the exit code is requested by the app and held by the host", async () => {
   const link = connect(manifestWith(), fakeTerminal());
   try {
-    assert.equal(link.host.exitCode, null, "cat timp lucreaza, nu exista cod");
+    assert.equal(link.host.exitCode, null, "while it works, there is no code");
     await link.app.call("cli.exit", { code: 3 });
     assert.equal(link.host.exitCode, 3);
     assert.equal(await link.host.finished(), 3);
@@ -159,21 +159,21 @@ test("codul de iesire il cere aplicatia si il tine host-ul", async () => {
   }
 });
 
-test("un cod de iesire invalid este refuzat inainte sa ajunga la proces", async () => {
+test("an invalid exit code is rejected before it reaches the process", async () => {
   const link = connect(manifestWith(), fakeTerminal());
   try {
     for (const code of [-1, 256, 1.5]) {
-      await assert.rejects(link.app.call("cli.exit", { code }), /intreg intre 0 si 255/);
+      await assert.rejects(link.app.call("cli.exit", { code }), /integer between 0 and 255/);
     }
     assert.equal(link.host.exitCode, null);
     await link.app.call("cli.exit", {});
-    assert.equal(link.host.exitCode, 0, "fara cod explicit, iesirea este reusita");
+    assert.equal(link.host.exitCode, 0, "without an explicit code, the exit succeeds");
   } finally {
     link.dispose();
   }
 });
 
-test("primul cod cerut este cel care conteaza", async () => {
+test("the first requested code is the one that counts", async () => {
   const link = connect(manifestWith(), fakeTerminal());
   try {
     await link.app.call("cli.exit", { code: 2 });
@@ -184,12 +184,12 @@ test("primul cod cerut este cel care conteaza", async () => {
   }
 });
 
-test("intrebarile cer capabilitatea tty.interact", async () => {
+test("questions require the tty.interact capability", async () => {
   const link = connect(manifestWith({ capabilities: [] }), fakeTerminal([], { interactive: true, answer: "da" }));
   try {
     assert.equal(link.app.allows("cli.prompt"), false);
     await assert.rejects(
-      link.app.call("cli.prompt", { question: "Cum te cheama?" }),
+      link.app.call("cli.prompt", { question: "What is your name?" }),
       (error: unknown) => (error as { code: string }).code === "raptor:host/capability-undeclared",
     );
   } finally {
@@ -197,14 +197,15 @@ test("intrebarile cer capabilitatea tty.interact", async () => {
   }
 });
 
-test("fara terminal interactiv, intrebarea este refuzata - nu presupusa", async () => {
-  // Cazul care conteaza: capabilitatea exista in manifest, dar terminalul nu
-  // poate citi (CI, pipe, cron). Un "da" presupus aici ar fi o greseala grava.
+test("without an interactive terminal, the question is denied - not assumed", async () => {
+  // The case that matters: the capability exists in the manifest, but the
+  // terminal cannot read (CI, pipe, cron). An assumed "yes" here would be a
+  // grave mistake.
   const link = connect(manifestWith(), fakeTerminal([], { interactive: false }));
   try {
-    assert.equal(link.app.allows("cli.confirm"), true, "manifestul o permite");
+    assert.equal(link.app.allows("cli.confirm"), true, "the manifest allows it");
     await assert.rejects(
-      link.app.call("cli.confirm", { question: "Sterg tot?" }),
+      link.app.call("cli.confirm", { question: "Delete everything?" }),
       (error: unknown) => {
         const hostError = error as { code: string; detail: Record<string, unknown> };
         assert.equal(hostError.code, "raptor:host/capability-unavailable");
@@ -217,20 +218,20 @@ test("fara terminal interactiv, intrebarea este refuzata - nu presupusa", async 
   }
 });
 
-test("confirmarea accepta doar raspunsuri afirmative explicite", async () => {
-  for (const [answer, expected] of [["da", true], ["d", true], ["y", true], ["yes", true], ["", false], ["n", false], ["poate", false]] as const) {
+test("confirmation accepts only explicit affirmative answers", async () => {
+  for (const [answer, expected] of [["da", true], ["d", true], ["y", true], ["yes", true], ["", false], ["n", false], ["maybe", false]] as const) {
     const link = connect(manifestWith(), fakeTerminal([], { interactive: true, answer }));
     try {
-      const result = (await link.app.call("cli.confirm", { question: "Sterg tot?" })) as { confirmed: boolean };
-      assert.equal(result.confirmed, expected, `raspunsul '${answer}' ar trebui sa dea ${expected}`);
-      assert.match(link.fake.asked[0] ?? "", /\[d\/N\]/, "intrebarea arata care este implicitul");
+      const result = (await link.app.call("cli.confirm", { question: "Delete everything?" })) as { confirmed: boolean };
+      assert.equal(result.confirmed, expected, `the answer '${answer}' should give ${expected}`);
+      assert.match(link.fake.asked[0] ?? "", /\[y\/N\]/, "the question shows which is the default");
     } finally {
       link.dispose();
     }
   }
 });
 
-test("Ctrl-C anunta aplicatia; a doua apasare opreste", async () => {
+test("Ctrl-C notifies the app; the second press stops it", async () => {
   const link = connect(manifestWith(), fakeTerminal());
   try {
     const seen: number[] = [];
@@ -238,18 +239,18 @@ test("Ctrl-C anunta aplicatia; a doua apasare opreste", async () => {
 
     link.fake.fireInterrupt();
     await new Promise((resolve) => setTimeout(resolve, 5));
-    assert.deepEqual(seen, [1], "prima intrerupere doar anunta");
-    assert.equal(link.host.exitCode, null, "aplicatia apuca sa curete");
+    assert.deepEqual(seen, [1], "the first interrupt only notifies");
+    assert.equal(link.host.exitCode, null, "the app gets to clean up");
 
     link.fake.fireInterrupt();
-    assert.equal(link.host.exitCode, 130, "a doua intrerupere opreste, cu codul obisnuit");
+    assert.equal(link.host.exitCode, 130, "the second interrupt stops it, with the usual code");
     assert.equal(await link.host.finished(), 130);
   } finally {
     link.dispose();
   }
 });
 
-test("o intrerupere dupa iesire nu mai schimba nimic", async () => {
+test("an interrupt after exit no longer changes anything", async () => {
   const link = connect(manifestWith(), fakeTerminal());
   try {
     await link.app.call("cli.exit", { code: 0 });
@@ -261,21 +262,21 @@ test("o intrerupere dupa iesire nu mai schimba nimic", async () => {
   }
 });
 
-test("stocarea uneltei respecta aceeasi politica de chei", async () => {
+test("the tool's storage honors the same key policy", async () => {
   const storage = new Map<string, string>();
   const link = connect(manifestWith(), fakeTerminal(), storage);
   try {
     await link.app.call("storage.set", { key: "notes", value: "[]" });
     assert.equal(storage.get("notes"), "[]");
-    for (const key of ["../alta", "sub/cale", ".ascuns", ""]) {
-      await assert.rejects(link.app.call("storage.get", { key }), /cheie de stocare invalida|nu este sir/);
+    for (const key of ["../other", "sub/path", ".hidden", ""]) {
+      await assert.rejects(link.app.call("storage.get", { key }), /invalid storage key|is not a string/);
     }
   } finally {
     link.dispose();
   }
 });
 
-test("o unealta se actualizeaza prin managerul de pachete", async () => {
+test("a tool updates through the package manager", async () => {
   const link = connect(manifestWith(), fakeTerminal());
   try {
     assert.deepEqual(await link.app.call("update.check"), {
@@ -283,16 +284,16 @@ test("o unealta se actualizeaza prin managerul de pachete", async () => {
       version: "1.0.0",
       managedBy: "package-manager",
     });
-    await assert.rejects(link.app.call("update.apply"), /managerul de pachete/);
+    await assert.rejects(link.app.call("update.apply"), /package manager/);
   } finally {
     link.dispose();
   }
 });
 
-test("terminalul real citeste argumentele, TTY-ul si conventia NO_COLOR", () => {
+test("the real terminal reads the arguments, the TTY and the NO_COLOR convention", () => {
   const written: string[] = [];
   const base: ProcessLike = {
-    argv: ["/usr/bin/node", "/loc/bin.ts", "add", "ceva"],
+    argv: ["/usr/bin/node", "/loc/bin.ts", "add", "something"],
     env: {},
     stdout: { write: (text: string) => written.push(text), isTTY: true, columns: 120 },
     stderr: { write: (text: string) => written.push(text), isTTY: true },
@@ -301,19 +302,19 @@ test("terminalul real citeste argumentele, TTY-ul si conventia NO_COLOR", () => 
   };
 
   const terminal = terminalFromProcess(base);
-  assert.deepEqual(terminal.args, ["add", "ceva"], "interpretorul si scriptul nu sunt argumente ale uneltei");
+  assert.deepEqual(terminal.args, ["add", "something"], "the interpreter and the script are not the tool's arguments");
   assert.equal(terminal.columns, 120);
   assert.equal(terminal.interactive, true);
   assert.equal(terminal.color, true);
   assert.equal(typeof terminal.ask, "function");
 
   const noColor = terminalFromProcess({ ...base, env: { NO_COLOR: "1" } });
-  assert.equal(noColor.color, false, "NO_COLOR stinge culoarea chiar si pe TTY");
+  assert.equal(noColor.color, false, "NO_COLOR turns off color even on a TTY");
 
   const piped = terminalFromProcess({ ...base, stdout: { write: () => undefined }, stdin: {} });
   assert.equal(piped.isTTY, false);
   assert.equal(piped.interactive, false);
   assert.equal(piped.color, false);
-  assert.equal(piped.ask, undefined, "un terminal care nu poate citi nu pretinde ca poate");
-  assert.equal(piped.columns, 80, "latime implicita rezonabila cand nu se stie");
+  assert.equal(piped.ask, undefined, "a terminal that cannot read does not pretend it can");
+  assert.equal(piped.columns, 80, "a reasonable default width when it is unknown");
 });

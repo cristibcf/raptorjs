@@ -1,10 +1,10 @@
 /**
- * `raptor:serve` (spec sectiunea 6): server HTTP cu contract fetch-native
- * (Request -> Response), rutare simpla si oprire gratioasa.
+ * `raptor:serve` (spec section 6): an HTTP server with a fetch-native contract
+ * (Request -> Response), simple routing and graceful shutdown.
  *
- * Suprafata publica nu expune tipuri de server ale host-ului: in bootstrap
- * traducem din/in `node:http`, iar in host-ul nativ aceeasi interfata va fi
- * implementata direct peste stiva proprie.
+ * The public surface does not expose the host's server types: in bootstrap we
+ * translate to/from `node:http`, and in the native host the same interface will
+ * be implemented directly over its own stack.
  */
 import { createServer } from "node:http";
 import type { IncomingMessage, Server, ServerResponse } from "node:http";
@@ -37,13 +37,13 @@ export interface RunningServer {
   readonly port: number;
   readonly hostname: string;
   readonly url: string;
-  /** Oprire gratioasa: nu mai accepta conexiuni, dreneaza ce e in zbor. */
+  /** Graceful shutdown: stops accepting connections, drains what is in flight. */
   close(): Promise<void>;
 }
 
 export interface RaptorServe {
   serve(options: ServeOptions): Promise<RunningServer>;
-  /** Rutare pura, testabila fara socket. */
+  /** Pure routing, testable without a socket. */
   route(routes: readonly RouteDefinition[], fallback?: Handler): Handler;
 }
 
@@ -102,7 +102,7 @@ export function createServe(host: HostContext): RaptorServe {
         return await candidate.handler(request, { ...info, params });
       }
       if (fallback) return await fallback(request, info);
-      return new Response("not found", { status: 404, headers: { "content-type": "text/plain; charset=utf-8" } });
+      return new Response("Not Found", { status: 404, headers: { "content-type": "text/plain; charset=utf-8" } });
     };
   };
 
@@ -112,13 +112,13 @@ export function createServe(host: HostContext): RaptorServe {
     async serve(options: ServeOptions): Promise<RunningServer> {
       const hostname = options.hostname ?? "127.0.0.1";
 
-      // A deschide un port e un acces la exterior, la fel ca o conexiune de
-      // iesire - doar ca in sens invers. Verificarea se face INAINTE de `bind`:
-      // un refuz dupa ce socket-ul e deja deschis nu mai e un refuz.
+      // Opening a port is an outbound access, just like an outgoing connection -
+      // only in the reverse direction. The check happens BEFORE `bind`: a denial
+      // after the socket is already open is no longer a denial.
       //
-      // Cu portul 0 tinta ramane `gazda:0`, deci o regula care fixeaza un port
-      // anume nu acopera un port efemer. Cine vrea "orice port pe loopback"
-      // scrie `127.0.0.1:*`.
+      // With port 0 the target stays `host:0`, so a rule that pins a specific
+      // port does not cover an ephemeral port. Whoever wants "any port on
+      // loopback" writes `127.0.0.1:*`.
       host.broker.require("net.listen", `${hostname.toLowerCase()}:${options.port ?? 0}`);
 
       const handler = options.fetch ?? route(options.routes ?? []);
@@ -191,7 +191,7 @@ async function handleRequest(
     host.observer.log("error", "serve.handlerFailed", { error: String(error) });
     response = onError
       ? await onError(error, request)
-      : new Response("internal error", { status: 500, headers: { "content-type": "text/plain; charset=utf-8" } });
+      : new Response("Internal Server Error", { status: 500, headers: { "content-type": "text/plain; charset=utf-8" } });
   }
 
   outgoing.statusCode = response.status;

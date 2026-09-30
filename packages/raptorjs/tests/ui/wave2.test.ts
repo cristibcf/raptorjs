@@ -18,7 +18,7 @@ function div(): MiniElement {
   return doc.createElement("div") as MiniElement;
 }
 
-/** Trage manerul: pointerdown, N mișcări, pointerup. */
+/** Drags the handle: pointerdown, N moves, pointerup. */
 function drag(el: MiniElement, from: number, moves: number[], vertical = false): void {
   const pt = (v: number) => (vertical ? { clientX: 0, clientY: v } : { clientX: v, clientY: 0 });
   el.dispatch("pointerdown", { ...pt(from), button: 0 });
@@ -28,11 +28,11 @@ function drag(el: MiniElement, from: number, moves: number[], vertical = false):
 
 /* ------------------------------------------------------------ SVG runtime -- */
 
-test("createElement folosește namespace-ul SVG pentru tagurile SVG", () => {
+test("createElement uses the SVG namespace for SVG tags", () => {
   assert.equal(isSvgTag("svg"), true);
   assert.equal(isSvgTag("path"), true);
   assert.equal(isSvgTag("div"), false);
-  // `a` e ambiguu (HTML și SVG) — intenționat NU e tratat ca SVG.
+  // `a` is ambiguous (HTML and SVG) — intentionally NOT treated as SVG.
   assert.equal(isSvgTag("a"), false);
 
   const el = R.svg({ width: "10" }, R.path({ d: "M0 0" })) as any;
@@ -43,17 +43,17 @@ test("createElement folosește namespace-ul SVG pentru tagurile SVG", () => {
 
 /* ------------------------------------------------------------- 149 Progress */
 
-test("Progress expune ARIA corect și se umple proporțional", () => {
+test("Progress exposes correct ARIA and fills proportionally", () => {
   const root = div();
   const value = state(25);
-  render(() => Progress({ value: () => value(), label: "Încărcare" }), root);
+  render(() => Progress({ value: () => value(), label: "Loading" }), root);
 
   const bar = root.querySelector("div")!;
   assert.equal(bar.getAttribute("role"), "progressbar");
   assert.equal(bar.getAttribute("aria-valuemin"), "0");
   assert.equal(bar.getAttribute("aria-valuemax"), "100");
   assert.equal(bar.getAttribute("aria-valuenow"), "25");
-  assert.equal(bar.getAttribute("aria-label"), "Încărcare");
+  assert.equal(bar.getAttribute("aria-label"), "Loading");
 
   const fill = root.querySelectorAll("div").find((d) => d.getAttribute("class") === "rui-progress-fill")!;
   assert.equal(fill.getAttribute("style"), "width:25.00%");
@@ -63,7 +63,7 @@ test("Progress expune ARIA corect și se umple proporțional", () => {
   assert.equal(bar.getAttribute("aria-valuenow"), "80");
 });
 
-test("Progress plafonează în afara intervalului și respectă min/max custom", () => {
+test("Progress caps outside the range and respects custom min/max", () => {
   const root = div();
   const value = state(-50);
   render(() => Progress({ value: () => value(), min: 0, max: 200 }), root);
@@ -76,7 +76,7 @@ test("Progress plafonează în afara intervalului și respectă min/max custom",
   assert.equal(fill.getAttribute("style"), "width:100.00%");
 });
 
-test("Progress nedeterminat nu expune aria-valuenow", () => {
+test("indeterminate Progress doesn't expose aria-valuenow", () => {
   const root = div();
   render(() => Progress({ indeterminate: true }), root);
   const bar = root.querySelector("div")!;
@@ -84,7 +84,7 @@ test("Progress nedeterminat nu expune aria-valuenow", () => {
   assert.equal(bar.getAttribute("data-indeterminate"), "true");
 });
 
-test("TEZĂ: 100 de pași de progres = 0 noduri create", () => {
+test("THESIS: 100 progress steps = 0 nodes created", () => {
   const root = div();
   const value = state(0);
   render(() => Progress({ value: () => value() }), root);
@@ -92,13 +92,13 @@ test("TEZĂ: 100 de pași de progres = 0 noduri create", () => {
   resetStats();
   for (let i = 1; i <= 100; i++) value.set(i);
 
-  assert.equal(stats.createElement, 0, "zero elemente");
-  assert.equal(stats.createText, 0, "zero text-noduri");
-  // Două atribute per pas: lățimea umpluturii + aria-valuenow.
+  assert.equal(stats.createElement, 0, "zero elements");
+  assert.equal(stats.createText, 0, "zero text-nodes");
+  // Two attributes per step: the fill width + aria-valuenow.
   assert.equal(stats.setAttribute, 200);
 });
 
-test("CircularProgress mișcă doar stroke-dashoffset", () => {
+test("CircularProgress moves only stroke-dashoffset", () => {
   const root = div();
   const value = state(0);
   render(() => CircularProgress({ value: () => value(), size: 40, thickness: 4 }), root);
@@ -123,47 +123,47 @@ function mountSlider(props: any): { root: MiniElement; thumb: MiniElement; el: a
   let el: any = null;
   render(() => {
     el = Slider(props);
-    el.setTrack(0, 200); // pistă de 200px începând la x=0
+    el.setTrack(0, 200); // 200px track starting at x=0
     return el;
   }, root);
   const thumb = root.querySelectorAll("div").find((d) => d.getAttribute("role") === "slider")!;
   return { root, thumb, el };
 }
 
-test("Slider expune ARIA de slider și poziționează mânerul", () => {
+test("Slider exposes slider ARIA and positions the handle", () => {
   const value = state(25);
-  const { thumb } = mountSlider({ value, min: 0, max: 100, label: "Volum" });
+  const { thumb } = mountSlider({ value, min: 0, max: 100, label: "Volume" });
 
   assert.equal(thumb.getAttribute("role"), "slider");
   assert.equal(thumb.getAttribute("aria-valuemin"), "0");
   assert.equal(thumb.getAttribute("aria-valuemax"), "100");
   assert.equal(thumb.getAttribute("aria-valuenow"), "25");
   assert.equal(thumb.getAttribute("aria-orientation"), "horizontal");
-  assert.equal(thumb.getAttribute("aria-label"), "Volum");
+  assert.equal(thumb.getAttribute("aria-label"), "Volume");
   assert.equal(thumb.getAttribute("style"), "left:25.000%");
 
   value.set(60);
   assert.equal(thumb.getAttribute("style"), "left:60.000%");
 });
 
-test("Slider: tragerea mapează poziția pe valoare, cu cuantizare și plafonare", () => {
+test("Slider: dragging maps position to value, with quantization and capping", () => {
   const value = state(0);
   const { thumb } = mountSlider({ value, min: 0, max: 100, step: 10 });
 
-  drag(thumb, 0, [50]); // 50/200 = 25% -> 25 -> cuantizat la 30
+  drag(thumb, 0, [50]); // 50/200 = 25% -> 25 -> quantized to 30
   assert.equal(value(), 30);
 
   drag(thumb, 0, [104]); // 52% -> 50
   assert.equal(value(), 50);
 
   drag(thumb, 0, [9999]);
-  assert.equal(value(), 100, "plafonat la max");
+  assert.equal(value(), 100, "capped at max");
 
   drag(thumb, 0, [-9999]);
-  assert.equal(value(), 0, "plafonat la min");
+  assert.equal(value(), 0, "capped at min");
 });
 
-test("Slider: tastatura respectă step, PageUp/Down, Home/End", () => {
+test("Slider: the keyboard respects step, PageUp/Down, Home/End", () => {
   const value = state(50);
   const { thumb } = mountSlider({ value, min: 0, max: 100, step: 5 });
 
@@ -181,7 +181,7 @@ test("Slider: tastatura respectă step, PageUp/Down, Home/End", () => {
   assert.equal(value(), 0);
 });
 
-test("Slider dezactivat nu răspunde", () => {
+test("a disabled Slider doesn't respond", () => {
   const value = state(40);
   const { thumb } = mountSlider({ value, disabled: () => true });
 
@@ -193,7 +193,7 @@ test("Slider dezactivat nu răspunde", () => {
   assert.equal(thumb.getAttribute("aria-disabled"), "true");
 });
 
-test("TEZĂ: un drag de 60 de frame-uri pe Slider = 0 noduri create", () => {
+test("THESIS: a 60-frame drag on the Slider = 0 nodes created", () => {
   const value = state(0);
   const { thumb } = mountSlider({ value, min: 0, max: 200, step: 0 });
 
@@ -203,11 +203,11 @@ test("TEZĂ: un drag de 60 de frame-uri pe Slider = 0 noduri create", () => {
   thumb.dispatch("pointerup", { clientX: 60, clientY: 0 });
 
   assert.equal(value(), 60);
-  assert.equal(stats.createElement, 0, "zero elemente în 60 de frame-uri");
-  assert.equal(stats.createText, 0, "zero text-noduri");
+  assert.equal(stats.createElement, 0, "zero elements in 60 frames");
+  assert.equal(stats.createText, 0, "zero text-nodes");
 });
 
-test("RangeSlider: mânerele nu se depășesc", () => {
+test("RangeSlider: the handles don't cross", () => {
   const root = div();
   const value = state<readonly [number, number]>([20, 80]);
   let el: any = null;
@@ -222,18 +222,18 @@ test("RangeSlider: mânerele nu se depășesc", () => {
   assert.equal(thumbs[0]!.getAttribute("aria-valuenow"), "20");
   assert.equal(thumbs[1]!.getAttribute("aria-valuenow"), "80");
 
-  // Mânerul de jos împins peste cel de sus se oprește la el.
+  // The lower handle pushed past the upper one stops at it.
   drag(thumbs[0]!, 0, [95]);
   assert.deepEqual(value(), [80, 80]);
 
-  // Mânerul de sus împins sub cel de jos se oprește la el.
+  // The upper handle pushed below the lower one stops at it.
   drag(thumbs[1]!, 0, [10]);
   assert.deepEqual(value(), [80, 80]);
 });
 
 /* ------------------------------------------------------------ 162 Sparkline */
 
-test("Sparkline desenează un path scalat la date", () => {
+test("Sparkline draws a path scaled to the data", () => {
   const root = div();
   const data = state<readonly number[]>([0, 5, 10]);
   render(() => Sparkline({ data: () => data(), width: 100, height: 20, thickness: 2 }), root);
@@ -241,25 +241,25 @@ test("Sparkline desenează un path scalat la date", () => {
   const path = root.querySelector("path")!;
   assert.equal((path as any).namespaceURI, SVG_NS);
   const d = path.getAttribute("d")!;
-  assert.ok(d.startsWith("M2.00 18.00"), "primul punct = minim = jos: " + d);
-  assert.ok(d.endsWith("L98.00 2.00"), "ultimul punct = maxim = sus: " + d);
+  assert.ok(d.startsWith("M2.00 18.00"), "first point = minimum = bottom: " + d);
+  assert.ok(d.endsWith("L98.00 2.00"), "last point = maximum = top: " + d);
 });
 
-test("Sparkline: serie constantă nu împarte la zero", () => {
+test("Sparkline: a constant series doesn't divide by zero", () => {
   const root = div();
   render(() => Sparkline({ data: () => [7, 7, 7], width: 100, height: 20 }), root);
   const d = root.querySelector("path")!.getAttribute("d")!;
-  assert.ok(!d.includes("NaN"), "fără NaN: " + d);
+  assert.ok(!d.includes("NaN"), "no NaN: " + d);
 });
 
-test("Sparkline goală nu aruncă", () => {
+test("an empty Sparkline doesn't throw", () => {
   const root = div();
   render(() => Sparkline({ data: () => [] }), root);
-  // `d=""` e SVG valid si nu randeaza nimic; stringul gol e o valoare, nu o stergere.
+  // `d=""` is valid SVG and renders nothing; the empty string is a value, not a removal.
   assert.equal(root.querySelector("path")!.getAttribute("d"), "");
 });
 
-test("TEZĂ: 200 de tick-uri de date live = 0 noduri, doar `d` rescris", () => {
+test("THESIS: 200 live data ticks = 0 nodes, only `d` rewritten", () => {
   const root = div();
   const data = state<readonly number[]>([1, 2, 3]);
   render(() => Sparkline({ data: () => data(), width: 100, height: 20 }), root);
@@ -269,16 +269,16 @@ test("TEZĂ: 200 de tick-uri de date live = 0 noduri, doar `d` rescris", () => {
     data.update((prev) => [...prev.slice(-19), i]);
   }
 
-  assert.equal(stats.createElement, 0, "zero elemente în 200 de tick-uri");
+  assert.equal(stats.createElement, 0, "zero elements in 200 ticks");
   assert.equal(stats.createText, 0);
-  assert.equal(stats.setAttribute, 200, "exact o rescriere de `d` per tick");
+  assert.equal(stats.setAttribute, 200, "exactly one `d` rewrite per tick");
 });
 
 /* ------------------------------------------------------------ 12 SplitPane */
 
-test("SplitPane leagă mărimea de stilul primului panou", () => {
+test("SplitPane binds the size to the first pane's style", () => {
   const root = div();
-  const sp = createRoot(() => splitPane({ first: "stânga", second: "dreapta", initial: 240, min: 100, max: 600 }));
+  const sp = createRoot(() => splitPane({ first: "left", second: "right", initial: 240, min: 100, max: 600 }));
   render(() => sp.el, root);
 
   const first = root.querySelectorAll("div").find((d) => d.getAttribute("class") === "rui-split-first")!;
@@ -290,24 +290,24 @@ test("SplitPane leagă mărimea de stilul primului panou", () => {
   assert.equal(first.getAttribute("style"), "width:300px");
 });
 
-test("SplitPane colapsează sub minim și revine la toggle", () => {
+test("SplitPane collapses below the minimum and returns on toggle", () => {
   const sp = createRoot(() => splitPane({ first: "a", second: "b", initial: 240, min: 120, collapsible: true }));
 
   sp.setSize(200);
   assert.equal(sp.collapsed(), false);
 
-  sp.setSize(50); // sub min -> colaps
+  sp.setSize(50); // below min -> collapse
   assert.equal(sp.size(), 0);
   assert.equal(sp.collapsed(), true);
 
   sp.toggle();
   assert.equal(sp.collapsed(), false);
-  assert.equal(sp.size(), 200, "revine la ultima mărime validă");
+  assert.equal(sp.size(), 200, "returns to the last valid size");
 });
 
-test("TEZĂ: un drag de 60 de frame-uri pe SplitPane = 0 noduri create", () => {
+test("THESIS: a 60-frame drag on the SplitPane = 0 nodes created", () => {
   const root = div();
-  const sp = createRoot(() => splitPane({ first: R.span("stânga"), second: R.span("dreapta"), initial: 200, min: 0, max: 800 }));
+  const sp = createRoot(() => splitPane({ first: R.span("left"), second: R.span("right"), initial: 200, min: 0, max: 800 }));
   render(() => sp.el, root);
   const handle = root.querySelectorAll("div").find((d) => d.getAttribute("role") === "separator")!;
 
@@ -325,7 +325,7 @@ test("TEZĂ: un drag de 60 de frame-uri pe SplitPane = 0 noduri create", () => {
 
 const VIEW = { x: 0, y: 0, width: 1000, height: 600 };
 
-test("positioner: plasament de bază bottom-start", () => {
+test("positioner: base bottom-start placement", () => {
   const p = createRoot(() => positioner({ placement: "bottom-start", offset: 4 }));
   p.update({
     reference: { x: 100, y: 100, width: 80, height: 30 },
@@ -338,9 +338,9 @@ test("positioner: plasament de bază bottom-start", () => {
   assert.equal(p.style(), "position:fixed;left:100px;top:134px");
 });
 
-test("positioner: flip când nu încape jos", () => {
+test("positioner: flip when it doesn't fit below", () => {
   const p = createRoot(() => positioner({ placement: "bottom-start", offset: 4 }));
-  // Referință lângă marginea de jos: sub ea nu mai încap 150px.
+  // Reference near the bottom edge: 150px no longer fit below it.
   p.update({
     reference: { x: 100, y: 520, width: 80, height: 30 },
     floating: { x: 0, y: 0, width: 200, height: 150 },
@@ -350,18 +350,18 @@ test("positioner: flip când nu încape jos", () => {
   assert.equal(p.y(), 520 - 150 - 4);
 });
 
-test("positioner: shift pe axa secundară ca să rămână în ecran", () => {
+test("positioner: shift on the secondary axis to stay on screen", () => {
   const p = createRoot(() => positioner({ placement: "bottom-start", offset: 4, padding: 8 }));
-  // Referință lângă marginea din dreapta: lista de 200px ar ieși.
+  // Reference near the right edge: the 200px list would spill out.
   p.update({
     reference: { x: 950, y: 100, width: 40, height: 30 },
     floating: { x: 0, y: 0, width: 200, height: 100 },
     viewport: VIEW,
   });
-  assert.equal(p.x(), 1000 - 200 - 8, "glisat înăuntru, nu tăiat");
+  assert.equal(p.x(), 1000 - 200 - 8, "slid inside, not clipped");
 });
 
-test("positioner: fără flip păstrează plasamentul cerut", () => {
+test("positioner: without flip keeps the requested placement", () => {
   const p = createRoot(() => positioner({ placement: "bottom-start", flip: false, shift: false, offset: 4 }));
   p.update({
     reference: { x: 100, y: 520, width: 80, height: 30 },
@@ -376,10 +376,10 @@ test("positioner: fără flip păstrează plasamentul cerut", () => {
 
 interface Fruit { id: number; name: string }
 const FRUITS: Fruit[] = [
-  { id: 1, name: "Măr" },
-  { id: 2, name: "Pară" },
-  { id: 3, name: "Prună" },
-  { id: 4, name: "Piersică" },
+  { id: 1, name: "Apple" },
+  { id: 2, name: "Pear" },
+  { id: 3, name: "Plum" },
+  { id: 4, name: "Peach" },
 ];
 
 function mountCombo(extra: Record<string, unknown> = {}) {
@@ -399,83 +399,83 @@ function mountCombo(extra: Record<string, unknown> = {}) {
   return { root, value, cb, input, options };
 }
 
-test("Combobox: ARIA de combobox și listbox", () => {
-  const { input, cb, options } = mountCombo({ ariaLabel: "Fruct" });
+test("Combobox: combobox and listbox ARIA", () => {
+  const { input, cb, options } = mountCombo({ ariaLabel: "Fruit" });
 
   assert.equal(input().getAttribute("role"), "combobox");
   assert.equal(input().getAttribute("aria-expanded"), "false");
   assert.equal(input().getAttribute("aria-autocomplete"), "list");
-  assert.equal(input().getAttribute("aria-label"), "Fruct");
+  assert.equal(input().getAttribute("aria-label"), "Fruit");
 
   input().dispatch("focus");
   assert.equal(cb.open(), true);
   assert.equal(input().getAttribute("aria-expanded"), "true");
   assert.equal(options().length, 4);
-  // Focusul rămâne în input; opțiunea activă e semnalată prin id.
+  // Focus stays in the input; the active option is signalled by id.
   assert.equal(input().getAttribute("aria-activedescendant"), options()[0]!.getAttribute("id"));
 });
 
-test("Combobox filtrează la tastare", () => {
+test("Combobox filters while typing", () => {
   const { input, options } = mountCombo();
   input().dispatch("focus");
 
-  input().dispatch("input", { target: { value: "pr" } });
-  assert.deepEqual(options().map((o) => o.textContent), ["Prună"]);
+  input().dispatch("input", { target: { value: "plu" } });
+  assert.deepEqual(options().map((o) => o.textContent), ["Plum"]);
 
-  input().dispatch("input", { target: { value: "p" } });
-  assert.deepEqual(options().map((o) => o.textContent), ["Pară", "Prună", "Piersică"]);
+  input().dispatch("input", { target: { value: "a" } });
+  assert.deepEqual(options().map((o) => o.textContent), ["Apple", "Pear", "Peach"]);
 
   input().dispatch("input", { target: { value: "zzz" } });
   assert.equal(options().length, 0);
-  assert.ok(input().parentNode!.textContent.includes("Niciun rezultat"));
+  assert.ok(input().parentNode!.textContent.includes("No results"));
 });
 
-test("TEZĂ: filtrarea păstrează nodurile opțiunilor rămase", () => {
+test("THESIS: filtering keeps the nodes of the remaining options", () => {
   const { input, options } = mountCombo();
   input().dispatch("focus");
-  input().dispatch("input", { target: { value: "p" } });
+  input().dispatch("input", { target: { value: "a" } });
 
   const before = options().map((o) => o.id);
   assert.equal(before.length, 3);
 
   resetStats();
-  input().dispatch("input", { target: { value: "pr" } });
+  input().dispatch("input", { target: { value: "ar" } });
 
   const after = options().map((o) => o.id);
-  assert.deepEqual(after, [before[1]], "`Prună` și-a păstrat exact nodul");
-  assert.equal(stats.createElement, 0, "zero elemente create la filtrare");
+  assert.deepEqual(after, [before[1]], "`Pear` kept exactly its node");
+  assert.equal(stats.createElement, 0, "zero elements created on filtering");
 });
 
-test("Combobox: săgeți + Enter selectează, Escape închide", () => {
+test("Combobox: arrows + Enter select, Escape closes", () => {
   const { input, value, cb } = mountCombo();
   input().dispatch("focus");
 
   input().dispatch("keydown", { key: "ArrowDown" });
   input().dispatch("keydown", { key: "Enter" });
-  assert.equal(value()!.name, "Pară");
+  assert.equal(value()!.name, "Pear");
   assert.equal(cb.open(), false);
-  assert.equal(cb.query(), "Pară");
+  assert.equal(cb.query(), "Pear");
 
   input().dispatch("focus");
   input().dispatch("keydown", { key: "Escape" });
   assert.equal(cb.open(), false);
-  assert.equal(cb.query(), "Pară", "textul revine la selecție");
+  assert.equal(cb.query(), "Pear", "the text reverts to the selection");
 });
 
-test("Combobox: opțiunile dezactivate sunt sărite de săgeți", () => {
-  const { input, value } = mountCombo({ disabled: (f: Fruit) => f.name === "Pară" });
+test("Combobox: disabled options are skipped by the arrows", () => {
+  const { input, value } = mountCombo({ disabled: (f: Fruit) => f.name === "Pear" });
   input().dispatch("focus");
 
-  input().dispatch("keydown", { key: "ArrowDown" }); // sare peste Pară -> Prună
+  input().dispatch("keydown", { key: "ArrowDown" }); // skips Pear -> Plum
   input().dispatch("keydown", { key: "Enter" });
-  assert.equal(value()!.name, "Prună");
+  assert.equal(value()!.name, "Plum");
 });
 
-test("Combobox: click pe opțiune selectează", () => {
+test("Combobox: clicking an option selects it", () => {
   const { input, options, value } = mountCombo();
   input().dispatch("focus");
   options()[3]!.click();
-  assert.equal(value()!.name, "Piersică");
+  assert.equal(value()!.name, "Peach");
 });
 
 /* ------------------------------------------------------------ 127 DataGrid */
@@ -484,13 +484,13 @@ interface Row { id: number; name: string; qty: number }
 
 function makeRows(n: number): Row[] {
   const out: Row[] = [];
-  for (let i = 0; i < n; i++) out.push({ id: i, name: "rând " + i, qty: (i * 7) % 100 });
+  for (let i = 0; i < n; i++) out.push({ id: i, name: "row " + i, qty: (i * 7) % 100 });
   return out;
 }
 
 const GRID_COLS: GridColumn<Row>[] = [
-  { key: "name", header: "Nume", cell: (r) => r.name, sort: (a, b) => a.name.localeCompare(b.name), width: 200 },
-  { key: "qty", header: "Cant.", cell: (r) => String(r.qty), sort: (a, b) => a.qty - b.qty, align: "right", width: 100 },
+  { key: "name", header: "Name", cell: (r) => r.name, sort: (a, b) => a.name.localeCompare(b.name), width: 200 },
+  { key: "qty", header: "Qty", cell: (r) => String(r.qty), sort: (a, b) => a.qty - b.qty, align: "right", width: 100 },
 ];
 
 function mountGrid(n: number, extra: Record<string, unknown> = {}) {
@@ -504,28 +504,28 @@ function mountGrid(n: number, extra: Record<string, unknown> = {}) {
   return { root, rows, g, bodyRows };
 }
 
-test("DataGrid randează doar fereastra vizibilă din 50.000 de rânduri", () => {
+test("DataGrid renders only the visible window out of 50,000 rows", () => {
   const { g, bodyRows, root } = mountGrid(50000);
 
-  // 200px / 20px = 10 vizibile + 2*2 overscan = 14.
+  // 200px / 20px = 10 visible + 2*2 overscan = 14.
   assert.equal(g.visibleCount(), 14);
-  assert.equal(bodyRows().length, 14, "14 rânduri în DOM din 50.000");
+  assert.equal(bodyRows().length, 14, "14 rows in the DOM out of 50,000");
   assert.equal(root.querySelector("div")!.getAttribute("aria-rowcount"), "50001");
 });
 
-test("TEZĂ: derularea printr-un rând creează cel mult un rând nou", () => {
+test("THESIS: scrolling by one row creates at most one new row", () => {
   const { g, bodyRows } = mountGrid(50000);
   assert.equal(bodyRows().length, 14);
 
   resetStats();
-  g.setScroll(20); // exact un rând
+  g.setScroll(20); // exactly one row
 
-  assert.equal(bodyRows().length, 14, "fereastra rămâne de aceeași mărime");
-  // Un rând nou = 1 container + 2 celule = 3 elemente. Nu 14 rânduri.
-  assert.ok(stats.createElement <= 3, "cel mult un rând nou (3 elemente), au fost: " + stats.createElement);
+  assert.equal(bodyRows().length, 14, "the window stays the same size");
+  // A new row = 1 container + 2 cells = 3 elements. Not 14 rows.
+  assert.ok(stats.createElement <= 3, "at most one new row (3 elements), got: " + stats.createElement);
 });
 
-test("DataGrid sortează la click pe header", () => {
+test("DataGrid sorts on header click", () => {
   const { root, bodyRows } = mountGrid(20);
   const headers = root.querySelectorAll("div").filter((d) => d.getAttribute("role") === "columnheader");
   assert.equal(headers.length, 2);
@@ -545,7 +545,7 @@ test("DataGrid sortează la click pe header", () => {
   assert.equal(cellText(bodyRows()[0]!, 1), "98");
 });
 
-test("DataGrid: coloanele redimensionabile rescriu grid-template", () => {
+test("DataGrid: resizable columns rewrite the grid-template", () => {
   const { root } = mountGrid(10);
   const head = root.querySelectorAll("div").find((d) => d.getAttribute("class") === "rui-grid-head")!;
   assert.equal(head.getAttribute("style"), "display:grid;grid-template-columns:200px 100px");
@@ -555,12 +555,12 @@ test("DataGrid: coloanele redimensionabile rescriu grid-template", () => {
   assert.equal(head.getAttribute("style"), "display:grid;grid-template-columns:250px 100px");
 });
 
-test("DataGrid: stare goală", () => {
-  const { root } = mountGrid(0, { empty: "Nimic de arătat" });
-  assert.ok(root.textContent.includes("Nimic de arătat"));
+test("DataGrid: empty state", () => {
+  const { root } = mountGrid(0, { empty: "Nothing to show" });
+  assert.ok(root.textContent.includes("Nothing to show"));
 });
 
-test("DataGrid: selecția marchează rândul", () => {
+test("DataGrid: selection marks the row", () => {
   const selected = state<ReadonlySet<Row>>(new Set());
   const { bodyRows } = mountGrid(10, { selected });
 

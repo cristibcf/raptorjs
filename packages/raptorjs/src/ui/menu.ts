@@ -1,14 +1,14 @@
 /**
- * DropdownMenu - meniu cu trigger, navigare la tastatura si inchidere la
- * click in afara.
+ * DropdownMenu - a menu with a trigger, keyboard navigation and close on
+ * click outside.
  *
- * Meniul e montat prin `Show`, deci cand e inchis nu exista noduri pentru el.
- * Itemul activ (highlight-ul de la sageti) e un semnal: mutarea selectiei
- * rescrie doua atribute, nu re-randeaza lista.
+ * The menu is mounted via `Show`, so when it's closed there are no nodes for it.
+ * The active item (the arrow-key highlight) is a signal: moving the selection
+ * rewrites two attributes, it doesn't re-render the list.
  *
- * Handlerele globale (click-outside, Escape) sunt inregistrate DOAR cat timp
- * meniul e deschis si scoase in `onCleanup`, ca sa nu ramana atasate de
- * document dupa ce componenta e distrusa.
+ * The global handlers (click-outside, Escape) are registered ONLY while the
+ * menu is open and removed in `onCleanup`, so they don't stay attached to the
+ * document after the component is destroyed.
  */
 import { state, derived, effect, onCleanup, type Accessor, type State } from "raptorjs";
 import { R, Show, type Child } from "raptorjs/dom";
@@ -23,7 +23,7 @@ export interface MenuItem {
   label: Child;
   onSelect: () => void;
   disabled?: boolean;
-  /** Text secundar aliniat la dreapta (ex. "Ctrl+S"). */
+  /** Secondary text aligned to the right (e.g. "Ctrl+S"). */
   hint?: string;
 }
 
@@ -42,12 +42,12 @@ export function menuSeparator(): MenuEntry {
 }
 
 export interface DropdownMenuProps {
-  /** Continutul butonului care deschide meniul. */
+  /** The content of the button that opens the menu. */
   trigger: Child;
   entries: readonly MenuEntry[] | Accessor<readonly MenuEntry[]>;
-  /** Da-i un semnal daca vrei sa controlezi deschiderea din afara. */
+  /** Pass a signal if you want to control opening from outside. */
   open?: State<boolean>;
-  /** Plasament complet (flip + shift). `start`/`end` raman acceptate. */
+  /** Full placement (flip + shift). `start`/`end` are still accepted. */
   placement?: Placement | "start" | "end";
   class?: string;
   label?: string;
@@ -59,13 +59,13 @@ function asAccessor(
   return typeof entries === "function" ? entries : () => entries;
 }
 
-/** `focus()` lipseste pe DOM-ul headless din teste; nu esuam pentru atat. */
+/** `focus()` is missing on the headless DOM in tests; we don't fail over that. */
 function focus(el: El): void {
   if (el && typeof el.focus === "function") el.focus();
 }
 
 export function DropdownMenu(props: DropdownMenuProps): El {
-  // Constructia nu aboneaza computatia apelantului; vezi `isolate`.
+  // Construction doesn't subscribe the caller's computation; see `isolate`.
   return isolate(() => DropdownMenuImpl(props));
 }
 
@@ -75,7 +75,7 @@ function DropdownMenuImpl(props: DropdownMenuProps): El {
   const active = state(-1);
   let triggerEl: El = null;
 
-  // Pozitionare reala: CSS pur taia meniul la marginea ecranului.
+  // Real positioning: pure CSS clipped the menu at the screen edge.
   const placement: Placement =
     props.placement === "end"
       ? "bottom-end"
@@ -84,7 +84,7 @@ function DropdownMenuImpl(props: DropdownMenuProps): El {
         : props.placement;
   const pos = positioner({ placement, offset: 4, enabled: () => open() });
 
-  /** Indicii itemilor selectabili - separatoarele si cele dezactivate sar. */
+  /** The indices of the selectable items - separators and disabled ones are skipped. */
   const selectable = derived<number[]>(() => {
     const out: number[] = [];
     const list = entries();
@@ -105,7 +105,7 @@ function DropdownMenuImpl(props: DropdownMenuProps): El {
     const idx = selectable();
     if (idx.length === 0) return;
     const current = idx.indexOf(active());
-    // Din afara listei pornim de la capatul dinspre care venim; apoi ciclam.
+    // From outside the list we start at the end we come from; then we cycle.
     const next = current === -1 ? (delta > 0 ? 0 : idx.length - 1) : (current + delta + idx.length) % idx.length;
     active.set(idx[next]!);
   };
@@ -117,7 +117,7 @@ function DropdownMenuImpl(props: DropdownMenuProps): El {
     entry.onSelect();
   };
 
-  // Handlere globale doar cat timp meniul e deschis.
+  // Global handlers only while the menu is open.
   effect(() => {
     if (!open()) return;
     const doc: any = (globalThis as any).document;
@@ -193,7 +193,7 @@ function DropdownMenuImpl(props: DropdownMenuProps): El {
         role: "menuitem",
         "aria-disabled": entry.disabled ? "true" : undefined,
         tabindex: "-1",
-        // `mousedown` ar fura focusul inainte de click; folosim doar click.
+        // `mousedown` would steal focus before click; we use click only.
         "on:click": (e: any) => {
           e.stopPropagation?.();
           choose(index);
@@ -239,9 +239,9 @@ function DropdownMenuImpl(props: DropdownMenuProps): El {
           style: () => pos.style(),
           "on:keydown": onKeydown,
         },
-        // Regiune dinamica, nu `For`: itemii unui meniu nu au identitate stabila
-        // intre rulari, deci o lista keyed n-ar reutiliza nimic. Re-run-ul
-        // effect-ului face dispose pe effect-urile itemilor vechi.
+        // Dynamic region, not `For`: a menu's items have no stable identity
+        // across runs, so a keyed list wouldn't reuse anything. Re-running the
+        // effect disposes the effects of the old items.
         () => entries().map(renderEntry),
       ),
     }),

@@ -1,8 +1,8 @@
 /**
  * Drawer / ContextMenu / Notification / Backdrop / ErrorBoundary.
  *
- * Completeaza setul de overlay-uri din valul 3. Toate reutilizeaza `Portal`,
- * `focusTrap`, `clickOutside` si `positioner`.
+ * Rounds out the overlay set from wave 3. All of them reuse `Portal`,
+ * `focusTrap`, `clickOutside` and `positioner`.
  */
 import { state, effect, onCleanup, type Accessor, type State } from "raptorjs";
 import { R, For, Show, block, mountChild, type Block, type Child } from "raptorjs/dom";
@@ -20,15 +20,15 @@ let idSeq = 0;
 export interface BackdropProps {
   visible: Accessor<boolean>;
   onClick?: () => void;
-  /** Aplica `backdrop-filter: blur`. */
+  /** Applies `backdrop-filter: blur`. */
   blur?: boolean;
-  /** `z-index`. Implicit 90. */
+  /** `z-index`. Default 90. */
   level?: number;
   children?: Child;
   class?: string;
 }
 
-/** Fundal pentru overlay-uri proprii. Decorativ: `aria-hidden`. */
+/** Background for your own overlays. Decorative: `aria-hidden`. */
 export function Backdrop(props: BackdropProps): Child {
   return Show({
     when: () => props.visible(),
@@ -53,7 +53,7 @@ export function Backdrop(props: BackdropProps): Child {
 
 /* ---------------------------------------------------------------- Drawer -- */
 
-/** Contor global de scroll-lock, comun cu `Dialog` (vezi overlay.ts). */
+/** Global scroll-lock counter, shared with `Dialog` (see overlay.ts). */
 let scrollLocks = 0;
 let savedOverflow = "";
 
@@ -76,10 +76,10 @@ export interface DrawerProps {
   children: Child;
   title?: Child;
   footer?: Child;
-  /** Din ce parte intra. Implicit `right`. */
+  /** Which side it enters from. Default `right`. */
   side?: "left" | "right" | "top" | "bottom";
   size?: string;
-  /** Panou care NU blocheaza pagina de dedesubt (fara focus trap, fara lock). */
+  /** Panel that does NOT block the page underneath (no focus trap, no lock). */
   modeless?: boolean;
   closeOnEscape?: boolean;
   closeOnBackdrop?: boolean;
@@ -89,11 +89,11 @@ export interface DrawerProps {
 }
 
 /**
- * Drawer - panou lateral.
+ * Drawer - side panel.
  *
- * `modeless: true` il face un panou obisnuit (filtre, detalii): fara focus
- * trap, fara blocarea scroll-ului, fara `aria-modal`. Un sertar de filtre care
- * blocheaza restul paginii e o greseala frecventa si enervanta.
+ * `modeless: true` makes it an ordinary panel (filters, details): no focus
+ * trap, no scroll lock, no `aria-modal`. A filter drawer that blocks the rest
+ * of the page is a frequent and annoying mistake.
  */
 export function Drawer(props: DrawerProps): Child {
   const id = "rui-drw-" + ++idSeq;
@@ -139,7 +139,7 @@ export function Drawer(props: DrawerProps): Child {
           R.button({
             type: "button",
             class: "rui-drawer-close",
-            "aria-label": "Închide",
+            "aria-label": "Close",
             "on:click": close,
           }, "✕"),
         )
@@ -184,7 +184,7 @@ export type ContextMenuItem = ContextMenuEntry | { key: string; separator: true 
 
 export interface ContextMenuProps {
   entries: readonly ContextMenuItem[] | Accessor<readonly ContextMenuItem[]>;
-  /** Continutul pe care se face click dreapta. Primeste props de zona. */
+  /** The content that is right-clicked. Receives zone props. */
   children: (props: Record<string, unknown>) => El;
   label?: string;
   class?: string;
@@ -195,12 +195,12 @@ function isEntry(item: ContextMenuItem): item is ContextMenuEntry {
 }
 
 /**
- * ContextMenu - meniu la click dreapta.
+ * ContextMenu - right-click menu.
  *
- * Deschis si de tasta Menu / Shift+F10, nu doar de mouse: altfel e inaccesibil
- * la tastatura. Pozitia vine din `positioner`, hranit cu un dreptunghi de un
- * pixel la locul cursorului - asa flip-ul si shift-ul functioneaza la fel ca
- * pentru orice alt overlay.
+ * Also opened by the Menu key / Shift+F10, not just the mouse: otherwise it is
+ * inaccessible from the keyboard. The position comes from `positioner`, fed a
+ * one-pixel rectangle at the cursor's location - that way flip and shift work
+ * the same as for any other overlay.
  */
 export function ContextMenu(props: ContextMenuProps): El {
   const id = "rui-ctx-" + ++idSeq;
@@ -223,7 +223,7 @@ export function ContextMenu(props: ContextMenuProps): El {
   const openAt = (x: number, y: number): void => {
     open.set(true);
     active.set(selectable()[0] ?? -1);
-    // Cursorul e un dreptunghi de 1x1: restul logicii e a `positioner`-ului.
+    // The cursor is a 1x1 rectangle: the rest of the logic is the `positioner`'s.
     pos.update({
       reference: { x, y, width: 1, height: 1 },
       floating: { x: 0, y: 0, width: 200, height: Math.max(40, entries().length * 32) },
@@ -268,7 +268,7 @@ export function ContextMenu(props: ContextMenuProps): El {
       openAt(Number(e.clientX ?? 0), Number(e.clientY ?? 0));
     },
     "on:keydown": (e: any) => {
-      // Tasta Menu sau Shift+F10: aceeasi actiune, fara mouse.
+      // The Menu key or Shift+F10: the same action, without a mouse.
       if (e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey)) {
         e.preventDefault?.();
         openAt(0, 0);
@@ -337,22 +337,22 @@ export interface NotificationProps {
   title?: Child;
   children: Child;
   tone?: "info" | "success" | "warning" | "danger";
-  /** Actiuni in josul notificarii. */
+  /** Actions at the bottom of the notification. */
   actions?: Child;
   onDismiss?: () => void;
-  /** Data/ora afisata discret. */
+  /** Date/time shown discreetly. */
   timestamp?: Child;
-  /** Marcheaza ca necitita (punct colorat). */
+  /** Marks it as unread (colored dot). */
   unread?: Accessor<boolean>;
   class?: string;
 }
 
 /**
- * Notification - notificare persistenta, spre deosebire de `Toast`.
+ * Notification - persistent notification, unlike `Toast`.
  *
- * Nu dispare singura si nu are `aria-live`: locul ei e o lista de notificari pe
- * care utilizatorul o deschide. Un `aria-live` pe fiecare element dintr-o lista
- * de 40 ar face screen readerul sa citeasca tot la fiecare deschidere.
+ * It doesn't disappear on its own and has no `aria-live`: its place is a list
+ * of notifications the user opens. An `aria-live` on each element of a list of
+ * 40 would make the screen reader read everything on every open.
  */
 export function Notification(props: NotificationProps): El {
   return R.article(
@@ -365,7 +365,7 @@ export function Notification(props: NotificationProps): El {
     },
     Show({
       when: () => props.unread?.() === true,
-      children: R.span({ class: "rui-notification-dot", "aria-label": "Necitită" }),
+      children: R.span({ class: "rui-notification-dot", "aria-label": "Unread" }),
     }),
     R.div(
       { class: "rui-notification-body" },
@@ -383,7 +383,7 @@ export function Notification(props: NotificationProps): El {
           {
             type: "button",
             class: "rui-notification-close",
-            "aria-label": "Închide notificarea",
+            "aria-label": "Close notification",
             "on:click": props.onDismiss,
           },
           "✕",
@@ -395,27 +395,27 @@ export function Notification(props: NotificationProps): El {
 /* --------------------------------------------------------- ErrorBoundary -- */
 
 export interface ErrorBoundaryProps {
-  /** Construieste continutul. Apelat in `try`. */
+  /** Builds the content. Called inside a `try`. */
   children: () => Child;
-  /** Ce se afiseaza la eroare. Primeste eroarea si o functie de reincercare. */
+  /** What is shown on error. Receives the error and a retry function. */
   fallback: (error: unknown, retry: () => void) => Child;
   onError?: (error: unknown) => void;
 }
 
 /**
- * ErrorBoundary - prinde erorile de CONSTRUIRE a unui subarbore.
+ * ErrorBoundary - catches errors while BUILDING a subtree.
  *
- * **Ce prinde:** exceptiile aruncate sincron cand `children()` isi construieste
- * nodurile, inclusiv la o reconstruire dupa `retry()`.
+ * **What it catches:** exceptions thrown synchronously when `children()` builds
+ * its nodes, including on a rebuild after `retry()`.
  *
- * **Ce NU prinde**, si nici nu poate:
- * - erori din handlere de evenimente (`on:click`) - prinde-le acolo;
- * - erori din promisiuni respinse - trateaza-le cu `.catch`;
- * - erori aparute mai tarziu intr-un `effect` dintr-un binding deja montat.
+ * **What it does NOT catch**, and cannot:
+ * - errors from event handlers (`on:click`) - catch them there;
+ * - errors from rejected promises - handle them with `.catch`;
+ * - errors that appear later in an `effect` of an already-mounted binding.
  *
- * Intr-un runtime fine-grained nu exista o faza de randare care sa poata fi
- * reluata: dupa montare, fiecare binding are propriul ciclu de viata. Promitem
- * doar ce putem tine.
+ * In a fine-grained runtime there is no render phase that can be replayed:
+ * after mounting, each binding has its own lifecycle. We only promise what we
+ * can keep.
  */
 export function ErrorBoundary(props: ErrorBoundaryProps): Block {
   return block((parent, anchor) => {
@@ -430,14 +430,14 @@ export function ErrorBoundary(props: ErrorBoundaryProps): Block {
           attempt.update((n) => n + 1);
         });
       }
-      // `attempt` e citit ca sa forteze reconstruirea dupa `retry`.
+      // `attempt` is read to force a rebuild after `retry`.
       void attempt();
       try {
         return props.children();
       } catch (error) {
         props.onError?.(error);
-        // Semnalul e scris in afara ciclului curent, altfel am invalida
-        // regiunea chiar in timpul evaluarii ei.
+        // The signal is written outside the current cycle, otherwise we'd
+        // invalidate the region right while it is being evaluated.
         queueMicrotask(() => failure.set({ error }));
         return null;
       }

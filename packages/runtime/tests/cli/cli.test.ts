@@ -11,26 +11,26 @@ function workspace(): { root: string; dispose(): void } {
   return { root, dispose: () => rmSync(root, { recursive: true, force: true }) };
 }
 
-/** Proiect creat exact ca la utilizator: prin `init`, nu scris de mana. */
+/** A project created exactly as a user would: through `init`, not written by hand. */
 async function initialized(root: string, name = "app"): Promise<string> {
   const result = await runCli(["init", name], { cwd: root });
   assert.equal(result.code, 0, result.out);
   return join(root, name);
 }
 
-test("parserul separa comanda, flagurile si argumentele aplicatiei", () => {
+test("the parser separates the command, the flags and the application arguments", () => {
   const parsed = parseArgs(["run", "--policy", "production", "--json", "--", "--port", "8080"]);
   assert.equal(parsed.command, "run");
   assert.equal(parsed.flags["policy"], "production");
   assert.equal(parsed.flags["json"], true);
-  assert.deepEqual(parsed.appArgs, ["--port", "8080"], "ce e dupa '--' apartine aplicatiei");
+  assert.deepEqual(parsed.appArgs, ["--port", "8080"], "what comes after '--' belongs to the application");
   assert.deepEqual(parsed.positionals, []);
 
-  assert.equal(parseArgs(["init", "--cwd=/loc"]).flags["cwd"], "/loc", "forma --flag=valoare");
-  assert.equal(parseArgs(["run", "--policy"]).flags["policy"], true, "un flag de valoare fara valoare ramane boolean");
+  assert.equal(parseArgs(["init", "--cwd=/loc"]).flags["cwd"], "/loc", "the --flag=value form");
+  assert.equal(parseArgs(["run", "--policy"]).flags["policy"], true, "a value flag without a value stays boolean");
 });
 
-test("--version si --help raspund fara sa atinga vreun proiect", async () => {
+test("--version and --help answer without touching any project", async () => {
   const version = await runCli(["--version"], { cwd: tmpdir() });
   assert.equal(version.code, 0);
   assert.equal(version.out, RUNTIME_VERSION);
@@ -38,24 +38,24 @@ test("--version si --help raspund fara sa atinga vreun proiect", async () => {
   const help = await runCli([], { cwd: tmpdir() });
   assert.equal(help.code, 0);
   assert.match(help.out, /raptor-runtime init/);
-  // Lista poate creste; ce nu are voie sa dispara sunt comenzile de baza.
+  // The list may grow; what must not disappear are the core commands.
   const commands = help.data["commands"] as string[];
   for (const command of ["init", "run", "doctor", "test"]) {
-    assert.ok(commands.includes(command), `'${command}' lipseste din lista de comenzi`);
+    assert.ok(commands.includes(command), `'${command}' is missing from the command list`);
   }
 });
 
-test("o comanda necunoscuta si un flag invalid ies cu cod de utilizare, nu cu 1", async () => {
+test("an unknown command and an invalid flag exit with a usage code, not with 1", async () => {
   const command = await runCli(["zboara"], { cwd: tmpdir() });
   assert.equal(command.code, 2);
-  assert.match(command.out, /comanda necunoscuta/);
+  assert.match(command.out, /unknown command/);
 
   const flag = await runCli(["doctor", "--policy", "staging"], { cwd: tmpdir() });
   assert.equal(flag.code, 2);
-  assert.match(flag.out, /development sau production/);
+  assert.match(flag.out, /development or production/);
 });
 
-test("init creeaza un proiect care ruleaza imediat, si nu suprascrie nimic la a doua rulare", async () => {
+test("init creates a project that runs immediately, and overwrites nothing on a second run", async () => {
   const space = workspace();
   try {
     const root = await initialized(space.root);
@@ -66,17 +66,17 @@ test("init creeaza un proiect care ruleaza imediat, si nu suprascrie nimic la a 
 
     const run = await runCli(["run"], { cwd: root });
     assert.equal(run.code, 0, run.out);
-    assert.match(run.out, /a rulat \(politica development\)/);
+    assert.match(run.out, /ran \(policy development\)/);
 
     const again = await runCli(["init", "app"], { cwd: space.root });
     assert.equal(again.code, 1);
-    assert.match(again.out, /nu am suprascris nimic/);
+    assert.match(again.out, /nothing was overwritten/);
   } finally {
     space.dispose();
   }
 });
 
-test("run trece argumentele de dupa '--' aplicatiei si raporteaza diagnosticul", async () => {
+test("run passes the arguments after '--' to the application and reports the diagnostics", async () => {
   const space = workspace();
   try {
     const root = await initialized(space.root);
@@ -102,11 +102,11 @@ test("run trece argumentele de dupa '--' aplicatiei si raporteaza diagnosticul",
   }
 });
 
-test("run raporteaza o eroare a aplicatiei cu cod de iesire diferit de zero", async () => {
+test("run reports an application error with a non-zero exit code", async () => {
   const space = workspace();
   try {
     const root = await initialized(space.root);
-    writeFileSync(join(root, "src", "main.ts"), 'throw new Error("crapa la pornire");', "utf8");
+    writeFileSync(join(root, "src", "main.ts"), 'throw new Error("crashes at startup");', "utf8");
     const result = await runCli(["run"], { cwd: root });
     assert.equal(result.code, 1);
     assert.match(result.out, /raptor:engine\/evaluation/);
@@ -115,7 +115,7 @@ test("run raporteaza o eroare a aplicatiei cu cod de iesire diferit de zero", as
   }
 });
 
-test("--policy production forteaza regimul strict peste manifest", async () => {
+test("--policy production forces strict mode over the manifest", async () => {
   const space = workspace();
   try {
     const root = await initialized(space.root);
@@ -130,9 +130,9 @@ test("--policy production forteaza regimul strict peste manifest", async () => {
       "utf8",
     );
 
-    // Manifestul generat declara doar ./src si ./raptor.runtime.json la citire.
+    // The generated manifest declares only ./src and ./raptor.runtime.json for reading.
     const permisiv = await runCli(["run"], { cwd: root });
-    assert.equal(permisiv.code, 1, "nici in development citirea nedeclarata nu trece");
+    assert.equal(permisiv.code, 1, "not even in development does an undeclared read pass");
 
     const strict = await runCli(["run", "--policy", "production"], { cwd: root });
     assert.equal(strict.code, 1);
@@ -142,19 +142,19 @@ test("--policy production forteaza regimul strict peste manifest", async () => {
   }
 });
 
-test("doctor raporteaza un proiect sanatos fara sa execute codul aplicatiei", async () => {
+test("doctor reports a healthy project without executing the application's code", async () => {
   const space = workspace();
   try {
     const root = await initialized(space.root);
     writeFileSync(
       join(root, "src", "main.ts"),
-      ["export default function main() {", '  throw new Error("doctor nu trebuie sa ma ruleze");', "}"].join("\n"),
+      ["export default function main() {", '  throw new Error("doctor must not run me");', "}"].join("\n"),
       "utf8",
     );
 
     const result = await runCli(["doctor"], { cwd: root });
     assert.equal(result.code, 0, result.out);
-    assert.match(result.out, /0 erori/);
+    assert.match(result.out, /0 errors/);
     const environment = result.data["environment"] as { runtimeVersion: string; platform: string };
     assert.equal(environment.runtimeVersion, RUNTIME_VERSION);
     assert.ok(environment.platform.includes("-"));
@@ -163,7 +163,7 @@ test("doctor raporteaza un proiect sanatos fara sa execute codul aplicatiei", as
   }
 });
 
-test("doctor semnaleaza modulele de host necunoscute si ocolirea brokerului prin node:", async () => {
+test("doctor flags unknown host modules and the broker bypass through node:", async () => {
   const space = workspace();
   try {
     const root = await initialized(space.root);
@@ -174,7 +174,7 @@ test("doctor semnaleaza modulele de host necunoscute si ocolirea brokerului prin
     );
 
     const result = await runCli(["doctor"], { cwd: root });
-    assert.equal(result.code, 1, "un modul de host inexistent este eroare, nu avertisment");
+    assert.equal(result.code, 1, "a nonexistent host module is an error, not a warning");
     const findings = result.data["findings"] as Array<{ level: string; message: string }>;
     assert.ok(findings.some((finding) => finding.level === "error" && finding.message.includes("raptor:teleport")));
     assert.ok(findings.some((finding) => finding.level === "warn" && finding.message.includes("node:fs")));
@@ -184,7 +184,7 @@ test("doctor semnaleaza modulele de host necunoscute si ocolirea brokerului prin
   }
 });
 
-test("doctor explica un manifest invalid in loc sa spuna doar ca lipseste", async () => {
+test("doctor explains an invalid manifest instead of just saying it is missing", async () => {
   const space = workspace();
   try {
     writeFileSync(join(space.root, "raptor.runtime.json"), '{ "version": 3 }', "utf8");
@@ -198,7 +198,7 @@ test("doctor explica un manifest invalid in loc sa spuna doar ca lipseste", asyn
   }
 });
 
-test("doctor fara proiect raporteaza lipsa manifestului, nu arunca", async () => {
+test("doctor without a project reports the missing manifest, does not throw", async () => {
   const space = workspace();
   try {
     const result = await runCli(["doctor"], { cwd: space.root });
@@ -209,7 +209,7 @@ test("doctor fara proiect raporteaza lipsa manifestului, nu arunca", async () =>
   }
 });
 
-test("test descopera fisierele proiectului si raporteaza cazurile trecute si picate", async () => {
+test("test discovers the project's files and reports passed and failed cases", async () => {
   const space = workspace();
   try {
     const root = await initialized(space.root);
@@ -219,7 +219,7 @@ test("test descopera fisierele proiectului si raporteaza cazurile trecute si pic
       [
         "export const tests = {",
         "  aduna() {",
-        '    if (1 + 1 !== 2) throw new Error("aritmetica");',
+        '    if (1 + 1 !== 2) throw new Error("arithmetic");',
         "  },",
         "};",
       ].join("\n"),
@@ -227,12 +227,12 @@ test("test descopera fisierele proiectului si raporteaza cazurile trecute si pic
     );
     writeFileSync(
       join(root, "src", "parti", "rau.test.ts"),
-      ["export const tests = {", "  pica() {", '    throw new Error("intentionat");', "  },", "};"].join("\n"),
+      ["export const tests = {", "  pica() {", '    throw new Error("intentional");', "  },", "};"].join("\n"),
       "utf8",
     );
 
     const all = await runCli(["test"], { cwd: root });
-    assert.equal(all.code, 1, "un caz picat inseamna iesire diferita de zero");
+    assert.equal(all.code, 1, "a failed case means a non-zero exit");
     const summary = all.data["summary"] as { total: number; failed: number };
     assert.equal(summary.total, 2);
     assert.equal(summary.failed, 1);
@@ -241,15 +241,15 @@ test("test descopera fisierele proiectului si raporteaza cazurile trecute si pic
     assert.equal(filtered.code, 0, filtered.out);
     assert.deepEqual(filtered.data["files"], ["./src/bun.test.ts"]);
 
-    const empty = await runCli(["test", "--filter", "nimic-pe-aici"], { cwd: root });
+    const empty = await runCli(["test", "--filter", "nothing-here"], { cwd: root });
     assert.equal(empty.code, 1);
-    assert.match(empty.out, /niciun fisier/);
+    assert.match(empty.out, /no \*\.test\.ts file/);
   } finally {
     space.dispose();
   }
 });
 
-test("testele proiectului ruleaza sub aceleasi capabilitati ca aplicatia", async () => {
+test("the project's tests run under the same capabilities as the application", async () => {
   const space = workspace();
   try {
     const root = await initialized(space.root);
@@ -276,7 +276,7 @@ test("testele proiectului ruleaza sub aceleasi capabilitati ca aplicatia", async
   }
 });
 
-test("--cwd muta comanda in alt proiect fara sa schimbe directorul procesului", async () => {
+test("--cwd moves the command to another project without changing the process directory", async () => {
   const space = workspace();
   const before = process.cwd();
   try {

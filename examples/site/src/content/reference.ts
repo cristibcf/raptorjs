@@ -13,13 +13,13 @@ export interface ApiEntry {
   returns?: string;
   example: string;
   /**
-   * Eticheta blocului de cod. Implicit `tsx`, care e gresit pentru un manifest
-   * JSON sau pentru o comanda de shell - deci intrarile alea si-o spun.
+   * The code block's label. Defaults to `tsx`, which is wrong for a JSON
+   * manifest or a shell command - so those entries say so themselves.
    */
   lang?: string;
-  /** Cheie in API_DEMOS: intrarea primeste o demonstratie care chiar ruleaza. */
+  /** Key into API_DEMOS: the entry gets a demonstration that actually runs. */
   demo?: string;
-  /** Capcane si lucruri care se invata altfel doar lovindu-te de ele. */
+  /** Gotchas and things you otherwise only learn by running into them. */
   notes?: string[];
 }
 export interface RefPackage {
@@ -30,13 +30,13 @@ export interface RefPackage {
 }
 
 /**
- * „De ce am nevoie?" — traseul de la ce vrei sa faci la ce instalezi. Tinut aici,
- * langa pachete, ca sa nu se desincronizeze de ele.
+ * "What do I need?" — the path from what you want to do to what you install. Kept
+ * here, next to the packages, so it does not drift out of sync with them.
  */
 export interface PackageRoute {
   want: string;
   packages: string[];
-  /** Slug-ul paginii de referinta catre care trimitem. */
+  /** The slug of the reference page we point to. */
   to: string;
   note: string;
 }

@@ -1,8 +1,8 @@
 /**
- * Erori RaptorRuntime (spec sectiunea 3: implementare originala, fara text de
- * eroare copiat din alte runtime-uri). Fiecare eroare are un cod stabil
- * `raptor:<domeniu>/<motiv>` pe care diagnosticele si testele de contract il pot
- * verifica fara sa depinda de formularea mesajului.
+ * RaptorRuntime errors (spec section 3: original implementation, no error text
+ * copied from other runtimes). Every error has a stable code
+ * `raptor:<scope>/<reason>` that diagnostics and contract tests can check
+ * without depending on the wording of the message.
  */
 
 export type RaptorErrorCode =
@@ -34,13 +34,13 @@ export class RaptorError extends Error {
   }
 }
 
-/** Refuz de capability: singura cale prin care host-ul blocheaza un acces. */
+/** Capability denial: the only way the host blocks an access. */
 export class CapabilityError extends RaptorError {
   readonly capability: string;
   readonly target: string;
 
   constructor(code: RaptorErrorCode, capability: string, target: string, reason: string) {
-    super(code, `capability '${capability}' nu acopera '${target}': ${reason}`, { capability, target, reason });
+    super(code, `capability '${capability}' does not cover '${target}': ${reason}`, { capability, target, reason });
     this.name = "CapabilityError";
     this.capability = capability;
     this.target = target;

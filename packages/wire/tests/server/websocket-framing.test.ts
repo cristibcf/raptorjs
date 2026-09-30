@@ -1,11 +1,12 @@
 /**
- * Regresii pe framing-ul WebSocket, la nivel de socket brut.
+ * Regressions on WebSocket framing, at the raw-socket level.
  *
- * Testele din `websocket.test.ts` trec prin clientul real, deci fiecare mesaj
- * incape intr-o singura bucata TCP - exact calea pe care reasamblarea NU se
- * exercita. Aici conducem noi socket-ul, ca sa controlam cum se rupe fluxul:
- * un cadru livrat octet cu octet, un cadru mare rupt in multe bucati, si un
- * mesaj fragmentat (FIN=0 + continuari). Toate trei trebuie sa ajunga intacte.
+ * The tests in `websocket.test.ts` go through the real client, so each message
+ * fits in a single TCP chunk - exactly the path where reassembly is NOT
+ * exercised. Here we drive the socket ourselves, to control how the stream is
+ * broken up: a frame delivered byte by byte, a large frame split into many
+ * chunks, and a fragmented message (FIN=0 + continuations). All three must
+ * arrive intact.
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -18,7 +19,7 @@ const OP_BINARY = 0x2;
 const OP_CONTINUATION = 0x0;
 const GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
-/** Cadru client -> server: mereu mascat (RFC 6455 5.1). */
+/** Client -> server frame: always masked (RFC 6455 5.1). */
 function maskedFrame(opcode: number, payload: Buffer, fin = true): Buffer {
   const len = payload.length;
   const header = len < 126 ? 2 : len < 65536 ? 4 : 10;
@@ -42,14 +43,14 @@ function maskedFrame(opcode: number, payload: Buffer, fin = true): Buffer {
 
 interface Harness {
   socket: Socket;
-  /** Mesajele complete pe care serverul le-a predat aplicatiei. */
+  /** The complete messages the server handed to the application. */
   received: Uint8Array[];
 }
 
 /**
- * Porneste un server, face handshake-ul pe un socket brut si intercepteaza
- * mesajele reasamblate inainte sa intre in protocolul RaptorWire - ne intereseaza
- * strict ca octetii au ajuns intregi, nu ce inseamna ei.
+ * Starts a server, does the handshake on a raw socket and intercepts the
+ * reassembled messages before they enter the RaptorWire protocol - we care
+ * strictly that the bytes arrived intact, not what they mean.
  */
 async function withRawSocket(run: (h: Harness) => Promise<void>): Promise<void> {
   const app: RaptorServer = raptorServer({ build: "framing-test" });
@@ -58,8 +59,8 @@ async function withRawSocket(run: (h: Harness) => Promise<void>): Promise<void> 
   const http: Server = createServer((_req, res) => res.end("ok"));
   const ws = serveOverWebSocket(app, http, { pingIntervalMs: 0 });
 
-  // `serve()` e ce leaga transportul de protocol; il inlocuim ca sa vedem
-  // mesajul brut reasamblat, fara sa fim opriti de validarea de protocol.
+  // `serve()` is what binds the transport to the protocol; we replace it to see
+  // the raw reassembled message, without being stopped by protocol validation.
   app.serve = ((connection: { onMessage(fn: (d: Uint8Array) => void): void }) => {
     connection.onMessage((data) => {
       received.push(new Uint8Array(data));
@@ -85,12 +86,12 @@ async function withRawSocket(run: (h: Harness) => Promise<void>): Promise<void> 
 
   const expected = createHash("sha1").update(key + GUID).digest("base64");
   await new Promise<void>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error("handshake nu a raspuns")), 3000);
+    const timer = setTimeout(() => reject(new Error("handshake did not respond")), 3000);
     socket.once("data", (d: Buffer) => {
       clearTimeout(timer);
       const text = d.toString("latin1");
-      assert.ok(text.startsWith("HTTP/1.1 101"), "serverul accepta upgrade-ul");
-      assert.ok(text.includes(expected), "Sec-WebSocket-Accept este cel din RFC 6455");
+      assert.ok(text.startsWith("HTTP/1.1 101"), "the server accepts the upgrade");
+      assert.ok(text.includes(expected), "Sec-WebSocket-Accept is the one from RFC 6455");
       resolve();
     });
   });
@@ -107,28 +108,28 @@ async function withRawSocket(run: (h: Harness) => Promise<void>): Promise<void> 
 async function until(check: () => boolean, label: string, timeoutMs = 5000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   while (!check()) {
-    if (Date.now() > deadline) throw new Error(`timeout asteptand: ${label}`);
+    if (Date.now() > deadline) throw new Error(`timeout waiting for: ${label}`);
     await new Promise((r) => setTimeout(r, 5));
   }
 }
 
-test("un cadru livrat octet cu octet se reasambleaza intact", async () => {
+test("a frame delivered byte by byte reassembles intact", async () => {
   await withRawSocket(async ({ socket, received }) => {
-    const payload = Buffer.from("raptorwire peste granite de bucata", "utf8");
+    const payload = Buffer.from("raptorwire across chunk boundaries", "utf8");
     const frame = maskedFrame(OP_BINARY, payload);
 
-    // Cazul cel mai neplacut pentru orice parser: fiecare octet e un eveniment
-    // `data` separat, deci antetul insusi e rupt in bucati.
+    // The nastiest case for any parser: each byte is a separate `data` event,
+    // so the header itself is split into chunks.
     for (const byte of frame) socket.write(Buffer.from([byte]));
 
-    await until(() => received.length === 1, "mesajul reasamblat");
+    await until(() => received.length === 1, "the reassembled message");
     assert.deepEqual(Buffer.from(received[0]!), payload);
   });
 });
 
-test("un cadru mare rupt in multe bucati ajunge intreg", async () => {
+test("a large frame split into many chunks arrives whole", async () => {
   await withRawSocket(async ({ socket, received }) => {
-    // Peste 65536 => antet pe 64 de biti, deci si calea `len === 127`.
+    // Over 65536 => a 64-bit header, so the `len === 127` path too.
     const payload = randomBytes(400_000);
     const frame = maskedFrame(OP_BINARY, payload);
 
@@ -137,40 +138,40 @@ test("un cadru mare rupt in multe bucati ajunge intreg", async () => {
       socket.write(frame.subarray(i, Math.min(i + CHUNK, frame.length)));
     }
 
-    await until(() => received.length === 1, "mesajul mare reasamblat");
+    await until(() => received.length === 1, "the large reassembled message");
     assert.equal(received[0]!.length, payload.length);
-    assert.ok(Buffer.from(received[0]!).equals(payload), "octetii sunt identici");
+    assert.ok(Buffer.from(received[0]!).equals(payload), "the bytes are identical");
   });
 });
 
-test("un mesaj fragmentat (FIN=0 + continuari) se recompune in ordine", async () => {
+test("a fragmented message (FIN=0 + continuations) is reassembled in order", async () => {
   await withRawSocket(async ({ socket, received }) => {
-    const parts = [Buffer.from("unu|"), Buffer.from("doi|"), Buffer.from("trei")];
+    const parts = [Buffer.from("one|"), Buffer.from("two|"), Buffer.from("three")];
     socket.write(maskedFrame(OP_BINARY, parts[0]!, false));
     socket.write(maskedFrame(OP_CONTINUATION, parts[1]!, false));
     socket.write(maskedFrame(OP_CONTINUATION, parts[2]!, true));
 
-    await until(() => received.length === 1, "mesajul fragmentat");
-    assert.equal(Buffer.from(received[0]!).toString(), "unu|doi|trei");
+    await until(() => received.length === 1, "the fragmented message");
+    assert.equal(Buffer.from(received[0]!).toString(), "one|two|three");
   });
 });
 
-test("doua cadre intr-o singura bucata TCP produc doua mesaje", async () => {
+test("two frames in a single TCP chunk produce two messages", async () => {
   await withRawSocket(async ({ socket, received }) => {
-    const a = maskedFrame(OP_BINARY, Buffer.from("primul"));
-    const b = maskedFrame(OP_BINARY, Buffer.from("al doilea"));
+    const a = maskedFrame(OP_BINARY, Buffer.from("first"));
+    const b = maskedFrame(OP_BINARY, Buffer.from("second"));
     socket.write(Buffer.concat([a, b]));
 
-    await until(() => received.length === 2, "ambele mesaje");
-    assert.equal(Buffer.from(received[0]!).toString(), "primul");
-    assert.equal(Buffer.from(received[1]!).toString(), "al doilea");
+    await until(() => received.length === 2, "both messages");
+    assert.equal(Buffer.from(received[0]!).toString(), "first");
+    assert.equal(Buffer.from(received[1]!).toString(), "second");
   });
 });
 
-test("un mesaj fragmentat nemarginit inchide conexiunea in loc sa umple memoria", async () => {
+test("an unbounded fragmented message closes the connection instead of filling memory", async () => {
   await withRawSocket(async ({ socket, received }) => {
-    // Fiecare cadru e mult sub MAX_FRAME_BYTES; doar totalul depaseste plafonul.
-    // Fara limita pe mesajul reasamblat, bucla asta ar rula pana la OOM.
+    // Each frame is well under MAX_FRAME_BYTES; only the total exceeds the cap.
+    // Without a limit on the reassembled message, this loop would run until OOM.
     const part = randomBytes(1024 * 1024);
     let closed = false;
     socket.on("close", () => (closed = true));
@@ -181,7 +182,7 @@ test("un mesaj fragmentat nemarginit inchide conexiunea in loc sa umple memoria"
       await new Promise((r) => setTimeout(r, 10));
     }
 
-    await until(() => closed, "conexiunea inchisa de server");
-    assert.equal(received.length, 0, "niciun mesaj nu a fost predat aplicatiei");
+    await until(() => closed, "the connection closed by the server");
+    assert.equal(received.length, 0, "no message was handed to the application");
   });
 });

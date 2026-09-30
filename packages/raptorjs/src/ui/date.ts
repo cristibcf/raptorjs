@@ -1,14 +1,14 @@
 /**
  * Calendar / DatePicker / DateRangePicker / TimePicker.
  *
- * Zero dependinte: fara date-fns, fara luxon. Formatarea si numele zilelor vin
- * din `Intl`, care e in runtime, nu in `node_modules`.
+ * Zero dependencies: no date-fns, no luxon. Formatting and day names come from
+ * `Intl`, which is in the runtime, not in `node_modules`.
  *
- * **Capcana pe care o evitam peste tot:** `new Date("2026-03-15")` e parsata ca
- * UTC si, intr-un fus la vest de Greenwich, da 14 martie. Lucram de aceea cu
- * triplete `{ y, m, d }` si construim `Date` doar prin `new Date(y, m, d)`, care
- * e local. Aritmetica pe zile nu foloseste niciodata "+ 86400000" - o zi nu are
- * mereu 24h (ora de vara).
+ * **The trap we avoid everywhere:** `new Date("2026-03-15")` is parsed as UTC
+ * and, in a timezone west of Greenwich, yields March 14. That's why we work with
+ * `{ y, m, d }` triples and build a `Date` only through `new Date(y, m, d)`,
+ * which is local. Day arithmetic never uses "+ 86400000" - a day isn't always
+ * 24h (daylight saving time).
  */
 import { state, derived, effect, type Accessor, type State } from "raptorjs";
 import { R, For, Show, type Child } from "raptorjs/dom";
@@ -21,10 +21,10 @@ import { isolate } from "./primitives/isolate.ts";
 
 let idSeq = 0;
 
-/** O zi din calendar, fara ora si fara fus orar. */
+/** A calendar day, without time and without timezone. */
 export interface CalendarDate {
   y: number;
-  /** Luna 1-12 (NU 0-11 ca in `Date`). */
+  /** Month 1-12 (NOT 0-11 like in `Date`). */
   m: number;
   d: number;
 }
@@ -46,12 +46,12 @@ export function sameDay(a: CalendarDate | null, b: CalendarDate | null): boolean
   return a.y === b.y && a.m === b.m && a.d === b.d;
 }
 
-/** Ordonare: negativ daca `a` e inainte de `b`. */
+/** Ordering: negative if `a` is before `b`. */
 export function compareDates(a: CalendarDate, b: CalendarDate): number {
   return a.y - b.y || a.m - b.m || a.d - b.d;
 }
 
-/** Adauga zile trecand prin `Date`, ca sa nu greseasca la ora de vara. */
+/** Adds days by going through `Date`, so it doesn't get daylight saving wrong. */
 export function addDays(value: CalendarDate, days: number): CalendarDate {
   const d = toDate(value);
   d.setDate(d.getDate() + days);
@@ -60,7 +60,7 @@ export function addDays(value: CalendarDate, days: number): CalendarDate {
 
 export function addMonths(value: CalendarDate, months: number): CalendarDate {
   const target = new Date(value.y, value.m - 1 + months, 1);
-  // 31 ianuarie + 1 luna nu exista in februarie: ne oprim la ultima zi.
+  // January 31 + 1 month doesn't exist in February: we clamp to the last day.
   const last = daysInMonth(target.getFullYear(), target.getMonth() + 1);
   return { y: target.getFullYear(), m: target.getMonth() + 1, d: Math.min(value.d, last) };
 }
@@ -73,7 +73,7 @@ export function isoOf(value: CalendarDate): string {
   return `${value.y}-${String(value.m).padStart(2, "0")}-${String(value.d).padStart(2, "0")}`;
 }
 
-/** Parseaza `YYYY-MM-DD` fara sa treaca prin UTC. */
+/** Parses `YYYY-MM-DD` without going through UTC. */
 export function parseIso(text: string): CalendarDate | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text.trim());
   if (!m) return null;
@@ -96,11 +96,11 @@ export function formatDate(value: CalendarDate, locale?: string, options?: Intl.
   return formatter(locale, options ?? { year: "numeric", month: "long", day: "numeric" }).format(toDate(value));
 }
 
-/** Numele scurte ale zilelor, incepand de la `weekStart` (0 = duminica). */
+/** The short day names, starting from `weekStart` (0 = Sunday). */
 export function weekdayNames(locale: string | undefined, weekStart: number): string[] {
   const fmt = formatter(locale, { weekday: "short" });
   const out: string[] = [];
-  // 2024-01-07 e o duminica; de acolo numaram.
+  // 2024-01-07 is a Sunday; we count from there.
   for (let i = 0; i < 7; i++) {
     out.push(fmt.format(new Date(2024, 0, 7 + ((weekStart + i) % 7))));
   }
@@ -109,11 +109,11 @@ export function weekdayNames(locale: string | undefined, weekStart: number): str
 
 export interface CalendarCell {
   date: CalendarDate;
-  /** `false` pentru zilele de umplutura din luna vecina. */
+  /** `false` for the filler days from the neighboring month. */
   inMonth: boolean;
 }
 
-/** Grila de 6 saptamani a unei luni, cu zilele vecine ca umplutura. */
+/** The 6-week grid of a month, with neighboring days as filler. */
 export function monthGrid(y: number, m: number, weekStart = 1): CalendarCell[] {
   const first = new Date(y, m - 1, 1);
   const offset = (first.getDay() - weekStart + 7) % 7;
@@ -130,19 +130,19 @@ export function monthGrid(y: number, m: number, weekStart = 1): CalendarCell[] {
 /* -------------------------------------------------------------- Calendar -- */
 
 export interface CalendarProps {
-  /** Ziua selectata. */
+  /** The selected day. */
   value?: State<CalendarDate | null>;
-  /** Pentru interval: capetele selectate. */
+  /** For a range: the selected endpoints. */
   range?: State<readonly [CalendarDate | null, CalendarDate | null]>;
-  /** Luna afisata. Daca lipseste, e tinuta intern. */
+  /** The displayed month. If omitted, it's held internally. */
   month?: State<{ y: number; m: number }>;
   min?: CalendarDate;
   max?: CalendarDate;
   disabled?: (date: CalendarDate) => boolean;
-  /** 0 = duminica, 1 = luni (implicit). */
+  /** 0 = Sunday, 1 = Monday (default). */
   weekStart?: number;
   locale?: string;
-  /** Numar de luni afisate una langa alta. Implicit 1. */
+  /** Number of months shown side by side. Default 1. */
   months?: number;
   onSelect?: (date: CalendarDate) => void;
   label?: string;
@@ -151,7 +151,7 @@ export interface CalendarProps {
 
 export interface CalendarHandle {
   el: El;
-  /** Ziua care are focusul in grila (roving tabindex). */
+  /** The day that has focus in the grid (roving tabindex). */
   focused: Accessor<CalendarDate>;
   goto: (month: { y: number; m: number }) => void;
 }
@@ -194,7 +194,7 @@ export function calendar(props: CalendarProps): CalendarHandle {
     if (props.value) props.value.set(date);
     if (props.range) {
       props.range.update(([from, to]) => {
-        // Primul click sau un interval deja complet => pornim de la capat.
+        // First click or an already complete range => start over from scratch.
         if (!from || to) return [date, null];
         return compareDates(date, from) < 0 ? [date, from] : [from, date];
       });
@@ -210,7 +210,7 @@ export function calendar(props: CalendarProps): CalendarHandle {
     month.set({ y: next.y, m: next.m });
   };
 
-  /** Muta focusul si aduce luna corecta in vizor. */
+  /** Moves focus and brings the correct month into view. */
   const moveFocus = (next: CalendarDate): void => {
     focused.set(next);
     const current = month.peek();
@@ -219,7 +219,7 @@ export function calendar(props: CalendarProps): CalendarHandle {
     if (target < firstVisible || target > firstVisible + monthCount - 1) {
       month.set({ y: next.y, m: next.m });
     }
-    // Focusul DOM se cere dupa ce grila s-a actualizat.
+    // The DOM focus is requested after the grid has updated.
     queueMicrotask(() => focus(cells.get(isoOf(next))));
   };
 
@@ -283,7 +283,7 @@ export function calendar(props: CalendarProps): CalendarHandle {
             const rows: El[] = [];
             for (let w = 0; w < 6; w++) {
               const week = grid.slice(w * 7, w * 7 + 7);
-              // Ultima saptamana e goala cand luna incape in 5: nu o randam.
+              // The last week is empty when the month fits in 5: don't render it.
               if (week.every((c) => !c.inMonth)) continue;
               rows.push(
                 R.tr(
@@ -304,11 +304,11 @@ export function calendar(props: CalendarProps): CalendarHandle {
                           return cls;
                         },
                         disabled: off,
-                        // Roving tabindex: o singura zi e tabbable in toata grila.
+                        // Roving tabindex: only a single day is tabbable in the whole grid.
                         tabindex: () => (sameDay(focused(), cell.date) ? "0" : "-1"),
                         "aria-selected": () => String(isSelected(cell.date)),
                         "aria-current": sameDay(cell.date, now) ? "date" : undefined,
-                        // Numele complet al zilei: "3" singur nu spune nimic.
+                        // The full day name: "3" on its own says nothing.
                         "aria-label": dayFmt.format(toDate(cell.date)),
                         ref: (el: El) => {
                           if (el) cells.set(iso, el);
@@ -341,9 +341,9 @@ export function calendar(props: CalendarProps): CalendarHandle {
     },
     R.div(
       { class: "rui-cal-head" },
-      R.button({ type: "button", class: "rui-cal-nav", "aria-label": "Luna anterioară", "on:click": () => shiftMonth(-1) }, "‹"),
+      R.button({ type: "button", class: "rui-cal-nav", "aria-label": "Previous month", "on:click": () => shiftMonth(-1) }, "‹"),
       R.span({ id: id + "-title", class: "rui-sr-only" }, props.label ?? "Calendar"),
-      R.button({ type: "button", class: "rui-cal-nav", "aria-label": "Luna următoare", "on:click": () => shiftMonth(1) }, "›"),
+      R.button({ type: "button", class: "rui-cal-nav", "aria-label": "Next month", "on:click": () => shiftMonth(1) }, "›"),
     ),
     R.div({ class: "rui-cal-months" }, panels),
   );
@@ -377,10 +377,10 @@ export interface DatePickerHandle {
 }
 
 /**
- * DatePicker - input cu calendar.
+ * DatePicker - an input with a calendar.
  *
- * Inputul accepta si tastare directa in format ISO. Scrierea nu e blocata in
- * timp real: validam la `blur`, ca sa nu impiedicam tastarea lui "2026-0".
+ * The input also accepts direct typing in ISO format. Typing isn't blocked in
+ * real time: we validate on `blur`, so we don't prevent typing "2026-0".
  */
 export function datePicker(props: DatePickerProps): DatePickerHandle {
   const id = props.id ?? "rui-dp-" + ++idSeq;
@@ -412,7 +412,7 @@ export function datePicker(props: DatePickerProps): DatePickerHandle {
     }
     const parsed = parseIso(raw);
     if (parsed) props.value.set(parsed);
-    // Text invalid: restauram ce era, in loc sa stergem tacut valoarea.
+    // Invalid text: restore what was there, instead of silently clearing the value.
     else text.set(props.value.peek() ? isoOf(props.value.peek()!) : "");
   };
 
@@ -431,7 +431,7 @@ export function datePicker(props: DatePickerProps): DatePickerHandle {
         type: "text",
         class: "rui-input-control",
         inputmode: "numeric",
-        placeholder: props.placeholder ?? "AAAA-LL-ZZ",
+        placeholder: props.placeholder ?? "YYYY-MM-DD",
         ...(props.label ? { "aria-label": props.label } : {}),
         value: () => text(),
         "on:input": (e: any) => text.set(String(e.target?.value ?? "")),
@@ -452,7 +452,7 @@ export function datePicker(props: DatePickerProps): DatePickerHandle {
       R.button({
         type: "button",
         class: "rui-datepicker-toggle",
-        "aria-label": "Deschide calendarul",
+        "aria-label": "Open the calendar",
         "aria-haspopup": "dialog",
         "aria-expanded": () => String(open()),
         ref: (node: El) => {
@@ -470,7 +470,7 @@ export function datePicker(props: DatePickerProps): DatePickerHandle {
         {
           class: "rui-datepicker-pop",
           role: "dialog",
-          "aria-label": "Alege data",
+          "aria-label": "Choose a date",
           ref: pos.floating,
           style: () => pos.style(),
         },
@@ -479,9 +479,9 @@ export function datePicker(props: DatePickerProps): DatePickerHandle {
     }),
   );
 
-  // Valoarea schimbata din afara (reset de formular, incarcare din server) se
-  // reflecta in text. `peek` la comparatie, ca effect-ul sa depinda doar de
-  // `props.value`, nu si de propria lui scriere.
+  // A value changed from the outside (a form reset, a load from the server) is
+  // reflected in the text. `peek` on the comparison, so the effect depends only
+  // on `props.value`, not on its own write.
   effect(() => {
     const v = props.value();
     const next = v ? isoOf(v) : "";
@@ -492,7 +492,7 @@ export function datePicker(props: DatePickerProps): DatePickerHandle {
 }
 
 export function DatePicker(props: DatePickerProps): El {
-  // Constructia nu aboneaza computatia apelantului; vezi `isolate`.
+  // Construction doesn't subscribe the caller's computation; see `isolate`.
   return isolate(() => DatePickerImpl(props));
 }
 
@@ -504,12 +504,12 @@ function DatePickerImpl(props: DatePickerProps): El {
 
 export interface DateRangePickerProps extends Omit<DatePickerProps, "value"> {
   value: State<readonly [CalendarDate | null, CalendarDate | null]>;
-  /** Cate luni se arata deodata. Implicit 2. */
+  /** How many months are shown at once. Default 2. */
   months?: number;
 }
 
 export function DateRangePicker(props: DateRangePickerProps): El {
-  // Constructia nu aboneaza computatia apelantului; vezi `isolate`.
+  // Construction doesn't subscribe the caller's computation; see `isolate`.
   return isolate(() => DateRangePickerImpl(props));
 }
 
@@ -530,7 +530,7 @@ function DateRangePickerImpl(props: DateRangePickerProps): El {
 
   const label = derived(() => {
     const [from, to] = props.value();
-    if (!from) return props.placeholder ?? "Alege interval";
+    if (!from) return props.placeholder ?? "Choose a range";
     const a = formatDate(from, props.locale, { day: "numeric", month: "short", year: "numeric" });
     if (!to) return a + " → …";
     return a + " → " + formatDate(to, props.locale, { day: "numeric", month: "short", year: "numeric" });
@@ -564,7 +564,7 @@ function DateRangePickerImpl(props: DateRangePickerProps): El {
         {
           class: "rui-daterange-pop",
           role: "dialog",
-          "aria-label": "Alege intervalul",
+          "aria-label": "Choose the range",
           ref: pos.floating,
           style: () => pos.style(),
         },
@@ -584,11 +584,11 @@ export interface TimeValue {
 
 export interface TimePickerProps {
   value: State<TimeValue | null>;
-  /** Pas in minute pentru sageti. Implicit 1. */
+  /** Step in minutes for the arrows. Default 1. */
   step?: number;
-  /** Include secundele. */
+  /** Include the seconds. */
   seconds?: boolean;
-  /** Format 12h cu AM/PM. Implicit 24h. */
+  /** 12h format with AM/PM. Default 24h. */
   hour12?: boolean;
   disabled?: Accessor<boolean> | boolean;
   label?: string;
@@ -610,11 +610,11 @@ export function formatTime(value: TimeValue, hour12 = false, seconds = false): s
 }
 
 /**
- * TimePicker - campuri separate pentru ora, minut, secunda.
+ * TimePicker - separate fields for hour, minute, second.
  *
- * Segmente, nu un singur `<input type="time">`: acela arata diferit in fiecare
- * browser si nu poate fi stilizat. Fiecare segment e un `spinbutton` care
- * cicleaza la capete (23 → 00), asa cum se asteapta oricine a folosit un ceas.
+ * Segments, not a single `<input type="time">`: that one looks different in
+ * every browser and can't be styled. Each segment is a `spinbutton` that wraps
+ * at the ends (23 → 00), the way anyone who has used a clock expects.
  */
 export function TimePicker(props: TimePickerProps): El {
   const id = props.id ?? "rui-tp-" + ++idSeq;
@@ -641,7 +641,7 @@ export function TimePicker(props: TimePickerProps): El {
       return kind === "h" ? v.h : kind === "min" ? v.min : (v.s ?? 0);
     };
     const set = (raw: number): void => {
-      // Ciclare la capete: dupa 23 vine 00, nu se opreste.
+      // Wrap at the ends: after 23 comes 00, it doesn't stop.
       const wrapped = ((raw % (max + 1)) + (max + 1)) % (max + 1);
       const v = current();
       write(kind === "h" ? { ...v, h: wrapped } : kind === "min" ? { ...v, min: wrapped } : { ...v, s: wrapped });
@@ -691,16 +691,16 @@ export function TimePicker(props: TimePickerProps): El {
       role: "group",
       ...(props.label ? { "aria-label": props.label } : {}),
     },
-    segment("h", 23, 1, "Ore"),
+    segment("h", 23, 1, "Hours"),
     R.span({ class: "rui-time-sep", "aria-hidden": "true" }, ":"),
-    segment("min", 59, step, "Minute"),
+    segment("min", 59, step, "Minutes"),
     withSeconds ? R.span({ class: "rui-time-sep", "aria-hidden": "true" }, ":") : null,
-    withSeconds ? segment("s", 59, 1, "Secunde") : null,
+    withSeconds ? segment("s", 59, 1, "Seconds") : null,
     props.hour12
       ? R.button({
           type: "button",
           class: "rui-time-ampm",
-          "aria-label": "Comută AM/PM",
+          "aria-label": "Toggle AM/PM",
           disabled: () => off(),
           "on:click": () => {
             const v = current();
@@ -723,12 +723,12 @@ export interface DateTimePickerProps {
   class?: string;
 }
 
-/** Calendar + ceas, cu rezumat citibil al valorii alese. */
+/** Calendar + clock, with a readable summary of the chosen value. */
 export function DateTimePicker(props: DateTimePickerProps): El {
   const summary = derived(() => {
     const d = props.date();
     const t = props.time();
-    if (!d) return "Nicio dată aleasă";
+    if (!d) return "No date chosen";
     return isoOf(d) + (t ? " " + formatTime(t, props.hour12, props.seconds) : "");
   });
 
@@ -736,12 +736,12 @@ export function DateTimePicker(props: DateTimePickerProps): El {
     {
       class: props.class ? "rui-datetime " + props.class : "rui-datetime",
       role: "group",
-      "aria-label": props.label ?? "Dată și oră",
+      "aria-label": props.label ?? "Date and time",
     },
     Calendar({ value: props.date, locale: props.locale }),
     R.div(
       { class: "rui-datetime-time" },
-      TimePicker({ value: props.time, seconds: props.seconds, hour12: props.hour12, label: "Oră" }),
+      TimePicker({ value: props.time, seconds: props.seconds, hour12: props.hour12, label: "Time" }),
     ),
     R.div({ class: "rui-datetime-summary", "aria-live": "polite" }, () => summary()),
   );
@@ -756,7 +756,7 @@ export interface MonthPickerProps {
   class?: string;
 }
 
-/** Grila de 12 luni, cu navigare pe ani. */
+/** A 12-month grid, with year navigation. */
 export function MonthPicker(props: MonthPickerProps): El {
   const year = state(props.value.peek()?.y ?? new Date().getFullYear());
 
@@ -780,13 +780,13 @@ export function MonthPicker(props: MonthPickerProps): El {
     {
       class: props.class ? "rui-monthpicker " + props.class : "rui-monthpicker",
       role: "group",
-      "aria-label": props.label ?? "Alege luna",
+      "aria-label": props.label ?? "Choose the month",
     },
     R.div(
       { class: "rui-monthpicker-head" },
-      R.button({ type: "button", class: "rui-cal-nav", "aria-label": "Anul anterior", "on:click": () => year.update((y) => y - 1) }, "‹"),
+      R.button({ type: "button", class: "rui-cal-nav", "aria-label": "Previous year", "on:click": () => year.update((y) => y - 1) }, "‹"),
       R.span({ class: "rui-monthpicker-year", "aria-live": "polite" }, () => String(year())),
-      R.button({ type: "button", class: "rui-cal-nav", "aria-label": "Anul următor", "on:click": () => year.update((y) => y + 1) }, "›"),
+      R.button({ type: "button", class: "rui-cal-nav", "aria-label": "Next year", "on:click": () => year.update((y) => y + 1) }, "›"),
     ),
     R.div(
       { class: "rui-monthpicker-grid" },
@@ -811,13 +811,13 @@ export interface YearPickerProps {
   value: State<number | null>;
   min?: number;
   max?: number;
-  /** Cati ani se arata pe pagina. Implicit 12. */
+  /** How many years are shown per page. Default 12. */
   pageSize?: number;
   label?: string;
   class?: string;
 }
 
-/** Grila de ani, paginata. */
+/** A grid of years, paginated. */
 export function YearPicker(props: YearPickerProps): El {
   const size = props.pageSize ?? 12;
   const anchor = state(
@@ -830,13 +830,13 @@ export function YearPicker(props: YearPickerProps): El {
     {
       class: props.class ? "rui-yearpicker " + props.class : "rui-yearpicker",
       role: "group",
-      "aria-label": props.label ?? "Alege anul",
+      "aria-label": props.label ?? "Choose the year",
     },
     R.div(
       { class: "rui-monthpicker-head" },
-      R.button({ type: "button", class: "rui-cal-nav", "aria-label": "Anii anteriori", "on:click": () => anchor.update((a) => a - size) }, "‹"),
+      R.button({ type: "button", class: "rui-cal-nav", "aria-label": "Previous years", "on:click": () => anchor.update((a) => a - size) }, "‹"),
       R.span({ class: "rui-monthpicker-year", "aria-live": "polite" }, () => anchor() + " – " + (anchor() + size - 1)),
-      R.button({ type: "button", class: "rui-cal-nav", "aria-label": "Anii următori", "on:click": () => anchor.update((a) => a + size) }, "›"),
+      R.button({ type: "button", class: "rui-cal-nav", "aria-label": "Next years", "on:click": () => anchor.update((a) => a + size) }, "›"),
     ),
     R.div(
       { class: "rui-monthpicker-grid" },

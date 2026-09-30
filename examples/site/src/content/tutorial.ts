@@ -1,13 +1,13 @@
 /**
- * Tutorial interactiv: pasi mici, fiecare cu explicatie + cod pornire care
- * ruleaza in preview. Codul foloseste builder-ul `R` (nu JSX), ca sa nu ducem
- * un compilator in browser — aceleasi primitive in care compileaza JSX.
+ * Interactive tutorial: small steps, each with an explanation + starter code that
+ * runs in the preview. The code uses the `R` builder (not JSX), so we don't ship
+ * a compiler to the browser — the same primitives JSX compiles to.
  */
 export interface TutorialStep {
   slug: string;
   title: string;
   intro: string;
-  /** Puncte de reținut, opționale. */
+  /** Key takeaways, optional. */
   points?: string[];
   code: string;
 }

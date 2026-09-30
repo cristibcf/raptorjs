@@ -1,47 +1,47 @@
 /**
- * Analiza ESM a unui modul, INAINTE de transpilare.
+ * ESM analysis of a module, BEFORE transpilation.
  *
- * Bundler-ul emite CommonJS, unde `export * from "x"` devine
- * `__exportStar(require("x"), exports)` - o cerere dinamica, imposibil de
- * analizat static. Ca sa putem elimina re-exporturile nefolosite, citim graful
- * de importuri/exporturi din SURSA, cat timp mai e ESM.
+ * The bundler emits CommonJS, where `export * from "x"` becomes
+ * `__exportStar(require("x"), exports)` - a dynamic call, impossible to analyze
+ * statically. So that we can remove unused re-exports, we read the graph of
+ * imports/exports from the SOURCE, while it is still ESM.
  *
- * Folosim parserul TypeScript, deja dependinta de build a pachetului; nu adaugam
- * nimic nou si nu scriem un parser propriu.
+ * We use the TypeScript parser, already a build dependency of the package; we add
+ * nothing new and do not write our own parser.
  */
 import ts from "typescript";
 
 export interface ImportEdge {
-  /** Specifierul din sursa (`"./x.ts"`, `"raptorjs/ui"`). */
+  /** The specifier from the source (`"./x.ts"`, `"raptorjs/ui"`). */
   spec: string;
-  /** Numele importate: numele EXPORTAT din modulul tinta. */
+  /** The imported names: the name EXPORTED from the target module. */
   names: string[];
-  /** `import * as ns from "x"` - nu stim ce foloseste, deci luam tot. */
+  /** `import * as ns from "x"` - we don't know what it uses, so we take everything. */
   namespace: boolean;
-  /** `import "x"` - import doar pentru efecte secundare. */
+  /** `import "x"` - an import purely for side effects. */
   bare: boolean;
 }
 
 export interface ReExportEdge {
   spec: string;
-  /** `null` pentru `export * from "x"`. */
+  /** `null` for `export * from "x"`. */
   names: Array<{ exported: string; local: string }> | null;
-  /** `export * as ns from "x"`: expune un namespace, deci are nevoie de tot. */
+  /** `export * as ns from "x"`: exposes a namespace, so it needs everything. */
   namespaceAs: string | null;
-  /** Pozitia in sursa, ca sa putem taia instructiunea daca nu e ceruta. */
+  /** Position in the source, so we can cut the statement if it is not requested. */
   start: number;
   end: number;
 }
 
 export interface ModuleInfo {
-  /** Numele exportate declarate CHIAR in acest modul. */
+  /** The exported names declared IN this module itself. */
   localExports: Set<string>;
   imports: ImportEdge[];
   reExports: ReExportEdge[];
   /**
-   * `true` daca modulul are instructiuni de nivel inalt care pot face ceva
-   * observabil din afara (apeluri, atribuiri, control flow). Euristica; vezi
-   * `isSideEffectFree` din treeshake.ts pentru cum e folosita.
+   * `true` if the module has top-level statements that can do something
+   * observable from the outside (calls, assignments, control flow). A heuristic;
+   * see `isSideEffectFree` in treeshake.ts for how it is used.
    */
   hasTopLevelStatements: boolean;
 }
@@ -52,7 +52,7 @@ function nameOf(node: ts.PropertyName | ts.Identifier | ts.BindingName): string 
   return null;
 }
 
-/** Numele legate de un pattern de destructurare (`export const { a, b } = ...`). */
+/** The names bound by a destructuring pattern (`export const { a, b } = ...`). */
 function bindingNames(name: ts.BindingName, out: Set<string>): void {
   if (ts.isIdentifier(name)) {
     out.add(name.text);
@@ -68,7 +68,7 @@ function hasExportModifier(node: ts.Node): boolean {
   return modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword) === true;
 }
 
-/** Citeste graful ESM al unui modul. Nu emite nimic, doar parseaza. */
+/** Reads a module's ESM graph. Emits nothing, only parses. */
 export function analyzeModule(source: string, fileName: string): ModuleInfo {
   const sf = ts.createSourceFile(fileName, source, ts.ScriptTarget.ES2022, true, scriptKind(fileName));
 
@@ -78,7 +78,7 @@ export function analyzeModule(source: string, fileName: string): ModuleInfo {
   let hasTopLevelStatements = false;
 
   for (const statement of sf.statements) {
-    /* ---------------------------------------------------------- importuri */
+    /* ------------------------------------------------------------- imports */
     if (ts.isImportDeclaration(statement)) {
       if (!ts.isStringLiteral(statement.moduleSpecifier)) continue;
       const spec = statement.moduleSpecifier.text;
@@ -95,7 +95,7 @@ export function analyzeModule(source: string, fileName: string): ModuleInfo {
         if (ts.isNamespaceImport(clause.namedBindings)) namespace = true;
         else {
           for (const element of clause.namedBindings.elements) {
-            // `import { a as b }` -> avem nevoie de `a` din tinta.
+            // `import { a as b }` -> we need `a` from the target.
             names.push((element.propertyName ?? element.name).text);
           }
         }
@@ -105,7 +105,7 @@ export function analyzeModule(source: string, fileName: string): ModuleInfo {
     }
 
     if (ts.isImportEqualsDeclaration(statement)) {
-      // `import x = require("y")` - tratat ca namespace (luam tot).
+      // `import x = require("y")` - treated as a namespace (take everything).
       const ref = statement.moduleReference;
       if (ts.isExternalModuleReference(ref) && ts.isStringLiteral(ref.expression)) {
         imports.push({ spec: ref.expression.text, names: [], namespace: true, bare: false });
@@ -113,7 +113,7 @@ export function analyzeModule(source: string, fileName: string): ModuleInfo {
       continue;
     }
 
-    /* ---------------------------------------------------------- exporturi */
+    /* ------------------------------------------------------------- exports */
     if (ts.isExportDeclaration(statement)) {
       const spec =
         statement.moduleSpecifier && ts.isStringLiteral(statement.moduleSpecifier)
@@ -121,7 +121,7 @@ export function analyzeModule(source: string, fileName: string): ModuleInfo {
           : null;
 
       if (spec === null) {
-        // `export { a, b }` local, fara `from`.
+        // `export { a, b }` local, without `from`.
         if (statement.exportClause && ts.isNamedExports(statement.exportClause)) {
           for (const element of statement.exportClause.elements) localExports.add(element.name.text);
         }
@@ -150,7 +150,7 @@ export function analyzeModule(source: string, fileName: string): ModuleInfo {
       continue;
     }
 
-    /* ------------------------------------------------------- declaratii -- */
+    /* ---------------------------------------------------- declarations -- */
     if (
       ts.isFunctionDeclaration(statement) ||
       ts.isClassDeclaration(statement) ||
@@ -177,7 +177,7 @@ export function analyzeModule(source: string, fileName: string): ModuleInfo {
       continue;
     }
 
-    // Orice altceva la nivel inalt: apel, atribuire, if, for, try...
+    // Anything else at the top level: a call, assignment, if, for, try...
     hasTopLevelStatements = true;
   }
 
@@ -194,9 +194,9 @@ function scriptKind(fileName: string): ts.ScriptKind {
 }
 
 /**
- * Sterge intervalele date din sursa, pastrand pozitiile: caracterele devin
- * spatii, dar liniile raman. Asa numerele de linie si coloana din source map
- * continua sa corespunda fisierului original.
+ * Erases the given ranges from the source, preserving positions: characters
+ * become spaces, but the lines stay. That way the line and column numbers in the
+ * source map keep matching the original file.
  */
 export function blankRanges(source: string, ranges: ReadonlyArray<readonly [number, number]>): string {
   if (ranges.length === 0) return source;

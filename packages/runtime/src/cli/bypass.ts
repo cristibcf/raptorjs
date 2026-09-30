@@ -1,44 +1,44 @@
 /**
- * Detectarea accesului care ocoleste capability broker-ul.
+ * Detecting access that bypasses the capability broker.
  *
- * Pe motorul de bootstrap, brokerul este **consultativ**: `import fs from
- * "node:fs"` ajunge la disc fara sa treaca pe la el. Izolarea reala apartine
- * host-ului nativ, unde `node:*` pur si simplu nu exista.
+ * On the bootstrap engine, the broker is **advisory**: `import fs from
+ * "node:fs"` reaches the disk without passing by it. Real isolation belongs to
+ * the native host, where `node:*` simply does not exist.
  *
- * Pana atunci, regula traieste aici, o singura data, ca `doctor` si `run` sa
- * spuna acelasi lucru.
+ * Until then, the rule lives here, in one place, so that `doctor` and `run` say
+ * the same thing.
  *
- * **Sunt DOUA feluri de probleme, si al doilea a fost invatat pe pielea
- * noastra.** Prima trecere de audit a inchis ocolul vizibil - un `import` de
- * `node:fs` pe care graful static il vede. A doua trecere a aratat ca gate-ul
- * se ocoleste banal:
+ * **There are TWO kinds of problems, and we learned the second one the hard
+ * way.** The first audit pass closed the visible bypass - a `node:fs` `import`
+ * that the static graph sees. The second pass showed that the gate is trivially
+ * bypassed:
  *
  * ```js
- * const nume = ["node", "fs"].join(":");
- * const fs = await import(nume);      // graful nu vede niciun `node:`
+ * const name = ["node", "fs"].join(":");
+ * const fs = await import(name);      // the graph sees no `node:`
  * ```
  *
- * Specificatorul calculat nu apare in `hostImports`, deci aplicatia rula in
- * politica `production` cu manifestul gol si citea orice. `doctor` il raporta
- * (ca eroare!), `run` nu se uita la el.
+ * The computed specifier does not appear in `hostImports`, so the application
+ * ran under the `production` policy with an empty manifest and read anything.
+ * `doctor` reported it (as an error!), `run` did not look at it.
  *
- * De aceea contractul de aici nu mai e „lista de ocoluri", ci „ce **stiu** si ce
- * **nu pot sti**". Un import pe care nu-l pot rezolva nu e o dovada ca totul e
- * in regula; e absenta unei dovezi, si in regim strict absenta dovezii nu e
- * suficienta.
+ * That is why the contract here is no longer "the list of bypasses", but "what I
+ * **know** and what I **cannot know**". An import I cannot resolve is not proof
+ * that everything is fine; it is the absence of proof, and in strict mode the
+ * absence of proof is not enough.
  */
 import { buildStaticGraph } from "@raptor/runtime";
 import type { PolicyMode } from "@raptor/runtime";
 
 export interface BypassFinding {
-  /** Specificatorul importat, ex. `node:fs`. */
+  /** The imported specifier, e.g. `node:fs`. */
   readonly specifier: string;
-  /** Echivalentul din spatiul `raptor:`, daca exista unul. */
+  /** The equivalent in the `raptor:` namespace, if there is one. */
   readonly replacement: string | null;
   readonly message: string;
 }
 
-/** Ceva ce nu putem verifica static - deci nici nu putem declara in regula. */
+/** Something we cannot check statically - so we cannot declare it in a rule either. */
 export interface Unverifiable {
   readonly from: string;
   readonly what: string;
@@ -46,20 +46,20 @@ export interface Unverifiable {
 }
 
 export interface BypassReport {
-  /** Ocoluri dovedite: importuri `node:` vizibile in graf. */
+  /** Proven bypasses: `node:` imports visible in the graph. */
   readonly bypasses: readonly BypassFinding[];
-  /** Locuri in care nu putem demonstra ca NU exista un ocol. */
+  /** Places where we cannot prove that NO bypass exists. */
   readonly unverifiable: readonly Unverifiable[];
-  /** Graful nu a putut fi construit deloc; mesajul spune de ce. */
+  /** The graph could not be built at all; the message says why. */
   readonly graphError: string | null;
 }
 
 /**
- * Ce modul `raptor:` acopera fiecare builtin folosit in practica.
+ * Which `raptor:` module covers each builtin used in practice.
  *
- * Lista e scurta si onesta: propunem un inlocuitor doar acolo unde chiar
- * exista unul. Pentru `node:worker_threads` nu scriem `raptor:tasks`, fiindca
- * `tasks` inca nu e legat la izolat in host-ul nativ.
+ * The list is short and honest: we propose a replacement only where one actually
+ * exists. For `node:worker_threads` we do not write `raptor:tasks`, because
+ * `tasks` is not yet bound to the isolate in the native host.
  */
 const REPLACEMENTS: Readonly<Record<string, string>> = {
   "node:fs": "raptor:files",
@@ -73,27 +73,27 @@ const REPLACEMENTS: Readonly<Record<string, string>> = {
   "node:os": "raptor:process",
 };
 
-/** `true` daca specificatorul ajunge la sistem fara sa treaca prin broker. */
+/** `true` if the specifier reaches the system without passing through the broker. */
 export function isBypass(specifier: string): boolean {
   return specifier.startsWith("node:");
 }
 
 export function describeBypass(specifier: string): BypassFinding {
   const replacement = REPLACEMENTS[specifier] ?? null;
-  const suffix = replacement === null ? "" : `; foloseste ${replacement}`;
+  const suffix = replacement === null ? "" : `; use ${replacement}`;
   return {
     specifier,
     replacement,
-    message: `${specifier} ocoleste capability broker-ul si nu va exista in host-ul nativ${suffix}`,
+    message: `${specifier} bypasses the capability broker and will not exist in the native host${suffix}`,
   };
 }
 
 /**
- * Ce se stie despre ocoluri in graful static al aplicatiei.
+ * What is known about bypasses in the application's static graph.
  *
- * Nu inghite erori: daca graful nu poate fi construit, asta intra in raport ca
- * `graphError`, si apelantul decide. Un `catch` care intorcea o lista goala
- * spunea „n-am gasit nimic" cand adevarul era „n-am putut sa ma uit".
+ * It does not swallow errors: if the graph cannot be built, that goes into the
+ * report as `graphError`, and the caller decides. A `catch` that returned an
+ * empty list said "I found nothing" when the truth was "I could not look".
  */
 export async function inspectBypasses(projectRoot: string, entry: string): Promise<BypassReport> {
   try {
@@ -113,26 +113,26 @@ export async function inspectBypasses(projectRoot: string, entry: string): Promi
 }
 
 /**
- * Ce face `run` cu ce a aflat, in functie de politica.
+ * What `run` does with what it found, depending on the policy.
  *
- * In `production` refuzam si ocolul dovedit, si imposibilitatea de a verifica:
- * intreg rostul regimului strict e ca nimic nu trece nedeclarat, iar un import
- * pe care nu-l putem citi e exact un acces nedeclarat care ar putea reusi.
- * In `development` mergem inainte, dar spunem ce am vazut - altfel portarea ar
- * fi imposibila inainte ca host-ul nativ sa fie gata.
+ * In `production` we reject both the proven bypass and the inability to verify:
+ * the whole point of strict mode is that nothing passes undeclared, and an
+ * import we cannot read is exactly an undeclared access that could succeed.
+ * In `development` we go ahead, but say what we saw - otherwise porting would be
+ * impossible before the native host is ready.
  */
 export function bypassSeverity(policy: PolicyMode): "error" | "warn" {
   return policy === "production" ? "error" : "warn";
 }
 
-/** Toate motivele pentru care politica `production` ar opri pornirea. */
+/** All the reasons the `production` policy would stop startup. */
 export function blockingReasons(report: BypassReport): readonly string[] {
   const reasons = report.bypasses.map((bypass) => bypass.message);
   for (const item of report.unverifiable) {
-    reasons.push(`${item.message} - nu pot demonstra ca nu ocoleste brokerul`);
+    reasons.push(`${item.message} - I cannot prove it does not bypass the broker`);
   }
   if (report.graphError !== null) {
-    reasons.push(`graful static nu a putut fi construit: ${report.graphError}`);
+    reasons.push(`the static graph could not be built: ${report.graphError}`);
   }
   return reasons;
 }

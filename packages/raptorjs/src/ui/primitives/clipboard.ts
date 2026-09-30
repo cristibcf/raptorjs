@@ -1,9 +1,9 @@
 /**
- * clipboard - copiere in clipboard cu stare `copied` temporara.
+ * clipboard - copy to the clipboard with a temporary `copied` state.
  *
- * `const { copy, copied } = clipboard()` apoi
- * `R.button({ "on:click": () => copy(text) }, () => copied() ? "copiat" : "copy")`.
- * Timer-ul de reset e anulat la dispose, ca sa nu scrie intr-un semnal mort.
+ * `const { copy, copied } = clipboard()` then
+ * `R.button({ "on:click": () => copy(text) }, () => copied() ? "copied" : "copy")`.
+ * The reset timer is cancelled on dispose, so it doesn't write into a dead signal.
  */
 import { state, onCleanup, type Accessor } from "raptorjs";
 
@@ -37,7 +37,7 @@ export function clipboard(resetAfter = 1500): Clipboard {
     clear();
     try {
       const nav = (globalThis as any).navigator;
-      if (!nav?.clipboard?.writeText) throw new Error("clipboard indisponibil");
+      if (!nav?.clipboard?.writeText) throw new Error("clipboard unavailable");
       await nav.clipboard.writeText(text);
       error.set(null);
       copied.set(true);

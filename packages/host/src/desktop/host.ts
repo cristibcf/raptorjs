@@ -1,12 +1,12 @@
 /**
- * Host-ul desktop de referinta.
+ * The reference desktop host.
  *
- * Implementeaza metodele puntii exact cum le va implementa binarul nativ, dar in
- * proces: ferestre ca stare, stocare intr-un magazin injectabil, notificari
- * colectate. Rostul lui nu este sa inlocuiasca adaptorul nativ, ci sa fixeze
- * *comportamentul* pe care acela trebuie sa il reproduca - politicile de mai jos
- * (navigare in allowlist, stocare in directorul aplicatiei, subprocese doar din
- * lista explicita) sunt partea care nu are voie sa difere intre implementari.
+ * It implements the bridge methods exactly as the native binary will, but
+ * in-process: windows as state, storage in an injectable store, notifications
+ * collected. Its point is not to replace the native adapter, but to pin down
+ * the *behavior* that one must reproduce - the policies below (navigation in an
+ * allowlist, storage in the app directory, subprocesses from the explicit list
+ * only) are the part that must not differ between implementations.
  */
 import { HostError, createLifecycle, serveHost } from "@raptor/host";
 import type { AuditEntry, HostManifest, HostServer, HostTransport, LifecycleMachine, MethodHandler } from "@raptor/host";
@@ -40,16 +40,16 @@ export interface SpawnOutcome {
 export interface DesktopHostOptions {
   readonly manifest: HostManifest;
   readonly transport: HostTransport;
-  /** Magazinul de stocare locala; implicit in memorie. */
+  /** The local storage store; in memory by default. */
   readonly storage?: Map<string, string>;
   /**
-   * Comenzile permise pentru subprocese. Vin din `raptor.runtime.json`
-   * (`capabilities["process.spawn"]`): manifestul de host spune *daca*
-   * aplicatia are voie sa porneasca procese, cel de runtime spune *care*.
+   * The commands allowed for subprocesses. They come from `raptor.runtime.json`
+   * (`capabilities["process.spawn"]`): the host manifest says *whether* the app
+   * is allowed to start processes, the runtime one says *which*.
    */
   readonly allowedCommands?: readonly string[];
   readonly runCommand?: (command: string, args: readonly string[]) => Promise<SpawnOutcome>;
-  /** Versiunea oferita de canalul de actualizari, sau `null` daca nu exista. */
+  /** The version offered by the update channel, or `null` if there is none. */
   readonly availableUpdate?: { readonly version: string; readonly url: string } | null;
   readonly now?: () => number;
   readonly onAudit?: (entry: AuditEntry) => void;
@@ -61,9 +61,9 @@ export interface DesktopHost {
   readonly windows: readonly WindowState[];
   readonly notifications: readonly NotificationRecord[];
   readonly menu: readonly MenuItem[];
-  /** Un deep link venit din sistem; schema trebuie sa fie declarata. */
+  /** A deep link coming from the system; the scheme must be declared. */
   deliverDeepLink(url: string): void;
-  /** O comanda de meniu apasata de utilizator. */
+  /** A menu command pressed by the user. */
   invokeMenu(id: string): void;
   close(): void;
 }
@@ -73,23 +73,23 @@ const WINDOW_LIMIT = 16;
 function requireString(params: Readonly<Record<string, unknown>>, key: string): string {
   const value = params[key];
   if (typeof value !== "string" || value.length === 0) {
-    throw new HostError("raptor:host/protocol", `parametrul '${key}' lipseste sau nu este sir`, { key });
+    throw new HostError("raptor:host/protocol", `the '${key}' parameter is missing or is not a string`, { key });
   }
   return value;
 }
 
 /**
- * Cheile de stocare traiesc intr-un spatiu plat, legat de aplicatie. Orice cheie
- * care arata a cale (separatori sau `..`) este refuzata: politica sectiunii 6
- * spune "limitata la directorul aplicatiei", iar cel mai simplu mod de a o tine
- * este sa nu existe deloc cai in chei.
+ * Storage keys live in a flat space, tied to the app. Any key that looks like a
+ * path (separators or `..`) is denied: the section 6 policy says "limited to
+ * the app directory", and the simplest way to keep it is to have no paths in
+ * keys at all.
  */
 function requireKey(params: Readonly<Record<string, unknown>>): string {
   const key = requireString(params, "key");
   if (key.includes("/") || key.includes("\\") || key.includes("..") || key.startsWith(".")) {
-    throw new HostError("raptor:host/capability-unavailable", `cheie de stocare invalida: ${key}`, {
+    throw new HostError("raptor:host/capability-unavailable", `invalid storage key: ${key}`, {
       key,
-      policy: "limitata la directorul aplicatiei",
+      policy: "limited to the app directory",
     });
   }
   return key;
@@ -98,7 +98,7 @@ function requireKey(params: Readonly<Record<string, unknown>>): string {
 export function createDesktopHost(options: DesktopHostOptions): DesktopHost {
   const manifest = options.manifest;
   if (manifest.target !== "desktop") {
-    throw new HostError("raptor:host/manifest-invalid", "createDesktopHost cere un manifest cu target 'desktop'", {
+    throw new HostError("raptor:host/manifest-invalid", "createDesktopHost requires a manifest with target 'desktop'", {
       target: manifest.target,
     });
   }
@@ -113,7 +113,7 @@ export function createDesktopHost(options: DesktopHostOptions): DesktopHost {
   const pendingDeepLinks: string[] = [];
   let windowCounter = 0;
 
-  /** Navigarea este permisa spre aplicatia insasi sau spre originile declarate. */
+  /** Navigation is allowed to the app itself or to the declared origins. */
   const allowsUrl = (url: string): boolean => {
     if (url.startsWith("/") || url.startsWith("./")) return true;
     let parsed: URL;
@@ -134,7 +134,7 @@ export function createDesktopHost(options: DesktopHostOptions): DesktopHost {
   const requireUrl = (params: Readonly<Record<string, unknown>>, key = "url"): string => {
     const url = requireString(params, key);
     if (!allowsUrl(url)) {
-      throw new HostError("raptor:host/capability-unavailable", `navigare refuzata catre '${url}'`, {
+      throw new HostError("raptor:host/capability-unavailable", `navigation denied to '${url}'`, {
         url,
         allowedOrigins: [...manifest.allowedOrigins],
       });
@@ -145,7 +145,7 @@ export function createDesktopHost(options: DesktopHostOptions): DesktopHost {
   const findWindow = (id: string): WindowState => {
     const found = windows.find((window) => window.id === id);
     if (!found) {
-      throw new HostError("raptor:host/protocol", `fereastra '${id}' nu exista`, { id });
+      throw new HostError("raptor:host/protocol", `window '${id}' does not exist`, { id });
     }
     return found;
   };
@@ -153,7 +153,7 @@ export function createDesktopHost(options: DesktopHostOptions): DesktopHost {
   const methods: Record<string, MethodHandler> = {
     "lifecycle.state": () => lifecycle.state,
     "lifecycle.requestStop": () => {
-      lifecycle.settle("stopped", "aplicatia a cerut oprirea");
+      lifecycle.settle("stopped", "the app requested a stop");
       server.emit("lifecycle.changed", { state: lifecycle.state, reason: "app" });
       return { state: lifecycle.state };
     },
@@ -171,21 +171,21 @@ export function createDesktopHost(options: DesktopHostOptions): DesktopHost {
 
     "update.apply": () => {
       if (!options.availableUpdate) {
-        throw new HostError("raptor:host/unimplemented", "nu exista nicio actualizare de aplicat", {
+        throw new HostError("raptor:host/unimplemented", "there is no update to apply", {
           channel: manifest.update.channel,
         });
       }
       if (manifest.update.feed === null) {
-        // Fara feed, distributia vine din magazin; aplicatia nu se actualizeaza singura.
-        throw new HostError("raptor:host/unimplemented", "canalul este gestionat de magazin, nu de aplicatie", {});
+        // Without a feed, distribution comes from the store; the app does not update itself.
+        throw new HostError("raptor:host/unimplemented", "the channel is managed by the store, not the app", {});
       }
-      lifecycle.settle("stopped", "repornire pentru actualizare");
+      lifecycle.settle("stopped", "restart for update");
       return { applied: true, version: options.availableUpdate.version };
     },
 
     "window.open": (params) => {
       if (windows.length >= WINDOW_LIMIT) {
-        throw new HostError("raptor:host/capability-unavailable", `limita de ${WINDOW_LIMIT} ferestre atinsa`, {
+        throw new HostError("raptor:host/capability-unavailable", `the limit of ${WINDOW_LIMIT} windows has been reached`, {
           limit: WINDOW_LIMIT,
         });
       }
@@ -204,7 +204,7 @@ export function createDesktopHost(options: DesktopHostOptions): DesktopHost {
     "window.close": (params) => {
       const id = requireString(params, "id");
       const index = windows.findIndex((window) => window.id === id);
-      if (index < 0) throw new HostError("raptor:host/protocol", `fereastra '${id}' nu exista`, { id });
+      if (index < 0) throw new HostError("raptor:host/protocol", `window '${id}' does not exist`, { id });
       windows.splice(index, 1);
       return { closed: id };
     },
@@ -226,15 +226,15 @@ export function createDesktopHost(options: DesktopHostOptions): DesktopHost {
     "menu.set": (params) => {
       const items = params["items"];
       if (!Array.isArray(items)) {
-        throw new HostError("raptor:host/protocol", "menu.set cere o lista de elemente", {});
+        throw new HostError("raptor:host/protocol", "menu.set requires a list of items", {});
       }
       menu = items.map((item, index) => {
         if (typeof item !== "object" || item === null) {
-          throw new HostError("raptor:host/protocol", `elementul de meniu ${index} nu este un obiect`, { index });
+          throw new HostError("raptor:host/protocol", `menu item ${index} is not an object`, { index });
         }
         const record = item as Record<string, unknown>;
         if (typeof record["id"] !== "string" || typeof record["label"] !== "string") {
-          throw new HostError("raptor:host/protocol", `elementul de meniu ${index} cere { id, label }`, { index });
+          throw new HostError("raptor:host/protocol", `menu item ${index} requires { id, label }`, { index });
         }
         return typeof record["accelerator"] === "string"
           ? { id: record["id"], label: record["label"], accelerator: record["accelerator"] }
@@ -265,15 +265,15 @@ export function createDesktopHost(options: DesktopHostOptions): DesktopHost {
     "process.spawn": async (params) => {
       const command = requireString(params, "command");
       if (!allowedCommands.has(command)) {
-        // Sectiunea 6: "doar desktop, cu lista explicita". Capabilitatea deschide
-        // usa, lista din raptor.runtime.json spune pe cine lasa sa intre.
-        throw new HostError("raptor:host/capability-undeclared", `comanda '${command}' nu este in lista explicita`, {
+        // Section 6: "desktop only, with an explicit list". The capability opens
+        // the door, the list in raptor.runtime.json says who is let in.
+        throw new HostError("raptor:host/capability-undeclared", `command '${command}' is not in the explicit list`, {
           command,
           allowed: [...allowedCommands].sort(),
         });
       }
       if (!options.runCommand) {
-        throw new HostError("raptor:host/unimplemented", "host-ul nu are un executor de comenzi configurat", {
+        throw new HostError("raptor:host/unimplemented", "the host has no command executor configured", {
           command,
         });
       }
@@ -314,11 +314,11 @@ export function createDesktopHost(options: DesktopHostOptions): DesktopHost {
       try {
         scheme = new URL(url).protocol.replace(":", "");
       } catch {
-        throw new HostError("raptor:host/protocol", `deep link invalid: ${url}`, { url });
+        throw new HostError("raptor:host/protocol", `invalid deep link: ${url}`, { url });
       }
       if (!manifest.deepLinkSchemes.includes(scheme)) {
-        // Un link cu schema nedeclarata nu apartine acestei aplicatii.
-        throw new HostError("raptor:host/capability-unavailable", `schema '${scheme}' nu este declarata`, {
+        // A link with an undeclared scheme does not belong to this app.
+        throw new HostError("raptor:host/capability-unavailable", `scheme '${scheme}' is not declared`, {
           url,
           declared: [...manifest.deepLinkSchemes],
         });
@@ -329,13 +329,13 @@ export function createDesktopHost(options: DesktopHostOptions): DesktopHost {
 
     invokeMenu(id: string): void {
       if (!menu.some((item) => item.id === id)) {
-        throw new HostError("raptor:host/protocol", `comanda de meniu '${id}' nu exista`, { id });
+        throw new HostError("raptor:host/protocol", `menu command '${id}' does not exist`, { id });
       }
       server.emit("menu.command", { id });
     },
 
     close(): void {
-      lifecycle.settle("stopped", "host inchis");
+      lifecycle.settle("stopped", "host closed");
       server.close();
     },
   };

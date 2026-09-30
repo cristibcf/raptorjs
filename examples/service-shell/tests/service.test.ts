@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createSession } from "../src/session.ts";
 import type { Session } from "../src/session.ts";
 
-/** Sesiune pornita, cu server real pe un port liber. */
+/** A started session, with a real server on a free port. */
 async function started(options: Parameters<typeof createSession>[0] = {}): Promise<Session> {
   const session = createSession({ ports: { public: 0 }, ...options });
   await session.service.start();
@@ -20,19 +20,19 @@ const post = async (session: Session, path: string, body: unknown): Promise<Resp
     body: JSON.stringify(body),
   });
 
-test("pornirea cere listenerul host-ului si se declara gata de trafic", async () => {
+test("startup requests the host's listener and declares itself ready for traffic", async () => {
   const session = await started();
   try {
     assert.match(session.service.url() ?? "", /^http:\/\/127\.0\.0\.1:\d+$/);
     assert.equal(session.service.ready(), true);
     assert.equal(session.host.health, "ready");
-    assert.equal(session.host.lifecycle.state, "foreground", "un serviciu care serveste este in 'foreground'");
+    assert.equal(session.host.lifecycle.state, "foreground", "a service that is serving is in 'foreground'");
   } finally {
     await session.close();
   }
 });
 
-test("cererile HTTP reale traverseaza puntea si se intorc cu raspuns", async () => {
+test("real HTTP requests cross the bridge and come back with a response", async () => {
   const session = await started();
   try {
     const health = (await (await get(session, "/health")).json()) as { status: string; notes: number };
@@ -43,27 +43,27 @@ test("cererile HTTP reale traverseaza puntea si se intorc cu raspuns", async () 
   }
 });
 
-test("o nota trece prin stocarea host-ului inainte sa fie vizibila prin API", async () => {
+test("a note goes through the host's storage before it is visible through the API", async () => {
   const storage = new Map<string, string>();
   const session = await started({ storage });
   try {
-    const created = await post(session, "/note", { text: "de scris raportul" });
+    const created = await post(session, "/note", { text: "write the report" });
     assert.equal(created.status, 201);
     assert.deepEqual(await created.json(), { stored: 1 });
 
-    assert.match(storage.get("notes") ?? "", /de scris raportul/);
+    assert.match(storage.get("notes") ?? "", /write the report/);
     const listed = (await (await get(session, "/note")).json()) as { notes: Array<{ text: string }> };
-    assert.deepEqual(listed.notes.map((note) => note.text), ["de scris raportul"]);
+    assert.deepEqual(listed.notes.map((note) => note.text), ["write the report"]);
   } finally {
     await session.close();
   }
 });
 
-test("notele supravietuiesc repornirii, pentru ca traiesc la host", async () => {
+test("notes survive a restart, because they live at the host", async () => {
   const storage = new Map<string, string>();
   const first = await started({ storage });
   try {
-    await post(first, "/note", { text: "persistenta" });
+    await post(first, "/note", { text: "persistent" });
   } finally {
     await first.close();
   }
@@ -71,17 +71,17 @@ test("notele supravietuiesc repornirii, pentru ca traiesc la host", async () => 
   const second = await started({ storage });
   try {
     const listed = (await (await get(second, "/note")).json()) as { notes: Array<{ text: string }> };
-    assert.deepEqual(listed.notes.map((note) => note.text), ["persistenta"]);
+    assert.deepEqual(listed.notes.map((note) => note.text), ["persistent"]);
   } finally {
     await second.close();
   }
 });
 
-test("configuratia vine de la supervizor si se vede in raspuns", async () => {
-  const session = await started({ config: { GREETING: "Salut din deployment" } });
+test("configuration comes from the supervisor and shows up in the response", async () => {
+  const session = await started({ config: { GREETING: "Hello from deployment" } });
   try {
     const listed = (await (await get(session, "/note")).json()) as { greeting: string };
-    assert.equal(listed.greeting, "Salut din deployment");
+    assert.equal(listed.greeting, "Hello from deployment");
   } finally {
     await session.close();
   }
@@ -89,47 +89,47 @@ test("configuratia vine de la supervizor si se vede in raspuns", async () => {
   const fara = await started();
   try {
     const listed = (await (await get(fara, "/note")).json()) as { greeting: string };
-    assert.equal(listed.greeting, "Raptor Service", "fara configuratie, ramane implicitul aplicatiei");
+    assert.equal(listed.greeting, "Raptor Service", "without configuration, the app's default stays");
   } finally {
     await fara.close();
   }
 });
 
-test("intrarile invalide primesc 400, rutele inexistente 404", async () => {
+test("invalid inputs get 400, nonexistent routes 404", async () => {
   const session = await started();
   try {
     assert.equal((await post(session, "/note", {})).status, 400);
     assert.equal((await post(session, "/note", { text: "   " })).status, 400);
     assert.equal((await get(session, "/inexistent")).status, 404);
 
-    const corupt = await fetch(`${session.service.url()}/note`, { method: "POST", body: "nu e json" });
-    assert.equal(corupt.status, 400, "un corp corupt nu darama serviciul");
+    const corupt = await fetch(`${session.service.url()}/note`, { method: "POST", body: "not json" });
+    assert.equal(corupt.status, 400, "a corrupt body does not bring the service down");
 
-    // Dupa toate refuzurile, serviciul raspunde in continuare normal.
+    // After all the rejections, the service still responds normally.
     assert.equal((await get(session, "/health")).status, 200);
   } finally {
     await session.close();
   }
 });
 
-test("starea reactiva a serviciului urmareste traficul", async () => {
+test("the service's reactive state tracks traffic", async () => {
   const session = await started();
   try {
     assert.equal(session.service.served(), 0);
     await get(session, "/health");
-    await post(session, "/note", { text: "una" });
+    await post(session, "/note", { text: "one" });
     assert.equal(session.service.served(), 2);
-    assert.equal(session.service.summary(), "ready - 1 note, 2 cereri");
+    assert.equal(session.service.summary(), "ready - 1 notes, 2 requests");
   } finally {
     await session.close();
   }
 });
 
-test("drenarea termina cererile in zbor si inchide portul pentru cele noi", async () => {
+test("draining finishes in-flight requests and closes the port to new ones", async () => {
   const session = await started();
   try {
     const url = session.service.url()!;
-    await post(session, "/note", { text: "inainte de oprire" });
+    await post(session, "/note", { text: "before shutdown" });
 
     await session.host.requestDrain("SIGTERM");
     assert.equal(session.host.health, "draining");
@@ -141,29 +141,29 @@ test("drenarea termina cererile in zbor si inchide portul pentru cele noi", asyn
       "stopped",
     ]);
 
-    await assert.rejects(fetch(`${url}/health`), "portul nu mai accepta cereri noi");
+    await assert.rejects(fetch(`${url}/health`), "the port no longer accepts new requests");
   } finally {
     await session.close();
   }
 });
 
-test("serviciul poate fi oprit si din aplicatie, tot prin drenare", async () => {
+test("the service can also be stopped from the app, still through draining", async () => {
   const session = await started();
   try {
     await session.service.stop();
     assert.equal(session.service.ready(), false);
-    assert.equal(session.host.health, "unhealthy", "declarat nesanatos inainte de a inchide socketul");
+    assert.equal(session.host.health, "unhealthy", "declared unhealthy before closing the socket");
     assert.equal(session.host.listeners.length, 0);
   } finally {
     await session.close();
   }
 });
 
-test("un serviciu nu are voie la ce tine de interfata grafica", async () => {
+test("a service is not allowed anything graphical-UI related", async () => {
   const session = await started();
   try {
     for (const method of ["window.open", "notify.show", "camera.capture", "device.files"]) {
-      assert.equal(session.bridge.allows(method), false, `${method} nu are ce cauta pe un server`);
+      assert.equal(session.bridge.allows(method), false, `${method} has no business on a server`);
     }
     await assert.rejects(
       session.bridge.call("window.open", {}),

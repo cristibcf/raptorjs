@@ -1,7 +1,7 @@
 /**
- * Routing minimal (whitepaper RaptorEngine 20). Un route manifest leaga cai la
- * componente; suporta segmente dinamice `[param]`. Chunking-ul route-aware si
- * preload graph-ul sunt in RaptorBuild (16); aici doar dispatch-ul la runtime.
+ * Minimal routing (whitepaper RaptorEngine 20). A route manifest maps paths to
+ * components; supports dynamic segments `[param]`. Route-aware chunking and the
+ * preload graph live in RaptorBuild (16); here it's just runtime dispatch.
  */
 export interface RouteDef {
   path: string;
@@ -17,7 +17,7 @@ function normalize(path: string): string[] {
   return path.split("/").filter((s) => s.length > 0);
 }
 
-/** Potriveste o cale la un route, extragand parametrii `[id]`. */
+/** Matches a path against a route, extracting `[id]` parameters. */
 export function matchRoute(routes: RouteDef[], path: string): RouteMatch | null {
   const segs = normalize(path);
   for (const route of routes) {

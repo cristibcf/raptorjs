@@ -1,13 +1,13 @@
 /**
- * @raptor/service-host - supervizorul de proces ca host Raptor.
+ * @raptor/service-host - the process supervisor as a Raptor host.
  *
- * Acopera randul "Servicii platforma" din etapa 3 a roadmap-ului: HTTP, loguri
- * si oprire curata, prin aceeasi punte de capabilitati ca desktopul, mobilul si
- * browserul. Ce da host-ul aici sunt socketi de ascultare, configuratie si
- * semnalul de drenare - nu ferestre.
+ * It covers the "Platform services" row of roadmap stage 3: HTTP, logs and
+ * clean shutdown, through the same capability bridge as desktop, mobile and the
+ * browser. What the host gives here are listening sockets, configuration and
+ * the drain signal - not windows.
  *
- * Numele pachetului evita confuzia cu `@raptor/server`, care este SDK-ul de
- * store reactiv RaptorWire si rezolva cu totul alta problema.
+ * The package name avoids confusion with `@raptor/server`, which is the
+ * RaptorWire reactive store SDK and solves an entirely different problem.
  */
 export { createServiceHost } from "./host.ts";
 export type { Health, ServiceHost, ServiceHostOptions } from "./host.ts";

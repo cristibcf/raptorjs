@@ -1,12 +1,12 @@
 /**
- * `raptor-runtime pack` (spec sectiunea 4): emite o unitate de aplicatie
- * reproductibila, cu lockfile.
+ * `raptor-runtime pack` (spec section 4): emits a reproducible application unit,
+ * with a lockfile.
  *
- * Reproductibil inseamna concret: acelasi cod sursa produce octet cu octet
- * aceleasi fisiere de iesire. De aceea nu scriem niciodata marci de timp, nu
- * folosim ordine de parcurgere a sistemului de fisiere si sortam tot. Lockfile-ul
- * pastreaza integritatea si originea fiecarei intrari (spec sectiunea 8), ca
- * auditul lantului de aprovizionare sa fie posibil fara sa reconstruim nimic.
+ * Reproducible means concretely: the same source code produces byte-for-byte the
+ * same output files. That is why we never write timestamps, never rely on the
+ * filesystem's traversal order and sort everything. The lockfile keeps the
+ * integrity and origin of every entry (spec section 8), so that supply-chain
+ * auditing is possible without rebuilding anything.
  */
 import { copyFile, mkdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -28,7 +28,7 @@ export async function packCommand(input: CommandInput): Promise<CommandResult> {
   if (blocking.length > 0) {
     return fail(
       1,
-      ["nu pot ambala: importuri nerezolvate", ...blocking.map((p) => `  ${p.from}: ${p.specifier} - ${p.reason}`)].join("\n"),
+      ["cannot package: unresolved imports", ...blocking.map((p) => `  ${p.from}: ${p.specifier} - ${p.reason}`)].join("\n"),
       { unresolved: graph.unresolved },
     );
   }
@@ -36,8 +36,8 @@ export async function packCommand(input: CommandInput): Promise<CommandResult> {
     return fail(
       1,
       [
-        "nu pot ambala: pachete externe nerezolvate in aceasta faza",
-        ...graph.externalImports.map((name) => `  ${name} - cere puntea catre registrul npm (faza 3)`),
+        "cannot package: external packages unresolved in this phase",
+        ...graph.externalImports.map((name) => `  ${name} - requires the bridge to the npm registry (phase 3)`),
       ].join("\n"),
       { externalImports: graph.externalImports },
     );
@@ -84,7 +84,7 @@ export async function packCommand(input: CommandInput): Promise<CommandResult> {
     engines: { raptorRuntime: manifest.engines.raptorRuntime },
     capabilities: manifest.capabilities,
     tasks: manifest.tasks,
-    // Amprenta continutului: depinde doar de caile si hash-urile modulelor.
+    // The content fingerprint: depends only on the modules' paths and hashes.
     contentIntegrity: integrityOf(graph.modules.map((module) => `${module.path}${String.fromCharCode(0)}${module.integrity}`).join("\n")),
     lockfile: `./${LOCKFILE_NAME}`,
     builtWith: `raptor-runtime@${RUNTIME_VERSION}`,
@@ -96,17 +96,17 @@ export async function packCommand(input: CommandInput): Promise<CommandResult> {
 
   const totalBytes = graph.modules.reduce((sum, module) => sum + module.byteLength, 0);
   const out = [
-    `unitate ambalata in ${outputDirectory}`,
+    `unit packaged in ${outputDirectory}`,
     table([
-      ["module", String(graph.modules.length)],
-      ["octeti", String(totalBytes)],
-      ["intrare", bundle.entry],
-      ["module de host", graph.hostImports.join(", ") || "(niciunul)"],
-      ["integritate", bundle.contentIntegrity],
+      ["modules", String(graph.modules.length)],
+      ["bytes", String(totalBytes)],
+      ["entry", bundle.entry],
+      ["host modules", graph.hostImports.join(", ") || "(none)"],
+      ["integrity", bundle.contentIntegrity],
       ["lockfile", LOCKFILE_NAME],
     ]),
     ...(graph.unresolved.length > 0
-      ? ["", "  atentie: importuri dinamice nerezolvabile static:", ...graph.unresolved.map((p) => `    ${p.from}: ${p.reason}`)]
+      ? ["", "  warning: dynamic imports not statically resolvable:", ...graph.unresolved.map((p) => `    ${p.from}: ${p.reason}`)]
       : []),
   ].join("\n");
 

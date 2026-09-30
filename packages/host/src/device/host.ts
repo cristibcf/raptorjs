@@ -1,22 +1,22 @@
 /**
- * Host-ul de placheta.
+ * The board host.
  *
- * A sasea forma a aceluiasi contract, si prima in care host-ul **nu are
- * incredere in aplicatie**. Pe celelalte cinci, o aplicatie care se blocheaza
- * ramane doar blocata: fereastra nu mai raspunde, serviciul nu mai serveste,
- * unealta atarna. Pe o placheta care sta intr-un dulap de tablou, asta nu este
- * o optiune - de aceea exista watchdog-ul, iar el nu este o capabilitate.
+ * The sixth form of the same contract, and the first in which the host **does
+ * not trust the app**. On the other five, an app that hangs merely stays hung:
+ * the window stops responding, the service stops serving, the tool hangs. On a
+ * board sitting in a panel cabinet, that is not an option - which is why the
+ * watchdog exists, and it is not a capability.
  *
- * Ce mai aduce nou fata de celelalte cinci:
+ * What else it brings that the other five do not:
  *
- *  - **Perifericele sunt per instanta.** Nu "are voie la GPIO", ci "are voie la
- *    pinul 4, ca iesire". Capabilitatea deschide usa, lista de pini spune care.
- *    Este exact modelul pe care il foloseste si desktopul pentru `process.spawn`.
- *  - **Somnul este adevarat.** `suspended` din masina de lifecycle nu mai este o
- *    metafora: ceasul aplicatiei se opreste, iar trezirea vine cu un motiv.
- *  - **Actualizarea are rollback.** Un firmware nou care nu confirma ca a pornit
- *    bine este dat inapoi la urmatorul reset, nu lasat sa transforme placheta
- *    intr-o caramida.
+ *  - **Peripherals are per instance.** Not "is allowed GPIO", but "is allowed
+ *    pin 4, as output". The capability opens the door, the pin list says which.
+ *    It is exactly the model desktop uses for `process.spawn`.
+ *  - **Sleep is real.** `suspended` from the lifecycle machine is no longer a
+ *    metaphor: the app's clock stops, and the wake comes with a reason.
+ *  - **The update has rollback.** A new firmware that does not confirm it booted
+ *    fine is rolled back on the next reset, not left to turn the board into a
+ *    brick.
  */
 import { HostError, createLifecycle, serveHost } from "@raptor/host";
 import type { AuditEntry, HostManifest, HostServer, HostTransport, LifecycleMachine, MethodHandler } from "@raptor/host";
@@ -27,17 +27,17 @@ export interface DeviceHostOptions {
   readonly transport: HostTransport;
   readonly board: Board;
   /**
-   * Pinii pe care aplicatia ii poate atinge, cu directia lor. Vin din harta de
-   * hardware a produsului, nu din codul aplicatiei.
+   * The pins the app can touch, with their direction. They come from the
+   * product's hardware map, not from the app's code.
    */
   readonly pins?: readonly PinDefinition[];
   readonly buses?: readonly BusDefinition[];
-  /** Fereastra de watchdog. Peste ea fara `watchdog.pet`, placheta se reseteaza. */
+  /** The watchdog window. Past it without `watchdog.pet`, the board resets. */
   readonly watchdogMs?: number;
-  /** Ceas injectabil: testele nu asteapta secunde reale. */
+  /** An injectable clock: the tests do not wait for real seconds. */
   readonly now?: () => number;
   readonly storage?: Map<string, string>;
-  /** Imaginea de firmware oferita de canalul OTA. */
+  /** The firmware image offered by the OTA channel. */
   readonly availableFirmware?: { readonly version: string; readonly bytes: number } | null;
   readonly onAudit?: (entry: AuditEntry) => void;
 }
@@ -45,16 +45,16 @@ export interface DeviceHostOptions {
 export interface DeviceHost {
   readonly server: HostServer;
   readonly lifecycle: LifecycleMachine;
-  /** Milisecunde ramase pana la reset, sau `null` cand watchdog-ul e oprit. */
+  /** Milliseconds left until reset, or `null` when the watchdog is off. */
   readonly watchdogRemainingMs: number | null;
   readonly resets: readonly string[];
-  /** Imaginea aplicata dar inca neconfirmata, daca exista. */
+  /** The image applied but not yet confirmed, if any. */
   readonly firmware: { readonly version: string; readonly confirmed: boolean } | null;
-  /** Starea pinilor, asa cum a lasat-o aplicatia. */
+  /** The pin state, as the app left it. */
   pinState(pin: number): boolean | undefined;
-  /** Avanseaza ceasul plachetei si evalueaza watchdog-ul. */
+  /** Advances the board's clock and evaluates the watchdog. */
   tick(ms: number): void;
-  /** Trezire din exterior (buton, intrerupere). */
+  /** Wake from the outside (a button, an interrupt). */
   wake(reason?: "timer" | "external"): void;
   close(): void;
 }
@@ -62,7 +62,7 @@ export interface DeviceHost {
 function requireNumber(params: Readonly<Record<string, unknown>>, key: string): number {
   const value = params[key];
   if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
-    throw new HostError("raptor:host/protocol", `parametrul '${key}' trebuie sa fie un intreg pozitiv`, { key, value });
+    throw new HostError("raptor:host/protocol", `the '${key}' parameter must be a positive integer`, { key, value });
   }
   return value;
 }
@@ -70,18 +70,18 @@ function requireNumber(params: Readonly<Record<string, unknown>>, key: string): 
 function requireString(params: Readonly<Record<string, unknown>>, key: string): string {
   const value = params[key];
   if (typeof value !== "string" || value.length === 0) {
-    throw new HostError("raptor:host/protocol", `parametrul '${key}' lipseste sau nu este sir`, { key });
+    throw new HostError("raptor:host/protocol", `the '${key}' parameter is missing or is not a string`, { key });
   }
   return value;
 }
 
-/** Aceeasi politica de chei ca pe celelalte host-uri: spatiu plat, fara cai. */
+/** The same key policy as on the other hosts: a flat space, no paths. */
 function requireKey(params: Readonly<Record<string, unknown>>): string {
   const key = requireString(params, "key");
   if (key.includes("/") || key.includes("\\") || key.includes("..") || key.startsWith(".")) {
-    throw new HostError("raptor:host/capability-unavailable", `cheie de stocare invalida: ${key}`, {
+    throw new HostError("raptor:host/capability-unavailable", `invalid storage key: ${key}`, {
       key,
-      policy: "partitie de NVS",
+      policy: "an NVS partition",
     });
   }
   return key;
@@ -90,14 +90,14 @@ function requireKey(params: Readonly<Record<string, unknown>>): string {
 export function createDeviceHost(options: DeviceHostOptions): DeviceHost {
   const manifest = options.manifest;
   if (manifest.target !== "embedded") {
-    throw new HostError("raptor:host/manifest-invalid", "createDeviceHost cere un manifest cu target 'embedded'", {
+    throw new HostError("raptor:host/manifest-invalid", "createDeviceHost requires a manifest with target 'embedded'", {
       target: manifest.target,
     });
   }
 
   const board = options.board;
-  // Ceasul plachetei: `tick` il avanseaza, ca testele sa nu astepte secunde
-  // reale si ca watchdog-ul sa fie verificabil determinist.
+  // The board's clock: `tick` advances it, so the tests do not wait for real
+  // seconds and the watchdog is deterministically verifiable.
   const wallClock = options.now ?? (() => Date.now());
   let clockOffset = 0;
   const now = (): number => wallClock() + clockOffset;
@@ -118,15 +118,15 @@ export function createDeviceHost(options: DeviceHostOptions): DeviceHost {
   const requirePin = (pin: number, direction: "in" | "out"): PinDefinition => {
     const definition = pins.get(pin);
     if (!definition) {
-      throw new HostError("raptor:host/capability-undeclared", `pinul ${pin} nu este in harta de hardware`, {
+      throw new HostError("raptor:host/capability-undeclared", `pin ${pin} is not in the hardware map`, {
         pin,
         declared: [...pins.keys()].sort((a, b) => a - b),
       });
     }
     if (definition.direction !== direction) {
-      // O scriere pe un pin de intrare este o greseala de cablaj in cod: pe o
-      // placheta reala poate insemna un scurt, deci se refuza inainte de hardware.
-      throw new HostError("raptor:host/capability-unavailable", `pinul ${pin} este declarat ca '${definition.direction}'`, {
+      // A write to an input pin is a wiring mistake in code: on a real board it
+      // can mean a short, so it is denied before reaching the hardware.
+      throw new HostError("raptor:host/capability-unavailable", `pin ${pin} is declared as '${definition.direction}'`, {
         pin,
         label: definition.label ?? null,
         direction: definition.direction,
@@ -136,7 +136,7 @@ export function createDeviceHost(options: DeviceHostOptions): DeviceHost {
     return definition;
   };
 
-  /** Resetul plachetei: nu o exceptie in aplicatie, ci o repornire. */
+  /** The board reset: not an exception in the app, but a reboot. */
   const reset = (reason: string): void => {
     if (stopped) return;
     stopped = true;
@@ -171,7 +171,7 @@ export function createDeviceHost(options: DeviceHostOptions): DeviceHost {
       const pin = requireNumber(params, "pin");
       const value = params["value"];
       if (typeof value !== "boolean") {
-        throw new HostError("raptor:host/protocol", "hw.gpio.write cere o valoare booleana", { pin, value });
+        throw new HostError("raptor:host/protocol", "hw.gpio.write requires a boolean value", { pin, value });
       }
       requirePin(pin, "out");
       board.writePin(pin, value);
@@ -184,15 +184,15 @@ export function createDeviceHost(options: DeviceHostOptions): DeviceHost {
       const address = requireNumber(params, "address");
       const definition = buses.get(bus);
       if (!definition) {
-        throw new HostError("raptor:host/capability-undeclared", `magistrala '${bus}' nu este declarata`, {
+        throw new HostError("raptor:host/capability-undeclared", `bus '${bus}' is not declared`, {
           bus,
           declared: [...buses.keys()].sort(),
         });
       }
       if (!definition.addresses.includes(address)) {
-        // Restul magistralei apartine altor periferice - poate chiar unora
-        // critice. Adresa nedeclarata nu se atinge.
-        throw new HostError("raptor:host/capability-unavailable", `adresa 0x${address.toString(16)} nu este declarata pe '${bus}'`, {
+        // The rest of the bus belongs to other peripherals - maybe even
+        // critical ones. An undeclared address is not touched.
+        throw new HostError("raptor:host/capability-unavailable", `address 0x${address.toString(16)} is not declared on '${bus}'`, {
           bus,
           address,
           declared: definition.addresses.map((value) => `0x${value.toString(16)}`),
@@ -207,24 +207,24 @@ export function createDeviceHost(options: DeviceHostOptions): DeviceHost {
     "power.sleep": async (params) => {
       const durationMs = requireNumber(params, "durationMs");
       asleep = true;
-      // Somnul poate veni din orice stare de lucru: drumul se calculeaza, nu se
-      // presupune ca aplicatia tocmai a pornit.
-      lifecycle.advanceTo("suspended", "somn");
+      // Sleep can come from any working state: the path is computed, it is not
+      // assumed that the app just started.
+      lifecycle.advanceTo("suspended", "sleep");
       server.emit("power.sleeping", { durationMs });
 
       const reason = await board.sleep(durationMs);
-      // Watchdog-ul nu curge in somn: ceasul aplicatiei este oprit, deci
-      // fereastra incepe din nou de la trezire.
+      // The watchdog does not run during sleep: the app's clock is stopped, so
+      // the window starts again from the wake.
       lastPet = now();
       asleep = false;
-      lifecycle.settle("foreground", `trezire (${reason})`);
+      lifecycle.settle("foreground", `wake (${reason})`);
       server.emit("power.wake", { reason });
       return { slept: durationMs, reason };
     },
 
     "lifecycle.state": () => lifecycle.state,
     "lifecycle.requestStop": () => {
-      reset("aplicatia a cerut repornirea");
+      reset("the app requested a reboot");
       return { state: lifecycle.state };
     },
 
@@ -233,8 +233,8 @@ export function createDeviceHost(options: DeviceHostOptions): DeviceHost {
       const key = requireKey(params);
       const value = requireString(params, "value");
       if (store.get(key) === value) {
-        // O scriere identica nu ajunge la flash: pe NVS, fiecare scriere costa
-        // din durata de viata a memoriei.
+        // An identical write does not reach the flash: on NVS, every write
+        // costs from the memory's lifetime.
         return { key, written: false, nvsWrites };
       }
       store.set(key, value);
@@ -256,7 +256,7 @@ export function createDeviceHost(options: DeviceHostOptions): DeviceHost {
 
     "update.confirm": () => {
       if (!pendingFirmware) {
-        throw new HostError("raptor:host/unimplemented", "nu exista firmware in asteptarea confirmarii", {});
+        throw new HostError("raptor:host/unimplemented", "there is no firmware awaiting confirmation", {});
       }
       pendingFirmware = { version: pendingFirmware.version, confirmed: true };
       return { version: pendingFirmware.version, confirmed: true };
@@ -264,12 +264,13 @@ export function createDeviceHost(options: DeviceHostOptions): DeviceHost {
 
     "update.apply": () => {
       if (!options.availableFirmware) {
-        throw new HostError("raptor:host/unimplemented", "nu exista nicio imagine de firmware de aplicat", {});
+        throw new HostError("raptor:host/unimplemented", "there is no firmware image to apply", {});
       }
-      // Imaginea noua porneste "neconfirmata": daca nu se confirma dupa repornire,
-      // urmatorul reset o da inapoi. Altfel un firmware stricat ar fi definitiv.
+      // The new image starts "unconfirmed": if it is not confirmed after the
+      // reboot, the next reset rolls it back. Otherwise a broken firmware would
+      // be permanent.
       pendingFirmware = { version: options.availableFirmware.version, confirmed: false };
-      reset("firmware nou, in asteptarea confirmarii");
+      reset("new firmware, awaiting confirmation");
       return { applied: true, version: pendingFirmware.version, confirmed: false };
     },
   };
@@ -277,10 +278,10 @@ export function createDeviceHost(options: DeviceHostOptions): DeviceHost {
   const startedAt = now();
 
   /**
-   * Dupa un reset, aplicatia care a trimis apelul nu mai exista: firmware-ul a
-   * repornit. Un apel intarziat de la ea primeste un refuz limpede, nu o eroare
-   * de tranzitie de lifecycle - diagnosticele raman insa citibile, ca cineva sa
-   * poata afla *de ce* a repornit placheta.
+   * After a reset, the app that sent the call no longer exists: the firmware
+   * rebooted. A delayed call from it gets a clear denial, not a lifecycle
+   * transition error - the diagnostics stay readable, though, so someone can
+   * find out *why* the board rebooted.
    */
   const READABLE_AFTER_RESET = new Set(["device.info", "lifecycle.state", "storage.get", "storage.keys"]);
   const guarded: Record<string, MethodHandler> = {};
@@ -289,7 +290,7 @@ export function createDeviceHost(options: DeviceHostOptions): DeviceHost {
       ? handler
       : (params) => {
           if (stopped) {
-            throw new HostError("raptor:host/lifecycle", `placheta a repornit (${resets.at(-1) ?? "reset"}); apelul nu mai are destinatar`, {
+            throw new HostError("raptor:host/lifecycle", `the board rebooted (${resets.at(-1) ?? "reset"}); the call no longer has a recipient`, {
               method: name,
               reason: resets.at(-1) ?? null,
             });
@@ -335,7 +336,7 @@ export function createDeviceHost(options: DeviceHostOptions): DeviceHost {
 
     tick(ms: number): void {
       clockOffset += ms;
-      // In somn, watchdog-ul nu curge - exact ca pe o placheta reala.
+      // During sleep, the watchdog does not run - exactly like on a real board.
       if (stopped || asleep || watchdogMs === 0) return;
       const elapsed = now() - lastPet;
       if (elapsed >= watchdogMs) {
@@ -354,7 +355,7 @@ export function createDeviceHost(options: DeviceHostOptions): DeviceHost {
     close(): void {
       if (!stopped) {
         stopped = true;
-        lifecycle.settle("stopped", "host inchis");
+        lifecycle.settle("stopped", "host closed");
       }
       server.close();
     },

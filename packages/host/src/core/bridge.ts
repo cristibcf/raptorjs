@@ -1,13 +1,13 @@
 /**
- * Puntea dinspre JavaScript catre host-ul nativ.
+ * The bridge from JavaScript to the native host.
  *
- * Regula sectiunii 6 - "JavaScript primeste doar API-uri raptor: si
- * capabilitatile acordate" - se traduce aici in doua lucruri concrete:
+ * The section 6 rule - "JavaScript only gets raptor: APIs and the granted
+ * capabilities" - translates here into two concrete things:
  *
- *  1. aplicatia nu primeste niciodata transportul, ci doar acest obiect;
- *  2. fiecare apel este verificat local inainte sa plece, ca refuzul sa fie
- *     imediat si lizibil - dar verificarea reala ramane la host, pentru ca
- *     latura JS poate fi oricand ocolita de cod ostil.
+ *  1. the app never receives the transport, only this object;
+ *  2. every call is checked locally before it leaves, so a denial is
+ *     immediate and readable - but the real check stays at the host, because
+ *     the JS side can always be bypassed by hostile code.
  */
 import { requireCapability } from "./capabilities.ts";
 import type { HostTarget } from "./capabilities.ts";
@@ -18,17 +18,17 @@ import type { HostTransport } from "./transport.ts";
 
 export interface BridgeOptions {
   readonly target: HostTarget;
-  /** Modulele optionale acordate; de obicei `manifest.capabilities`. */
+  /** The granted optional modules; usually `manifest.capabilities`. */
   readonly capabilities?: readonly string[];
   readonly transport: HostTransport;
-  /** Implicit 15s. `0` asteapta la nesfarsit (cere deadline la nivel de task). */
+  /** Defaults to 15s. `0` waits forever (ask for a deadline at the task level). */
   readonly timeoutMs?: number;
 }
 
 export interface HostDescription {
   readonly target: HostTarget;
   readonly capabilities: readonly string[];
-  /** Metodele pe care adaptorul din spate chiar le implementeaza. */
+  /** The methods the backing adapter actually implements. */
   readonly implemented: readonly string[];
 }
 
@@ -36,18 +36,18 @@ export interface HostBridge {
   readonly target: HostTarget;
   readonly capabilities: readonly string[];
   call<T = unknown>(method: string, params?: Record<string, unknown>): Promise<T>;
-  /** `true` daca apelul ar trece de verificarea locala de capabilitate. */
+  /** `true` if the call would pass the local capability check. */
   allows(method: string): boolean;
   /**
-   * Ce poate face aplicatia aici, de-a binelea: capabilitate acordata *si*
-   * metoda implementata de adaptor. `allows` raspunde doar la prima intrebare,
-   * deci o interfata care isi deseneaza singura optiunile pe el ar promite
-   * lucruri pe care host-ul curent nu le poate face.
+   * What the app can genuinely do here: granted capability *and* method
+   * implemented by the adapter. `allows` only answers the first question, so
+   * an interface that draws its own options off it would promise things the
+   * current host cannot do.
    */
   supported(): Promise<(method: string) => boolean>;
   describe(): Promise<HostDescription>;
   on(event: string, listener: (payload: Record<string, unknown>) => void): void;
-  /** Respinge apelurile in zbor si inchide transportul. */
+  /** Rejects in-flight calls and closes the transport. */
   dispose(reason?: string): void;
 }
 
@@ -79,8 +79,8 @@ export function createBridge(options: BridgeOptions): HostBridge {
     try {
       frame = decodeFrame(line);
     } catch (error) {
-      // Un cadru corupt nu are id, deci nu poate fi atribuit unui apel anume:
-      // il raportam ca eveniment de protocol si lasam apelurile sa expire.
+      // A corrupt frame has no id, so it cannot be tied to a specific call:
+      // we report it as a protocol event and let the calls time out.
       emit("host.protocolError", { message: (error as Error).message });
       return;
     }
@@ -90,9 +90,9 @@ export function createBridge(options: BridgeOptions): HostBridge {
       return;
     }
     if (frame.kind === "failure") {
-      // Codul host-ului se pastreaza daca este unul cunoscut: altfel un refuz de
-      // capabilitate ar ajunge la aplicatie etichetat "neimplementat", si nu s-ar
-      // mai putea deosebi "nu ai voie" de "nu stiu sa fac".
+      // The host's code is kept if it is a known one: otherwise a capability
+      // denial would reach the app labeled "unimplemented", and you could no
+      // longer tell "you are not allowed" from "I don't know how to do it".
       const code = isHostErrorCode(frame.error.code) ? frame.error.code : "raptor:host/unimplemented";
       settle(frame.id, (entry) =>
         entry.reject(
@@ -109,8 +109,8 @@ export function createBridge(options: BridgeOptions): HostBridge {
       emit(frame.name, frame.payload as Record<string, unknown>);
       return;
     }
-    // Un `call` dinspre host catre aplicatie nu face parte din acest contract.
-    emit("host.protocolError", { message: `cadru neasteptat dinspre host: ${frame.kind}` });
+    // A `call` from the host to the app is not part of this contract.
+    emit("host.protocolError", { message: `unexpected frame from host: ${frame.kind}` });
   });
 
   function emit(name: string, payload: Record<string, unknown>): void {
@@ -144,7 +144,7 @@ export function createBridge(options: BridgeOptions): HostBridge {
 
     async call<T>(method: string, params: Record<string, unknown> = {}): Promise<T> {
       if (disposed) {
-        throw new HostError("raptor:host/transport-closed", "puntea catre host a fost inchisa", { method });
+        throw new HostError("raptor:host/transport-closed", "the bridge to the host was closed", { method });
       }
       const capability = capabilityForMethod(method);
       if (capability !== null) requireCapability(options.target, capability, capabilities);
@@ -153,15 +153,15 @@ export function createBridge(options: BridgeOptions): HostBridge {
       const promise = new Promise<T>((resolve, reject) => {
         const entry: Pending = { method, resolve: resolve as (value: unknown) => void, reject, timer: null };
         if (timeoutMs > 0) {
-          // Fara `unref`: un apel in zbor tine event loop-ul viu pana se rezolva
-          // sau expira (cel mult `timeoutMs`). Cu `unref`, un `await call()` pe un
-          // loop altfel inactiv ar iesi fara ca promisiunea sa se rezolve vreodata
-          // - nici raspuns, nici timeout. Timer-ul e oricum sters la raspuns si la
-          // `dispose`, deci nu ramane nimic in urma.
+          // No `unref`: an in-flight call keeps the event loop alive until it
+          // resolves or times out (at most `timeoutMs`). With `unref`, an
+          // `await call()` on an otherwise idle loop would exit without the
+          // promise ever resolving - no response, no timeout. The timer is
+          // cleared on the response and on `dispose` anyway, so nothing lingers.
           entry.timer = setTimeout(() => {
             pending.delete(id);
             reject(
-              new HostError("raptor:host/transport-closed", `host-ul nu a raspuns la '${method}' in ${timeoutMs}ms`, {
+              new HostError("raptor:host/transport-closed", `the host did not respond to '${method}' within ${timeoutMs}ms`, {
                 method,
                 timeoutMs,
               }),
@@ -187,7 +187,7 @@ export function createBridge(options: BridgeOptions): HostBridge {
       for (const [id] of [...pending]) {
         settle(id, (entry) =>
           entry.reject(
-            new HostError("raptor:host/transport-closed", `puntea s-a inchis inainte de raspuns: ${reason}`, {
+            new HostError("raptor:host/transport-closed", `the bridge closed before a response: ${reason}`, {
               method: entry.method,
               reason,
             }),

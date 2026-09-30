@@ -1,12 +1,12 @@
 /**
- * SplitPane - doua panouri cu maner redimensionabil intre ele.
+ * SplitPane - two panels with a resizable handle between them.
  *
- * Componenta peste comportamentul `resizable` (#189): adauga markup-ul,
- * colapsarea si persistarea marimii. Comportamentul ramane separat ca sa-l poti
- * folosi si pe alte forme (paleta laterala, sertar, coloana de tabel).
+ * A component on top of the `resizable` behavior (#189): it adds the markup,
+ * collapsing and size persistence. The behavior stays separate so you can use it
+ * on other shapes too (a side palette, a drawer, a table column).
  *
- * Teza: tragerea manerului rescrie un singur atribut de stil pe frame; panourile
- * nu se re-randeaza. Vezi testul cu 60 de `pointermove`.
+ * The thesis: dragging the handle rewrites a single style attribute per frame;
+ * the panels don't re-render. See the test with 60 `pointermove`s.
  */
 import { state, type Accessor } from "raptorjs";
 import { R, type Child } from "raptorjs/dom";
@@ -18,17 +18,17 @@ type El = any;
 export interface SplitPaneProps {
   first: Child;
   second: Child;
-  /** `horizontal` = panouri unul langa altul (maner vertical). Implicit asa. */
+  /** `horizontal` = panels side by side (a vertical handle). Default this. */
   direction?: "horizontal" | "vertical";
-  /** Marimea initiala a primului panou, in px. */
+  /** The initial size of the first panel, in px. */
   initial?: number;
   min?: number;
   max?: number;
-  /** Cuantizare la tragere si pas de tastatura. */
+  /** Quantization on drag and keyboard step. */
   step?: number;
-  /** Cheie de localStorage pentru pastrarea marimii intre sesiuni. */
+  /** localStorage key for keeping the size between sessions. */
   persist?: string;
-  /** Permite colapsarea primului panou la dublu-click pe maner. */
+  /** Allow collapsing the first panel with a double-click on the handle. */
   collapsible?: boolean;
   onResize?: (size: number) => void;
   label?: string;
@@ -51,7 +51,7 @@ function readPersisted(key: string | undefined, fallback: number): number {
     const parsed = raw == null ? NaN : Number(raw);
     return Number.isFinite(parsed) ? parsed : fallback;
   } catch {
-    return fallback; // localStorage blocat (mod privat, iframe)
+    return fallback; // localStorage blocked (private mode, iframe)
   }
 }
 
@@ -60,7 +60,7 @@ function writePersisted(key: string | undefined, value: number): void {
   try {
     (globalThis as any).localStorage?.setItem(key, String(value));
   } catch {
-    /* scrierea poate esua; nu e motiv sa pice UI-ul */
+    /* the write may fail; that's no reason for the UI to crash */
   }
 }
 
@@ -76,12 +76,12 @@ export function splitPane(props: SplitPaneProps): SplitPane {
   const handle = resizable({
     axis: horizontal ? "x" : "y",
     initial,
-    min: 0, // 0 permis ca sa putem colapsa; `min` e aplicat la tragere
+    min: 0, // 0 allowed so we can collapse; `min` is applied on drag
     max,
     step: props.step,
     onResize: (size) => {
       if (size > 0 && size < min) {
-        // Sub minim: colapsam in loc sa lasam un panou inutilizabil.
+        // Below the minimum: collapse instead of leaving an unusable panel.
         handle.setSize(0);
         return;
       }
@@ -121,7 +121,7 @@ export function splitPane(props: SplitPaneProps): SplitPane {
   return { el, size: () => handle.size(), setSize: handle.setSize, collapsed: () => collapsed(), toggle, handle };
 }
 
-/** Varianta componenta, cand nu ai nevoie de handle-ul returnat. */
+/** The component variant, when you don't need the returned handle. */
 export function SplitPane(props: SplitPaneProps): El {
   return splitPane(props).el;
 }

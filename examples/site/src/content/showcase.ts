@@ -1,12 +1,12 @@
 /**
- * Showcase: aplicatiile reale din monorepo. La un stack v0.1.0-alpha, cea mai
- * onesta vitrina sunt propriile exemple - fiecare cu comanda care il ruleaza.
+ * Showcase: the real applications in the monorepo. For a v0.1.0-alpha stack, the
+ * most honest showcase is its own examples - each with the command that runs it.
  */
 export interface ShowcaseItem {
   title: string;
   blurb: string;
   tags: string[];
-  /** Comanda pnpm din radacina repo-ului. */
+  /** The pnpm command from the repo root. */
   run: string;
 }
 export interface ShowcaseGroup {

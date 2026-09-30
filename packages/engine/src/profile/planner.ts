@@ -1,15 +1,15 @@
 /**
- * Build planner profile-guided (whitepaper RaptorEngine 23, 24).
+ * Profile-guided build planner (whitepaper RaptorEngine 23, 24).
  *
- * Transforma un profil in PlanHints de STRATEGIE. Respecta linia rosie din §24
- * ("adaptive strategies, nu adaptive correctness"):
- *   PERMIS  : chunk folding pe co-usage, preload pentru routes frecvente, batch
- *             size din bursts, specializare wire cu fallback.
- *   INTERZIS: eliminarea codului nevazut, schimbarea ordinii effects, ignorarea
- *             routes rare, encoding incompatibil fara fallback.
+ * Transforms a profile into STRATEGY PlanHints. Respects the red line in §24
+ * ("adaptive strategies, not adaptive correctness"):
+ *   ALLOWED  : chunk folding by co-usage, preload for frequent routes, batch
+ *              size from bursts, wire specialization with fallback.
+ *   FORBIDDEN: eliminating unseen code, changing effect order, ignoring rare
+ *              routes, incompatible encoding without fallback.
  *
- * Ce NU e in profil e explicit PASTRAT (keptDespiteUnseen) - dovada ca profilul
- * nu poate reduce corectitudinea (23: "hint-based").
+ * Whatever is NOT in the profile is explicitly KEPT (keptDespiteUnseen) - proof
+ * that the profile cannot reduce correctness (23: "hint-based").
  */
 import { emptyPlanHints, type PlanHints } from "@raptor/engine";
 import type { RouteDef } from "@raptor/engine/run";
@@ -22,7 +22,7 @@ export interface PlanContext {
 }
 
 export interface PlanOptions {
-  /** Co-usage minim pentru a fuziona doua componente intr-un chunk. */
+  /** Minimum co-usage to merge two components into one chunk. */
   foldThreshold: number;
 }
 
@@ -30,13 +30,13 @@ export const DEFAULT_PLAN_OPTIONS: PlanOptions = { foldThreshold: 2 };
 
 export interface PlanResult {
   hints: PlanHints;
-  /** §24: routes/signals absente din profil, PASTRATE (nu eliminate). */
+  /** §24: routes/signals absent from the profile, KEPT (not eliminated). */
   keptDespiteUnseen: string[];
-  /** Note de strategie + siguranta (explicabilitate, 27). */
+  /** Strategy + safety notes (explainability, 27). */
   notes: string[];
 }
 
-// Union-find minimal pentru gruparea componentelor co-usate.
+// Minimal union-find for grouping co-used components.
 class UnionFind {
   private parent = new Map<string, string>();
   find(x: string): string {
@@ -64,7 +64,7 @@ export function planFromProfile(
   const routeToComponent = new Map<string, string>();
   for (const r of ctx.routes) routeToComponent.set(r.path, r.component);
 
-  // --- Chunk folding pe co-usage (PERMIS, 24) ------------------------------
+  // --- Chunk folding by co-usage (ALLOWED, 24) -----------------------------
   const uf = new UnionFind();
   for (const co of profile.routeCoUsage) {
     if (co.count < options.foldThreshold) continue;
@@ -84,27 +84,27 @@ export function planFromProfile(
     notes.push(`chunk folding: ${hints.foldChunks.map((g) => g.join("+")).join(", ")} (co-usage)`);
   }
 
-  // --- Preload pentru routes frecvente (PERMIS, 24) ------------------------
+  // --- Preload for frequent routes (ALLOWED, 24) ---------------------------
   hints.preloadRoutes = [...profile.hotRoutes].sort();
   if (hints.preloadRoutes.length > 0) {
-    notes.push(`preload: ${hints.preloadRoutes.join(", ")} (routes frecvente)`);
+    notes.push(`preload: ${hints.preloadRoutes.join(", ")} (frequent routes)`);
   }
 
-  // --- Batch size din DOM mutation bursts (PERMIS, 24) ---------------------
+  // --- Batch size from DOM mutation bursts (ALLOWED, 24) -------------------
   if (profile.domBursts.maxBatch > 1) {
     hints.batchSizes["default"] = profile.domBursts.maxBatch;
-    notes.push(`batch size sugerat ${profile.domBursts.maxBatch} (din DOM bursts)`);
+    notes.push(`batch size suggested ${profile.domBursts.maxBatch} (from DOM bursts)`);
   }
 
-  // --- Specializare wire cu fallback (PERMIS, 24) --------------------------
+  // --- Wire specialization with fallback (ALLOWED, 24) ---------------------
   hints.encodingSpecialization = [...profile.hotSignals].sort();
   if (hints.encodingSpecialization.length > 0) {
     notes.push(
-      `encoding specializat (cu fallback compatibil): ${hints.encodingSpecialization.join(", ")}`,
+      `specialized encoding (with compatible fallback): ${hints.encodingSpecialization.join(", ")}`,
     );
   }
 
-  // --- §24 INTERZIS: ce nu e in profil ramane in output --------------------
+  // --- §24 FORBIDDEN: whatever is not in the profile stays in output -------
   const seenRoutes = new Set(Object.keys(profile.routeFrequency));
   const seenSignals = new Set(Object.keys(profile.signalUpdateFrequency));
   const keptRoutes = ctx.routes.map((r) => r.path).filter((p) => !seenRoutes.has(p));
@@ -115,7 +115,7 @@ export function planFromProfile(
   ].sort();
 
   notes.push(
-    "corectitudine: nu elimin cod nevazut, nu schimb ordinea effects, nu ignor routes rare, encoding doar cu fallback (24)",
+    "correctness: do not eliminate unseen code, do not change effect order, do not ignore rare routes, encoding only with fallback (24)",
   );
 
   return { hints, keptDespiteUnseen, notes };

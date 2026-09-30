@@ -1,11 +1,11 @@
 /**
- * Dialog / ConfirmDialog / Popover / Tooltip - overlay-uri.
+ * Dialog / ConfirmDialog / Popover / Tooltip - overlays.
  *
- * Toate se sprijina pe primitivele din valul 1: `Portal` (ca sa nu fie taiate de
- * `overflow` sau `z-index`-ul unui parinte), `focusTrap`, `clickOutside` si
- * `positioner` (flip + shift, ca sa nu iasa din ecran).
+ * They all rely on the wave 1 primitives: `Portal` (so they aren't clipped by a
+ * parent's `overflow` or `z-index`), `focusTrap`, `clickOutside` and
+ * `positioner` (flip + shift, so they don't go off screen).
  *
- * Cand sunt inchise NU exista noduri pentru ele - sunt montate prin `Show`.
+ * When closed there are NO nodes for them - they're mounted via `Show`.
  */
 import { state, effect, onCleanup, type Accessor, type State } from "raptorjs";
 import { R, Show, type Child } from "raptorjs/dom";
@@ -22,11 +22,11 @@ import { isolate } from "./primitives/isolate.ts";
 let idSeq = 0;
 
 /**
- * Blochează scroll-ul paginii cat timp un overlay modal e deschis.
+ * Locks page scroll while a modal overlay is open.
  *
- * Contorul e global si NU per-dialog: cu doua dialoguri suprapuse, inchiderea
- * celui de deasupra nu trebuie sa redea scroll-ul cat timp cel de dedesubt e
- * inca deschis. Fara contor, exact asta se intampla.
+ * The counter is global and NOT per-dialog: with two stacked dialogs, closing
+ * the top one must not restore scroll while the one underneath is still open.
+ * Without a counter, that's exactly what happens.
  */
 let scrollLocks = 0;
 let savedOverflow = "";
@@ -50,11 +50,11 @@ export interface DialogProps {
   title?: Child;
   children: Child;
   footer?: Child;
-  /** Inchide la Escape. Implicit `true`. */
+  /** Close on Escape. Defaults to `true`. */
   closeOnEscape?: boolean;
-  /** Inchide la click pe fundal. Implicit `true`. */
+  /** Close on backdrop click. Defaults to `true`. */
   closeOnBackdrop?: boolean;
-  /** Ascunde butonul ✕ din colt. */
+  /** Hides the ✕ button in the corner. */
   hideClose?: boolean;
   size?: "sm" | "md" | "lg" | "full";
   onClose?: () => void;
@@ -70,7 +70,7 @@ export function Dialog(props: DialogProps): Child {
     props.onClose?.();
   };
 
-  // Scroll lock si Escape traiesc doar cat e deschis.
+  // Scroll lock and Escape live only while it's open.
   effect(() => {
     if (!props.open()) return;
     const unlock = lockScroll();
@@ -96,7 +96,7 @@ export function Dialog(props: DialogProps): Child {
             ? {}
             : {
                 "on:click": (e: any) => {
-                  // Doar clickul PE fundal, nu cel scapat din panou.
+                  // Only the click ON the backdrop, not one leaking from the panel.
                   if (e.target === e.currentTarget) close();
                 },
               }),
@@ -122,7 +122,7 @@ export function Dialog(props: DialogProps): Child {
                   : R.button({
                       type: "button",
                       class: "rui-dialog-close",
-                      "aria-label": "Închide",
+                      "aria-label": "Close",
                       "on:click": close,
                     }, "✕"),
               )
@@ -141,7 +141,7 @@ export interface ConfirmDialogProps {
   message: Child;
   confirmLabel?: Child;
   cancelLabel?: Child;
-  /** `danger` pentru actiuni distructive. Implicit `primary`. */
+  /** `danger` for destructive actions. Defaults to `primary`. */
   variant?: ButtonVariant;
   onConfirm: () => void | Promise<unknown>;
   onCancel?: () => void;
@@ -164,37 +164,37 @@ export function ConfirmDialog(props: ConfirmDialogProps): Child {
 
   return Dialog({
     open: props.open,
-    title: props.title ?? "Confirmare",
+    title: props.title ?? "Confirm",
     size: "sm",
     onClose: props.onCancel,
     children: R.p({ class: "rui-confirm-message" }, props.message),
     footer: R.div(
       { class: "rui-confirm-actions" },
-      Button({ variant: "ghost", onClick: cancel, children: props.cancelLabel ?? "Anulează" }),
+      Button({ variant: "ghost", onClick: cancel, children: props.cancelLabel ?? "Cancel" }),
       Button({
         variant: props.variant ?? "primary",
         onClick: confirm,
-        children: props.confirmLabel ?? "Confirmă",
+        children: props.confirmLabel ?? "Confirm",
       }),
     ),
   });
 }
 
 export interface PopoverProps {
-  /** Elementul declansator. Primeste props de trigger. */
+  /** The trigger element. Receives trigger props. */
   trigger: (props: Record<string, unknown>) => El;
   children: Child;
   open?: State<boolean>;
   placement?: Placement;
   offset?: number;
-  /** Inchide la click in afara. Implicit `true`. */
+  /** Close on click outside. Defaults to `true`. */
   closeOnOutside?: boolean;
   label?: string;
   class?: string;
 }
 
 export function Popover(props: PopoverProps): El {
-  // Constructia nu aboneaza computatia apelantului; vezi `isolate`.
+  // Construction doesn't subscribe the caller's computation; see `isolate`.
   return isolate(() => PopoverImpl(props));
 }
 
@@ -267,21 +267,21 @@ function PopoverImpl(props: PopoverProps): El {
 }
 
 export interface TooltipProps {
-  /** Elementul care primeste tooltipul. */
+  /** The element that receives the tooltip. */
   trigger: (props: Record<string, unknown>) => El;
   content: Child;
   placement?: Placement;
-  /** Intarziere la afisare, in ms. Implicit 400. */
+  /** Show delay, in ms. Defaults to 400. */
   delay?: number;
   class?: string;
 }
 
 /**
- * Tooltip - text ajutator la hover SAU la focus.
+ * Tooltip - helper text on hover OR on focus.
  *
- * Focusul conteaza: un tooltip doar pe hover e invizibil pentru cine navigheaza
- * la tastatura. Continutul e legat prin `aria-describedby`, nu `aria-label` -
- * un tooltip descrie, nu inlocuieste numele elementului.
+ * Focus matters: a hover-only tooltip is invisible to keyboard users. The
+ * content is linked via `aria-describedby`, not `aria-label` - a tooltip
+ * describes, it doesn't replace the element's name.
  */
 export function Tooltip(props: TooltipProps): El {
   const id = "rui-tip-" + ++idSeq;
@@ -320,7 +320,7 @@ export function Tooltip(props: TooltipProps): El {
     open.set(false);
   };
 
-  // Escape ascunde tooltipul chiar daca mouse-ul e inca deasupra (cerinta WCAG).
+  // Escape hides the tooltip even if the mouse is still over it (WCAG requirement).
   effect(() => {
     if (!open()) return;
     const unbind = onDoc("keydown", (e: any) => {

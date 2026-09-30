@@ -1,9 +1,9 @@
 /**
- * Host-ul RaptorRuntime: leaga manifest, capabilitati, task fabric, telemetrie
- * si spatiul de nume `raptor:` intr-un singur obiect cu ciclu de viata explicit.
+ * The RaptorRuntime host: ties manifest, capabilities, task fabric, telemetry
+ * and the `raptor:` namespace into a single object with an explicit lifecycle.
  *
- * Acesta este contractul pe care il va implementa host-ul nativ; launcher-ul
- * (`@raptor/runtime-cli`) nu stie nimic despre motor, doar despre acest API.
+ * This is the contract the native host will implement; the launcher
+ * (`@raptor/runtime-cli`) knows nothing about the engine, only about this API.
  */
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -34,9 +34,9 @@ export interface RuntimeOptions {
   readonly args?: readonly string[];
   readonly observer?: Observer;
   readonly adapter?: EngineAdapter;
-  /** Mediul din care `raptor:process` poate citi variabile permise. */
+  /** The environment from which `raptor:process` can read allowed variables. */
   readonly env?: NodeJS.ProcessEnv;
-  /** Forteaza regimul strict de capabilitati, indiferent de politica din manifest. */
+  /** Forces the strict capability regime, regardless of the manifest's policy. */
   readonly strict?: boolean;
 }
 
@@ -63,16 +63,16 @@ export interface RaptorRuntimeHost {
   start(): Promise<StartResult>;
   shutdown(reason?: string): Promise<void>;
   /**
-   * Se rezolva dupa ce oprirea s-a incheiat, indiferent cine a cerut-o.
-   * Aplicatia poate cere oprirea singura (`raptor:process.requestExit`), deci
-   * launcher-ul are nevoie de un semnal, nu doar de propriul apel `shutdown`.
+   * Resolves once shutdown has completed, no matter who requested it.
+   * The application can request its own shutdown (`raptor:process.requestExit`),
+   * so the launcher needs a signal, not just its own `shutdown` call.
    */
   whenStopped(): Promise<void>;
   diagnostics(): RuntimeDiagnostics;
   events(): readonly RuntimeEvent[];
 }
 
-/** Modulele publicate sub `raptor:`; numele urmeaza spec sectiunea 6. */
+/** The modules published under `raptor:`; the names follow spec section 6. */
 function buildModules(host: HostContext, env: NodeJS.ProcessEnv): Map<string, unknown> {
   return new Map<string, unknown>([
     ["files", createFiles(host)],
@@ -132,12 +132,12 @@ export function createRuntime(options: RuntimeOptions): RaptorRuntimeHost {
     observer,
 
     async start(): Promise<StartResult> {
-      if (started) throw new RaptorError("raptor:engine/evaluation", "runtime-ul a fost deja pornit", {});
+      if (started) throw new RaptorError("raptor:engine/evaluation", "the runtime has already been started", {});
       started = true;
 
       const entryPath = resolvePath(projectRoot, manifest.entry);
       if (!containsPath(projectRoot, entryPath)) {
-        throw new RaptorError("raptor:module/not-found", "punctul de intrare trebuie sa fie in radacina proiectului", {
+        throw new RaptorError("raptor:module/not-found", "the entry point must be inside the project root", {
           entry: manifest.entry,
           projectRoot,
         });
@@ -161,7 +161,7 @@ export function createRuntime(options: RuntimeOptions): RaptorRuntimeHost {
       observer.metric("runtime.startupMs", startupMs);
       observer.metric("runtime.evaluationMs", result.durationMs);
 
-      // Un `export default` functie este punctul de intrare al aplicatiei.
+      // A `export default` function is the application's entry point.
       const main = result.namespace["default"];
       if (typeof main === "function") {
         await tasks.spawn(() => (main as (ctx: HostContext) => unknown)(context), { name: "main" });
@@ -210,7 +210,7 @@ export interface LoadedProject {
   readonly manifest: RuntimeManifest;
 }
 
-/** Cauta `raptor.runtime.json` in sus, de la `from` pana la radacina discului. */
+/** Searches upward for `raptor.runtime.json`, from `from` to the disk root. */
 export async function loadProject(from: string): Promise<LoadedProject> {
   let current = normalizePath(from);
   for (;;) {
@@ -222,7 +222,7 @@ export async function loadProject(from: string): Promise<LoadedProject> {
       if (error instanceof RaptorError) throw error;
       const parent = normalizePath(dirname(current));
       if (parent === current) {
-        throw new RaptorError("raptor:manifest/missing", `nu am gasit ${MANIFEST_FILENAME} pornind de la ${from}`, { from });
+        throw new RaptorError("raptor:manifest/missing", `could not find ${MANIFEST_FILENAME} starting from ${from}`, { from });
       }
       current = parent;
     }

@@ -1,30 +1,30 @@
 /**
- * Transport RaptorWire peste WebSocket. Foloseste doar globalul `WebSocket`
- * (browser, si Node >= 22), deci fisierul asta ramane sigur de bundle-uit -
- * nimic din node: aici.
+ * RaptorWire transport over WebSocket. Uses only the global `WebSocket`
+ * (browser, and Node >= 22), so this file stays safe to bundle - nothing from
+ * node: here.
  *
- * Perechea lui pe server e `serveOverWebSocket` din @raptor/server.
+ * Its counterpart on the server is `serveOverWebSocket` from @raptor/server.
  */
 import { type Transport } from "./transport.ts";
 
 export interface WebSocketTransportOptions {
-  /** Cat asteptam deschiderea conexiunii, ms (implicit 10000). */
+  /** How long to wait for the connection to open, ms (default 10000). */
   timeoutMs?: number;
-  /** Notificat cand conexiunea cade - momentul in care pornesti `resume`. */
+  /** Notified when the connection drops - the moment you start `resume`. */
   onClose?: () => void;
 }
 
 /**
- * Deschide o conexiune si se rezolva cand e gata de trimis. Respinge daca
- * socket-ul esueaza sau nu se deschide la timp, ca apelantul sa poata reincerca
- * in loc sa astepte la nesfarsit.
+ * Opens a connection and resolves when it is ready to send. Rejects if the
+ * socket fails or does not open in time, so the caller can retry instead of
+ * waiting forever.
  */
 export function connectWebSocket(url: string, options: WebSocketTransportOptions = {}): Promise<Transport> {
   const timeoutMs = options.timeoutMs ?? 10_000;
 
   return new Promise<Transport>((resolve, reject) => {
     const socket = new WebSocket(url);
-    // Fara asta `event.data` vine ca Blob in browser si ar trebui citit async.
+    // Without this `event.data` arrives as a Blob in the browser and would need async reading.
     socket.binaryType = "arraybuffer";
 
     let handler: ((data: Uint8Array) => void) | null = null;
@@ -34,20 +34,20 @@ export function connectWebSocket(url: string, options: WebSocketTransportOptions
       if (settled) return;
       settled = true;
       socket.close();
-      reject(new Error(`WebSocket nu s-a deschis in ${timeoutMs} ms: ${url}`));
+      reject(new Error(`WebSocket did not open within ${timeoutMs} ms: ${url}`));
     }, timeoutMs);
 
     socket.onmessage = (event: MessageEvent) => {
       const data = event.data;
       if (data instanceof ArrayBuffer) handler?.(new Uint8Array(data));
-      // Orice altceva (text) nu e RaptorWire: il ignoram.
+      // Anything else (text) is not RaptorWire: we ignore it.
     };
 
     socket.onerror = () => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      reject(new Error(`WebSocket a esuat: ${url}`));
+      reject(new Error(`WebSocket failed: ${url}`));
     };
 
     socket.onclose = () => {

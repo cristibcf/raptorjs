@@ -2,10 +2,10 @@
  * Navigare: Breadcrumbs, Pagination, Stepper, Anchor (TOC), Navbar,
  * NavigationMenu, SidebarNav, AppShell, Sidebar.
  *
- * Regula care le tine pe toate: **navigarea e o lista de linkuri**, nu o
- * gramada de `div`-uri cu `onClick`. Un `nav` cu `ul`/`li` si `aria-current`
- * spune unui screen reader cate elemente sunt si unde te afli; un `div` nu
- * spune nimic.
+ * The rule that holds them all together: **navigation is a list of links**, not
+ * a pile of `div`s with `onClick`. A `nav` with `ul`/`li` and `aria-current`
+ * tells a screen reader how many items there are and where you are; a `div`
+ * says nothing.
  */
 import { state, derived, effect, onCleanup, type Accessor, type State } from "raptorjs";
 import { R, For, Show, type Child } from "raptorjs/dom";
@@ -27,7 +27,7 @@ export interface Crumb {
 export interface BreadcrumbsProps {
   items: readonly Crumb[] | Accessor<readonly Crumb[]>;
   separator?: Child;
-  /** Peste atatea elemente, cele din mijloc se colapseaza in "…". */
+  /** Above this many items, the middle ones collapse into "…". */
   maxItems?: number;
   label?: string;
   class?: string;
@@ -36,7 +36,7 @@ export interface BreadcrumbsProps {
 export function Breadcrumbs(props: BreadcrumbsProps): El {
   const all = typeof props.items === "function" ? props.items : () => props.items as readonly Crumb[];
 
-  /** Pastram primul si ultimele doua; restul devin "…". */
+  /** Keep the first and the last two; the rest become "…". */
   const shown = derived<Array<Crumb | null>>(() => {
     const items = all();
     const max = props.maxItems ?? 0;
@@ -47,7 +47,7 @@ export function Breadcrumbs(props: BreadcrumbsProps): El {
   return R.nav(
     {
       class: props.class ? "rui-breadcrumbs " + props.class : "rui-breadcrumbs",
-      "aria-label": props.label ?? "Firimituri",
+      "aria-label": props.label ?? "Breadcrumbs",
     },
     R.ol(
       { class: "rui-breadcrumbs-list" },
@@ -63,7 +63,7 @@ export function Breadcrumbs(props: BreadcrumbsProps): El {
             crumb === null
               ? R.span({ class: "rui-breadcrumb-ellipsis", "aria-hidden": "true" }, "…")
               : last
-                ? // Ultimul element NU e link: e locul unde te afli deja.
+                ? // The last item is NOT a link: it's where you already are.
                   R.span({ class: "rui-breadcrumb-current", "aria-current": "page" }, crumb.label)
                 : R.a(
                     {
@@ -91,11 +91,11 @@ export function Breadcrumbs(props: BreadcrumbsProps): El {
 /* ------------------------------------------------------------ Pagination -- */
 
 export interface PaginationProps {
-  /** Pagina curenta, de la 1. */
+  /** The current page, from 1. */
   page: State<number>;
-  /** Numarul total de pagini. */
+  /** The total number of pages. */
   pageCount: Accessor<number> | number;
-  /** Cate pagini se arata de fiecare parte a celei curente. Implicit 1. */
+  /** How many pages are shown on each side of the current one. Default 1. */
   siblings?: number;
   onChange?: (page: number) => void;
   label?: string;
@@ -103,13 +103,13 @@ export interface PaginationProps {
 }
 
 /**
- * Calculeaza paginile afisate: mereu prima si ultima, vecinii paginii curente,
- * iar in rest `null` (elipsa). Exportata separat fiindca e partea in care se
- * greseste si e usor de testat.
+ * Computes the pages shown: always the first and last, the neighbors of the
+ * current page, and `null` (an ellipsis) everywhere else. Exported separately
+ * because it's the part people get wrong and it's easy to test.
  */
 export function paginationRange(page: number, pageCount: number, siblings = 1): Array<number | null> {
   if (pageCount <= 0) return [];
-  // Prima + ultima + curenta + 2 vecini + 2 elipse.
+  // First + last + current + 2 neighbors + 2 ellipses.
   const maxVisible = siblings * 2 + 5;
   if (pageCount <= maxVisible) {
     return Array.from({ length: pageCount }, (_, i) => i + 1);
@@ -119,7 +119,7 @@ export function paginationRange(page: number, pageCount: number, siblings = 1): 
   const right = Math.min(pageCount - 1, page + siblings);
   const out: Array<number | null> = [1];
 
-  // Elipsa doar daca sarim CEL PUTIN doua pagini; altfel afisam numarul.
+  // An ellipsis only if we skip AT LEAST two pages; otherwise show the number.
   if (left > 2) out.push(null);
   else if (left === 2) out.push(2);
 
@@ -150,12 +150,12 @@ export function Pagination(props: PaginationProps): El {
   return R.nav(
     {
       class: props.class ? "rui-pagination " + props.class : "rui-pagination",
-      "aria-label": props.label ?? "Paginare",
+      "aria-label": props.label ?? "Pagination",
     },
     R.button({
       type: "button",
       class: "rui-page-nav",
-      "aria-label": "Pagina anterioară",
+      "aria-label": "Previous page",
       disabled: () => props.page() <= 1,
       "on:click": () => go(props.page.peek() - 1),
     }, "‹"),
@@ -171,9 +171,9 @@ export function Pagination(props: PaginationProps): El {
               : R.button({
                   type: "button",
                   class: () => "rui-page" + (props.page() === page ? " rui-active" : ""),
-                  // `aria-current="page"` e cum afla screen readerul unde e.
+                  // `aria-current="page"` is how the screen reader learns where it is.
                   "aria-current": () => (props.page() === page ? "page" : undefined),
-                  "aria-label": "Pagina " + page,
+                  "aria-label": "Page " + page,
                   "on:click": () => go(page),
                 }, String(page)),
           ),
@@ -182,7 +182,7 @@ export function Pagination(props: PaginationProps): El {
     R.button({
       type: "button",
       class: "rui-page-nav",
-      "aria-label": "Pagina următoare",
+      "aria-label": "Next page",
       disabled: () => props.page() >= count(),
       "on:click": () => go(props.page.peek() + 1),
     }, "›"),
@@ -195,16 +195,16 @@ export interface Step {
   key: string;
   label: Child;
   description?: Child;
-  /** Pas invalid: marcat cu eroare in loc de bifa. */
+  /** Invalid step: marked with an error instead of a checkmark. */
   error?: boolean;
 }
 
 export interface StepperProps {
   steps: readonly Step[];
-  /** Indexul pasului curent, de la 0. */
+  /** The index of the current step, from 0. */
   current: State<number>;
   orientation?: "horizontal" | "vertical";
-  /** Permite saritul la un pas deja parcurs, prin click. */
+  /** Allow jumping to an already-visited step by clicking. */
   clickable?: boolean;
   onChange?: (index: number) => void;
   label?: string;
@@ -214,7 +214,7 @@ export interface StepperProps {
 export function Stepper(props: StepperProps): El {
   const go = (index: number): void => {
     if (!props.clickable) return;
-    // Nu poti sari inainte: pasii urmatori pot depinde de ce completezi acum.
+    // You can't jump forward: later steps may depend on what you fill in now.
     if (index > props.current.peek()) return;
     props.current.set(index);
     props.onChange?.(index);
@@ -226,7 +226,7 @@ export function Stepper(props: StepperProps): El {
         "rui-stepper rui-" +
         (props.orientation ?? "horizontal") +
         (props.class ? " " + props.class : ""),
-      "aria-label": props.label ?? "Pași",
+      "aria-label": props.label ?? "Steps",
     },
     R.ol(
       { class: "rui-stepper-list" },
@@ -272,13 +272,13 @@ export function Stepper(props: StepperProps): El {
 export interface AnchorItem {
   id: string;
   label: Child;
-  /** Nivel de indentare, de la 1. */
+  /** Indentation level, from 1. */
   level?: number;
 }
 
 export interface AnchorProps {
   items: readonly AnchorItem[] | Accessor<readonly AnchorItem[]>;
-  /** Marja de sus la care o secțiune e considerata activa. Implicit 80px. */
+  /** The top margin at which a section is considered active. Default 80px. */
   offset?: number;
   onNavigate?: (id: string) => void;
   label?: string;
@@ -286,12 +286,12 @@ export interface AnchorProps {
 }
 
 /**
- * Anchor - cuprins cu scroll-spy.
+ * Anchor - a table of contents with scroll-spy.
  *
- * Marcheaza sectiunea activa urmarind scroll-ul. Nu foloseste
- * `IntersectionObserver` cu `threshold`, care da rezultate gresite pentru
- * sectiuni mai inalte decat ecranul: compara pozitiile fata de o linie
- * imaginara la `offset` px de sus, si alege ultima sectiune trecuta de ea.
+ * Marks the active section by tracking the scroll. It doesn't use
+ * `IntersectionObserver` with a `threshold`, which gives wrong results for
+ * sections taller than the screen: it compares positions against an imaginary
+ * line `offset` px from the top, and picks the last section past it.
  */
 export function Anchor(props: AnchorProps): El {
   const items = typeof props.items === "function" ? props.items : () => props.items as readonly AnchorItem[];
@@ -331,7 +331,7 @@ export function Anchor(props: AnchorProps): El {
   return R.nav(
     {
       class: props.class ? "rui-anchor " + props.class : "rui-anchor",
-      "aria-label": props.label ?? "Pe această pagină",
+      "aria-label": props.label ?? "On this page",
     },
     R.ul(
       { class: "rui-anchor-list" },
@@ -374,7 +374,7 @@ export interface NavGroup {
 
 export interface SidebarNavProps {
   groups: readonly NavGroup[];
-  /** Cheia elementului activ. */
+  /** The key of the active item. */
   active?: Accessor<string>;
   onNavigate?: (item: NavItem) => void;
   label?: string;
@@ -421,7 +421,7 @@ export function SidebarNav(props: SidebarNavProps): El {
   return R.nav(
     {
       class: props.class ? "rui-sidebar-nav " + props.class : "rui-sidebar-nav",
-      "aria-label": props.label ?? "Navigare",
+      "aria-label": props.label ?? "Navigation",
     },
     props.groups.map((group) =>
       R.div(
@@ -439,13 +439,13 @@ export function SidebarNav(props: SidebarNavProps): El {
 
 export interface NavbarProps {
   brand?: Child;
-  /** Continut central (linkuri). Ascuns sub breakpoint. */
+  /** Central content (links). Hidden below the breakpoint. */
   children?: Child;
-  /** Continut la dreapta (actiuni, avatar). */
+  /** Content on the right (actions, avatar). */
   actions?: Child;
-  /** Sub aceasta latime, `children` intra in meniul mobil. Implicit 768px. */
+  /** Below this width, `children` moves into the mobile menu. Default 768px. */
   breakpoint?: number;
-  /** Continut pentru meniul mobil; implicit acelasi cu `children`. */
+  /** Content for the mobile menu; defaults to the same as `children`. */
   mobile?: Child;
   sticky?: boolean;
   label?: string;
@@ -456,7 +456,7 @@ export function Navbar(props: NavbarProps): El {
   const wide = mediaQuery(`(min-width: ${props.breakpoint ?? 768}px)`, true);
   const menuOpen = state(false);
 
-  // Trecerea pe ecran lat inchide meniul mobil, altfel ramane deschis invizibil.
+  // Switching to a wide screen closes the mobile menu, otherwise it stays open invisibly.
   effect(() => {
     if (wide()) menuOpen.set(false);
   });
@@ -467,7 +467,7 @@ export function Navbar(props: NavbarProps): El {
         "rui-navbar" + (props.sticky ? " rui-sticky" : "") + (props.class ? " " + props.class : ""),
     },
     R.nav(
-      { class: "rui-navbar-inner", "aria-label": props.label ?? "Principal" },
+      { class: "rui-navbar-inner", "aria-label": props.label ?? "Main" },
       props.brand !== undefined ? R.div({ class: "rui-navbar-brand" }, props.brand) : null,
       Show({
         when: () => wide(),
@@ -479,7 +479,7 @@ export function Navbar(props: NavbarProps): El {
         children: R.button({
           type: "button",
           class: "rui-navbar-burger",
-          "aria-label": () => (menuOpen() ? "Închide meniul" : "Deschide meniul"),
+          "aria-label": () => (menuOpen() ? "Close menu" : "Open menu"),
           "aria-expanded": () => String(menuOpen()),
           "aria-controls": "rui-navbar-mobile",
           "on:click": () => menuOpen.update((v) => !v),
@@ -502,7 +502,7 @@ export interface NavMenuEntry {
   key: string;
   label: Child;
   href?: string;
-  /** Submeniu; prezenta lui face intrarea expandabila. */
+  /** Submenu; its presence makes the entry expandable. */
   items?: readonly NavItem[];
 }
 
@@ -514,11 +514,11 @@ export interface NavigationMenuProps {
 }
 
 /**
- * NavigationMenu - bara de navigare cu submeniuri.
+ * NavigationMenu - a navigation bar with submenus.
  *
- * Submeniul se deschide la hover SI la focus/Enter: un meniu doar pe hover e
- * inaccesibil la tastatura si pe touch. Inchiderea la parasirea zonei are o
- * mica intarziere, altfel drumul cu mouse-ul de la buton la submeniu il inchide.
+ * The submenu opens on hover AND on focus/Enter: a hover-only menu is
+ * inaccessible via keyboard and on touch. Closing on leaving the area has a
+ * small delay, otherwise the mouse path from the button to the submenu closes it.
  */
 export function NavigationMenu(props: NavigationMenuProps): El {
   const openKey = state<string | null>(null);
@@ -548,7 +548,7 @@ export function NavigationMenu(props: NavigationMenuProps): El {
   return R.nav(
     {
       class: props.class ? "rui-navmenu " + props.class : "rui-navmenu",
-      "aria-label": props.label ?? "Navigare",
+      "aria-label": props.label ?? "Navigation",
       "on:keydown": (e: any) => {
         if (e.key === "Escape") openKey.set(null);
       },
@@ -627,9 +627,9 @@ export function NavigationMenu(props: NavigationMenuProps): El {
 
 export interface SidebarProps {
   children: Child;
-  /** Semnal de deschidere; pe ecran ingust devine panou peste continut. */
+  /** Open signal; on a narrow screen it becomes a panel over the content. */
   open?: State<boolean>;
-  /** Sub aceasta latime, sidebarul e suprapus, nu lipit. Implicit 1024px. */
+  /** Below this width, the sidebar is overlaid, not docked. Default 1024px. */
   breakpoint?: number;
   width?: string;
   side?: "left" | "right";
@@ -650,9 +650,9 @@ export function Sidebar(props: SidebarProps): El {
         (open() ? " rui-open" : " rui-closed") +
         (props.class ? " " + props.class : ""),
       style: "width:" + (props.width ?? "260px"),
-      "aria-label": props.label ?? "Panou lateral",
-      // Ascuns de la screen reader cand e inchis si suprapus; cand e lipit si
-      // inchis, ramane in flux dar cu latime zero.
+      "aria-label": props.label ?? "Side panel",
+      // Hidden from the screen reader when closed and overlaid; when docked and
+      // closed, it stays in the flow but with zero width.
       "aria-hidden": () => String(!wide() && !open()),
     },
     props.children,
@@ -669,11 +669,11 @@ export interface AppShellProps {
 }
 
 /**
- * AppShell - scheletul unei aplicatii: antet, panou lateral, continut, subsol.
+ * AppShell - the skeleton of an application: header, sidebar, content, footer.
  *
- * Continutul principal e un `<main>` cu `id`, ca sa poti pune un link "sari la
- * conținut" - prima cerinta de accesibilitate a oricarei aplicatii cu navigare
- * lunga.
+ * The main content is a `<main>` with an `id`, so you can add a "skip to
+ * content" link - the first accessibility requirement of any application with
+ * long navigation.
  */
 export function AppShell(props: AppShellProps): El {
   return R.div(

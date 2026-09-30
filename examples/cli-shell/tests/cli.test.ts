@@ -15,7 +15,7 @@ interface Run {
   readonly err: string;
 }
 
-/** O invocare completa a uneltei peste un terminal controlat de test. */
+/** A complete invocation of the tool over a test-controlled terminal. */
 async function invoke(
   args: readonly string[],
   options: { interactive?: boolean; answer?: string; storage?: Map<string, string>; capabilities?: readonly string[] } = {},
@@ -41,113 +41,113 @@ async function invoke(
   return { code, out: out.join(""), err: err.join("") };
 }
 
-test("fara argumente, unealta arata ajutorul si iese cu cod de utilizare", async () => {
+test("without arguments, the tool shows help and exits with a usage code", async () => {
   const empty = await invoke([]);
   assert.equal(empty.code, 1);
   assert.match(empty.out, /raptor-notes list/);
 
   const help = await invoke(["list", "--help"]);
-  assert.equal(help.code, 0, "ajutorul cerut explicit nu este o eroare");
+  assert.equal(help.code, 0, "help requested explicitly is not an error");
 });
 
-test("add scrie prin stocarea host-ului, list o citeste", async () => {
+test("add writes through the host's storage, list reads it back", async () => {
   const storage = new Map<string, string>();
-  const added = await invoke(["add", "de", "cumparat", "lapte"], { storage });
+  const added = await invoke(["add", "buy", "milk"], { storage });
   assert.equal(added.code, 0);
-  assert.match(added.out, /adaugat \(1 note\)/);
-  assert.match(storage.get("notes") ?? "", /de cumparat lapte/);
+  assert.match(added.out, /added \(1 notes\)/);
+  assert.match(storage.get("notes") ?? "", /buy milk/);
 
   const listed = await invoke(["list"], { storage });
-  assert.match(listed.out, /1\. de cumparat lapte/);
+  assert.match(listed.out, /1\. buy milk/);
 });
 
-test("notele supravietuiesc intre invocari, pentru ca traiesc la host", async () => {
+test("notes survive between invocations, because they live at the host", async () => {
   const storage = new Map<string, string>();
-  await invoke(["add", "prima"], { storage });
-  await invoke(["add", "a doua"], { storage });
+  await invoke(["add", "first"], { storage });
+  await invoke(["add", "second"], { storage });
   const listed = await invoke(["list"], { storage });
-  assert.match(listed.out, /1\. prima/);
-  assert.match(listed.out, /2\. a doua/);
+  assert.match(listed.out, /1\. first/);
+  assert.match(listed.out, /2\. second/);
 });
 
-test("iesirea se aseaza dupa latimea raportata de terminal", async () => {
+test("the output lays out according to the width reported by the terminal", async () => {
   const storage = new Map<string, string>();
   await invoke(["add", "o".repeat(200)], { storage });
   const listed = await invoke(["list"], { storage });
   for (const line of listed.out.trimEnd().split("\n")) {
-    assert.ok(line.length <= 40, `linia depaseste latimea terminalului: ${line.length}`);
+    assert.ok(line.length <= 40, `the line exceeds the terminal width: ${line.length}`);
   }
-  assert.match(listed.out, /…$/m, "textul taiat este marcat, nu trunchiat pe tacute");
+  assert.match(listed.out, /…$/m, "the truncated text is marked, not silently cut off");
 });
 
-test("intrarile gresite au coduri de iesire distincte", async () => {
-  assert.equal((await invoke(["add"])).code, 2, "lipseste textul");
-  assert.equal((await invoke(["scrie"])).code, 2, "comanda necunoscuta");
-  assert.match((await invoke(["scrie"])).err, /comanda necunoscuta/);
+test("wrong inputs have distinct exit codes", async () => {
+  assert.equal((await invoke(["add"])).code, 2, "the text is missing");
+  assert.equal((await invoke(["write"])).code, 2, "unknown command");
+  assert.match((await invoke(["write"])).err, /unknown command/);
   assert.equal((await invoke(["list"])).code, 0);
 });
 
-test("clear cere confirmare, iar un raspuns negativ nu sterge nimic", async () => {
+test("clear asks for confirmation, and a negative answer deletes nothing", async () => {
   const storage = new Map<string, string>();
-  await invoke(["add", "importanta"], { storage });
+  await invoke(["add", "important"], { storage });
 
   const refuzat = await invoke(["clear"], { storage, interactive: true, answer: "n" });
   assert.equal(refuzat.code, 0);
-  assert.match(refuzat.out, /anulat/);
-  assert.match(storage.get("notes") ?? "", /importanta/, "nota este tot acolo");
+  assert.match(refuzat.out, /cancelled/);
+  assert.match(storage.get("notes") ?? "", /important/, "the note is still there");
 
-  const acceptat = await invoke(["clear"], { storage, interactive: true, answer: "da" });
+  const acceptat = await invoke(["clear"], { storage, interactive: true, answer: "yes" });
   assert.equal(acceptat.code, 0);
-  assert.match(acceptat.out, /sters/);
+  assert.match(acceptat.out, /deleted/);
   assert.equal(storage.get("notes"), "[]");
 });
 
-test("fara terminal interactiv, stergerea este refuzata cu un mesaj actionabil", async () => {
-  // Cazul din CI: nu exista cine sa confirme. Unealta nu presupune "da" si nici
-  // nu crapa - spune cum poate fi rulata.
+test("without an interactive terminal, deletion is refused with an actionable message", async () => {
+  // The CI case: there is no one to confirm. The tool does not assume "yes" and
+  // does not crash - it says how it can be run.
   const storage = new Map<string, string>();
-  await invoke(["add", "importanta"], { storage });
+  await invoke(["add", "important"], { storage });
 
   const refuzat = await invoke(["clear"], { storage, interactive: false });
   assert.equal(refuzat.code, 3);
   assert.match(refuzat.err, /--yes/);
-  assert.match(storage.get("notes") ?? "", /importanta/, "nimic nu s-a sters");
+  assert.match(storage.get("notes") ?? "", /important/, "nothing was deleted");
 
   const fortat = await invoke(["clear", "--yes"], { storage, interactive: false });
   assert.equal(fortat.code, 0);
   assert.equal(storage.get("notes"), "[]");
 });
 
-test("fara capabilitatea tty.interact, unealta nici nu incearca sa intrebe", async () => {
+test("without the tty.interact capability, the tool does not even try to ask", async () => {
   const storage = new Map<string, string>();
-  await invoke(["add", "importanta"], { storage, capabilities: [] });
+  await invoke(["add", "important"], { storage, capabilities: [] });
 
-  const refuzat = await invoke(["clear"], { storage, capabilities: [], interactive: true, answer: "da" });
-  assert.equal(refuzat.code, 3, "manifestul nu ii da voie, deci nu intreaba nici pe un terminal bun");
-  assert.match(refuzat.err, /nu are voie sa intrebe/);
+  const refuzat = await invoke(["clear"], { storage, capabilities: [], interactive: true, answer: "yes" });
+  assert.equal(refuzat.code, 3, "the manifest does not allow it, so it does not ask even on a good terminal");
+  assert.match(refuzat.err, /not allowed to ask/);
 });
 
-test("clear pe o lista goala nu cere confirmare degeaba", async () => {
+test("clear on an empty list does not ask for confirmation for nothing", async () => {
   const gol = await invoke(["clear"], { interactive: false });
   assert.equal(gol.code, 0);
-  assert.match(gol.out, /nimic de sters/);
+  assert.match(gol.out, /nothing to delete/);
 });
 
-test("binarul real ruleaza ca proces separat si pastreaza notele pe disc", async () => {
+test("the real binary runs as a separate process and keeps the notes on disk", async () => {
   const run = promisify(execFile);
   const bin = join(dirname(fileURLToPath(import.meta.url)), "..", "src", "bin.ts");
   const home = mkdtempSync(join(tmpdir(), "raptor-notes-"));
   const env = { ...process.env, RAPTOR_NOTES_HOME: home };
 
   try {
-    const added = await run(process.execPath, [bin, "add", "din alt proces"], { env });
-    assert.match(added.stdout, /adaugat \(1 note\)/);
+    const added = await run(process.execPath, [bin, "add", "from another process"], { env });
+    assert.match(added.stdout, /added \(1 notes\)/);
 
     const listed = await run(process.execPath, [bin, "list"], { env });
-    assert.match(listed.stdout, /1\. din alt proces/, "a doua invocare vede ce a scris prima");
+    assert.match(listed.stdout, /1\. from another process/, "the second invocation sees what the first wrote");
 
-    // stdin-ul unui proces copil nu este terminal, deci confirmarea pica - exact
-    // comportamentul din CI, verificat pe un proces adevarat.
+    // A child process's stdin is not a terminal, so the confirmation fails - exactly
+    // the CI behavior, verified on a real process.
     await assert.rejects(
       run(process.execPath, [bin, "clear"], { env }),
       (error: unknown) => {

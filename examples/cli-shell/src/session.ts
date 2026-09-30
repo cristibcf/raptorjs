@@ -1,8 +1,8 @@
 /**
- * Legarea uneltei de terminal.
+ * Wiring the tool to the terminal.
  *
- * `createSession` primeste un terminal oarecare - in teste unul fals, in binar
- * cel real din `process`. Unealta nu vede diferenta.
+ * `createSession` takes any terminal - a fake one in tests, the real one from
+ * `process` in the binary. The tool sees no difference.
  */
 import { createBridge, createMemoryChannel, requireHostManifest } from "@raptor/host";
 import type { HostBridge, HostManifest } from "@raptor/host";
@@ -13,7 +13,7 @@ import type { Cli } from "./app.ts";
 
 export interface SessionOptions {
   readonly terminal: Terminal;
-  /** Implicit: poate intreba utilizatorul. */
+  /** Default: it can ask the user. */
   readonly capabilities?: readonly string[];
   readonly storage?: Map<string, string>;
 }
@@ -67,16 +67,16 @@ export function createSession(options: SessionOptions): Session {
     cli: createCli(bridge),
     close(): void {
       host.close();
-      bridge.dispose("sesiune incheiata");
+      bridge.dispose("session ended");
     },
   };
 }
 
 /**
- * O invocare completa: ruleaza comanda si intoarce codul de iesire.
+ * A complete invocation: runs the command and returns the exit code.
  *
- * Codul nu este dat de aplicatie direct procesului, ci cerut host-ului prin
- * `cli.exit` - acelasi drum pe care il va face si cand host-ul va fi altul.
+ * The code is not given by the app directly to the process, but requested from
+ * the host through `cli.exit` - the same path it will take when the host is another.
  */
 export async function runOnce(options: SessionOptions): Promise<number> {
   const session = createSession(options);
@@ -89,7 +89,7 @@ export async function runOnce(options: SessionOptions): Promise<number> {
   }
 }
 
-/** Sesiunea reala din binar. */
+/** The real session in the binary. */
 export function createProcessSession(proc: ProcessLike, storage?: Map<string, string>): Session {
   return createSession({
     terminal: terminalFromProcess(proc),

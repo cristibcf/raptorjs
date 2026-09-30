@@ -222,7 +222,7 @@ export function buildTodoApp() {
     authorize: ({ input }) => typeof input.text === "string",
     run: ({ input, store }) => {
       const text = String(input.text).trim();
-      if (!text) throw new Error("text gol");
+      if (!text) throw new Error("empty text");
       const id = ++counter;
       store.setField(\`todo:\${id}\`, "text", text);
       store.setField(\`todo:\${id}\`, "done", false);
@@ -265,7 +265,7 @@ const http = createServer((req, res) => {
   res.end(html);
 });
 
-serveOverWebSocket(app, http);   // upgrade pe /raptor
+serveOverWebSocket(app, http);   // upgrade on /raptor
 http.listen(5190);` },
       { t: "note", kind: "info", title: "Zero dependencies means zero", text: "There is no `ws` package here. RFC 6455 — handshake, framing, masking, ping/pong — is implemented in `packages/server/src/websocket.ts`, the same way RaptorBundle replaces Vite." },
 
@@ -320,7 +320,7 @@ function TodoApp() {
   status.set("connecting");
   try {
     const transport = await connectWebSocket(WIRE_URL, { onClose: () => status.set("offline") });
-    await client.resume(transport, TODO_QUERY);   // delta, nu snapshot
+    await client.resume(transport, TODO_QUERY);   // delta, not snapshot
     status.set("online");
   } catch {
     status.set("offline");

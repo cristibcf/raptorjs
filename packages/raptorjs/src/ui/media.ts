@@ -2,9 +2,9 @@
  * Carousel, Gallery, Lightbox, ImageZoom, VideoPlayer, AudioPlayer, Waveform,
  * QRCode, ImageUpload, UploadProgress, FilePreview.
  *
- * Media si imagini. Playerele imbraca elementele native `<video>`/`<audio>`:
- * decodarea, subtitrarile si streamingul sunt treaba browserului; noi punem
- * doar controale stilizabile si accesibile.
+ * Media and images. The players wrap the native `<video>`/`<audio>` elements:
+ * decoding, subtitles and streaming are the browser's job; we only add
+ * stylable, accessible controls.
  */
 import { state, derived, effect, onCleanup, type Accessor, type State } from "raptorjs";
 import { R, For, Show, type Child } from "raptorjs/dom";
@@ -21,12 +21,12 @@ let idSeq = 0;
 
 export interface CarouselProps {
   slides: readonly Child[];
-  /** Indexul curent; da-i un semnal daca vrei control din afara. */
+  /** The current index; give it a signal if you want external control. */
   index?: State<number>;
-  /** Ms intre avansari automate. `0` = fara. */
+  /** Ms between automatic advances. `0` = none. */
   autoplay?: number;
   loop?: boolean;
-  /** Puncte de navigare sub slide-uri. Implicit `true`. */
+  /** Navigation dots below the slides. Default `true`. */
   dots?: boolean;
   arrows?: boolean;
   label?: string;
@@ -42,12 +42,12 @@ export interface CarouselHandle {
 }
 
 /**
- * Carousel - slide-uri cu navigare.
+ * Carousel - slides with navigation.
  *
- * `aria-roledescription="carousel"` si `aria-live` pe container: la schimbarea
- * slide-ului, screen readerul anunta "3 din 5". Autoplay-ul se opreste la hover
- * SI la focus - un carusel care se misca in timp ce citesti e o problema de
- * accesibilitate (WCAG 2.2.2), nu doar enervant.
+ * `aria-roledescription="carousel"` and `aria-live` on the container: when the
+ * slide changes, the screen reader announces "3 of 5". Autoplay stops on hover
+ * AND on focus - a carousel that moves while you're reading is an accessibility
+ * problem (WCAG 2.2.2), not just annoying.
  */
 export function carousel(props: CarouselProps): CarouselHandle {
   const id = "rui-car-" + ++idSeq;
@@ -77,8 +77,8 @@ export function carousel(props: CarouselProps): CarouselHandle {
       id,
       class: props.class ? "rui-carousel " + props.class : "rui-carousel",
       role: "group",
-      "aria-roledescription": "carusel",
-      "aria-label": props.label ?? "Galerie",
+      "aria-roledescription": "carousel",
+      "aria-label": props.label ?? "Gallery",
       "on:pointerenter": () => paused.set(true),
       "on:pointerleave": () => paused.set(false),
       "on:focusin": () => paused.set(true),
@@ -106,9 +106,9 @@ export function carousel(props: CarouselProps): CarouselHandle {
               class: "rui-carousel-slide",
               role: "group",
               "aria-roledescription": "slide",
-              "aria-label": i + 1 + " din " + count,
+              "aria-label": i + 1 + " of " + count,
               "aria-hidden": () => String(index() !== i),
-              // Slide-urile ascunse nu trebuie sa fie tabbable.
+              // Hidden slides must not be tabbable.
               inert: () => (index() !== i ? "" : undefined),
             },
             slide,
@@ -122,14 +122,14 @@ export function carousel(props: CarouselProps): CarouselHandle {
           R.button({
             type: "button",
             class: "rui-carousel-arrow rui-prev",
-            "aria-label": "Slide-ul anterior",
+            "aria-label": "Previous slide",
             disabled: () => !props.loop && index() === 0,
             "on:click": prev,
           }, "‹"),
           R.button({
             type: "button",
             class: "rui-carousel-arrow rui-next",
-            "aria-label": "Slide-ul următor",
+            "aria-label": "Next slide",
             disabled: () => !props.loop && index() >= count - 1,
             "on:click": next,
           }, "›"),
@@ -137,7 +137,7 @@ export function carousel(props: CarouselProps): CarouselHandle {
       : null,
     props.dots !== false
       ? R.div(
-          { class: "rui-carousel-dots", role: "tablist", "aria-label": "Alege slide-ul" },
+          { class: "rui-carousel-dots", role: "tablist", "aria-label": "Choose slide" },
           props.slides.map((_, i) =>
             R.button({
               type: "button",
@@ -176,7 +176,7 @@ export interface LightboxProps {
   class?: string;
 }
 
-/** Imagine pe ecran complet, cu navigare la sageti si Escape pentru inchidere. */
+/** Full-screen image, with arrow-key navigation and Escape to close. */
 export function Lightbox(props: LightboxProps): Child {
   const close = (): void => {
     props.open.set(false);
@@ -209,7 +209,7 @@ export function Lightbox(props: LightboxProps): Child {
           class: props.class ? "rui-lightbox " + props.class : "rui-lightbox",
           role: "dialog",
           "aria-modal": "true",
-          "aria-label": "Vizualizare imagine",
+          "aria-label": "Image viewer",
           ref: focusTrap(),
           "on:click": (e: any) => {
             if (e.target === e.currentTarget) close();
@@ -218,13 +218,13 @@ export function Lightbox(props: LightboxProps): Child {
         R.button({
           type: "button",
           class: "rui-lightbox-close",
-          "aria-label": "Închide",
+          "aria-label": "Close",
           "on:click": close,
         }, "✕"),
         R.button({
           type: "button",
           class: "rui-lightbox-prev",
-          "aria-label": "Imaginea anterioară",
+          "aria-label": "Previous image",
           "on:click": () => go(-1),
         }, "‹"),
         R.figure(
@@ -242,11 +242,11 @@ export function Lightbox(props: LightboxProps): Child {
         R.button({
           type: "button",
           class: "rui-lightbox-next",
-          "aria-label": "Imaginea următoare",
+          "aria-label": "Next image",
           "on:click": () => go(1),
         }, "›"),
         R.div({ class: "rui-lightbox-counter", "aria-live": "polite" }, () =>
-          props.images.length > 0 ? props.index() + 1 + " din " + props.images.length : "",
+          props.images.length > 0 ? props.index() + 1 + " of " + props.images.length : "",
         ),
       ),
     }),
@@ -256,7 +256,7 @@ export function Lightbox(props: LightboxProps): Child {
 export interface GalleryProps {
   images: readonly LightboxImage[];
   columns?: number;
-  /** Deschide lightbox la click. Implicit `true`. */
+  /** Open the lightbox on click. Default `true`. */
   lightbox?: boolean;
   label?: string;
   class?: string;
@@ -281,7 +281,7 @@ export function Gallery(props: GalleryProps): El {
             {
               type: "button",
               class: "rui-gallery-button",
-              "aria-label": "Deschide: " + image.alt,
+              "aria-label": "Open: " + image.alt,
               disabled: props.lightbox === false,
               "on:click": () => {
                 index.set(i);
@@ -291,8 +291,8 @@ export function Gallery(props: GalleryProps): El {
             R.img({
               class: "rui-gallery-img",
               src: image.thumbnail ?? image.src,
-              // `alt` gol: butonul poarta deja numele imaginii, altfel ar fi
-              // citit de doua ori.
+              // Empty `alt`: the button already carries the image's name, otherwise
+              // it would be read twice.
               alt: "",
               loading: "lazy",
               decoding: "async",
@@ -310,7 +310,7 @@ export function Gallery(props: GalleryProps): El {
 export interface ImageZoomProps {
   src: string;
   alt: string;
-  /** Factor de marire. Implicit 2.5. */
+  /** Magnification factor. Default 2.5. */
   zoom?: number;
   width?: string;
   height?: string;
@@ -318,11 +318,11 @@ export interface ImageZoomProps {
 }
 
 /**
- * ImageZoom - lupa care urmareste cursorul.
+ * ImageZoom - a magnifier that follows the cursor.
  *
- * Efectul se aplica doar la pointer fin (mouse). Pe touch nu exista hover, iar
- * `prefers-reduced-motion` il dezactiveaza - o imagine care se misca sub deget
- * poate provoca disconfort vestibular.
+ * The effect applies only to a fine pointer (mouse). On touch there's no hover,
+ * and `prefers-reduced-motion` disables it - an image that moves under your
+ * finger can cause vestibular discomfort.
  */
 export function ImageZoom(props: ImageZoomProps): El {
   const zoom = props.zoom ?? 2.5;
@@ -368,11 +368,11 @@ export function ImageZoom(props: ImageZoomProps): El {
 
 export interface MediaPlayerProps {
   src: string;
-  /** Piste de subtitrare (doar video). */
+  /** Subtitle tracks (video only). */
   tracks?: readonly { src: string; label: string; lang: string; default?: boolean }[];
   poster?: string;
   label?: string;
-  /** Porneste automat. Necesita `muted` in majoritatea browserelor. */
+  /** Start automatically. Requires `muted` in most browsers. */
   autoplay?: boolean;
   loop?: boolean;
   class?: string;
@@ -397,7 +397,7 @@ interface PlayerState {
   muted: Accessor<boolean>;
 }
 
-/** Controalele comune pentru audio si video. */
+/** The controls shared by audio and video. */
 function mediaControls(
   ref: () => El,
   st: {
@@ -426,7 +426,7 @@ function mediaControls(
     R.button({
       type: "button",
       class: "rui-player-play",
-      "aria-label": () => (st.playing() ? "Pauză" : "Redă"),
+      "aria-label": () => (st.playing() ? "Pause" : "Play"),
       "on:click": toggle,
     }, () => (st.playing() ? "❚❚" : "▶")),
     R.span({ class: "rui-player-time rui-tabular" }, () => formatDuration(st.time())),
@@ -435,17 +435,17 @@ function mediaControls(
       class: "rui-player-seek",
       min: "0",
       step: "0.1",
-      "aria-label": "Poziție",
+      "aria-label": "Position",
       max: () => String(Math.max(0, st.duration())),
       value: () => String(st.time()),
-      "aria-valuetext": () => formatDuration(st.time()) + " din " + formatDuration(st.duration()),
+      "aria-valuetext": () => formatDuration(st.time()) + " of " + formatDuration(st.duration()),
       "on:input": (e: any) => seek(Number(e.target?.value ?? 0)),
     }),
     R.span({ class: "rui-player-time rui-tabular" }, () => formatDuration(st.duration())),
     R.button({
       type: "button",
       class: "rui-player-mute",
-      "aria-label": () => (st.muted() ? "Activează sunetul" : "Oprește sunetul"),
+      "aria-label": () => (st.muted() ? "Unmute" : "Mute"),
       "aria-pressed": () => String(st.muted()),
       "on:click": () => {
         const el = ref();
@@ -460,7 +460,7 @@ function mediaControls(
       min: "0",
       max: "1",
       step: "0.05",
-      "aria-label": "Volum",
+      "aria-label": "Volume",
       value: () => String(st.volume()),
       "on:input": (e: any) => {
         const next = Number(e.target?.value ?? 1);
@@ -472,7 +472,7 @@ function mediaControls(
   );
 }
 
-/** Leaga evenimentele native de semnale. */
+/** Binds the native events to signals. */
 function bindMedia(
   el: El,
   st: {
@@ -520,8 +520,8 @@ export function VideoPlayer(props: MediaPlayerProps): El {
         ...(props.poster ? { poster: props.poster } : {}),
         ...(props.autoplay ? { autoplay: "", muted: "", playsinline: "" } : {}),
         ...(props.loop ? { loop: "" } : {}),
-        // Fara `controls`: punem noi controale stilizabile. `preload=metadata`
-        // aduce durata fara sa descarce tot filmul.
+        // No `controls`: we add our own stylable controls. `preload=metadata`
+        // fetches the duration without downloading the whole movie.
         preload: "metadata",
         ref: (node: El) => {
           el = node;
@@ -576,14 +576,14 @@ export function AudioPlayer(props: Omit<MediaPlayerProps, "tracks" | "poster">):
 
 export interface WaveformProps {
   /**
-   * Amplitudini normalizate 0..1, una per coloana.
+   * Normalized amplitudes 0..1, one per column.
    *
-   * Componenta NU decodeaza audio: decodarea cere `AudioContext` si un fisier
-   * intreg in memorie, ceea ce nu are ce cauta intr-o componenta de UI.
-   * Calculeaza varfurile pe server sau intr-un worker si trimite-le aici.
+   * The component does NOT decode audio: decoding needs an `AudioContext` and a
+   * whole file in memory, which has no place in a UI component. Compute the
+   * peaks on the server or in a worker and send them here.
    */
   peaks: Accessor<readonly number[]> | readonly number[];
-  /** Pozitia curenta, 0..1. */
+  /** The current position, 0..1. */
   progress?: Accessor<number>;
   width?: number;
   height?: number;
@@ -594,7 +594,7 @@ export interface WaveformProps {
   class?: string;
 }
 
-/** Reduce un vector lung de esantioane la `count` varfuri. */
+/** Reduces a long vector of samples to `count` peaks. */
 export function computePeaks(samples: readonly number[], count: number): number[] {
   if (count <= 0 || samples.length === 0) return [];
   const out: number[] = [];
@@ -635,7 +635,7 @@ export function Waveform(props: WaveformProps): El {
         ? {
             role: "slider",
             tabindex: "0",
-            "aria-label": props.label ?? "Poziție în piesă",
+            "aria-label": props.label ?? "Position in track",
             "aria-valuemin": "0",
             "aria-valuemax": "100",
             "aria-valuenow": () => String(Math.round((props.progress?.() ?? 0) * 100)),
@@ -690,9 +690,9 @@ export function Waveform(props: WaveformProps): El {
 /* ------------------------------------------ ImageUpload / UploadProgress -- */
 
 export interface ImageUploadProps {
-  /** URL-ul imaginii curente (obiect URL sau remote). */
+  /** URL of the current image (object URL or remote). */
   value: State<string | null>;
-  /** Apelat cu fisierul ales; tu decizi ce faci cu el. */
+  /** Called with the chosen file; you decide what to do with it. */
   onSelect?: (file: FileLike) => void;
   onClear?: () => void;
   accept?: string;
@@ -702,7 +702,7 @@ export interface ImageUploadProps {
   class?: string;
 }
 
-/** Selector de avatar/imagine cu previzualizare. */
+/** Avatar/image picker with a preview. */
 export function ImageUpload(props: ImageUploadProps): El {
   const id = "rui-imgup-" + ++idSeq;
   let input: El = null;
@@ -732,7 +732,7 @@ export function ImageUpload(props: ImageUploadProps): El {
       Show({
         when: () => props.value() !== null,
         children: R.img({ class: "rui-imageupload-img", alt: "", src: () => props.value() ?? "" }),
-        fallback: R.span({ class: "rui-imageupload-hint" }, props.label ?? "Alege o imagine"),
+        fallback: R.span({ class: "rui-imageupload-hint" }, props.label ?? "Choose an image"),
       }),
     ),
     Show({
@@ -740,7 +740,7 @@ export function ImageUpload(props: ImageUploadProps): El {
       children: R.button({
         type: "button",
         class: "rui-imageupload-clear",
-        "aria-label": "Elimină imaginea",
+        "aria-label": "Remove image",
         "on:click": () => {
           props.value.set(null);
           props.onClear?.();
@@ -767,7 +767,7 @@ export interface UploadProgressProps {
   class?: string;
 }
 
-/** Lista de incarcari in curs, cu progres per fisier si total. */
+/** List of uploads in progress, with per-file and total progress. */
 export function UploadProgress(props: UploadProgressProps): El {
   const read = (): readonly UploadTask[] =>
     typeof props.tasks === "function" ? props.tasks() : props.tasks;
@@ -782,7 +782,7 @@ export function UploadProgress(props: UploadProgressProps): El {
     {
       class: props.class ? "rui-uploads " + props.class : "rui-uploads",
       role: "region",
-      "aria-label": props.label ?? "Încărcări",
+      "aria-label": props.label ?? "Uploads",
     },
     R.div(
       {
@@ -791,7 +791,7 @@ export function UploadProgress(props: UploadProgressProps): El {
         "aria-valuemin": "0",
         "aria-valuemax": "100",
         "aria-valuenow": () => String(Math.round(total())),
-        "aria-label": "Progres total",
+        "aria-label": "Total progress",
       },
       R.div({ class: "rui-uploads-total-bar", style: () => "width:" + total().toFixed(1) + "%" }),
     ),
@@ -818,13 +818,13 @@ export function UploadProgress(props: UploadProgressProps): El {
               R.span({ class: "rui-upload-bar", style: "width:" + task.progress + "%" }),
             ),
             task.status === "error"
-              ? R.span({ class: "rui-upload-error", role: "alert" }, task.error ?? "Eroare")
+              ? R.span({ class: "rui-upload-error", role: "alert" }, task.error ?? "Error")
               : null,
             task.status === "error" && props.onRetry
               ? R.button({
                   type: "button",
                   class: "rui-upload-retry",
-                  "aria-label": "Reîncearcă " + task.name,
+                  "aria-label": "Retry " + task.name,
                   "on:click": () => props.onRetry!(task),
                 }, "↻")
               : null,
@@ -832,7 +832,7 @@ export function UploadProgress(props: UploadProgressProps): El {
               ? R.button({
                   type: "button",
                   class: "rui-upload-cancel",
-                  "aria-label": "Anulează " + task.name,
+                  "aria-label": "Cancel " + task.name,
                   "on:click": () => props.onCancel!(task),
                 }, "✕")
               : null,
@@ -846,13 +846,13 @@ export function UploadProgress(props: UploadProgressProps): El {
 
 export interface FilePreviewProps {
   file: FileLike;
-  /** URL de previzualizare (obiect URL). Fara el, se arata doar iconul. */
+  /** Preview URL (object URL). Without it, only the icon is shown. */
   url?: string;
   size?: string;
   class?: string;
 }
 
-/** Iconul potrivit pentru un tip de fisier. */
+/** The icon that fits a file type. */
 export function fileIcon(type: string, name: string): string {
   const mime = (type || "").toLowerCase();
   const ext = name.toLowerCase().split(".").pop() ?? "";

@@ -1,8 +1,8 @@
 /**
  * RichTextEditor, CodeEditor, JsonViewer, DiffViewer, ComparisonTable.
  *
- * Editoare si vizualizatoare de continut. Partea algoritmica (diff pe linii si
- * pe cuvinte) e exportata separat si testata fara DOM.
+ * Content editors and viewers. The algorithmic part (line and word diff) is
+ * exported separately and tested without a DOM.
  */
 import { state, derived, effect, onCleanup, type Accessor, type State } from "raptorjs";
 import { R, For, Show, type Child } from "raptorjs/dom";
@@ -23,22 +23,22 @@ export interface RichToolbarButton {
   command: RichCommand;
   label: string;
   icon: Child;
-  /** Argument pentru comenzi ca `formatBlock`. */
+  /** Argument for commands like `formatBlock`. */
   value?: string;
 }
 
 export const DEFAULT_RICH_TOOLBAR: readonly RichToolbarButton[] = [
-  { command: "bold", label: "Îngroșat", icon: "B" },
-  { command: "italic", label: "Cursiv", icon: "I" },
-  { command: "underline", label: "Subliniat", icon: "U" },
-  { command: "insertUnorderedList", label: "Listă cu buline", icon: "•" },
-  { command: "insertOrderedList", label: "Listă numerotată", icon: "1." },
+  { command: "bold", label: "Bold", icon: "B" },
+  { command: "italic", label: "Italic", icon: "I" },
+  { command: "underline", label: "Underline", icon: "U" },
+  { command: "insertUnorderedList", label: "Bulleted list", icon: "•" },
+  { command: "insertOrderedList", label: "Numbered list", icon: "1." },
   { command: "createLink", label: "Link", icon: "🔗" },
-  { command: "removeFormat", label: "Curăță formatarea", icon: "⌫" },
+  { command: "removeFormat", label: "Clear formatting", icon: "⌫" },
 ];
 
 export interface RichTextEditorProps {
-  /** Continutul HTML. */
+  /** The HTML content. */
   value: State<string>;
   toolbar?: readonly RichToolbarButton[];
   placeholder?: string;
@@ -50,17 +50,17 @@ export interface RichTextEditorProps {
 }
 
 /**
- * RichTextEditor - editor WYSIWYG minimal.
+ * RichTextEditor - minimal WYSIWYG editor.
  *
- * **Limitele lui, spuse direct:** foloseste `contenteditable` si
- * `document.execCommand`. `execCommand` e marcat deprecated si produce HTML
- * usor diferit in fiecare browser. Alternativa reala - un model de document
- * propriu cu gestiunea selectiei, ca ProseMirror - e un proiect de luni de zile,
- * nu o componenta. Asta acopera cazul "camp de descriere cu bold si linkuri";
- * pentru un editor serios foloseste o biblioteca dedicata.
+ * **Its limits, stated plainly:** it uses `contenteditable` and
+ * `document.execCommand`. `execCommand` is marked deprecated and produces
+ * slightly different HTML in each browser. The real alternative - your own
+ * document model with selection management, like ProseMirror - is a months-long
+ * project, not a component. This covers the "description field with bold and
+ * links" case; for a serious editor use a dedicated library.
  *
- * Nu sanitizeaza HTML-ul. Daca il randezi inapoi din surse necontrolate,
- * curata-l tu.
+ * It does not sanitize the HTML. If you render it back from untrusted sources,
+ * clean it up yourself.
  */
 export function RichTextEditor(props: RichTextEditorProps): El {
   const id = "rui-rte-" + ++idSeq;
@@ -78,16 +78,16 @@ export function RichTextEditor(props: RichTextEditorProps): El {
 
     let value = button.value;
     if (button.command === "createLink") {
-      const url = (globalThis as any).prompt?.("Adresa linkului:");
+      const url = (globalThis as any).prompt?.("Link address:");
       if (!url) return;
       value = String(url);
     }
-    // Focusul trebuie sa fie in editor ca sa existe o selectie de modificat.
+    // Focus must be in the editor for there to be a selection to modify.
     if (editor && typeof editor.focus === "function") editor.focus();
     try {
       doc.execCommand(button.command, false, value);
     } catch {
-      /* comanda nesuportata */
+      /* unsupported command */
     }
     sync();
   };
@@ -100,8 +100,8 @@ export function RichTextEditor(props: RichTextEditorProps): El {
     props.onChange?.(html);
   };
 
-  // Continutul venit din afara se scrie in editor doar daca CHIAR difera:
-  // altfel am reseta cursorul la fiecare tastare.
+  // Content coming from outside is written into the editor only if it REALLY
+  // differs: otherwise we'd reset the cursor on every keystroke.
   effect(() => {
     const next = props.value();
     if (!editor) return;
@@ -111,14 +111,14 @@ export function RichTextEditor(props: RichTextEditorProps): El {
   return R.div(
     { class: props.class ? "rui-rte " + props.class : "rui-rte" },
     R.div(
-      { class: "rui-rte-toolbar", role: "toolbar", "aria-label": "Formatare", "aria-controls": id },
+      { class: "rui-rte-toolbar", role: "toolbar", "aria-label": "Formatting", "aria-controls": id },
       buttons.map((button) =>
         R.button({
           type: "button",
           class: "rui-rte-button",
           "aria-label": button.label,
-          // `mousedown` preventDefault: altfel butonul fura focusul si
-          // selectia din editor dispare inainte de a fi aplicata comanda.
+          // `mousedown` preventDefault: otherwise the button steals focus and
+          // the editor's selection disappears before the command is applied.
           "on:mousedown": (e: any) => e.preventDefault?.(),
           disabled: () => off(),
           "on:click": () => exec(button),
@@ -148,9 +148,9 @@ export function RichTextEditor(props: RichTextEditorProps): El {
 
 export interface CodeEditorProps {
   value: State<string>;
-  /** Tokenizer extern; primeste codul si intoarce noduri colorate. */
+  /** External tokenizer; receives the code and returns colored nodes. */
   highlight?: (code: string) => Child;
-  /** Numarul de spatii inserate de Tab. Implicit 2. */
+  /** The number of spaces inserted by Tab. Default 2. */
   tabSize?: number;
   lineNumbers?: boolean;
   readonly?: Accessor<boolean> | boolean;
@@ -161,15 +161,15 @@ export interface CodeEditorProps {
 }
 
 /**
- * CodeEditor - `textarea` transparent peste un strat colorat.
+ * CodeEditor - a transparent `textarea` over a colored layer.
  *
- * Tehnica standard: textarea-ul pastreaza cursorul, selectia, undo-ul nativ si
- * accesibilitatea; stratul de dedesubt doar coloreaza. Cele doua trebuie sa aiba
- * EXACT aceleasi metrici (font, line-height, padding), altfel textul si
- * culoarea se desincronizeaza vizibil.
+ * The standard technique: the textarea keeps the cursor, selection, native
+ * undo and accessibility; the layer underneath only colors. The two must have
+ * EXACTLY the same metrics (font, line-height, padding), otherwise the text and
+ * the color visibly fall out of sync.
  *
- * Tab insereaza spatii in loc sa mute focusul - dar Escape apoi Tab il scoate
- * din camp, ca sa nu fie o capcana pentru navigarea la tastatura.
+ * Tab inserts spaces instead of moving focus - but Escape then Tab moves out of
+ * the field, so it isn't a trap for keyboard navigation.
  */
 export function CodeEditor(props: CodeEditorProps): El {
   const id = "rui-code-" + ++idSeq;
@@ -191,7 +191,7 @@ export function CodeEditor(props: CodeEditorProps): El {
       try {
         el.setSelectionRange(start + tab.length, start + tab.length);
       } catch {
-        /* fara selectie */
+        /* no selection */
       }
     });
   };
@@ -208,7 +208,7 @@ export function CodeEditor(props: CodeEditorProps): El {
       : null,
     R.div(
       { class: "rui-code-stack" },
-      // Stratul colorat, pur decorativ.
+      // The colored layer, purely decorative.
       R.pre(
         { class: "rui-code-highlight", "aria-hidden": "true" },
         R.code({}, () =>
@@ -231,7 +231,7 @@ export function CodeEditor(props: CodeEditorProps): El {
         "on:input": (e: any) => props.value.set(String(e.target?.value ?? "")),
         "on:keydown": (e: any) => {
           if (e.key === "Escape") {
-            // Urmatorul Tab iese din camp.
+            // The next Tab moves out of the field.
             escaped.set(true);
             return;
           }
@@ -251,9 +251,9 @@ export function CodeEditor(props: CodeEditorProps): El {
 
 export interface JsonViewerProps {
   data: Accessor<unknown> | unknown;
-  /** Nivelurile expandate initial. Implicit 1. */
+  /** Levels expanded initially. Default 1. */
   defaultDepth?: number;
-  /** Peste atatea elemente, colectiile se afiseaza colapsat. Implicit 50. */
+  /** Above this many items, collections are shown collapsed. Default 50. */
   collapseAbove?: number;
   label?: string;
   class?: string;
@@ -274,11 +274,11 @@ function preview(value: unknown): string {
 }
 
 /**
- * JsonViewer - arbore JSON expandabil.
+ * JsonViewer - expandable JSON tree.
  *
- * Randeaza doar nodurile expandate: un document de 5MB nu produce 200.000 de
- * elemente DOM, ci doar cele deschise. Valorile ciclice sunt marcate, nu duc la
- * recursie infinita.
+ * It renders only the expanded nodes: a 5MB document doesn't produce 200,000
+ * DOM elements, only the open ones. Cyclic values are flagged, so they don't
+ * lead to infinite recursion.
  */
 export function JsonViewer(props: JsonViewerProps): El {
   const read = (): unknown => (typeof props.data === "function" ? (props.data as Accessor<unknown>)() : props.data);
@@ -289,7 +289,7 @@ export function JsonViewer(props: JsonViewerProps): El {
   const isOpen = (path: string, depth: number, size: number): boolean => {
     const set = expanded();
     if (set.has(path)) return true;
-    if (set.has("!" + path)) return false; // inchis explicit
+    if (set.has("!" + path)) return false; // explicitly closed
     return depth < defaultDepth && size <= limit;
   };
 
@@ -310,7 +310,7 @@ export function JsonViewer(props: JsonViewerProps): El {
       return R.span({ class: "rui-json-" + kind }, preview(value));
     }
     if (seen.has(value)) {
-      return R.span({ class: "rui-json-cycle" }, "[referință circulară]");
+      return R.span({ class: "rui-json-cycle" }, "[circular reference]");
     }
 
     const entries: Array<[string, unknown]> =
@@ -364,19 +364,19 @@ export type DiffOp = "equal" | "insert" | "delete";
 
 export interface DiffChunk {
   op: DiffOp;
-  /** Indexul in textul vechi, sau `-1` pentru inserari. */
+  /** The index in the old text, or `-1` for insertions. */
   oldIndex: number;
-  /** Indexul in textul nou, sau `-1` pentru stergeri. */
+  /** The index in the new text, or `-1` for deletions. */
   newIndex: number;
   value: string;
 }
 
 /**
- * Diff pe linii, cu cea mai lunga subsecventa comuna.
+ * Line diff, using the longest common subsequence.
  *
- * Programare dinamica O(n*m): suficient pentru fisiere de ordinul miilor de
- * linii, care e cazul pentru care exista componenta. Pentru fisiere uriase ai
- * nevoie de Myers cu banda, si atunci de o biblioteca dedicata.
+ * O(n*m) dynamic programming: enough for files on the order of thousands of
+ * lines, which is the case this component exists for. For huge files you need
+ * banded Myers, and at that point a dedicated library.
  */
 export function diffLines(oldText: string, newText: string): DiffChunk[] {
   const a = oldText.split("\n");
@@ -384,7 +384,7 @@ export function diffLines(oldText: string, newText: string): DiffChunk[] {
   const n = a.length;
   const m = b.length;
 
-  // Tabelul LCS.
+  // The LCS table.
   const lcs: number[][] = Array.from({ length: n + 1 }, () => new Array<number>(m + 1).fill(0));
   for (let i = n - 1; i >= 0; i--) {
     for (let j = m - 1; j >= 0; j--) {
@@ -413,7 +413,7 @@ export function diffLines(oldText: string, newText: string): DiffChunk[] {
   return out;
 }
 
-/** Statistici pentru antetul unui diff. */
+/** Statistics for a diff header. */
 export function diffStats(chunks: readonly DiffChunk[]): { added: number; removed: number } {
   let added = 0;
   let removed = 0;
@@ -427,9 +427,9 @@ export function diffStats(chunks: readonly DiffChunk[]): { added: number; remove
 export interface DiffViewerProps {
   oldText: Accessor<string> | string;
   newText: Accessor<string> | string;
-  /** `unified` (implicit) sau `split`. */
+  /** `unified` (default) or `split`. */
   mode?: "unified" | "split";
-  /** Cate linii de context se pastreaza in jurul modificarilor. `0` = tot. */
+  /** How many context lines are kept around the changes. `0` = all. */
   context?: number;
   oldLabel?: Child;
   newLabel?: Child;
@@ -444,7 +444,7 @@ export function DiffViewer(props: DiffViewerProps): El {
   const chunks = derived(() => diffLines(readOld(), readNew()));
   const stats = derived(() => diffStats(chunks()));
 
-  /** Ascunde blocurile lungi de linii neschimbate. */
+  /** Hides long blocks of unchanged lines. */
   const visible = derived<Array<DiffChunk | { op: "skip"; count: number }>>(() => {
     const context = props.context ?? 3;
     const list = chunks();
@@ -485,9 +485,9 @@ export function DiffViewer(props: DiffViewerProps): El {
     },
     R.div(
       { class: "rui-diff-head" },
-      R.span({ class: "rui-diff-file" }, props.oldLabel ?? "vechi"),
+      R.span({ class: "rui-diff-file" }, props.oldLabel ?? "old"),
       R.span({ class: "rui-diff-arrow", "aria-hidden": "true" }, "→"),
-      R.span({ class: "rui-diff-file" }, props.newLabel ?? "nou"),
+      R.span({ class: "rui-diff-file" }, props.newLabel ?? "new"),
       R.span({ class: "rui-diff-stats" }, () => `+${stats().added} −${stats().removed}`),
     ),
     R.table(
@@ -497,7 +497,7 @@ export function DiffViewer(props: DiffViewerProps): El {
           if (row.op === "skip") {
             return R.tr(
               { class: "rui-diff-skip" },
-              R.td({ colspan: "3" }, `… ${row.count} linii neschimbate`),
+              R.td({ colspan: "3" }, `… ${row.count} unchanged lines`),
             );
           }
           const chunk = row as DiffChunk;
@@ -507,10 +507,10 @@ export function DiffViewer(props: DiffViewerProps): El {
             R.td({ class: "rui-diff-lineno" }, chunk.newIndex >= 0 ? String(chunk.newIndex + 1) : ""),
             R.td(
               { class: "rui-diff-line" },
-              // Semnul e citit de screen reader: fara el, un diff monocrom e
-              // imposibil de interpretat.
+              // The sign is read by the screen reader: without it, a monochrome
+              // diff is impossible to interpret.
               R.span({ class: "rui-sr-only" },
-                chunk.op === "insert" ? "adăugat: " : chunk.op === "delete" ? "șters: " : "",
+                chunk.op === "insert" ? "added: " : chunk.op === "delete" ? "deleted: " : "",
               ),
               R.span({ class: "rui-diff-sign", "aria-hidden": "true" }, SIGN[chunk.op]),
               chunk.value === "" ? " " : chunk.value,
@@ -527,7 +527,7 @@ export function DiffViewer(props: DiffViewerProps): El {
 export interface ComparisonFeature {
   key: string;
   label: Child;
-  /** Grup optional pentru a organiza randurile. */
+  /** Optional group to organize the rows. */
   group?: string;
   hint?: Child;
 }
@@ -535,11 +535,11 @@ export interface ComparisonFeature {
 export interface ComparisonPlan {
   key: string;
   label: Child;
-  /** Evidentiaza coloana ca recomandata. */
+  /** Highlights the column as recommended. */
   featured?: boolean;
   badge?: Child;
   footer?: Child;
-  /** Valoarea pentru fiecare caracteristica: `true`/`false` sau text. */
+  /** The value for each feature: `true`/`false` or text. */
   values: Readonly<Record<string, boolean | Child>>;
 }
 
@@ -551,10 +551,10 @@ export interface ComparisonTableProps {
 }
 
 /**
- * ComparisonTable - tabel de comparatie intre oferte.
+ * ComparisonTable - comparison table between offerings.
  *
- * Bifele au si text pentru screen reader: un `✓` colorat singur nu spune nimic,
- * iar un tabel intreg de simboluri e ilizibil fara vedere.
+ * The checkmarks also have screen-reader text: a colored `✓` alone says
+ * nothing, and a whole table of symbols is unreadable without sight.
  */
 export function ComparisonTable(props: ComparisonTableProps): El {
   const groups = derived<Array<{ title: string | null; rows: readonly ComparisonFeature[] }>>(() => {
@@ -573,13 +573,13 @@ export function ComparisonTable(props: ComparisonTableProps): El {
     if (value === true) {
       return [
         R.span({ class: "rui-compare-yes", "aria-hidden": "true" }, "✓"),
-        R.span({ class: "rui-sr-only" }, "inclus"),
+        R.span({ class: "rui-sr-only" }, "included"),
       ];
     }
     if (value === false || value === undefined) {
       return [
         R.span({ class: "rui-compare-no", "aria-hidden": "true" }, "—"),
-        R.span({ class: "rui-sr-only" }, "neinclus"),
+        R.span({ class: "rui-sr-only" }, "not included"),
       ];
     }
     return value;
@@ -622,7 +622,7 @@ export function ComparisonTable(props: ComparisonTableProps): El {
           rows.push(
             R.tr(
               { class: "rui-compare-row" },
-              // `scope="row"`: asa stie screen readerul ce compara fiecare celula.
+              // `scope="row"`: this is how the screen reader knows what each cell compares.
               R.th(
                 { scope: "row", class: "rui-compare-feature" },
                 feature.label,

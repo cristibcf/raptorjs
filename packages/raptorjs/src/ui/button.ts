@@ -1,11 +1,11 @@
 /**
- * Button / IconButton - butoane cu variante, dimensiuni si stare de incarcare.
+ * Button / IconButton - buttons with variants, sizes and a loading state.
  *
- * Nu e o componenta-teza si nu pretinde sa fie: un buton nu demonstreaza nimic
- * despre fine-grained. E aici fiindca totul de deasupra are nevoie de el si
- * fiindca detaliile pe care le rezolva (tipul implicit, `aria-busy`, dezactivarea
- * in timpul unei actiuni asincrone) sunt exact cele uitate cand fiecare isi
- * scrie propriul buton.
+ * It's not a thesis component and doesn't pretend to be: a button demonstrates
+ * nothing about fine-grained. It's here because everything above needs it and
+ * because the details it handles (the default type, `aria-busy`, disabling
+ * during an async action) are exactly the ones forgotten when everyone writes
+ * their own button.
  */
 import { state, type Accessor } from "raptorjs";
 import { R, Show, type Child } from "raptorjs/dom";
@@ -21,20 +21,20 @@ export interface ButtonProps {
   variant?: ButtonVariant;
   size?: ButtonSize;
   disabled?: Accessor<boolean> | boolean;
-  /** Arata spinner si blocheaza clickurile. */
+  /** Shows a spinner and blocks clicks. */
   loading?: Accessor<boolean> | boolean;
   /**
-   * `onClick` poate intoarce o promisiune: cat timp e in curs, butonul intra
-   * singur in `loading` si nu mai accepta clickuri. Asta elimina bug-ul clasic
-   * al dublei trimiteri de formular.
+   * `onClick` can return a promise: while it is in progress, the button puts
+   * itself into `loading` and stops accepting clicks. This eliminates the
+   * classic double-submit bug on forms.
    */
   onClick?: (event: any) => void | Promise<unknown>;
-  /** Implicit `button` - NU `submit`, ca sa nu trimita din greseala formulare. */
+  /** Defaults to `button` - NOT `submit`, so it doesn't submit forms by mistake. */
   type?: "button" | "submit" | "reset";
-  /** Continut inaintea/dupa eticheta (iconite). */
+  /** Content before/after the label (icons). */
   before?: Child;
   after?: Child;
-  /** Ocupa toata latimea disponibila. */
+  /** Takes up all the available width. */
   block?: boolean;
   label?: string;
   class?: string;
@@ -46,7 +46,7 @@ function read(value: Accessor<boolean> | boolean | undefined): boolean {
 }
 
 export function Button(props: ButtonProps): El {
-  // Incarcare interna, pentru `onClick` asincron.
+  // Internal loading, for async `onClick`.
   const pending = state(false);
   const busy = (): boolean => read(props.loading) || pending();
   const blocked = (): boolean => busy() || read(props.disabled);
@@ -91,7 +91,7 @@ export function Button(props: ButtonProps): El {
 
 export interface IconButtonProps extends Omit<ButtonProps, "children" | "before" | "after" | "block"> {
   icon: Child;
-  /** Obligatoriu: un buton doar-icon fara nume accesibil e invizibil la screen reader. */
+  /** Required: an icon-only button with no accessible name is invisible to screen readers. */
   label: string;
 }
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Entry point `raptor-run`. `ssr`/`info` deleaga la runRunCli; `serve` porneste
- * un server Node persistent (blocking, cu graceful shutdown pe SIGINT).
+ * Entry point `raptor-run`. `ssr`/`info` delegate to runRunCli; `serve` starts
+ * a persistent Node server (blocking, with graceful shutdown on SIGINT).
  */
 import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
@@ -21,7 +21,7 @@ function portFrom(args: string[], fallback: number): number {
 if (argv[0] === "dev") {
   const file = argv[1];
   if (!file) {
-    process.stdout.write("eroare: dev cere <file.raptor>\n");
+    process.stdout.write("error: dev requires <file.raptor>\n");
     process.exit(1);
   }
   const abs = resolve(file);
@@ -32,7 +32,7 @@ if (argv[0] === "dev") {
   });
   server.watch(dirname(abs));
   const port = await server.listen(portFrom(argv, 5173));
-  process.stdout.write(`RaptorDev live pe http://127.0.0.1:${port}  (watch ${abs})\n`);
+  process.stdout.write(`RaptorDev live on http://127.0.0.1:${port}  (watch ${abs})\n`);
 
   const stop = async (): Promise<void> => {
     await server.close();
@@ -43,7 +43,7 @@ if (argv[0] === "dev") {
 } else if (argv[0] === "serve") {
   const file = argv[1];
   if (!file) {
-    process.stdout.write("eroare: serve cere <file.raptor>\n");
+    process.stdout.write("error: serve requires <file.raptor>\n");
     process.exit(1);
   }
   const portFlag = argv.indexOf("--port");
@@ -53,7 +53,7 @@ if (argv[0] === "dev") {
   const runtime = RaptorRuntime.fromBuild(result);
   const server = createNodeServer(runtime);
   const actualPort = await listen(server, port);
-  process.stdout.write(`RaptorRun serveste ${file} pe http://127.0.0.1:${actualPort}\n`);
+  process.stdout.write(`RaptorRun serving ${file} on http://127.0.0.1:${actualPort}\n`);
 
   const stop = async (): Promise<void> => {
     runtime.shutdown();

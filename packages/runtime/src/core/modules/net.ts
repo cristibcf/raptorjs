@@ -1,38 +1,38 @@
 /**
- * `raptor:net` (spec sectiunea 6): fetch spre exterior, cu allowlist de
- * destinatii si timeout ca cetateni de rang intai. Contractul este Web-standard
- * (Request/Response/AbortSignal), nu un client HTTP proprietar.
+ * `raptor:net` (spec section 6): outbound fetch, with a destination allowlist
+ * and timeout as first-class citizens. The contract is Web-standard
+ * (Request/Response/AbortSignal), not a proprietary HTTP client.
  */
 import type { HostContext } from "../context.ts";
 import { RaptorError } from "../errors.ts";
 
 export interface FetchOptions extends RequestInit {
-  /** Implicit 30s; `0` dezactiveaza timeout-ul (cere deadline la nivel de task). */
+  /** Default 30s; `0` disables the timeout (request a task-level deadline). */
   readonly timeoutMs?: number;
-  /** Cate redirect-uri urmam, fiecare re-verificat prin broker. Implicit 5. */
+  /** How many redirects we follow, each re-checked through the broker. Default 5. */
   readonly maxRedirects?: number;
 }
 
 /**
- * Cate salturi acceptam implicit. Acelasi numar ca in `fetch`-ul browserului:
- * destul pentru lanturile reale (http -> https -> cu slash final), prea putin
- * pentru o bucla.
+ * How many hops we accept by default. The same number as the browser's `fetch`:
+ * enough for real chains (http -> https -> with trailing slash), too few for a
+ * loop.
  */
 const DEFAULT_MAX_REDIRECTS = 5;
 
 const REDIRECT_STATUS = new Set([301, 302, 303, 307, 308]);
 
 /**
- * Anteturi care poarta autoritate si NU au ce cauta pe alta gazda.
+ * Headers that carry authority and have NO business on another host.
  *
- * Un token pentru `api.example.com` nu trebuie sa ajunga la `cdn.example.com`
- * doar pentru ca prima a raspuns cu 302. Browserele fac exact asta la un
- * redirect cross-origin; noi il faceam la prima trecere si nu-l faceam la a
- * doua - a fost gasit la re-audit.
+ * A token for `api.example.com` must not reach `cdn.example.com` just because
+ * the first responded with a 302. Browsers do exactly that on a cross-origin
+ * redirect; we did it on the first pass and did not do it on the second - it was
+ * found during the re-audit.
  */
 const CREDENTIAL_HEADERS = ["authorization", "cookie", "proxy-authorization"];
 
-/** Anteturile trimise mai departe, fara cele de autoritate. */
+/** The headers forwarded onward, without the authority ones. */
 function withoutCredentials(headers: HeadersInit | undefined): Headers {
   const next = new Headers(headers ?? {});
   for (const name of CREDENTIAL_HEADERS) next.delete(name);
@@ -41,7 +41,7 @@ function withoutCredentials(headers: HeadersInit | undefined): Headers {
 
 export interface RaptorNet {
   fetch(input: string | URL | Request, options?: FetchOptions): Promise<Response>;
-  /** Verifica destinatia fara sa emita cererea (util in `doctor`). */
+  /** Checks the destination without issuing the request (useful in `doctor`). */
   allows(target: string | URL): boolean;
 }
 
@@ -54,11 +54,11 @@ export function destinationOf(input: string | URL | Request): string {
   try {
     url = new URL(raw);
   } catch {
-    throw new RaptorError("raptor:module/unsupported", "raptor:net cere un URL absolut", { input: raw });
+    throw new RaptorError("raptor:module/unsupported", "raptor:net requires an absolute URL", { input: raw });
   }
   const port = url.port || DEFAULT_PORTS[url.protocol] || "";
   if (!port) {
-    throw new RaptorError("raptor:module/unsupported", `protocol nesuportat de raptor:net: ${url.protocol}`, { input: raw });
+    throw new RaptorError("raptor:module/unsupported", `protocol not supported by raptor:net: ${url.protocol}`, { input: raw });
   }
   return `${url.hostname.toLowerCase()}:${port}`;
 }
@@ -85,7 +85,7 @@ export function createNet(host: HostContext): RaptorNet {
       const timer =
         timeoutMs > 0
           ? setTimeout(
-              () => controller.abort(new RaptorError("raptor:task/deadline", `fetch catre ${destination} a expirat`, { destination, timeoutMs })),
+              () => controller.abort(new RaptorError("raptor:task/deadline", `fetch to ${destination} timed out`, { destination, timeoutMs })),
               timeoutMs,
             )
           : null;
@@ -95,19 +95,19 @@ export function createNet(host: HostContext): RaptorNet {
         delete (init as Record<string, unknown>)["timeoutMs"];
         delete (init as Record<string, unknown>)["maxRedirects"];
 
-        // Urmarim redirect-urile noi, nu `fetch`.
+        // We follow the redirects ourselves, not `fetch`.
         //
-        // Cu `redirect: "follow"` (implicitul), brokerul vede doar primul URL:
-        // o gazda permisa raspunde 302 si urmatorul salt pleaca spre orice, fara
-        // sa mai treaca pe la nimeni. Asa se citeste `169.254.169.254` cu o
-        // allowlist care nu-l contine. Deci cerem raspunsul brut si punem
-        // fiecare salt prin `require`, ca si pe primul.
+        // With `redirect: "follow"` (the default), the broker sees only the
+        // first URL: an allowed host responds 302 and the next hop leaves toward
+        // anything, without passing by anyone. That is how `169.254.169.254`
+        // gets read with an allowlist that does not contain it. So we request
+        // the raw response and put every hop through `require`, like the first.
         init.redirect = "manual";
 
-        // Anteturile efective sunt adunate ACUM, fiindca un `Request` si le
-        // poarta pe ale lui: dupa primul salt continuam cu un URL simplu, si
-        // fara pasul asta anteturile cererii initiale s-ar pierde toate, nu doar
-        // cele de autoritate.
+        // The effective headers are gathered NOW, because a `Request` carries
+        // its own: after the first hop we continue with a plain URL, and without
+        // this step all the initial request's headers would be lost, not just
+        // the authority ones.
         if (input instanceof Request) {
           const merged = new Headers(input.headers);
           for (const [name, value] of new Headers(options.headers ?? {})) merged.set(name, value);
@@ -115,10 +115,10 @@ export function createNet(host: HostContext): RaptorNet {
           if (init.method === undefined) init.method = input.method;
         }
 
-        // Limita asumata: daca `input` a fost un `Request` cu corp, corpul nu
-        // se retrimite dupa un 307/308 - continuam de la URL-ul nou, cu `init`.
-        // Pentru cererile cu corp care chiar trebuie sa supravietuiasca unui
-        // redirect, da `body` in `options`, nu in `Request`.
+        // Assumed limitation: if `input` was a `Request` with a body, the body
+        // is not resent after a 307/308 - we continue from the new URL, with
+        // `init`. For requests with a body that must actually survive a
+        // redirect, pass `body` in `options`, not in `Request`.
         let current: RequestInfo = input as RequestInfo;
         let hops = 0;
         let credentialsDropped = false;
@@ -131,13 +131,13 @@ export function createNet(host: HostContext): RaptorNet {
 
           const location = response.headers.get("location");
           if (location === null) {
-            // Un 3xx fara `Location` nu e un redirect, e raspunsul final.
+            // A 3xx without `Location` is not a redirect, it is the final response.
             span.end({ status: response.status, hops, credentialsDropped });
             return response;
           }
 
           if (hops >= maxRedirects) {
-            throw new RaptorError("raptor:module/unsupported", `prea multe redirect-uri de la ${destination}`, {
+            throw new RaptorError("raptor:module/unsupported", `too many redirects from ${destination}`, {
               destination,
               maxRedirects,
             });
@@ -146,11 +146,12 @@ export function createNet(host: HostContext): RaptorNet {
           const base = typeof current === "string" ? current : current instanceof Request ? current.url : String(current);
           const next = new URL(location, base).href;
           const nextDestination = destinationOf(next);
-          // Aici e toata reparatia: saltul urmator e o destinatie noua.
+          // Here is the whole fix: the next hop is a new destination.
           host.broker.require("net.connect", nextDestination);
 
-          // Si daca e alta gazda, pleaca fara credentiale. Capabilitatea spune
-          // doar ca putem VORBI cu ea, nu ca are voie sa auda token-ul nostru.
+          // And if it is another host, it leaves without credentials. The
+          // capability says only that we may TALK to it, not that it is allowed
+          // to hear our token.
           if (nextDestination !== destinationOf(base)) {
             init.headers = withoutCredentials(init.headers);
             credentialsDropped = true;
@@ -160,7 +161,7 @@ export function createNet(host: HostContext): RaptorNet {
             });
           }
 
-          // 303, si 301/302 pe non-GET, continua cu GET fara corp (RFC 9110).
+          // 303, and 301/302 on non-GET, continue with GET without a body (RFC 9110).
           if (response.status === 303 || ((response.status === 301 || response.status === 302) && (init.method ?? "GET").toUpperCase() !== "GET")) {
             init.method = "GET";
             delete (init as Record<string, unknown>)["body"];

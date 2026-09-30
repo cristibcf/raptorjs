@@ -1,35 +1,35 @@
-# A/B intercalat pentru o singura schimbare
+# Interleaved A/B for a single change
 
-Masuratorile facute in navigari separate **nu sunt comparabile**. In sesiunea in
-care s-a construit unealta asta, acelasi cod a dat `create 10k` = 40 ms si, zece
-minute mai tarziu, 106 ms — s-a schimbat incarcarea masinii, nu codul. O
-comparatie A/B facuta asa a raportat un castig de 29% acolo unde masuratoarea
-corecta arata 0%.
+Measurements taken in separate navigations **are not comparable**. In the session in
+which this tool was built, the same code gave `create 10k` = 40 ms and, ten
+minutes later, 106 ms — the machine load changed, not the code. An A/B
+comparison done that way reported a 29% gain where the correct measurement
+shows 0%.
 
-Aici ambele variante sunt bundle-uri separate incarcate in **aceeasi pagina** si
-masurate alternat, cu rotatie intre runde. Zgomotul cade pe amandoua deodata, iar
-estimatorul este **minimul** (zgomotul doar adauga timp, nu scade niciodata).
+Here both variants are separate bundles loaded into the **same page** and
+measured alternately, with rotation between rounds. The noise falls on both at once, and
+the estimator is the **minimum** (noise only adds time, never subtracts it).
 
-## Folosire
+## Usage
 
-Variantele trebuie sa stea **langa** fisierul pe care il inlocuiesc, ca importurile
-lor relative sa se rezolve:
+The variants must sit **next to** the file they replace, so their relative
+imports resolve:
 
 ```bash
-cp <varianta-veche> packages/dom/src/__ab-a.ts
-cp <varianta-noua>  packages/dom/src/__ab-b.ts
+cp <old-variant> packages/dom/src/__ab-a.ts
+cp <new-variant>  packages/dom/src/__ab-b.ts
 cd benchmarks
 node browser/ab/build.ts ../packages/dom/src/__ab-a.ts ../packages/dom/src/__ab-b.ts
-node browser/serve.ts        # apoi deschide /ab/index.html si apasa "Ruleaza"
+node browser/serve.ts        # then open /ab/index.html and click "Run"
 rm ../packages/dom/src/__ab-a.ts ../packages/dom/src/__ab-b.ts
 ```
 
-Build-ul schimba doar `packages/dom/src/control.ts` (unde sta `For`), printr-un
-plugin de rezolvare; restul grafului ramane identic, deci diferenta dintre
-bundle-uri este exact schimbarea testata.
+The build swaps only `packages/dom/src/control.ts` (where `For` lives), via a
+resolution plugin; the rest of the graph stays identical, so the difference between
+bundles is exactly the change under test.
 
-## Cum se citeste
+## How to read it
 
-Ruleaza de **cel putin trei ori**. Un castig este real doar daca apare cu acelasi
-semn in toate rularile. Diferentele sub rezolutia masuratorii (aici ~0.1 ms) nu
-inseamna nimic: la o operatie de 1.4 ms, asta e deja 7%.
+Run it **at least three times**. A gain is real only if it shows up with the same
+sign across all runs. Differences below the measurement resolution (here ~0.1 ms) mean
+nothing: on a 1.4 ms operation, that's already 7%.

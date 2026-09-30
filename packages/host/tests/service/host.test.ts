@@ -7,12 +7,12 @@ import type { Listener, ListenerFactory, ServeHandler, ServiceHost, ServiceHostO
 
 const BASE = {
   target: "server",
-  bundleId: "com.exemplu.serviciu",
-  displayName: "Exemplu Serviciu",
+  bundleId: "com.example.service",
+  displayName: "Example Service",
   version: "1.0.0",
   entry: "./src/app.ts",
   capabilities: ["net.listen", "service.config"] as string[],
-  allowedOrigins: ["https://api.exemplu.com"],
+  allowedOrigins: ["https://api.example.com"],
   deepLinkSchemes: [] as string[],
   update: { feed: null, channel: "stable" },
 };
@@ -21,7 +21,7 @@ function manifestWith(patch: Record<string, unknown> = {}): HostManifest {
   return requireHostManifest(JSON.stringify({ ...BASE, ...patch }));
 }
 
-/** Listener in memorie: pastreaza handlerul, ca testul sa il poata chema. */
+/** In-memory listener: keeps the handler so the test can call it. */
 function fakeListeners(): ListenerFactory & { handlers: Map<string, ServeHandler>; closed: string[] } {
   const handlers = new Map<string, ServeHandler>();
   const closed: string[] = [];
@@ -77,14 +77,14 @@ function connect(manifest: HostManifest, options: Partial<ServiceHostOptions> = 
   };
 }
 
-/** Raspunde la fiecare cerere primita, ca un serviciu minimal. */
+/** Responds to every request received, like a minimal service. */
 function autoRespond(app: HostBridge, reply: (event: Record<string, unknown>) => Record<string, unknown>): void {
   app.on("serve.request", (payload) => {
     void app.call("serve.respond", { id: payload["id"], ...reply(payload) });
   });
 }
 
-test("adaptorul refuza un manifest care nu este de server", () => {
+test("the adapter rejects a manifest that is not for server", () => {
   const desktop = requireHostManifest(JSON.stringify({ ...BASE, target: "desktop", capabilities: [] }));
   assert.throws(
     () => createServiceHost({ manifest: desktop, transport: createMemoryChannel().host, listeners: fakeListeners() }),
@@ -92,11 +92,11 @@ test("adaptorul refuza un manifest care nu este de server", () => {
   );
 });
 
-test("un serviciu nu are ferestre, camera si nici notificari", async () => {
+test("a service has no windows, camera or notifications", async () => {
   const link = connect(manifestWith());
   try {
     for (const method of ["window.open", "menu.set", "camera.capture", "notify.show", "files.pick"]) {
-      assert.equal(link.app.allows(method), false, `${method} nu are ce cauta pe un server`);
+      assert.equal(link.app.allows(method), false, `${method} has no place on a server`);
     }
     await assert.rejects(
       link.app.call("window.open", {}),
@@ -107,11 +107,11 @@ test("un serviciu nu are ferestre, camera si nici notificari", async () => {
   }
 });
 
-test("aplicatia cere listenerul pe nume; portul il stie host-ul", async () => {
+test("the app requests the listener by name; the host knows the port", async () => {
   const link = connect(manifestWith(), { ports: { public: 8080 } });
   try {
     const listener = (await link.app.call("serve.listen", { name: "public" })) as { port: number; url: string };
-    assert.equal(listener.port, 8080, "portul vine din alocarea de deployment");
+    assert.equal(listener.port, 8080, "the port comes from the deployment allocation");
     assert.equal(link.host.urlOf("public"), listener.url);
     assert.equal(link.host.listeners.length, 1);
   } finally {
@@ -119,7 +119,7 @@ test("aplicatia cere listenerul pe nume; portul il stie host-ul", async () => {
   }
 });
 
-test("un port nealocat este refuzat, cu lista celor disponibile", async () => {
+test("an unallocated port is denied, with the list of available ones", async () => {
   const link = connect(manifestWith(), { ports: { public: 8080 } });
   try {
     await assert.rejects(link.app.call("serve.listen", { name: "admin" }), (error: unknown) => {
@@ -133,17 +133,17 @@ test("un port nealocat este refuzat, cu lista celor disponibile", async () => {
   }
 });
 
-test("acelasi listener nu poate fi deschis de doua ori", async () => {
+test("the same listener cannot be opened twice", async () => {
   const link = connect(manifestWith());
   try {
     await link.app.call("serve.listen", { name: "public" });
-    await assert.rejects(link.app.call("serve.listen", { name: "public" }), /deja deschis/);
+    await assert.rejects(link.app.call("serve.listen", { name: "public" }), /already open/);
   } finally {
     await link.dispose();
   }
 });
 
-test("fara capabilitatea net.listen, serviciul nu poate asculta deloc", async () => {
+test("without the net.listen capability, the service cannot listen at all", async () => {
   const link = connect(manifestWith({ capabilities: ["service.config"] }));
   try {
     assert.equal(link.app.allows("serve.listen"), false);
@@ -156,42 +156,42 @@ test("fara capabilitatea net.listen, serviciul nu poate asculta deloc", async ()
   }
 });
 
-test("cererile ajung la aplicatie ca evenimente si raspunsurile se intorc prin punte", async () => {
+test("requests reach the app as events and responses come back through the bridge", async () => {
   const link = connect(manifestWith());
   try {
     const seen: string[] = [];
     autoRespond(link.app, (event) => {
       seen.push(`${String(event["method"])} ${new URL(String(event["url"])).pathname}`);
-      return { status: 200, headers: { "content-type": "text/plain" }, body: "salut" };
+      return { status: 200, headers: { "content-type": "text/plain" }, body: "hello" };
     });
     await link.app.call("serve.listen", { name: "public" });
 
     const handler = link.listeners.handlers.get("public")!;
     const response = await handler(new Request("http://127.0.0.1/note"));
     assert.equal(response.status, 200);
-    assert.equal(await response.text(), "salut");
+    assert.equal(await response.text(), "hello");
     assert.deepEqual(seen, ["GET /note"]);
   } finally {
     await link.dispose();
   }
 });
 
-test("corpul cererii ajunge la aplicatie, iar statusul aplicatiei ajunge la client", async () => {
+test("the request body reaches the app, and the app's status reaches the client", async () => {
   const link = connect(manifestWith());
   try {
-    autoRespond(link.app, (event) => ({ status: 201, body: `primit: ${String(event["body"])}` }));
+    autoRespond(link.app, (event) => ({ status: 201, body: `received: ${String(event["body"])}` }));
     await link.app.call("serve.listen", { name: "public" });
 
     const handler = link.listeners.handlers.get("public")!;
     const response = await handler(new Request("http://127.0.0.1/note", { method: "POST", body: '{"text":"x"}' }));
     assert.equal(response.status, 201);
-    assert.equal(await response.text(), 'primit: {"text":"x"}');
+    assert.equal(await response.text(), 'received: {"text":"x"}');
   } finally {
     await link.dispose();
   }
 });
 
-test("un raspuns pentru o cerere care nu mai exista este raportat, nu aruncat", async () => {
+test("a response for a request that no longer exists is reported, not thrown", async () => {
   const link = connect(manifestWith());
   try {
     assert.deepEqual(await link.app.call("serve.respond", { id: 999, status: 200 }), { delivered: false });
@@ -200,7 +200,7 @@ test("un raspuns pentru o cerere care nu mai exista este raportat, nu aruncat", 
   }
 });
 
-test("sanatatea declarata de aplicatie muta serviciul in starea care serveste", async () => {
+test("the health declared by the app moves the service into the state that serves", async () => {
   const link = connect(manifestWith());
   try {
     assert.equal(link.host.health, "starting");
@@ -208,15 +208,15 @@ test("sanatatea declarata de aplicatie muta serviciul in starea care serveste", 
 
     await link.app.call("health.set", { state: "ready" });
     assert.equal(link.host.health, "ready");
-    assert.equal(link.host.lifecycle.state, "foreground", "'foreground' = primeste trafic");
+    assert.equal(link.host.lifecycle.state, "foreground", "'foreground' = takes traffic");
 
-    await assert.rejects(link.app.call("health.set", { state: "draining" }), /stare de sanatate necunoscuta/);
+    await assert.rejects(link.app.call("health.set", { state: "draining" }), /unknown health state/);
   } finally {
     await link.dispose();
   }
 });
 
-test("drenarea inchide socketii si duce serviciul prin starile corecte", async () => {
+test("draining closes the sockets and takes the service through the correct states", async () => {
   const link = connect(manifestWith());
   try {
     autoRespond(link.app, () => ({ status: 200, body: "ok" }));
@@ -234,11 +234,11 @@ test("drenarea inchide socketii si duce serviciul prin starile corecte", async (
   }
 });
 
-test("drenarea este idempotenta si merge si inainte ca serviciul sa fi servit", async () => {
+test("draining is idempotent and works even before the service has served", async () => {
   const link = connect(manifestWith());
   try {
-    // Un supervizor care se razgandeste in timpul pornirii: nu exista trafic de
-    // drenat, iar singura tranzitie legala din 'launching' este oprirea.
+    // A supervisor that changes its mind during startup: there is no traffic to
+    // drain, and the only legal transition from 'launching' is the stop.
     await link.host.requestDrain("SIGTERM");
     await link.host.requestDrain("SIGTERM");
     assert.equal(link.host.lifecycle.state, "stopped");
@@ -248,7 +248,7 @@ test("drenarea este idempotenta si merge si inainte ca serviciul sa fi servit", 
   }
 });
 
-test("in timpul drenarii, cererile noi primesc 503 in loc sa fie acceptate", async () => {
+test("during draining, new requests get a 503 instead of being accepted", async () => {
   const link = connect(manifestWith());
   try {
     autoRespond(link.app, () => ({ status: 200, body: "ok" }));
@@ -267,11 +267,11 @@ test("in timpul drenarii, cererile noi primesc 503 in loc sa fie acceptate", asy
   }
 });
 
-test("configuratia vine de la supervizor, nu din fisierele aplicatiei", async () => {
-  const link = connect(manifestWith(), { config: { DATABASE_URL: "postgres://x", GREETING: "salut" } });
+test("configuration comes from the supervisor, not from the app's files", async () => {
+  const link = connect(manifestWith(), { config: { DATABASE_URL: "postgres://x", GREETING: "hello" } });
   try {
-    assert.equal(await link.app.call("config.get", { key: "GREETING" }), "salut");
-    assert.equal(await link.app.call("config.get", { key: "LIPSA" }), null, "o cheie absenta nu este o eroare");
+    assert.equal(await link.app.call("config.get", { key: "GREETING" }), "hello");
+    assert.equal(await link.app.call("config.get", { key: "MISSING" }), null, "an absent key is not an error");
   } finally {
     await link.dispose();
   }
@@ -287,19 +287,19 @@ test("configuratia vine de la supervizor, nu din fisierele aplicatiei", async ()
   }
 });
 
-test("stocarea serviciului respecta aceeasi politica de chei ca pe celelalte host-uri", async () => {
+test("the service's storage honors the same key policy as the other hosts", async () => {
   const storage = new Map<string, string>();
   const link = connect(manifestWith(), { storage });
   try {
     await link.app.call("storage.set", { key: "note", value: "[]" });
     assert.equal(storage.get("note"), "[]");
-    await assert.rejects(link.app.call("storage.get", { key: "../alt" }), /cheie de stocare invalida/);
+    await assert.rejects(link.app.call("storage.get", { key: "../other" }), /invalid storage key/);
   } finally {
     await link.dispose();
   }
 });
 
-test("serve.status raporteaza listenerii deschisi si sanatatea", async () => {
+test("serve.status reports the open listeners and the health", async () => {
   const link = connect(manifestWith(), { ports: { public: 9100 } });
   try {
     await link.app.call("serve.listen", { name: "public" });
@@ -317,7 +317,7 @@ test("serve.status raporteaza listenerii deschisi si sanatatea", async () => {
   }
 });
 
-test("un serviciu se actualizeaza prin redeployment, nu singur", async () => {
+test("a service updates through redeployment, not on its own", async () => {
   const link = connect(manifestWith());
   try {
     assert.deepEqual(await link.app.call("update.check"), {
@@ -331,7 +331,7 @@ test("un serviciu se actualizeaza prin redeployment, nu singur", async () => {
   }
 });
 
-test("peste un socket real, contractul este acelasi", async () => {
+test("over a real socket, the contract is the same", async () => {
   const link = connect(manifestWith(), { ports: { public: 0 }, listeners: nodeListeners() });
   try {
     autoRespond(link.app, (event) => ({
@@ -340,13 +340,13 @@ test("peste un socket real, contractul este acelasi", async () => {
       body: JSON.stringify({ path: new URL(String(event["url"])).pathname }),
     }));
     const listener = (await link.app.call("serve.listen", { name: "public" })) as { url: string; port: number };
-    assert.ok(listener.port > 0, "portul 0 inseamna 'alege unul liber'");
+    assert.ok(listener.port > 0, "port 0 means 'pick a free one'");
 
     const response = await fetch(`${listener.url}/note`);
     assert.deepEqual(await response.json(), { path: "/note" });
 
     await link.host.requestDrain("SIGTERM");
-    await assert.rejects(fetch(`${listener.url}/note`), "socketul este inchis dupa drenare");
+    await assert.rejects(fetch(`${listener.url}/note`), "the socket is closed after draining");
   } finally {
     await link.dispose();
   }

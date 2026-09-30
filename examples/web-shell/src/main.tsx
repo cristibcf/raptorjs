@@ -1,10 +1,10 @@
 /**
- * Varianta de browser: aceeasi aplicatie, host-ul fiind browserul insusi.
+ * Browser variant: the same application, with the browser itself as the host.
  *
  *   pnpm dev:web-shell      (RaptorBundle, live-reload)
  *
- * Interfata arata explicit ce poate si ce nu poate aplicatia pe host-ul curent -
- * exact informatia pe care `bridge.allows(...)` o da inainte de primul apel.
+ * The UI shows explicitly what the app can and cannot do on the current host -
+ * exactly the information that `bridge.allows(...)` gives before the first call.
  */
 import { For, Show, render } from "raptorjs/dom";
 import { state } from "raptorjs";
@@ -12,7 +12,7 @@ import { createBrowserSession } from "./session.ts";
 
 const session = createBrowserSession(window);
 const draft = state("");
-// Se umple dupa primul raspuns al host-ului; lista se randeaza singura cand vine.
+// Filled after the host's first response; the list renders itself when it arrives.
 const abilities = state<ReadonlyArray<[string, boolean]>>([]);
 
 function Shell() {
@@ -33,20 +33,20 @@ function Shell() {
       <div class="row">
         <input
           value={draft}
-          placeholder="scrie o nota"
+          placeholder="write a note"
           on:input={(event: Event) => draft.set((event.target as HTMLInputElement).value)}
         />
-        <button on:click={() => void add()}>Adauga</button>
-        <button on:click={() => void shell.goTo("/arhiva")}>Mergi la /arhiva</button>
-        <button on:click={() => void shell.goTo("https://atacator.example/x")}>Navigare interzisa</button>
-        <button on:click={() => void shell.announce("nota salvata")}>Notifica</button>
+        <button on:click={() => void add()}>Add</button>
+        <button on:click={() => void shell.goTo("/arhiva")}>Go to /arhiva</button>
+        <button on:click={() => void shell.goTo("https://atacator.example/x")}>Forbidden navigation</button>
+        <button on:click={() => void shell.announce("note saved")}>Notify</button>
       </div>
 
       <Show when={() => shell.lastError() !== null}>
         {() => <p class="error">{shell.lastError}</p>}
       </Show>
 
-      <h2>Note</h2>
+      <h2>Notes</h2>
       <ul>
         <For each={() => shell.notes()}>
           {(note: { text: string; route: string }) => (
@@ -57,12 +57,12 @@ function Shell() {
         </For>
       </ul>
 
-      <h2>Ce poate aplicatia pe acest host</h2>
+      <h2>What the app can do on this host</h2>
       <ul class="abilities">
         <For each={() => abilities()}>
           {([method, allowed]: [string, boolean]) => (
             <li class={allowed ? "yes" : "no"}>
-              {method}: {allowed ? "da" : "nu"}
+              {method}: {allowed ? "yes" : "no"}
             </li>
           )}
         </For>
@@ -74,7 +74,7 @@ function Shell() {
 const root = document.getElementById("app");
 if (root) {
   render(Shell, root);
-  // Ruta curenta si lista de posibilitati se cer o data, la pornire.
+  // The current route and the ability list are requested once, at startup.
   void session.shell.start();
   void session.shell.abilities().then((map) => abilities.set(Object.entries(map)));
   session.host.lifecycle.to("ready");

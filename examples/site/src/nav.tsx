@@ -24,7 +24,7 @@ function Search() {
     if (inputEl) inputEl.blur();
   };
 
-  // „/" focalizeaza cautarea de oriunde; Esc o inchide.
+  // "/" focuses the search from anywhere; Esc closes it.
   window.addEventListener("keydown", (e) => {
     const tag = (document.activeElement?.tagName || "").toLowerCase();
     if (e.key === "/" && tag !== "input" && tag !== "textarea") {

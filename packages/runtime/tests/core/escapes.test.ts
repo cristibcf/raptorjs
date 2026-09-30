@@ -1,10 +1,11 @@
 /**
- * Regresii pentru evadarile din modelul de capabilitati gasite la auditul din
- * 2026-09-24 (`AUDIT-2026-09-24.md`, S1-S2, S4, S8).
+ * Regressions for the escapes from the capability model found in the 2026-09-24
+ * audit (`AUDIT-2026-09-24.md`, S1-S2, S4, S8).
  *
- * Fiecare test de aici a fost intai un proof-of-concept care REUSEA. Sunt tinute
- * separat de `modules.test.ts` tocmai ca sa se vada ca nu verifica functionarea
- * unui modul, ci granita lui: ce refuza cand cineva incearca pe langa.
+ * Every test here was first a proof-of-concept that SUCCEEDED. They are kept
+ * separate from `modules.test.ts` precisely so it is clear they do not check a
+ * module's functioning, but its boundary: what it denies when someone tries
+ * around it.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -59,26 +60,26 @@ const denied = (error: unknown): boolean => String((error as { code?: string }).
 
 /* ---------------------------------------------------------------- S1: spawn */
 
-test("S1: spawn nu poate seta variabile pe care aplicatia nu are voie sa le citeasca", async () => {
-  // Manifest care permite EXACT o comanda si nicio variabila de mediu.
+test("S1: spawn cannot set variables the application is not allowed to read", async () => {
+  // A manifest that allows EXACTLY one command and no environment variable.
   const context = harness({ "process.spawn": ["node"] });
   try {
-    const proc = createProcess(context.host, { SECRET: "nu se vede" });
-    assert.deepEqual(proc.envKeys(), [], "fara env.read, aplicatia nu vede niciun nume");
+    const proc = createProcess(context.host, { SECRET: "not visible" });
+    assert.deepEqual(proc.envKeys(), [], "without env.read, the application sees no name");
 
     await assert.rejects(
-      proc.spawn("node", { args: ["-e", "0"], env: { ORICE: "valoare" } }),
+      proc.spawn("node", { args: ["-e", "0"], env: { ORICE: "value" } }),
       denied,
-      "mediul cerut de apelant trece prin aceeasi poarta ca o citire",
+      "the environment the caller requests goes through the same gate as a read",
     );
   } finally {
     context.dispose();
   }
 });
 
-test("S1: variabilele care incarca cod sunt refuzate chiar si cu env.set acordata", async () => {
-  // Chiar si cu voie sa seteze TOT mediul, aplicatia nu poate transforma
-  // `process.spawn: ["node"]` in "orice cod" printr-un `--require`.
+test("S1: variables that load code are denied even with env.set granted", async () => {
+  // Even with permission to set the WHOLE environment, the application cannot
+  // turn `process.spawn: ["node"]` into "any code" through a `--require`.
   const context = harness({ "process.spawn": ["node"], "env.read": ["*"], "env.set": ["*"] });
   try {
     const proc = createProcess(context.host, {});
@@ -86,7 +87,7 @@ test("S1: variabilele care incarca cod sunt refuzate chiar si cu env.set acordat
       await assert.rejects(
         proc.spawn("node", { args: ["-e", "0"], env: { [name]: "./payload.js" } }),
         (error: unknown) => denied(error) && String((error as Error).message).includes(name),
-        `${name} incarca cod inainte de comanda`,
+        `${name} loads code before the command`,
       );
     }
   } finally {
@@ -94,7 +95,7 @@ test("S1: variabilele care incarca cod sunt refuzate chiar si cu env.set acordat
   }
 });
 
-test("S1: cwd in afara proiectului cere files.read pe acea cale", async () => {
+test("S1: a cwd outside the project requires files.read on that path", async () => {
   const context = harness({ "process.spawn": ["node"] });
   try {
     const proc = createProcess(context.host, {});
@@ -102,15 +103,15 @@ test("S1: cwd in afara proiectului cere files.read pe acea cale", async () => {
     await assert.rejects(
       proc.spawn("node", { args: ["-e", "0"], cwd: afara }),
       (error: unknown) => denied(error) && (error as { capability?: string }).capability === "files.read",
-      "un cwd strain e acces la disc, nu un detaliu de pornire",
+      "a foreign cwd is disk access, not a startup detail",
     );
   } finally {
     context.dispose();
   }
 });
 
-test("S1: mediul acordat explicit ajunge totusi la copil", async () => {
-  // Reparatia nu are voie sa strice cazul legitim.
+test("S1: the explicitly granted environment still reaches the child", async () => {
+  // The fix must not break the legitimate case.
   const context = harness({ "process.spawn": ["node"], "env.read": ["RAPTOR_*"], "env.set": ["RAPTOR_*"] });
   try {
     const proc = createProcess(context.host, {});
@@ -125,16 +126,16 @@ test("S1: mediul acordat explicit ajunge totusi la copil", async () => {
   }
 });
 
-test("S8: iesirea unui copil vorbaret este plafonata, nu acumulata la infinit", async () => {
+test("S8: the output of a talkative child is capped, not accumulated forever", async () => {
   const context = harness({ "process.spawn": ["node"] });
   try {
     const proc = createProcess(context.host, {});
-    // 12 MB peste un plafon de 8 MB.
+    // 12 MB over an 8 MB cap.
     const result = await proc.spawn("node", {
       args: ["-e", "const c='x'.repeat(1024*1024); for(let i=0;i<12;i++) process.stdout.write(c);"],
     });
-    assert.equal(result.truncated, true, "apelantul afla ca vede o iesire taiata");
-    assert.ok(result.stdout.length <= 8 * 1024 * 1024, `stdout a crescut la ${result.stdout.length}`);
+    assert.equal(result.truncated, true, "the caller learns it is seeing truncated output");
+    assert.ok(result.stdout.length <= 8 * 1024 * 1024, `stdout grew to ${result.stdout.length}`);
   } finally {
     context.dispose();
   }
@@ -142,7 +143,7 @@ test("S8: iesirea unui copil vorbaret este plafonata, nu acumulata la infinit", 
 
 /* ------------------------------------------------------------ S2: redirect */
 
-test("S2: un redirect nu poate duce fetch-ul pe o gazda refuzata", async () => {
+test("S2: a redirect cannot carry the fetch to a denied host", async () => {
   const intern = createServer((_request, response) => {
     response.writeHead(200);
     response.end("SECRET");
@@ -160,12 +161,12 @@ test("S2: un redirect nu poate duce fetch-ul pe o gazda refuzata", async () => {
   const context = harness({ "net.connect": [`127.0.0.1:${permisPort}`] });
   try {
     const net = createNet(context.host);
-    assert.equal(net.allows(`http://127.0.0.1:${internPort}/`), false, "gazda interna e refuzata direct");
+    assert.equal(net.allows(`http://127.0.0.1:${internPort}/`), false, "the internal host is denied directly");
 
     await assert.rejects(
       net.fetch(`http://127.0.0.1:${permisPort}/`),
       (error: unknown) => denied(error) && (error as { capability?: string }).capability === "net.connect",
-      "saltul de redirect trece prin broker, ca si primul",
+      "the redirect hop goes through the broker, like the first",
     );
   } finally {
     context.dispose();
@@ -174,10 +175,10 @@ test("S2: un redirect nu poate duce fetch-ul pe o gazda refuzata", async () => {
   }
 });
 
-test("S2: un redirect catre o gazda permisa este urmat normal", async () => {
+test("S2: a redirect to an allowed host is followed normally", async () => {
   const tinta = createServer((_request, response) => {
     response.writeHead(200);
-    response.end("ajuns");
+    response.end("arrived");
   });
   await new Promise<void>((resolve) => tinta.listen(0, "127.0.0.1", resolve));
   const tintaPort = (tinta.address() as { port: number }).port;
@@ -193,7 +194,7 @@ test("S2: un redirect catre o gazda permisa este urmat normal", async () => {
   try {
     const net = createNet(context.host);
     const response = await net.fetch(`http://127.0.0.1:${plecarePort}/`);
-    assert.equal(await response.text(), "ajuns");
+    assert.equal(await response.text(), "arrived");
     assert.equal(response.status, 200);
   } finally {
     context.dispose();
@@ -204,25 +205,25 @@ test("S2: un redirect catre o gazda permisa este urmat normal", async () => {
 
 /* -------------------------------------------------------- S4: net.listen */
 
-test("S4: serve nu poate deschide un port fara net.listen", async () => {
+test("S4: serve cannot open a port without net.listen", async () => {
   const context = harness({});
   try {
     const serve = createServe(context.host);
     await assert.rejects(
-      serve.serve({ port: 0, fetch: () => new Response("nu ar trebui") }),
+      serve.serve({ port: 0, fetch: () => new Response("should not") }),
       (error: unknown) => denied(error) && (error as { capability?: string }).capability === "net.listen",
-      "a deschide un port este o capability, nu o facilitate",
+      "opening a port is a capability, not a convenience",
     );
   } finally {
     context.dispose();
   }
 });
 
-test("S4: net.listen se acorda pe gazda si port, nu global", async () => {
+test("S4: net.listen is granted on host and port, not globally", async () => {
   const context = harness({ "net.listen": ["127.0.0.1:*"] });
   try {
     const serve = createServe(context.host);
-    const server = await serve.serve({ port: 0, hostname: "127.0.0.1", fetch: () => new Response("viu") });
+    const server = await serve.serve({ port: 0, hostname: "127.0.0.1", fetch: () => new Response("alive") });
     try {
       assert.ok(server.port > 0);
     } finally {
@@ -230,37 +231,37 @@ test("S4: net.listen se acorda pe gazda si port, nu global", async () => {
     }
 
     await assert.rejects(
-      serve.serve({ port: 0, hostname: "0.0.0.0", fetch: () => new Response("nu") }),
+      serve.serve({ port: 0, hostname: "0.0.0.0", fetch: () => new Response("no") }),
       denied,
-      "o regula pe loopback nu permite expunerea pe toate interfetele",
+      "a loopback rule does not allow exposing on all interfaces",
     );
   } finally {
     context.dispose();
   }
 });
 
-/* --------------------------------------------- runda 2: env.set ----------- */
+/* --------------------------------------------- round 2: env.set ----------- */
 
-test("R3: a seta mediul unui copil cere env.set, nu env.read", async () => {
-  // A citi si a scrie nu sunt acelasi lucru: scrierea e cea care poate schimba
-  // ce cod ruleaza copilul. Cu env.read peste tot, dar fara env.set, nimic nu
-  // trece.
+test("R3: setting a child's environment requires env.set, not env.read", async () => {
+  // Reading and writing are not the same thing: writing is what can change what
+  // code the child runs. With env.read everywhere, but without env.set, nothing
+  // passes.
   const context = harness({ "process.spawn": ["node"], "env.read": ["*"] });
   try {
     const proc = createProcess(context.host, {});
     await assert.rejects(
       proc.spawn("node", { args: ["-e", "0"], env: { ORICE: "1" } }),
       (error: unknown) => (error as { capability?: string }).capability === "env.set",
-      "a citi tot mediul nu da dreptul de a-l si scrie",
+      "reading the whole environment does not grant the right to also write it",
     );
   } finally {
     context.dispose();
   }
 });
 
-test("R3: lista de variabile care incarca cod acopera si ecosistemele nenodejs", async () => {
-  // Prima versiune a listei parea completa; a doua trecere de audit a trecut pe
-  // langa ea cu toate numele de mai jos, cu `env.read: ["*"]` acordata.
+test("R3: the list of code-loading variables also covers non-nodejs ecosystems", async () => {
+  // The first version of the list looked complete; the second audit pass walked
+  // right past it with all the names below, with `env.read: ["*"]` granted.
   const context = harness({ "process.spawn": ["node"], "env.read": ["*"], "env.set": ["*"] });
   try {
     const proc = createProcess(context.host, {});
@@ -283,7 +284,7 @@ test("R3: lista de variabile care incarca cod acopera si ecosistemele nenodejs",
       await assert.rejects(
         proc.spawn("node", { args: ["-e", "0"], env: { [name]: "x" } }),
         (error: unknown) => (error as { capability?: string }).capability === "env.set",
-        `${name} incarca cod si trebuie refuzata chiar si cu env.set acordata`,
+        `${name} loads code and must be denied even with env.set granted`,
       );
     }
   } finally {
@@ -291,21 +292,21 @@ test("R3: lista de variabile care incarca cod acopera si ecosistemele nenodejs",
   }
 });
 
-/* ------------------------------ runda 2: credentiale la redirect ---------- */
+/* ------------------------------ round 2: credentials on redirect ---------- */
 
-test("R4: un redirect catre alta gazda pleaca fara credentiale", async () => {
+test("R4: a redirect to another host leaves without credentials", async () => {
   const primite: Array<Record<string, unknown>> = [];
   const tinta = createServer((request, response) => {
     primite.push({ ...request.headers });
     response.writeHead(200);
-    response.end("ajuns");
+    response.end("arrived");
   });
   await new Promise<void>((resolve) => tinta.listen(0, "127.0.0.1", resolve));
   const tintaPort = (tinta.address() as { port: number }).port;
 
   const plecare = createServer((_request, response) => {
-    // Alta gazda: acelasi IP, alt port. Pentru `net.connect` sunt destinatii
-    // diferite, deci si pentru credentiale sunt.
+    // Another host: same IP, different port. For `net.connect` they are different
+    // destinations, so for credentials they are too.
     response.writeHead(302, { location: `http://127.0.0.1:${tintaPort}/` });
     response.end();
   });
@@ -318,12 +319,12 @@ test("R4: un redirect catre alta gazda pleaca fara credentiale", async () => {
     const response = await net.fetch(`http://127.0.0.1:${plecarePort}/`, {
       headers: { authorization: "Bearer SECRET", cookie: "sid=abc", "x-corelatie": "pastrat" },
     });
-    assert.equal(await response.text(), "ajuns");
+    assert.equal(await response.text(), "arrived");
 
     const headers = primite[0] ?? {};
-    assert.equal(headers["authorization"], undefined, "token-ul nu are ce cauta pe alta gazda");
-    assert.equal(headers["cookie"], undefined, "nici cookie-ul");
-    assert.equal(headers["x-corelatie"], "pastrat", "restul anteturilor merg mai departe");
+    assert.equal(headers["authorization"], undefined, "the token has no business on another host");
+    assert.equal(headers["cookie"], undefined, "neither does the cookie");
+    assert.equal(headers["x-corelatie"], "pastrat", "the rest of the headers go on");
   } finally {
     context.dispose();
     tinta.close();

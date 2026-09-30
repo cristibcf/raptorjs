@@ -1,22 +1,22 @@
 /**
- * Document versionat RaptorWire - starea autoritativa (server) sau replica
- * (client). Operatiile se aplica peste o stare de baza cunoscuta si produc un
- * `Change` care spune exact ce s-a modificat, ca clientul sa poata notifica
- * doar semnalele afectate (whitepaper 13, 13.1).
+ * A versioned RaptorWire document - the authoritative state (server) or the
+ * replica (client). Operations apply on top of a known base state and produce a
+ * `Change` that says exactly what changed, so the client can notify only the
+ * affected signals (whitepaper 13, 13.1).
  */
 import { Writer, Reader } from "@raptor/wire/codec";
 import { type WireValue, writeValue, readValue } from "./value.ts";
 import { type Operation, type OpsBatch } from "./operation.ts";
 import { setOwn } from "./safe.ts";
 
-/** Descrie ce a atins o operatie, pentru reactivitate fina pe client. */
+/** Describes what an operation touched, for fine-grained reactivity on the client. */
 export interface Change {
   handle: string;
-  /** Field-uri de obiect atinse (set/inc/patch), altfel null. */
+  /** Object fields touched (set/inc/patch), otherwise null. */
   fields: string[] | null;
-  /** true daca o colectie s-a modificat structural. */
+  /** true if a collection changed structurally. */
   list: boolean;
-  /** true daca intreg handle-ul a fost inlocuit/creat/sters. */
+  /** true if the entire handle was replaced/created/removed. */
   replaced: boolean;
 }
 
@@ -54,7 +54,7 @@ export class Document {
     return Object.fromEntries(this.data);
   }
 
-  /** Aplica o singura operatie in loc si intoarce ce s-a schimbat. */
+  /** Apply a single operation in place and return what changed. */
   apply(op: Operation): Change {
     switch (op.kind) {
       case "set": {
@@ -115,14 +115,14 @@ export class Document {
     }
   }
 
-  /** Aplica un batch versionat si seteaza versiunea la resultVersion. */
+  /** Apply a versioned batch and set the version to resultVersion. */
   applyBatch(batch: OpsBatch): Change[] {
     const changes = batch.ops.map((op) => this.apply(op));
     this.version = batch.resultVersion;
     return changes;
   }
 
-  /** Serializeaza intreaga stare ca snapshot binar (frame SNAPSHOT). */
+  /** Serialize the entire state as a binary snapshot (SNAPSHOT frame). */
   encodeSnapshot(): Uint8Array {
     const w = new Writer();
     w.varint(this.version);
@@ -134,7 +134,7 @@ export class Document {
     return w.finish();
   }
 
-  /** Reconstruieste un document dintr-un snapshot binar. */
+  /** Reconstruct a document from a binary snapshot. */
   static decodeSnapshot(bytes: Uint8Array): Document {
     const doc = new Document();
     const r = new Reader(bytes);

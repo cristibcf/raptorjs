@@ -1,36 +1,36 @@
 /**
- * Tree-shaking la nivel de MODUL, condus de exporturile cerute.
+ * MODULE-level tree-shaking, driven by the requested exports.
  *
- * Problema pe care o rezolva: un barrel (`export * from "./a.ts"` × 35) trage
- * toata biblioteca chiar daca folosesti un singur `Button`. Pornim din entry,
- * urmarim ce nume sunt chiar cerute si urmam doar re-exporturile care le
- * furnizeaza. Re-exporturile nefolosite sunt taiate din sursa inainte de
- * transpilare, deci modulele lor nu mai ajung niciodata in graf.
+ * The problem it solves: a barrel (`export * from "./a.ts"` × 35) drags in the
+ * whole library even if you use a single `Button`. We start from the entry,
+ * track which names are actually requested and follow only the re-exports that
+ * provide them. Unused re-exports are cut from the source before transpilation,
+ * so their modules never reach the graph.
  *
- * **Ce NU face:** eliminarea declaratiilor nefolosite DIN interiorul unui modul.
- * Daca imporți un singur tip de grafic dintr-un fisier care contine unsprezece,
- * toate unsprezece raman. Asta ar cere un graf de dependente intre declaratii;
- * granularitatea de modul acopera cazul barrel-ului, care e cel care doare.
+ * **What it does NOT do:** remove unused declarations FROM INSIDE a module.
+ * If you import a single chart type from a file that contains eleven, all eleven
+ * stay. That would require a dependency graph between declarations; module
+ * granularity covers the barrel case, which is the one that hurts.
  *
- * **Siguranta:** un re-export se taie doar daca modulul tinta e fara efecte
- * secundare. Sursa adevarului e `"sideEffects": false` din cel mai apropiat
- * package.json; fara el, cadem pe o euristica conservatoare (orice instructiune
- * de nivel inalt care nu e declaratie inseamna "poate avea efecte").
+ * **Safety:** a re-export is cut only if the target module is side-effect free.
+ * The source of truth is `"sideEffects": false` from the nearest package.json;
+ * without it, we fall back to a conservative heuristic (any top-level statement
+ * that is not a declaration means "may have effects").
  */
 import { readFileSync, existsSync } from "node:fs";
 import { dirname, join, parse as parsePath } from "node:path";
 import { analyzeModule, type ModuleInfo } from "./esm-graph.ts";
 import { resolveSpecifier } from "./resolve.ts";
 
-/** Separator de cheie: NUL nu poate aparea nici intr-o cale, nici intr-un identificator. */
+/** Key separator: NUL cannot appear in a path nor in an identifier. */
 const KEY_SEP = String.fromCharCode(0);
 
 export interface ShakeResult {
-  /** Modulele care trebuie incluse in bundle. */
+  /** The modules that must be included in the bundle. */
   included: Set<string>;
-  /** Intervale de taiat din sursa fiecarui modul (re-exporturi nefolosite). */
+  /** Ranges to cut from each module's source (unused re-exports). */
   pruned: Map<string, Array<[number, number]>>;
-  /** Cate re-exporturi au fost eliminate (pentru raportare). */
+  /** How many re-exports were removed (for reporting). */
   prunedEdges: number;
 }
 
@@ -39,10 +39,10 @@ interface Analysis {
   source: string;
 }
 
-/** Cache de `sideEffects` per director de pachet. */
+/** `sideEffects` cache, keyed per package directory. */
 const sideEffectsCache = new Map<string, boolean | null>();
 
-/** Citeste `"sideEffects"` din cel mai apropiat package.json. `null` = nedeclarat. */
+/** Reads `"sideEffects"` from the nearest package.json. `null` = undeclared. */
 function declaredSideEffects(file: string): boolean | null {
   let dir = dirname(file);
   const root = parsePath(dir).root;
@@ -61,12 +61,12 @@ function declaredSideEffects(file: string): boolean | null {
       let value: boolean | null = null;
       try {
         const pkg = JSON.parse(readFileSync(pkgPath, "utf8")) as { sideEffects?: unknown };
-        // `false` = pachet pur. Un array de glob-uri il tratam ca "are efecte",
-        // ca sa nu pretindem ca intelegem pattern-uri pe care nu le evaluam.
+        // `false` = pure package. An array of globs we treat as "has effects",
+        // so we don't pretend to understand patterns we don't evaluate.
         if (pkg.sideEffects === false) value = false;
         else if (pkg.sideEffects !== undefined) value = true;
       } catch {
-        value = null; // package.json stricat: nu presupunem nimic
+        value = null; // broken package.json: assume nothing
       }
       for (const d of chain) sideEffectsCache.set(d, value);
       return value;
@@ -81,13 +81,13 @@ function declaredSideEffects(file: string): boolean | null {
   }
 }
 
-/** Golește cache-ul de package.json (dev server: fisierele se pot schimba). */
+/** Clears the package.json cache (dev server: files can change). */
 export function resetSideEffectsCache(): void {
   sideEffectsCache.clear();
 }
 
 export interface ShakeOptions {
-  /** Citirea fisierelor; injectabila pentru teste. */
+  /** File reading; injectable for tests. */
   read?: (file: string) => string;
   resolve?: (spec: string, importer: string) => string | null;
 }
@@ -117,12 +117,12 @@ export function treeshake(entryFile: string, options: ShakeOptions = {}): ShakeR
 
   const providesCache = new Map<string, boolean>();
 
-  /** `true` daca `file` exporta `symbol`, direct sau prin re-export. */
+  /** `true` if `file` exports `symbol`, directly or through a re-export. */
   const provides = (file: string, symbol: string, guard = new Set<string>()): boolean => {
     const key = file + KEY_SEP + symbol;
     const cached = providesCache.get(key);
     if (cached !== undefined) return cached;
-    if (guard.has(key)) return false; // ciclu de re-exporturi
+    if (guard.has(key)) return false; // re-export cycle
     guard.add(key);
 
     const { info } = analyze(file);
@@ -137,7 +137,7 @@ export function treeshake(entryFile: string, options: ShakeOptions = {}): ShakeR
           }
           continue;
         }
-        if (edge.namespaceAs !== null) continue; // deja in localExports
+        if (edge.namespaceAs !== null) continue; // already in localExports
         const target = resolve(edge.spec, file);
         if (target && provides(target, symbol, guard)) {
           result = true;
@@ -150,13 +150,13 @@ export function treeshake(entryFile: string, options: ShakeOptions = {}): ShakeR
     return result;
   };
 
-  /* ------------------------------------------------------- propagarea -- */
+  /* ------------------------------------------------------- propagation -- */
 
   const included = new Set<string>();
-  /** Re-exporturile pastrate: `file -> set de indici din info.reExports`. */
+  /** The kept re-exports: `file -> set of indices into info.reExports`. */
   const keptEdges = new Map<string, Set<number>>();
-  const requested = new Set<string>(); // `file\0symbol` deja procesate
-  const wholeModules = new Set<string>(); // cerute integral (namespace/bare)
+  const requested = new Set<string>(); // `file\0symbol` already processed
+  const wholeModules = new Set<string>(); // requested wholesale (namespace/bare)
 
   const keepEdge = (file: string, index: number): void => {
     let set = keptEdges.get(file);
@@ -170,8 +170,8 @@ export function treeshake(entryFile: string, options: ShakeOptions = {}): ShakeR
   const includeModule = (file: string): void => {
     if (included.has(file)) return;
     included.add(file);
-    // Modulul e inclus intreg (fara DCE intern), deci toate IMPORTURILE lui
-    // trebuie satisfacute. Re-exporturile, in schimb, se urmeaza la cerere.
+    // The module is included whole (no internal DCE), so all of its IMPORTS
+    // must be satisfied. Re-exports, by contrast, are followed on demand.
     for (const edge of analyze(file).info.imports) {
       const target = resolve(edge.spec, file);
       if (!target) continue;
@@ -184,8 +184,8 @@ export function treeshake(entryFile: string, options: ShakeOptions = {}): ShakeR
     if (wholeModules.has(file)) return;
     wholeModules.add(file);
     includeModule(file);
-    // Namespace sau import bare: nu stim ce se foloseste, deci pastram toate
-    // re-exporturile si includem tintele lor.
+    // Namespace or bare import: we don't know what is used, so we keep all
+    // re-exports and include their targets.
     const { info } = analyze(file);
     info.reExports.forEach((edge, index) => {
       keepEdge(file, index);
@@ -202,8 +202,8 @@ export function treeshake(entryFile: string, options: ShakeOptions = {}): ShakeR
 
     const { info } = analyze(file);
     if (info.localExports.has(symbol)) {
-      // Declarat local. Daca vine dintr-un `export { x } from "y"`, edge-ul
-      // respectiv trebuie pastrat si tinta ceruta.
+      // Declared locally. If it comes from an `export { x } from "y"`, that
+      // edge must be kept and its target requested.
       info.reExports.forEach((edge, index) => {
         if (edge.namespaceAs === symbol) {
           keepEdge(file, index);
@@ -220,8 +220,8 @@ export function treeshake(entryFile: string, options: ShakeOptions = {}): ShakeR
       return;
     }
 
-    // Nu e local: il cautam prin `export * from ...`, urmand DOAR steaua care
-    // chiar furnizeaza simbolul. Asta e taietura care elimina barrel-ul.
+    // Not local: we look for it through `export * from ...`, following ONLY the
+    // star that actually provides the symbol. This is the cut that removes the barrel.
     let found = false;
     info.reExports.forEach((edge, index) => {
       if (found || edge.names !== null || edge.namespaceAs !== null) return;
@@ -233,8 +233,8 @@ export function treeshake(entryFile: string, options: ShakeOptions = {}): ShakeR
     });
 
     if (!found) {
-      // Simbol negasit (tip sters la transpilare, sau import gresit). Ca sa nu
-      // stricam build-ul, pastram toate stelele modulului.
+      // Symbol not found (a type erased during transpilation, or a wrong import).
+      // So as not to break the build, we keep all of the module's stars.
       info.reExports.forEach((edge, index) => {
         if (edge.names !== null) return;
         keepEdge(file, index);
@@ -246,11 +246,11 @@ export function treeshake(entryFile: string, options: ShakeOptions = {}): ShakeR
 
   needAll(entryFile);
 
-  /* ----------------------------------------------------------- taiere -- */
+  /* ----------------------------------------------------------- pruning -- */
 
-  // Intai stabilizam: un re-export catre un modul cu posibile efecte secundare
-  // NU poate fi taiat, iar pastrarea lui poate aduce module noi in graf, care
-  // la randul lor pot avea aceeasi problema. Repetam pana nu se mai schimba.
+  // First we stabilize: a re-export to a module with possible side effects
+  // CANNOT be cut, and keeping it may bring new modules into the graph, which
+  // in turn may have the same problem. We repeat until nothing changes.
   let changed = true;
   while (changed) {
     changed = false;
@@ -260,7 +260,7 @@ export function treeshake(entryFile: string, options: ShakeOptions = {}): ShakeR
       info.reExports.forEach((edge, index) => {
         if (kept?.has(index)) return;
         const target = resolve(edge.spec, file);
-        if (!target) return; // extern: instructiunea ramane neatinsa
+        if (!target) return; // external: the statement stays untouched
         if (isPure(target)) return;
         keepEdge(file, index);
         needAll(target);

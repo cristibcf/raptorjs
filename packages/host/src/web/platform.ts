@@ -1,11 +1,11 @@
 /**
- * Bucatile de browser de care are nevoie adaptorul, ca interfete.
+ * The pieces of the browser the adapter needs, as interfaces.
  *
- * Nu importam `window` direct din doua motive. Unul practic: adaptorul trebuie
- * sa fie testabil pe Node, fara browser. Unul de fond: ce ii dai host-ului aici
- * este exact suprafata pe care o poate atinge - daca o bucata nu este trecuta,
- * metoda corespunzatoare raspunde `raptor:host/unimplemented`, nu se descurca
- * singura cautand prin `globalThis`.
+ * We do not import `window` directly for two reasons. A practical one: the
+ * adapter must be testable on Node, without a browser. A deeper one: what you
+ * give the host here is exactly the surface it can touch - if a piece is not
+ * passed in, the matching method answers `raptor:host/unimplemented`, instead
+ * of fending for itself by rummaging through `globalThis`.
  */
 
 export interface WebStorageLike {
@@ -59,18 +59,18 @@ export interface WebPlatform {
   readonly geolocation?: GeolocationLike;
   readonly camera?: CameraLike;
   readonly files?: FilePickerLike;
-  /** Titlul documentului; `window.setTitle` il schimba pe al paginii curente. */
+  /** The document title; `window.setTitle` changes the current page's. */
   setTitle?(title: string): void;
-  /** Inregistreaza butonul de back al browserului (`popstate`). */
+  /** Registers the browser's back button (`popstate`). */
   onPopState?(listener: (path: string) => void): void;
 }
 
 /**
- * Platforma reala, citita dintr-un `window` de browser.
+ * The real platform, read from a browser `window`.
  *
- * Trecem prin `unknown` in loc sa depindem de lib.dom in semnatura publica:
- * pachetul trebuie sa se compileze si intr-un proiect care tinteste doar Node.
- * Bucatile care lipsesc din mediul dat raman pur si simplu nemontate.
+ * We go through `unknown` instead of depending on lib.dom in the public
+ * signature: the package must compile even in a project that targets Node only.
+ * The pieces missing from the given environment are simply left unmounted.
  */
 export function platformFromWindow(win: unknown): WebPlatform {
   const w = win as Record<string, unknown>;

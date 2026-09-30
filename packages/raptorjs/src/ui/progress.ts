@@ -1,11 +1,11 @@
 /**
- * Progress - bara de progres determinata sau nedeterminata.
+ * Progress - a determinate or indeterminate progress bar.
  *
- * Cea mai simpla componenta-teza, si de aceea cea mai clara: o valoare care
- * urca de la 0 la 100 in 100 de pasi scrie **doua atribute** la fiecare pas
- * (latimea umpluturii si `aria-valuenow`) si nu atinge niciun nod. Intr-un
- * framework cu Virtual DOM aceiasi 100 de pasi inseamna 100 de re-randari si
- * 100 de reconcilieri ale subarborelui.
+ * The simplest thesis component, and therefore the clearest: a value that
+ * climbs from 0 to 100 in 100 steps writes **two attributes** on each step (the
+ * fill width and `aria-valuenow`) and touches no node. In a Virtual DOM
+ * framework those same 100 steps mean 100 re-renders and 100 reconciliations of
+ * the subtree.
  */
 import { derived, type Accessor } from "raptorjs";
 import { R, Show, type Child } from "raptorjs/dom";
@@ -14,14 +14,14 @@ import { R, Show, type Child } from "raptorjs/dom";
 type El = any;
 
 export interface ProgressProps {
-  /** Valoarea curenta. Omisa (sau `indeterminate`) => bara nedeterminata. */
+  /** The current value. Omitted (or `indeterminate`) => indeterminate bar. */
   value?: Accessor<number>;
   min?: number;
   max?: number;
   indeterminate?: boolean;
-  /** Eticheta pentru screen reader. */
+  /** Label for the screen reader. */
   label?: string;
-  /** Text afisat langa bara; `true` afiseaza procentul. */
+  /** Text shown next to the bar; `true` shows the percentage. */
   caption?: Child | true;
   class?: string;
 }
@@ -32,7 +32,7 @@ export function Progress(props: ProgressProps): El {
   const span = max - min || 1;
   const indeterminate = props.indeterminate === true || props.value === undefined;
 
-  /** Procent 0..100, plafonat. Un singur `derived` alimenteaza tot. */
+  /** Percent 0..100, capped. A single `derived` feeds everything. */
   const percent = derived(() => {
     if (indeterminate) return 0;
     const raw = (props.value!() - min) / span;
@@ -46,7 +46,7 @@ export function Progress(props: ProgressProps): El {
       "aria-valuemin": String(min),
       "aria-valuemax": String(max),
       ...(props.label ? { "aria-label": props.label } : {}),
-      // Nedeterminata: fara `aria-valuenow`, asa cere specificatia ARIA.
+      // Indeterminate: no `aria-valuenow`, as the ARIA spec requires.
       ...(indeterminate
         ? { "data-indeterminate": "true" }
         : { "aria-valuenow": () => String(Math.round(props.value!())) }),
@@ -55,7 +55,7 @@ export function Progress(props: ProgressProps): El {
       { class: "rui-progress-track" },
       R.div({
         class: indeterminate ? "rui-progress-fill rui-indeterminate" : "rui-progress-fill",
-        // Singurul lucru care se schimba la fiecare pas.
+        // The only thing that changes on each step.
         ...(indeterminate ? {} : { style: () => "width:" + percent().toFixed(2) + "%" }),
       }),
     ),
@@ -70,8 +70,8 @@ export function Progress(props: ProgressProps): El {
 }
 
 /**
- * CircularProgress - aceeasi logica, randata ca inel SVG.
- * `stroke-dashoffset` e singurul atribut care se misca.
+ * CircularProgress - the same logic, rendered as an SVG ring.
+ * `stroke-dashoffset` is the only attribute that moves.
  */
 export interface CircularProgressProps extends ProgressProps {
   size?: number;

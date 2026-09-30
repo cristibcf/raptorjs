@@ -17,9 +17,9 @@ function newRT() {
   };
 }
 
-test("baseline: happy-path nu produce false positive", () => {
+test("baseline: happy-path produces no false positive", () => {
   const { rt } = newRT();
-  // add -> go to cart, sub schedule normal: UI converge cu serverul.
+  // add -> go to cart, under the normal schedule: the UI converges with the server.
   const res = rt.runScenario(
     ["button:Add to cart:ProductCard", "link:Go to cart:ProductCard"],
     defaultSchedule(),
@@ -28,45 +28,45 @@ test("baseline: happy-path nu produce false positive", () => {
   assert.equal(res.ui.facts["cart.count"], 1);
 });
 
-test("descopera autonom bug-ul stale-read (RT-184)", () => {
+test("autonomously discovers the stale-read bug (RT-184)", () => {
   const { rt } = newRT();
   const findings = rt.explore();
   const stale = findings.find((f) => f.scheduleLabel.startsWith("stale-read"));
-  assert.ok(stale, "trebuie sa gaseasca bug-ul de stale-read");
+  assert.ok(stale, "must find the stale-read bug");
   assert.equal(stale!.capsule.failedOracle, "cart-count-converges");
-  // Reproducere minima: exact add + go-to-cart (2 actiuni).
+  // Minimal repro: exactly add + go-to-cart (2 actions).
   assert.deepEqual(stale!.capsule.actionLog, [
     "button:Add to cart:ProductCard",
     "link:Go to cart:ProductCard",
   ]);
 });
 
-test("capsula se reproduce determinist la replay", () => {
+test("capsule reproduces deterministically on replay", () => {
   const { rt } = newRT();
   const findings = rt.explore();
   for (const f of findings) {
     const replay = rt.replay(f.capsule);
-    assert.equal(replay.reproduced, true, `capsula ${f.capsule.id} trebuie sa se reproduca`);
+    assert.equal(replay.reproduced, true, `capsule ${f.capsule.id} must reproduce`);
   }
 });
 
-test("oracle prinde divergenta UI vs server sub stale-read", () => {
+test("oracle catches UI vs server divergence under stale-read", () => {
   const { rt } = newRT();
   const findings = rt.explore();
   const stale = findings.find((f) => f.scheduleLabel.startsWith("stale-read"))!;
   const replay = rt.replay(stale.capsule);
-  // UI arata 0, serverul are 1 -> divergenta.
+  // UI shows 0, the server has 1 -> divergence.
   assert.equal(replay.ui.facts["cart.count"], 0);
 });
 
-test("descopera si bug-ul de robustete la fault (POST 500)", () => {
+test("also discovers the fault-robustness bug (POST 500)", () => {
   const { rt } = newRT();
   const findings = rt.explore();
   const fault = findings.find((f) => f.scheduleLabel.startsWith("fault"));
-  assert.ok(fault, "citirea oarba a .count dintr-un raspuns de eroare e un defect real");
+  assert.ok(fault, "blindly reading .count from an error response is a real defect");
 });
 
-test("coverage este multidimensional si creste prin explorare", () => {
+test("coverage is multidimensional and grows through exploration", () => {
   const { rt } = newRT();
   rt.explore();
   const cov = rt.coverage.report();

@@ -1,8 +1,9 @@
 /**
- * @raptor/runtime-cli - launcher-ul RaptorRuntime.
+ * @raptor/runtime-cli - the RaptorRuntime launcher.
  *
- * Pachetul expune comenzile si ca API, nu doar ca binar: `raptor-create`,
- * testele de contract si, mai tarziu, host-ul nativ le apeleaza direct.
+ * The package exposes the commands as an API too, not just as a binary:
+ * `raptor-create`, the contract tests and, later, the native host call them
+ * directly.
  */
 export { main, runCli } from "./cli.ts";
 export type { CliOptions } from "./cli.ts";

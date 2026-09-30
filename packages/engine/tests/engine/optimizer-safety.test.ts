@@ -1,12 +1,13 @@
 /**
- * Regresii pentru runda 3 de audit: optimizatorul schimba intelesul programului.
+ * Regressions for audit round 3: the optimizer changing the meaning of the program.
  *
- * Contextul care da severitatea: teza proiectului (whitepaper §24) e „adaptive
- * strategies, not adaptive correctness". DSE si Fusion sunt prezentate ca
- * transformari sigure — deci un caz in care schimba rezultatul, sau emit cod
- * care arunca, e o gaura in chiar afirmatia centrala a pilonului de compilare.
+ * The context that gives them their severity: the project's thesis (whitepaper
+ * §24) is "adaptive strategies, not adaptive correctness". DSE and Fusion are
+ * presented as safe transformations — so a case where they change the result,
+ * or emit code that throws, is a hole in the very central claim of the
+ * compilation pillar.
  *
- * Fiecare test de aici a fost intai un program care se compila gresit.
+ * Every test here was first a program that compiled incorrectly.
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -14,7 +15,7 @@ import { parseModule, exprToJs, type Expr } from "@raptor/engine/compiler";
 import { optimize } from "../../src/engine/optimize.ts";
 import { buildModule } from "../../src/engine/index.ts";
 
-/** Expresiile tuturor bindingurilor de text dintr-un modul, ca text JS. */
+/** The expressions of all text bindings in a module, as JS text. */
 function textBindings(module: ReturnType<typeof parseModule>): string[] {
   const out: string[] = [];
   const walk = (node: Record<string, unknown>): void => {
@@ -36,13 +37,13 @@ function names(module: ReturnType<typeof parseModule>): string[] {
   ]);
 }
 
-/* ------------------------------------------------ U1: captura de variabila -- */
+/* ------------------------------------------------ U1: variable capture ------ */
 
-test("U1: fuziunea nu captureaza o variabila legata la locul folosirii", () => {
-  // `a` citeste SEMNALUL `x`. La locul folosirii, `x` e parametrul lui `map`.
-  // Inlocuirea naiva dadea `items.map(x => x + 1)` - alt program - si pe
-  // deasupra declara `x` ca dependinta, deci bindingul se abona la un semnal pe
-  // care codul emis nici nu-l mai citea.
+test("U1: fusion does not capture a variable bound at the use site", () => {
+  // `a` reads the SIGNAL `x`. At the use site, `x` is the parameter of `map`.
+  // The naive substitution produced `items.map(x => x + 1)` - a different
+  // program - and on top of that declared `x` as a dependency, so the binding
+  // subscribed to a signal that the emitted code no longer even read.
   const module = parseModule(
     `component App {
       const x = state(1)
@@ -55,18 +56,18 @@ test("U1: fuziunea nu captureaza o variabila legata la locul folosirii", () => {
 
   const optimized = optimize(module, { fusion: true });
   const binding = textBindings(optimized.module)[0]!;
-  assert.doesNotMatch(binding, /\(x\) => \(x \+ 1\)/, `captura: ${binding}`);
+  assert.doesNotMatch(binding, /\(x\) => \(x \+ 1\)/, `capture: ${binding}`);
   assert.ok(
-    optimized.trace.some((t) => t.action === "blocked" && t.detail.includes("captura")),
-    "refuzul trebuie sa apara in trace, ca `inspect` sa poata spune de ce",
+    optimized.trace.some((t) => t.action === "blocked" && t.detail.includes("capture")),
+    "the refusal must appear in the trace, so `inspect` can say why",
   );
 });
 
-/* ------------------------------------------------ U2: duplicarea lucrului --- */
+/* ------------------------------------------------ U2: duplicating work ------ */
 
-test("U2: fuziunea nu duplica lucrul cand consumatorul foloseste valoarea de doua ori", () => {
-  // Un consumator UNIC nu inseamna o singura FOLOSIRE. Inlocuind, expresia s-ar
-  // calcula de doua ori si s-ar sterge tocmai memo-ul care o calcula o data.
+test("U2: fusion does not duplicate work when the consumer uses the value twice", () => {
+  // A SINGLE consumer does not mean a single USE. Substituting, the expression
+  // would be computed twice and it would delete the very memo that computed it once.
   const module = parseModule(
     `component App {
       const n = state(1)
@@ -77,13 +78,13 @@ test("U2: fuziunea nu duplica lucrul cand consumatorul foloseste valoarea de dou
   );
 
   const optimized = optimize(module, { fusion: true });
-  assert.ok(names(optimized.module).includes("scump"), "memo-ul trebuie sa supravietuiasca");
+  assert.ok(names(optimized.module).includes("scump"), "the memo must survive");
   assert.equal(textBindings(optimized.module)[0], "(scump + scump)");
-  assert.ok(optimized.trace.some((t) => t.action === "blocked" && t.detail.includes("duplica")));
+  assert.ok(optimized.trace.some((t) => t.action === "blocked" && t.detail.includes("duplicate")));
 });
 
-test("U2: o singura folosire se fuzioneaza in continuare", () => {
-  // Reparatia nu are voie sa opreasca optimizarea in cazul pentru care exista.
+test("U2: a single use still fuses", () => {
+  // The fix must not stop the optimization in the case it exists for.
   const module = parseModule(
     `component App {
       const n = state(1)
@@ -93,15 +94,15 @@ test("U2: o singura folosire se fuzioneaza in continuare", () => {
     "App.raptor",
   );
   const optimized = optimize(module, { fusion: true });
-  assert.ok(!names(optimized.module).includes("eticheta"), "un consumator, o folosire: se fuzioneaza");
+  assert.ok(!names(optimized.module).includes("eticheta"), "one consumer, one use: it fuses");
 });
 
-/* ------------------------------- U4/U5: DSE si handlerele de evenimente ----- */
+/* ------------------------------- U4/U5: DSE and event handlers -------------- */
 
-test("U4: un derived citit doar intr-un handler nu e eliminat", () => {
-  // Inainte: DSE il stergea (handlerele nu erau sinks si nu aveau muchii de
-  // citire), iar codul emis ramanea cu o referinta catre un nume inexistent -
-  // `ReferenceError` la primul click, dintr-un build raportat ca reusit.
+test("U4: a derived read only in a handler is not eliminated", () => {
+  // Before: DSE deleted it (handlers were not sinks and had no read edges),
+  // and the emitted code was left with a reference to a nonexistent name -
+  // `ReferenceError` on the first click, from a build reported as successful.
   const built = buildModule(
     `component App {
       const count = state(0)
@@ -115,14 +116,14 @@ test("U4: un derived citit doar intr-un handler nu e eliminat", () => {
   assert.doesNotMatch(
     browser,
     /\bpas\b(?!\s*=)/,
-    "ori `pas` e declarat, ori a fost inlocuit cu valoarea lui - dar nu lasat atarnand",
+    "either `pas` is declared, or it was replaced with its value - but not left dangling",
   );
   for (const nume of referintele(browser)) {
-    assert.ok(declarat(browser, nume), `codul emis foloseste '${nume}' fara sa-l declare`);
+    assert.ok(declarat(browser, nume), `the emitted code uses '${nume}' without declaring it`);
   }
 });
 
-test("U5: un semnal scris doar intr-un handler nu e eliminat", () => {
+test("U5: a signal written only in a handler is not eliminated", () => {
   const built = buildModule(
     `component App {
       const vizite = state(0)
@@ -131,11 +132,11 @@ test("U5: un semnal scris doar intr-un handler nu e eliminat", () => {
     "App.raptor",
   );
   const browser = built.browser;
-  assert.match(browser, /const vizite = state\(0\)/, "semnalul scris de handler trebuie sa existe");
-  assert.match(browser, /vizite\.set\(/, "iar handler-ul chiar scrie in el");
+  assert.match(browser, /const vizite = state\(0\)/, "the signal written by the handler must exist");
+  assert.match(browser, /vizite\.set\(/, "and the handler does write to it");
 });
 
-test("U4/U5: un derived cu adevarat mort este in continuare eliminat", () => {
+test("U4/U5: a truly dead derived is still eliminated", () => {
   const built = buildModule(
     `component App {
       const n = state(1)
@@ -144,16 +145,16 @@ test("U4/U5: un derived cu adevarat mort este in continuare eliminat", () => {
     }`,
     "App.raptor",
   );
-  assert.doesNotMatch(built.browser, /mort/, "DSE trebuie sa ramana folositor");
+  assert.doesNotMatch(built.browser, /mort/, "DSE must remain useful");
 });
 
-/* ------------------------------------------------------------- ajutoare ---- */
+/* ------------------------------------------------------------- helpers ----- */
 
-/** Identificatorii folositi in codul emis care ar trebui sa fie locali. */
+/** The identifiers used in the emitted code that should be local. */
 function referintele(code: string): string[] {
   const found = new Set<string>();
   for (const m of code.matchAll(/\b([a-z][A-Za-z0-9_]*)\(\)/g)) found.add(m[1]!);
-  // Numele care vin din import-uri, nu din componenta.
+  // The names that come from imports, not from the component.
   for (const nume of ["state", "derived", "effect", "createElement", "applyProps", "mountChild"]) {
     found.delete(nume);
   }

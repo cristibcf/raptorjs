@@ -1,13 +1,14 @@
 /**
- * Collapsible / Accordion - zone pliabile.
+ * Collapsible / Accordion - collapsible regions.
  *
- * Nu folosesc `<details>`: acela nu poate fi animat si nu permite modul
- * "un singur panou deschis". Folosesc butoane cu `aria-expanded` si
- * `aria-controls`, pattern-ul ARIA pentru disclosure.
+ * They don't use `<details>`: that can't be animated and doesn't allow the
+ * "only one panel open" mode. They use buttons with `aria-expanded` and
+ * `aria-controls`, the ARIA disclosure pattern.
  *
- * Continutul ramane in DOM cand e inchis (cu `hidden`), nu e demontat: asa
- * Ctrl+F il gaseste si nu pierzi starea din el (input-uri, scroll). Daca vrei
- * demontare - de exemplu pentru un panou scump - pune `unmount: true`.
+ * The content stays in the DOM when closed (with `hidden`), it isn't unmounted:
+ * that way Ctrl+F finds it and you don't lose the state inside it (inputs,
+ * scroll). If you want unmounting - for example for an expensive panel - set
+ * `unmount: true`.
  */
 import { state, type Accessor, type State } from "raptorjs";
 import { R, For, Show, type Child } from "raptorjs/dom";
@@ -18,14 +19,14 @@ import { type El } from "./primitives/env.ts";
 let idSeq = 0;
 
 export interface CollapsibleProps {
-  /** Titlul din buton. */
+  /** The title in the button. */
   trigger: Child;
   children: Child;
-  /** Semnal propriu daca vrei control din afara. */
+  /** Your own signal if you want control from outside. */
   open?: State<boolean>;
   initialOpen?: boolean;
   disabled?: boolean;
-  /** Demonteaza continutul cand e inchis. Implicit `false`. */
+  /** Unmount the content when closed. Defaults to `false`. */
   unmount?: boolean;
   onToggle?: (open: boolean) => void;
   class?: string;
@@ -90,7 +91,7 @@ export function Collapsible(props: CollapsibleProps): El {
 }
 
 export interface AccordionSection {
-  /** Cheie stabila; intra in id-urile ARIA. */
+  /** Stable key; goes into the ARIA ids. */
   key: string;
   title: Child;
   content: Child | (() => Child);
@@ -100,15 +101,15 @@ export interface AccordionSection {
 export interface AccordionProps {
   sections: readonly AccordionSection[];
   /**
-   * `single` inchide celelalte panouri la deschiderea unuia, `multiple` le lasa
-   * pe toate. Implicit `single`.
+   * `single` closes the other panels when one opens, `multiple` leaves them all.
+   * Defaults to `single`.
    */
   mode?: "single" | "multiple";
-  /** Cheile deschise initial. */
+  /** The keys open initially. */
   initial?: readonly string[];
-  /** Semnal propriu cu cheile deschise. */
+  /** Your own signal with the open keys. */
   expanded?: State<ReadonlySet<string>>;
-  /** In modul `single`, permite inchiderea tuturor. Implicit `true`. */
+  /** In `single` mode, allow closing all. Defaults to `true`. */
   collapsible?: boolean;
   unmount?: boolean;
   onChange?: (keys: ReadonlySet<string>) => void;
@@ -140,7 +141,7 @@ export function accordion(props: AccordionProps): AccordionHandle {
       const open = prev.has(key);
       let next: Set<string>;
       if (mode === "single") {
-        // Inchiderea ultimului panou e permisa doar daca `collapsible`.
+        // Closing the last panel is allowed only if `collapsible`.
         if (open) next = props.collapsible === false ? new Set(prev) : new Set();
         else next = new Set([key]);
       } else {
@@ -153,7 +154,7 @@ export function accordion(props: AccordionProps): AccordionHandle {
     });
   };
 
-  /** Sagetile muta focusul intre capete, ca la pattern-ul ARIA accordion. */
+  /** The arrows move focus between the ends, as in the ARIA accordion pattern. */
   const enabledKeys = (): string[] => props.sections.filter((s) => !s.disabled).map((s) => s.key);
 
   const focusKey = (key: string): void => {
@@ -193,8 +194,8 @@ export function accordion(props: AccordionProps): AccordionHandle {
         const panelId = id + "-p-" + section.key;
         return R.div(
           { class: () => "rui-accordion-item" + (isOpen(section.key) ? " rui-open" : "") },
-          // Titlul e un heading cu buton inauntru: asa apare in lista de
-          // titluri a screen readerului si ramane si actionabil.
+          // The title is a heading with a button inside: that way it appears in
+          // the screen reader's list of headings and stays actionable too.
           R.h3(
             { class: "rui-accordion-heading" },
             R.button(

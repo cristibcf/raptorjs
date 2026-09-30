@@ -1,6 +1,6 @@
 /**
- * Showcase: exemplele reale din monorepo, grupate în carduri, fiecare cu comanda
- * de rulare (cu copy). Construit cu RaptorJS.
+ * Showcase: the real examples from the monorepo, grouped into cards, each with its
+ * run command (with copy). Built with RaptorJS.
  */
 import { state } from "raptorjs";
 import { SectionHead } from "../lib/ui.tsx";

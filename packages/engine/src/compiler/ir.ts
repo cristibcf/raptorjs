@@ -1,18 +1,18 @@
 /**
- * Raptor IR - reprezentarea intermediara semantica (whitepaper RaptorEngine 7,
- * Appendix C). Componenta nu mai e "doar o functie": e descompusa in noduri,
- * bindings, dependente, effects, queries si transitions. Pe aceasta structura
- * lucreaza graph-ul semantic (8) si pass-urile de optimizare (13, 14).
+ * Raptor IR - the intermediate semantic representation (RaptorEngine whitepaper 7,
+ * Appendix C). A component is no longer "just a function": it is decomposed into
+ * nodes, bindings, dependencies, effects, queries and transitions. The semantic
+ * graph (8) and the optimization passes (13, 14) work on this structure.
  *
- * Proprietati dorite (7.1): typed acolo unde stim, stable IDs pentru graph diff
- * si HMR, serializabil pentru caching si inspect, extensibil pentru server
- * queries si wire schema nodes.
+ * Desired properties (7.1): typed where we know it, stable IDs for graph diff
+ * and HMR, serializable for caching and inspection, extensible for server
+ * queries and wire schema nodes.
  */
 import type { Expr } from "./expr.ts";
 
 /**
- * Taxonomia completa de noduri IR (Appendix C). In v0.1 construim subsetul
- * produs de DSL-ul .raptor; restul sunt rezervate pentru evolutia IR-ului.
+ * The complete taxonomy of IR nodes (Appendix C). In v0.1 we build the subset
+ * produced by the .raptor DSL; the rest are reserved for the IR's evolution.
  */
 export const IRNodeKind = {
   // Values
@@ -50,51 +50,51 @@ export const IRNodeKind = {
 
 export type IRNodeKindValue = (typeof IRNodeKind)[keyof typeof IRNodeKind];
 
-/** Span in sursa (SourceSpan din metadata Appendix C), pentru source maps si diagnostics. */
+/** Span in the source (SourceSpan from Appendix C metadata), for source maps and diagnostics. */
 export interface SourceSpan {
   start: number;
   end: number;
 }
 
-/** Un semnal mutabil local (state). */
+/** A local mutable signal (state). */
 export interface IRSignal {
   kind: "Signal";
   id: string;
   name: string;
-  /** Expresia de initializare (ex. `0`). */
+  /** The initialization expression (e.g. `0`). */
   init: Expr;
   span: SourceSpan;
 }
 
-/** O valoare derivata (memo). `expr` este corpul functiei pure. */
+/** A derived value (memo). `expr` is the body of the pure function. */
 export interface IRDerived {
   kind: "Derived";
   id: string;
   name: string;
   expr: Expr;
-  /** Nume reactive citite direct (dependente de nivel 1). */
+  /** Reactive names read directly (level-1 dependencies). */
   reads: string[];
   span: SourceSpan;
   /**
-   * Daca e marcat cu `@debug`, fusion nu are voie sa-l colapseze (14.2:
-   * "blocata cand exista debugging boundaries").
+   * If marked with `@debug`, fusion is not allowed to collapse it (14.2:
+   * "blocked when debugging boundaries exist").
    */
   debugBoundary: boolean;
 }
 
-/** Un semnal server-side legat de o adresa RaptorWire (server signal). */
+/** A server-side signal bound to a RaptorWire address (server signal). */
 export interface IRServerSignal {
   kind: "ServerSignal";
   id: string;
   name: string;
-  /** Adresa logica, ex. "BTC.price". */
+  /** The logical address, e.g. "BTC.price". */
   address: string;
-  /** Referinta la schema wire (nume field schema), daca e declarata. */
+  /** Reference to the wire schema (schema field name), if declared. */
   schema: string | null;
   span: SourceSpan;
 }
 
-/** Un effect explicit (side-effect reactiv). */
+/** An explicit effect (reactive side-effect). */
 export interface IREffect {
   kind: "Effect";
   id: string;
@@ -106,7 +106,7 @@ export interface IREffect {
 export interface IRTextBinding {
   kind: "TextBinding";
   id: string;
-  /** Text static (property `text`) SAU expresie dinamica (`expr`). */
+  /** Static text (property `text`) OR dynamic expression (`expr`). */
   text: string | null;
   expr: Expr | null;
   reads: string[];
@@ -126,7 +126,7 @@ export interface IREventBinding {
   id: string;
   event: string;
   handler: Expr;
-  /** Semnale scrise de handler (pentru edge-uri write in graph). */
+  /** Signals written by the handler (for write edges in the graph). */
   writes: string[];
   reads: string[];
 }
@@ -145,7 +145,7 @@ export type IRChild = IRElement | IRTextBinding;
 export interface IRComponent {
   id: string;
   name: string;
-  /** Stable ID (Appendix C metadata) - stabil intre recompilari pentru HMR. */
+  /** Stable ID (Appendix C metadata) - stable across recompilations for HMR. */
   stableId: string;
   signals: IRSignal[];
   deriveds: IRDerived[];
@@ -164,17 +164,17 @@ export interface IRModule {
 // --- Stable IDs ------------------------------------------------------------
 
 /**
- * ID stabil derivat din structura semantica, nu din pozitie textuala. Doua
- * compilari ale aceleiasi componente produc acelasi ID pentru acelasi semnal,
- * chiar daca liniile s-au mutat - baza pentru graph diff si HMR (7.1, 11).
+ * A stable ID derived from the semantic structure, not from textual position.
+ * Two compilations of the same component produce the same ID for the same
+ * signal, even if the lines moved - the basis for graph diff and HMR (7.1, 11).
  */
 export function stableId(parts: (string | number)[]): string {
   return parts.join(":");
 }
 
-// --- Serializare deterministica -------------------------------------------
+// --- Deterministic serialization ------------------------------------------
 
-/** Chei sortate recursiv, pentru hash-uri de cache stabile (21.1). */
+/** Recursively sorted keys, for stable cache hashes (21.1). */
 export function canonicalize(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalize);
   if (value && typeof value === "object") {
@@ -187,7 +187,7 @@ export function canonicalize(value: unknown): unknown {
   return value;
 }
 
-/** JSON canonic (chei sortate) - input pentru content hashing. */
+/** Canonical JSON (sorted keys) - input for content hashing. */
 export function serializeIR(module: IRModule): string {
   return JSON.stringify(canonicalize(module));
 }

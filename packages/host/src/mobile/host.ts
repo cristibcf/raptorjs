@@ -1,15 +1,15 @@
 /**
- * Host-ul mobil de referinta.
+ * The reference mobile host.
  *
- * Etapa initiala din sectiunea 6 - navigare, stocare securizata, lifecycle, deep
- * links si comunicare cu host-ul - plus modulele optionale, fiecare in spatele
- * capabilitatii lui.
+ * The initial stage from section 6 - navigation, secure storage, lifecycle,
+ * deep links and communication with the host - plus the optional modules, each
+ * behind its own capability.
  *
- * Diferenta esentiala fata de desktop este navigarea: pe telefon ea apartine
- * adaptorului. Aplicatia nu cere sa se deschida ecrane si nu poate sa se mute
- * singura; primeste `navigation.changed` si reactioneaza. Butonul de back al
- * sistemului este exact motivul - daca aplicatia ar tine stiva, adaptorul nu ar
- * mai putea raspunde corect la un gest care nu trece prin JavaScript.
+ * The essential difference from desktop is navigation: on a phone it belongs to
+ * the adapter. The app does not ask for screens to open and cannot move itself;
+ * it receives `navigation.changed` and reacts. The system's back button is
+ * exactly the reason - if the app held the stack, the adapter could no longer
+ * respond correctly to a gesture that does not go through JavaScript.
  */
 import { HostError, createLifecycle, serveHost } from "@raptor/host";
 import type { AuditEntry, HostManifest, HostServer, HostTransport, LifecycleMachine, MethodHandler } from "@raptor/host";
@@ -29,7 +29,7 @@ export interface Coordinates {
 export interface CapturedPhoto {
   readonly mimeType: string;
   readonly byteLength: number;
-  /** Referinta opaca; octetii raman la host pana cand aplicatia ii cere. */
+  /** An opaque reference; the bytes stay at the host until the app requests them. */
   readonly handle: string;
 }
 
@@ -43,9 +43,9 @@ export interface PickedFile {
 export interface MobileHostOptions {
   readonly manifest: HostManifest;
   readonly transport: HostTransport;
-  /** Magazinul securizat al platformei; implicit in memorie. */
+  /** The platform's secure store; in memory by default. */
   readonly secureStore?: Map<string, string>;
-  /** Ruta initiala controlata de adaptor. */
+  /** The initial route controlled by the adapter. */
   readonly initialRoute?: string;
   readonly capturePhoto?: () => Promise<CapturedPhoto>;
   readonly readLocation?: () => Promise<Coordinates>;
@@ -60,9 +60,9 @@ export interface MobileHost {
   readonly route: string;
   readonly stack: readonly string[];
   readonly notifications: readonly NotificationRecord[];
-  /** Navigarea apartine adaptorului: aplicatia este anuntata, nu intrebata. */
+  /** Navigation belongs to the adapter: the app is notified, not asked. */
   navigate(route: string): void;
-  /** Gestul de back al sistemului; `false` daca nu mai e unde sa se intoarca. */
+  /** The system's back gesture; `false` if there is nowhere left to go back to. */
   back(): boolean;
   deliverDeepLink(url: string): void;
   close(): void;
@@ -71,18 +71,18 @@ export interface MobileHost {
 function requireString(params: Readonly<Record<string, unknown>>, key: string): string {
   const value = params[key];
   if (typeof value !== "string" || value.length === 0) {
-    throw new HostError("raptor:host/protocol", `parametrul '${key}' lipseste sau nu este sir`, { key });
+    throw new HostError("raptor:host/protocol", `the '${key}' parameter is missing or is not a string`, { key });
   }
   return value;
 }
 
-/** Aceeasi politica de chei ca pe desktop: spatiu plat, fara cai. */
+/** The same key policy as on desktop: a flat space, no paths. */
 function requireKey(params: Readonly<Record<string, unknown>>): string {
   const key = requireString(params, "key");
   if (key.includes("/") || key.includes("\\") || key.includes("..") || key.startsWith(".")) {
-    throw new HostError("raptor:host/capability-unavailable", `cheie de stocare invalida: ${key}`, {
+    throw new HostError("raptor:host/capability-unavailable", `invalid storage key: ${key}`, {
       key,
-      policy: "limitata la directorul aplicatiei",
+      policy: "limited to the app directory",
     });
   }
   return key;
@@ -91,7 +91,7 @@ function requireKey(params: Readonly<Record<string, unknown>>): string {
 export function createMobileHost(options: MobileHostOptions): MobileHost {
   const manifest = options.manifest;
   if (manifest.target !== "mobile") {
-    throw new HostError("raptor:host/manifest-invalid", "createMobileHost cere un manifest cu target 'mobile'", {
+    throw new HostError("raptor:host/manifest-invalid", "createMobileHost requires a manifest with target 'mobile'", {
       target: manifest.target,
     });
   }
@@ -106,10 +106,10 @@ export function createMobileHost(options: MobileHostOptions): MobileHost {
   const methods: Record<string, MethodHandler> = {
     "lifecycle.state": () => lifecycle.state,
     "lifecycle.requestStop": () => {
-      // Pe telefon aplicatia nu se inchide singura: cererea o trimite in fundal,
-      // iar sistemul decide daca si cand o suspenda.
-      lifecycle.settle("background", "aplicatia a cerut oprirea");
-      return { state: lifecycle.state, note: "sistemul decide suspendarea" };
+      // On a phone the app does not close itself: the request sends it to the
+      // background, and the system decides whether and when to suspend it.
+      lifecycle.settle("background", "the app requested a stop");
+      return { state: lifecycle.state, note: "the system decides the suspension" };
     },
 
     "deeplink.pending": () => {
@@ -122,7 +122,7 @@ export function createMobileHost(options: MobileHostOptions): MobileHost {
 
     "update.check": () => ({ available: false, version: manifest.version, managedBy: "store" }),
     "update.apply": () => {
-      throw new HostError("raptor:host/unimplemented", "actualizarile mobile vin din magazin, nu din aplicatie", {
+      throw new HostError("raptor:host/unimplemented", "mobile updates come from the store, not from the app", {
         platform: "mobile",
       });
     },
@@ -147,21 +147,21 @@ export function createMobileHost(options: MobileHostOptions): MobileHost {
 
     "camera.capture": async () => {
       if (!options.capturePhoto) {
-        throw new HostError("raptor:host/unimplemented", "modulul de camera nu este montat in acest host", {});
+        throw new HostError("raptor:host/unimplemented", "the camera module is not mounted in this host", {});
       }
       return await options.capturePhoto();
     },
 
     "location.current": async () => {
       if (!options.readLocation) {
-        throw new HostError("raptor:host/unimplemented", "modulul de locatie nu este montat in acest host", {});
+        throw new HostError("raptor:host/unimplemented", "the location module is not mounted in this host", {});
       }
       return await options.readLocation();
     },
 
     "files.pick": async () => {
       if (!options.pickFile) {
-        throw new HostError("raptor:host/unimplemented", "selectorul de fisiere nu este montat in acest host", {});
+        throw new HostError("raptor:host/unimplemented", "the file picker is not mounted in this host", {});
       }
       return await options.pickFile();
     },
@@ -196,7 +196,7 @@ export function createMobileHost(options: MobileHostOptions): MobileHost {
 
     navigate(route: string): void {
       if (!route.startsWith("/")) {
-        throw new HostError("raptor:host/protocol", `ruta trebuie sa inceapa cu '/': ${route}`, { route });
+        throw new HostError("raptor:host/protocol", `the route must start with '/': ${route}`, { route });
       }
       stack.push(route);
       server.emit("navigation.changed", { route, depth: stack.length });
@@ -214,10 +214,10 @@ export function createMobileHost(options: MobileHostOptions): MobileHost {
       try {
         scheme = new URL(url).protocol.replace(":", "");
       } catch {
-        throw new HostError("raptor:host/protocol", `deep link invalid: ${url}`, { url });
+        throw new HostError("raptor:host/protocol", `invalid deep link: ${url}`, { url });
       }
       if (!manifest.deepLinkSchemes.includes(scheme)) {
-        throw new HostError("raptor:host/capability-unavailable", `schema '${scheme}' nu este declarata`, {
+        throw new HostError("raptor:host/capability-unavailable", `scheme '${scheme}' is not declared`, {
           url,
           declared: [...manifest.deepLinkSchemes],
         });
@@ -227,7 +227,7 @@ export function createMobileHost(options: MobileHostOptions): MobileHost {
     },
 
     close(): void {
-      lifecycle.settle("stopped", "host inchis");
+      lifecycle.settle("stopped", "host closed");
       server.close();
     },
   };

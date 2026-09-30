@@ -1,20 +1,20 @@
 /**
- * hotkeys - scurtaturi de tastatura, legate de viata componentei.
+ * hotkeys - keyboard shortcuts, tied to the component's life.
  *
- * `hotkeys({ "mod+k": open, "Escape": close })`. `mod` = Cmd pe macOS, Ctrl in
- * rest, ca sa nu scrii doua definitii. Implicit scurtaturile NU se declanseaza
- * cat timp scrii intr-un input - altfel "n" ca shortcut ar face imposibila
- * tastarea literei n.
+ * `hotkeys({ "mod+k": open, "Escape": close })`. `mod` = Cmd on macOS, Ctrl
+ * elsewhere, so you don't write two definitions. By default shortcuts do NOT
+ * fire while you're typing in an input - otherwise "n" as a shortcut would make
+ * typing the letter n impossible.
  */
 import { onCleanup } from "raptorjs";
 import { onDoc, type El } from "./env.ts";
 
 export interface HotkeyOptions {
-  /** Declanseaza si cand focusul e intr-un input/textarea. Implicit `false`. */
+  /** Fire even when focus is in an input/textarea. Defaults to `false`. */
   inInputs?: boolean;
-  /** Cat timp intoarce `false`, scurtaturile sunt inactive. */
+  /** While this returns `false`, the shortcuts are inactive. */
   enabled?: () => boolean;
-  /** Ruleaza `preventDefault` la potrivire. Implicit `true`. */
+  /** Runs `preventDefault` on a match. Defaults to `true`. */
   preventDefault?: boolean;
 }
 
@@ -24,7 +24,7 @@ const IS_MAC =
   typeof (globalThis as any).navigator === "object" &&
   /mac|iphone|ipad/i.test(String((globalThis as any).navigator?.platform ?? ""));
 
-/** Normalizeaza "mod+Shift+K" -> "ctrl+shift+k" (sau "meta+shift+k" pe macOS). */
+/** Normalizes "mod+Shift+K" -> "ctrl+shift+k" (or "meta+shift+k" on macOS). */
 function normalize(combo: string): string {
   const parts = combo
     .split("+")
@@ -63,7 +63,7 @@ function isTyping(target: El): boolean {
   return target.getAttribute?.("contenteditable") === "true";
 }
 
-/** Inregistreaza scurtaturile pe document. Se curata automat la dispose. */
+/** Registers the shortcuts on the document. Cleans up automatically on dispose. */
 export function hotkeys(map: HotkeyMap, options?: HotkeyOptions): void {
   const bindings = new Map<string, (event: any) => void>();
   for (const combo of Object.keys(map)) bindings.set(normalize(combo), map[combo]!);

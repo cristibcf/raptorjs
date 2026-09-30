@@ -1,10 +1,10 @@
 /**
- * Politici de rulare (spec sectiunea 7).
+ * Runtime policies (spec section 7).
  *
- * Manifestul spune *ce* cere aplicatia; fisierul de politici spune *cum* se
- * comporta host-ul cand aplicatia cere ceva nedeclarat, si unde se scrie urma
- * auditabila. Politica de dezvoltare poate fi permisiva si zgomotoasa; cea de
- * productie este neinteractiva si auditabila.
+ * The manifest says *what* the application requires; the policy file says *how*
+ * the host behaves when the application requests something undeclared, and where
+ * the auditable trail is written. The development policy can be permissive and
+ * noisy; the production one is non-interactive and auditable.
  */
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -16,9 +16,9 @@ export const POLICY_FILENAME = "raptor.policy.json";
 export type UndeclaredBehavior = "deny" | "prompt";
 
 export interface PolicyProfile {
-  /** `prompt` cere confirmare; fara terminal interactiv degradeaza la `deny`. */
+  /** `prompt` asks for confirmation; without an interactive terminal it degrades to `deny`. */
   readonly onUndeclared: UndeclaredBehavior;
-  /** Cale relativa la proiect pentru jurnalul de decizii, sau `null`. */
+  /** Path relative to the project for the decisions log, or `null`. */
   readonly auditLog: string | null;
 }
 
@@ -63,11 +63,11 @@ export function renderPolicyFile(): string {
 }
 
 /**
- * Efectul concret al politicii asupra accesului nedeclarat.
+ * The concrete effect of the policy on undeclared access.
  *
- * Confirmarea interactiva apartine host-ului nativ (are nevoie de un canal de
- * prompt propriu). In launcher, `prompt` fara terminal interactiv se comporta
- * ca `deny` si spune asta explicit, in loc sa permita tacit.
+ * Interactive confirmation belongs to the native host (it needs its own prompt
+ * channel). In the launcher, `prompt` without an interactive terminal behaves
+ * like `deny` and says so explicitly, instead of allowing silently.
  */
 export function describeUndeclared(
   profile: PolicyProfile,
@@ -77,19 +77,19 @@ export function describeUndeclared(
     return {
       effective: "deny",
       strict: true,
-      note: "regim strict: orice acces nedeclarat este refuzat, fara domenii implicite",
+      note: "strict mode: any undeclared access is denied, with no implicit scopes",
     };
   }
   return {
     effective: "deny",
     strict: false,
     note: interactive
-      ? "confirmarea interactiva ajunge odata cu host-ul nativ; pana atunci accesul nedeclarat este refuzat, dar radacina proiectului ramane citibila implicit"
-      : "fara terminal interactiv, 'prompt' refuza accesul nedeclarat; radacina proiectului ramane citibila implicit",
+      ? "interactive confirmation arrives with the native host; until then undeclared access is denied, but the project root remains readable by default"
+      : "without an interactive terminal, 'prompt' denies undeclared access; the project root remains readable by default",
   };
 }
 
-/** Jurnal de audit: o linie JSON per decizie de capability. */
+/** Audit log: one JSON line per capability decision. */
 export function auditSink(events: RuntimeEvent[]): (event: RuntimeEvent) => void {
   return (event: RuntimeEvent): void => {
     if (event.kind === "capability") events.push(event);

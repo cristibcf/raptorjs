@@ -1,12 +1,12 @@
 /**
- * @raptor/ui - componente reutilizabile peste runtime-ul fine-grained.
+ * @raptor/ui - reusable components on top of the fine-grained runtime.
  *
- * Sunt construite cu `R` din @raptor/dom (deci fara build step) si respecta
- * aceeasi regula ca restul stack-ului: nimic nu se re-randeaza, fiecare bucata
- * dinamica e un binding care atinge exact un atribut / text-node / rand.
+ * They're built with `R` from @raptor/dom (so no build step) and follow the
+ * same rule as the rest of the stack: nothing re-renders, every dynamic piece
+ * is a binding that touches exactly one attribute / text-node / row.
  *
- * Stilurile sunt optionale si separate (`@raptor/ui/styles`): componentele pun
- * doar clase si atribute ARIA, nu impun CSS.
+ * The styles are optional and separate (`@raptor/ui/styles`): components set
+ * only classes and ARIA attributes, they don't impose CSS.
  */
 export { Table, type Column, type TableProps, type SortState } from "./table.ts";
 export {

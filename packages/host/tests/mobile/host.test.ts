@@ -7,13 +7,13 @@ import type { MobileHost, MobileHostOptions } from "../../src/mobile/index.ts";
 
 const BASE = {
   target: "mobile",
-  bundleId: "com.exemplu.telefon",
-  displayName: "Exemplu Mobil",
+  bundleId: "com.example.phone",
+  displayName: "Example Mobile",
   version: "1.0.0",
   entry: "./index.html",
   capabilities: [] as string[],
-  allowedOrigins: ["https://api.exemplu.com"],
-  deepLinkSchemes: ["exemplu"],
+  allowedOrigins: ["https://api.example.com"],
+  deepLinkSchemes: ["example"],
   update: { feed: null, channel: "stable" },
 };
 
@@ -46,7 +46,7 @@ function connect(manifest: HostManifest, options: Partial<MobileHostOptions> = {
   };
 }
 
-test("adaptorul refuza un manifest care nu este de mobil", () => {
+test("the adapter rejects a manifest that is not for mobile", () => {
   const desktop = requireHostManifest(JSON.stringify({ ...BASE, target: "desktop" }));
   assert.throws(
     () => createMobileHost({ manifest: desktop, transport: createMemoryChannel().host }),
@@ -54,7 +54,7 @@ test("adaptorul refuza un manifest care nu este de mobil", () => {
   );
 });
 
-test("aplicatia mobila nu are acces la ferestre, nici daca le cere", async () => {
+test("the mobile app has no access to windows, even if it asks for them", async () => {
   const link = connect(manifestWith());
   try {
     assert.equal(link.app.allows("window.open"), false);
@@ -72,83 +72,83 @@ test("aplicatia mobila nu are acces la ferestre, nici daca le cere", async () =>
   }
 });
 
-test("navigarea apartine adaptorului: aplicatia este anuntata, nu intrebata", async () => {
-  const link = connect(manifestWith(), { initialRoute: "/acasa" });
+test("navigation belongs to the adapter: the app is notified, not asked", async () => {
+  const link = connect(manifestWith(), { initialRoute: "/home" });
   try {
     const rute: Array<{ route: string; depth: number }> = [];
     link.app.on("navigation.changed", (payload) =>
       rute.push({ route: String(payload["route"]), depth: Number(payload["depth"]) }),
     );
 
-    assert.equal(link.host.route, "/acasa");
-    link.host.navigate("/detalii/42");
-    link.host.navigate("/detalii/42/editare");
-    assert.equal(link.host.back(), true, "gestul de back al sistemului urca in stiva");
+    assert.equal(link.host.route, "/home");
+    link.host.navigate("/details/42");
+    link.host.navigate("/details/42/edit");
+    assert.equal(link.host.back(), true, "the system's back gesture goes up the stack");
     await new Promise((resolve) => setTimeout(resolve, 5));
 
     assert.deepEqual(rute, [
-      { route: "/detalii/42", depth: 2 },
-      { route: "/detalii/42/editare", depth: 3 },
-      { route: "/detalii/42", depth: 2 },
+      { route: "/details/42", depth: 2 },
+      { route: "/details/42/edit", depth: 3 },
+      { route: "/details/42", depth: 2 },
     ]);
-    assert.deepEqual(link.host.stack, ["/acasa", "/detalii/42"]);
+    assert.deepEqual(link.host.stack, ["/home", "/details/42"]);
   } finally {
     link.dispose();
   }
 });
 
-test("back-ul din ecranul radacina nu scoate aplicatia din stiva", () => {
+test("back from the root screen does not pop the app off the stack", () => {
   const link = connect(manifestWith());
   try {
     assert.equal(link.host.back(), false);
     assert.deepEqual(link.host.stack, ["/"]);
-    assert.throws(() => link.host.navigate("detalii"), /trebuie sa inceapa/);
+    assert.throws(() => link.host.navigate("details"), /must start/);
   } finally {
     link.dispose();
   }
 });
 
-test("stocarea securizata foloseste magazinul platformei si aceeasi politica de chei", async () => {
+test("secure storage uses the platform's store and the same key policy", async () => {
   const keychain = new Map<string, string>();
   const link = connect(manifestWith(), { secureStore: keychain });
   try {
     await link.app.call("storage.set", { key: "token", value: "secret" });
     assert.equal(keychain.get("token"), "secret");
     assert.deepEqual(await link.app.call("storage.keys"), ["token"]);
-    await assert.rejects(link.app.call("storage.set", { key: "../alt-app", value: "x" }), /cheie de stocare invalida/);
+    await assert.rejects(link.app.call("storage.set", { key: "../other-app", value: "x" }), /invalid storage key/);
   } finally {
     link.dispose();
   }
 });
 
-test("modulele optionale exista doar daca manifestul le declara", async () => {
+test("optional modules exist only if the manifest declares them", async () => {
   const fara = connect(manifestWith());
   try {
     for (const method of ["camera.capture", "location.current", "files.pick", "notify.show"]) {
-      assert.equal(fara.app.allows(method), false, `${method} nu ar trebui permisa`);
+      assert.equal(fara.app.allows(method), false, `${method} should not be allowed`);
     }
   } finally {
     fara.dispose();
   }
 
   const cu = connect(manifestWith({ capabilities: ["device.camera", "device.location"] }), {
-    capturePhoto: async () => ({ mimeType: "image/jpeg", byteLength: 1024, handle: "foto-1" }),
+    capturePhoto: async () => ({ mimeType: "image/jpeg", byteLength: 1024, handle: "photo-1" }),
     readLocation: async () => ({ latitude: 44.43, longitude: 26.1, accuracyM: 12 }),
   });
   try {
     assert.deepEqual(await cu.app.call("camera.capture"), {
       mimeType: "image/jpeg",
       byteLength: 1024,
-      handle: "foto-1",
+      handle: "photo-1",
     });
     assert.equal((await cu.app.call<{ latitude: number }>("location.current")).latitude, 44.43);
-    assert.equal(cu.app.allows("files.pick"), false, "fiecare modul are capabilitatea lui");
+    assert.equal(cu.app.allows("files.pick"), false, "each module has its own capability");
   } finally {
     cu.dispose();
   }
 });
 
-test("un modul declarat dar nemontat spune ca lipseste, nu ca este refuzat", async () => {
+test("a declared but unmounted module says it is missing, not that it is denied", async () => {
   const link = connect(manifestWith({ capabilities: ["device.camera"] }));
   try {
     await assert.rejects(link.app.call("camera.capture"), (error: unknown) => {
@@ -162,7 +162,7 @@ test("un modul declarat dar nemontat spune ca lipseste, nu ca este refuzat", asy
   }
 });
 
-test("actualizarile mobile sunt ale magazinului, nu ale aplicatiei", async () => {
+test("mobile updates belong to the store, not to the app", async () => {
   const link = connect(manifestWith());
   try {
     assert.deepEqual(await link.app.call("update.check"), {
@@ -170,13 +170,13 @@ test("actualizarile mobile sunt ale magazinului, nu ale aplicatiei", async () =>
       version: "1.0.0",
       managedBy: "store",
     });
-    await assert.rejects(link.app.call("update.apply"), /magazin/);
+    await assert.rejects(link.app.call("update.apply"), /store/);
   } finally {
     link.dispose();
   }
 });
 
-test("cererea de oprire trimite aplicatia in fundal; sistemul decide restul", async () => {
+test("the stop request sends the app to the background; the system decides the rest", async () => {
   const link = connect(manifestWith());
   try {
     link.host.lifecycle.to("ready");
@@ -192,29 +192,29 @@ test("cererea de oprire trimite aplicatia in fundal; sistemul decide restul", as
   }
 });
 
-test("deep link-urile respecta schemele declarate", async () => {
+test("deep links honor the declared schemes", async () => {
   const link = connect(manifestWith());
   try {
-    link.host.deliverDeepLink("exemplu://produs/9");
-    assert.deepEqual(await link.app.call("deeplink.pending"), ["exemplu://produs/9"]);
-    assert.throws(() => link.host.deliverDeepLink("altceva://produs/9"), /nu este declarata/);
+    link.host.deliverDeepLink("example://product/9");
+    assert.deepEqual(await link.app.call("deeplink.pending"), ["example://product/9"]);
+    assert.throws(() => link.host.deliverDeepLink("other://product/9"), /is not declared/);
   } finally {
     link.dispose();
   }
 });
 
-test("ruta curenta poate fi citita, dar nu exista metoda prin care sa fie schimbata", async () => {
-  const link = connect(manifestWith(), { initialRoute: "/acasa" });
+test("the current route can be read, but there is no method to change it", async () => {
+  const link = connect(manifestWith(), { initialRoute: "/home" });
   try {
-    assert.deepEqual(await link.app.call("navigation.current"), { route: "/acasa", depth: 1 });
+    assert.deepEqual(await link.app.call("navigation.current"), { route: "/home", depth: 1 });
 
-    link.host.navigate("/detalii");
-    assert.deepEqual(await link.app.call("navigation.current"), { route: "/detalii", depth: 2 });
+    link.host.navigate("/details");
+    assert.deepEqual(await link.app.call("navigation.current"), { route: "/details", depth: 2 });
 
-    // Citirea este permisa (aplicatia trebuie sa stie ce deseneaza dupa o
-    // reluare din suspendare); controlul ramane in intregime la adaptor.
+    // Reading is allowed (the app must know what it draws after a resume from
+    // suspension); control stays entirely with the adapter.
     await assert.rejects(
-      link.app.call("navigation.push", { route: "/altundeva" }),
+      link.app.call("navigation.push", { route: "/elsewhere" }),
       (error: unknown) => (error as { code: string }).code === "raptor:host/method-unknown",
     );
   } finally {

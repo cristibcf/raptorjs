@@ -1,16 +1,16 @@
 /**
- * Aceeasi aplicatie, a treia oara: acum cu browserul pe post de host.
+ * The same application, a third time: now with the browser as the host.
  *
- * Comparati cu `examples/desktop-shell/src/app.ts` si
- * `examples/mobile-shell/src/app.ts`. Corpul este practic acelasi, si asta este
- * rezultatul: aplicatia vorbeste cu `bridge`, nu cu platforma, deci schimbarea
- * host-ului nu ii schimba codul.
+ * Compare with `examples/desktop-shell/src/app.ts` and
+ * `examples/mobile-shell/src/app.ts`. The body is practically the same, and that
+ * is the point: the app talks to `bridge`, not to the platform, so changing the
+ * host does not change its code.
  *
- * Ce se schimba este ce raspunde host-ul. Aici:
- *  - navigarea e impartita - si aplicatia o poate conduce (History API), si
- *    utilizatorul o poate schimba de sub ea (butonul de back);
- *  - notificarile pot fi refuzate de utilizator, nu doar de manifest;
- *  - subprocesele nu exista, iar meniurile nu au ce reprezenta.
+ * What changes is what the host answers. Here:
+ *  - navigation is shared - the app can drive it (History API), and the user can
+ *    change it out from under the app (the back button);
+ *  - notifications can be denied by the user, not just by the manifest;
+ *  - subprocesses do not exist, and menus have nothing to represent.
  */
 import { derived, state } from "raptorjs";
 import type { HostBridge } from "@raptor/host";
@@ -26,16 +26,16 @@ export interface Shell {
   readonly notes: () => readonly Note[];
   readonly lifecycle: () => string;
   readonly lastError: () => string | null;
-  /** Rezumat gata de afisat; derivat, deci se recalculeaza singur. */
+  /** A display-ready summary; derived, so it recomputes itself. */
   readonly summary: () => string;
   start(): Promise<void>;
   addNote(text: string): Promise<void>;
-  /** Navigare ceruta de aplicatie; pe web trece prin History API. */
+  /** Navigation requested by the app; on web it goes through the History API. */
   goTo(route: string): Promise<boolean>;
   announce(text: string): Promise<boolean>;
   /**
-   * Ce poate face aplicatia pe host-ul curent, pentru o interfata onesta:
-   * capabilitate acordata *si* metoda implementata de adaptor.
+   * What the app can do on the current host, for an honest UI:
+   * capability granted *and* method implemented by the adapter.
    */
   abilities(): Promise<Readonly<Record<string, boolean>>>;
 }
@@ -57,7 +57,7 @@ export function createShell(bridge: HostBridge): Shell {
     lifecycle.set(String(payload["state"]));
   });
 
-  const summary = derived(() => `${lifecycle()} - ${notes().length} note pe ${route()}`);
+  const summary = derived(() => `${lifecycle()} - ${notes().length} notes on ${route()}`);
 
   const shell: Shell = {
     title: () => title(),
@@ -88,7 +88,7 @@ export function createShell(bridge: HostBridge): Shell {
         lastError.set(null);
         return true;
       } catch (error) {
-        // Un refuz al host-ului este informatie pentru interfata, nu o avarie.
+        // A host denial is information for the UI, not a failure.
         lastError.set((error as { message: string }).message);
         return false;
       }
@@ -101,16 +101,16 @@ export function createShell(bridge: HostBridge): Shell {
         lastError.set(null);
         return true;
       } catch (error) {
-        // Pe web, permisiunea o da utilizatorul in momentul apelului: manifestul
-        // deschide usa, browserul intreaba, iar raspunsul poate fi "nu".
+        // On web, the user grants permission at call time: the manifest opens the
+        // door, the browser asks, and the answer may be "no".
         lastError.set((error as { message: string }).message);
         return false;
       }
     },
 
     async abilities(): Promise<Readonly<Record<string, boolean>>> {
-      // `allows` ar spune "da" si pentru `menu.set` pe web: capabilitatea de
-      // ferestre exista, doar ca un browser nu are bara de meniu a aplicatiei.
+      // `allows` would say "yes" even for `menu.set` on web: the window capability
+      // exists, it is just that a browser has no application menu bar.
       const supported = await bridge.supported();
       const out: Record<string, boolean> = {};
       for (const method of TRACKED_METHODS) out[method] = supported(method);

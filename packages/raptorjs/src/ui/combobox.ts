@@ -1,14 +1,14 @@
 /**
- * Combobox - input cu lista filtrata.
+ * Combobox - an input with a filtered list.
  *
- * Componenta-teza pentru filtrare. `For` e keyed pe optiune, iar filtrarea
- * intoarce un subset din *aceleasi* obiecte - deci la tastare optiunile ramase
- * isi pastreaza nodurile si se sterg doar cele iesite. Cu VDOM, fiecare
- * apasare de tasta reconciliaza intreaga lista.
+ * A thesis component for filtering. `For` is keyed on the option, and filtering
+ * returns a subset of the *same* objects - so while typing, the remaining
+ * options keep their nodes and only the ones that dropped out are removed. With
+ * a VDOM, every keystroke reconciles the whole list.
  *
- * Urmeaza pattern-ul ARIA combobox: `role="combobox"` pe input,
- * `aria-expanded`, `aria-controls`, `aria-activedescendant` catre optiunea
- * evidentiata (focusul ramane in input, ca sa poti scrie in continuare).
+ * It follows the ARIA combobox pattern: `role="combobox"` on the input,
+ * `aria-expanded`, `aria-controls`, `aria-activedescendant` pointing to the
+ * highlighted option (focus stays in the input, so you can keep typing).
  */
 import { state, derived, type Accessor, type State } from "raptorjs";
 import { R, For, Show, type Child } from "raptorjs/dom";
@@ -21,21 +21,21 @@ import { type El } from "./primitives/env.ts";
 let idSeq = 0;
 
 export interface ComboboxProps<T> {
-  /** Optiunile. Obiecte stabile => noduri reutilizate la filtrare. */
+  /** The options. Stable objects => nodes reused while filtering. */
   options: Accessor<readonly T[]>;
-  /** Semnalul detinut de tine, cu optiunea aleasa. */
+  /** The signal you own, with the chosen option. */
   value: State<T | null>;
-  /** Textul afisat pentru o optiune. */
+  /** The text shown for an option. */
   label: (option: T) => string;
-  /** Randare bogata a unei optiuni. Implicit `label`. */
+  /** Rich rendering of an option. Defaults to `label`. */
   render?: (option: T, query: Accessor<string>) => Child;
-  /** Filtrare proprie. Implicit potrivire case-insensitive pe `label`. */
+  /** Custom filtering. Defaults to case-insensitive matching on `label`. */
   filter?: (option: T, query: string) => boolean;
   disabled?: (option: T) => boolean;
   placeholder?: string;
-  /** Permite golirea selectiei cu Backspace pe input gol. Implicit `true`. */
+  /** Allow clearing the selection with Backspace on an empty input. Defaults to `true`. */
   clearable?: boolean;
-  /** Text cand nu se potriveste nimic. */
+  /** Text when nothing matches. */
   empty?: Child;
   placement?: Placement;
   onSelect?: (option: T) => void;
@@ -47,7 +47,7 @@ export interface Combobox {
   el: El;
   open: Accessor<boolean>;
   query: Accessor<string>;
-  /** Punte de test: pozitionarea fara layout real. */
+  /** Test bridge: positioning without real layout. */
   position: ReturnType<typeof positioner>;
 }
 
@@ -68,7 +68,7 @@ export function combobox<T>(props: ComboboxProps<T>): Combobox {
     return all.filter((o) => matches(o, q));
   });
 
-  /** Indicii selectabili din lista vizibila (sar peste cele dezactivate). */
+  /** The selectable indices from the visible list (skip the disabled ones). */
   const selectable = derived<number[]>(() => {
     const list = visible();
     const out: number[] = [];
@@ -193,7 +193,7 @@ export function combobox<T>(props: ComboboxProps<T>): Combobox {
       "aria-expanded": () => String(open()),
       ...(props.ariaLabel ? { "aria-label": props.ariaLabel } : {}),
       ...(props.placeholder ? { placeholder: props.placeholder } : {}),
-      // Focusul NU pleaca din input: optiunea activa e semnalata prin id.
+      // Focus does NOT leave the input: the active option is signalled by id.
       "aria-activedescendant": () => (open() && active() >= 0 ? optionId(active()) : ""),
       value: () => query(),
       "on:input": onInput,
@@ -238,13 +238,13 @@ export function combobox<T>(props: ComboboxProps<T>): Combobox {
         }),
         Show({
           when: () => visible().length === 0,
-          children: R.li({ class: "rui-combobox-empty", role: "presentation" }, props.empty ?? "Niciun rezultat"),
+          children: R.li({ class: "rui-combobox-empty", role: "presentation" }, props.empty ?? "No results"),
         }),
       ),
     }),
   );
 
-  // Textul initial reflecta valoarea data din afara.
+  // The initial text reflects the value given from outside.
   const initial = props.value.peek();
   if (initial !== null) query.set(props.label(initial));
   void inputEl;
@@ -252,7 +252,7 @@ export function combobox<T>(props: ComboboxProps<T>): Combobox {
   return { el, open: () => open(), query: () => query(), position };
 }
 
-/** Varianta componenta. */
+/** Component variant. */
 export function Combobox<T>(props: ComboboxProps<T>): El {
   return combobox(props).el;
 }

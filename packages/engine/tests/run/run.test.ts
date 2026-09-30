@@ -31,13 +31,13 @@ component App {
 const flush = (): Promise<void> =>
   new Promise((r) => setTimeout(r, 0)).then(() => new Promise((r) => setTimeout(r, 0)));
 
-test("eval: evaluator SSR pentru expresii IR", () => {
+test("eval: SSR evaluator for IR expressions", () => {
   const mod = parseModule(APP, "App.raptor");
   const doubled = mod.components[0]!.deriveds.find((d) => d.name === "doubled")!;
   assert.equal(evalExpr(doubled.expr, { count: 21 }), 42);
 });
 
-test("router: potriveste segmente dinamice [id]", () => {
+test("router: matches dynamic segments [id]", () => {
   const routes = [
     { path: "/", component: "Home" },
     { path: "/products/[id]", component: "Product" },
@@ -49,20 +49,20 @@ test("router: potriveste segmente dinamice [id]", () => {
   assert.equal(matchRoute(routes, "/nope"), null);
 });
 
-test("ssr: randeaza componenta cu valorile server-signals curente", () => {
+test("ssr: renders the component with the current server-signal values", () => {
   const mod = parseModule(APP, "App.raptor");
   const ssr = renderComponent(mod.components[0]!, { serverValue: () => 61000 });
   assert.match(ssr.html, /<div class="app">/);
   assert.match(ssr.html, /count =0/);
   assert.match(ssr.html, /doubled =0/);
   assert.match(ssr.html, /price =61000/);
-  // Evenimentele nu se randeaza in SSR.
+  // Events are not rendered in SSR.
   assert.doesNotMatch(ssr.html, /on:click/);
-  // Resume: clientul stie ce adresa RAS sa reia.
+  // Resume: the client knows which RAS address to resume.
   assert.deepEqual(ssr.resume.serverSignals, [{ name: "price", address: "BTC.price", schema: "money" }]);
 });
 
-test("runtime: server signal -> RaptorWire -> client reactiv (acelasi graf)", async () => {
+test("runtime: server signal -> RaptorWire -> reactive client (the same graph)", async () => {
   const result = buildModule(APP, "App.raptor");
   const runtime = RaptorRuntime.fromBuild(result, { initial: { "BTC.price": 60000 } });
 
@@ -71,10 +71,10 @@ test("runtime: server signal -> RaptorWire -> client reactiv (acelasi graf)", as
   client.subscribe("signals");
   await flush();
 
-  // Snapshot initial: valoarea seed-uita din runtime.
+  // Initial snapshot: the value seeded from the runtime.
   assert.equal(client.signal("BTC.price")(), 60000);
 
-  // Producerul server actualizeaza -> delta -> semnalul clientului reflecta.
+  // The server producer updates -> delta -> the client's signal reflects it.
   runtime.produce("BTC.price", 61234);
   await flush();
   assert.equal(client.signal("BTC.price")(), 61234);
@@ -87,7 +87,7 @@ test("runtime: server signal -> RaptorWire -> client reactiv (acelasi graf)", as
   assert.equal(runtime.metrics.activeConnections, 0);
 });
 
-test("runtime: doi clienti primesc acelasi delta (broadcast)", async () => {
+test("runtime: two clients receive the same delta (broadcast)", async () => {
   const result = buildModule(APP, "App.raptor");
   const runtime = RaptorRuntime.fromBuild(result);
 
@@ -106,13 +106,13 @@ test("runtime: doi clienti primesc acelasi delta (broadcast)", async () => {
   assert.equal(runtime.metrics.activeConnections, 2);
 });
 
-test("runtime: produce pe adresa necunoscuta arunca", () => {
+test("runtime: produce on an unknown address throws", () => {
   const result = buildModule(APP, "App.raptor");
   const runtime = RaptorRuntime.fromBuild(result);
-  assert.throws(() => runtime.produce("x.unknown", 1), /adresa necunoscuta/);
+  assert.throws(() => runtime.produce("x.unknown", 1), /unknown address/);
 });
 
-test("runtime: handleRequest face routing + SSR + health", () => {
+test("runtime: handleRequest does routing + SSR + health", () => {
   const result = buildModule(APP, "App.raptor");
   const runtime = RaptorRuntime.fromBuild(result);
 
@@ -129,7 +129,7 @@ test("runtime: handleRequest face routing + SSR + health", () => {
   assert.match(health.body, /"ok":true/);
 });
 
-test("runtime: graceful shutdown inchide conexiunile", async () => {
+test("runtime: graceful shutdown closes the connections", async () => {
   const result = buildModule(APP, "App.raptor");
   const runtime = RaptorRuntime.fromBuild(result);
   const client = new RaptorClient(runtime.connect());
@@ -138,10 +138,10 @@ test("runtime: graceful shutdown inchide conexiunile", async () => {
   runtime.shutdown();
   assert.equal(runtime.metrics.activeConnections, 0);
   assert.ok(runtime.log.some((e) => e.type === "shutdown"));
-  assert.throws(() => runtime.connect(), /oprit/);
+  assert.throws(() => runtime.connect(), /stopped/);
 });
 
-test("node target: server HTTP real serveste SSR + health", async () => {
+test("node target: real HTTP server serves SSR + health", async () => {
   const result = buildModule(APP, "App.raptor");
   const runtime = RaptorRuntime.fromBuild(result);
   const server = createNodeServer(runtime);

@@ -19,7 +19,7 @@ const { DropdownMenu } = await import("./src/ui/menu.ts");
 
 const cazuri: Caz[] = [
   {
-    nume: "Select (open detinut de consumator)",
+    nume: "Select (open owned by the consumer)",
     build: async () =>
       Select({
         value: valoare,
@@ -35,7 +35,7 @@ const cazuri: Caz[] = [
     nume: "DropdownMenu",
     build: async () =>
       DropdownMenu({
-        label: "meniu",
+        label: "menu",
         open: deschis,
         items: [{ key: "x", label: "X", onSelect: () => {} }],
       } as never),
@@ -47,8 +47,8 @@ for (const caz of cazuri) {
   deschis.set(false);
   let rulari = 0;
   const dispose = createRoot((d) => {
-    // Regiunea parintelui: construieste componenta INAUNTRUL unei computatii,
-    // exact ca un `Show`/`For` sau un binding dintr-o aplicatie reala.
+    // The parent region: build the component INSIDE a computation, exactly like
+    // a `Show`/`For` or a binding in a real application.
     effect(() => {
       rulari++;
       const host = doc.createElement("div");
@@ -61,8 +61,8 @@ for (const caz of cazuri) {
   caz.interact();
   await new Promise((r) => setTimeout(r, 30));
   console.log(
-    `${caz.nume.padEnd(40)} rulari parinte: montare=${dupaMontare}  dupa interactiune=${rulari}` +
-      (rulari > dupaMontare ? "   <-- PARINTELE S-A RE-RULAT" : "   ok"),
+    `${caz.nume.padEnd(40)} parent runs: mount=${dupaMontare}  after interaction=${rulari}` +
+      (rulari > dupaMontare ? "   <-- THE PARENT RE-RAN" : "   ok"),
   );
   dispose();
 }

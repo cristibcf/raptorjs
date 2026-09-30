@@ -1,10 +1,10 @@
 /**
- * Impachetarea mobila.
+ * Mobile packaging.
  *
- * Diferenta fata de desktop nu este cosmetica: pe telefon distributia trece prin
- * magazin, deci semnarea nu este o optiune a echipei, ci o conditie a platformei
- * (`store`). Planul spune asta explicit, ca CI-ul sa nu incerce sa publice
- * artefacte pe care magazinul oricum le-ar respinge.
+ * The difference from desktop is not cosmetic: on a phone distribution goes
+ * through the store, so signing is not a team option but a platform condition
+ * (`store`). The plan says this explicitly, so CI does not try to publish
+ * artifacts the store would reject anyway.
  */
 import { planPackages } from "@raptor/host";
 import type { HostManifest, InstallerFormat, PackagePlan } from "@raptor/host";
@@ -17,7 +17,7 @@ export const MOBILE_FORMATS: readonly InstallerFormat[] = [
     extension: "aab",
     signing: "store",
     runner: "ubuntu-latest",
-    notes: "formatul cerut de Google Play; magazinul genereaza APK-urile per dispozitiv",
+    notes: "the format required by Google Play; the store generates the per-device APKs",
   },
   {
     id: "apk",
@@ -26,7 +26,7 @@ export const MOBILE_FORMATS: readonly InstallerFormat[] = [
     extension: "apk",
     signing: "required",
     runner: "ubuntu-latest",
-    notes: "distributie directa sau teste pe dispozitiv",
+    notes: "direct distribution or on-device testing",
   },
   {
     id: "ipa",
@@ -35,7 +35,7 @@ export const MOBILE_FORMATS: readonly InstallerFormat[] = [
     extension: "ipa",
     signing: "store",
     runner: "macos-latest",
-    notes: "semnare cu profil de provisioning; distributie prin App Store sau TestFlight",
+    notes: "signing with a provisioning profile; distribution through the App Store or TestFlight",
   },
 ];
 

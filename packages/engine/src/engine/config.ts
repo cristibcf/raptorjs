@@ -1,15 +1,15 @@
 /**
- * Configuratie RaptorEngine (whitepaper RaptorEngine sectiunea 34 + Appendix A).
+ * RaptorEngine configuration (RaptorEngine whitepaper section 34 + Appendix A).
  *
- * Defaults bune: fisierele de config separate se justifica doar pentru optiuni
- * care nu pot fi inferate din proiect. `defineConfig` e doar identitate tipata.
+ * Good defaults: separate config files are only justified for options that
+ * cannot be inferred from the project. `defineConfig` is just a typed identity.
  */
 
 export type BuildTarget = "web" | "server" | "edge";
 
 /**
- * Profile de build (sectiunea 18). Nu ascund magie: sunt preseturi inspectabile
- * de strategii. Fiecare seteaza ce optimizari sunt prioritare.
+ * Build profiles (section 18). No hidden magic: they are inspectable presets
+ * of strategies. Each one sets which optimizations take priority.
  */
 export const BuildProfile = {
   default: "default",
@@ -34,7 +34,7 @@ export interface DevConfig {
 export interface BuildConfig {
   sourcemap: boolean;
   report: boolean;
-  /** Dezactiveaza Dependency Fusion (utila pentru debugging - vezi 14.2). */
+  /** Disables Dependency Fusion (useful for debugging - see 14.2). */
   disableFusion: boolean;
 }
 
@@ -65,12 +65,12 @@ export type UserConfig = {
   dev?: Partial<DevConfig>;
 };
 
-/** Identitate tipata pentru raptor.config.ts (sectiunea 34). */
+/** Typed identity for raptor.config.ts (section 34). */
 export function defineConfig(config: UserConfig): UserConfig {
   return config;
 }
 
-/** Combina configul utilizatorului peste defaults (deep merge la un nivel). */
+/** Merges the user config over the defaults (one-level deep merge). */
 export function resolveConfig(user: UserConfig = {}): RaptorConfig {
   return {
     target: user.target ?? DEFAULT_CONFIG.target,
@@ -83,15 +83,15 @@ export function resolveConfig(user: UserConfig = {}): RaptorConfig {
 }
 
 /**
- * Prioritatile fiecarui profil (sectiunea 18). Influenteaza strategia, nu
- * semantica (24: adaptive strategies, nu adaptive correctness).
+ * The priorities of each profile (section 18). They influence the strategy, not
+ * the semantics (24: adaptive strategies, not adaptive correctness).
  */
 export interface ProfileStrategy {
-  /** Componentele care depind de wire merg intr-un chunk separat (worker-friendly). */
+  /** Components that depend on wire go into a separate chunk (worker-friendly). */
   isolateRealtime: boolean;
-  /** Preload agresiv al chunk-ului critic. */
+  /** Aggressive preload of the critical chunk. */
   aggressivePreload: boolean;
-  /** Un singur chunk (SSR/content) vs. split per componenta. */
+  /** A single chunk (SSR/content) vs. split per component. */
   singleChunk: boolean;
 }
 

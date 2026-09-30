@@ -1,10 +1,10 @@
 /**
- * RaptorProfile - artefactul de telemetrie (whitepaper RaptorEngine 22).
+ * RaptorProfile - the telemetry artifact (whitepaper RaptorEngine 22).
  *
- * Masoara comportamente TEHNICE (frecventa update-uri, fan-out, routes,
- * co-usage, payload wire, bursts DOM), nu date personale (22: "scopul e sa
- * masoare comportamente tehnice"). E un input OPTIONAL pentru build planner;
- * corectitudinea nu depinde de el (24).
+ * Measures TECHNICAL behaviors (update frequency, fan-out, routes, co-usage,
+ * wire payload, DOM bursts), not personal data (22: "the goal is to measure
+ * technical behaviors"). It is an OPTIONAL input for the build planner;
+ * correctness does not depend on it (24).
  */
 import { canonicalize } from "@raptor/engine/compiler";
 
@@ -23,19 +23,19 @@ export interface RouteCoUsage {
 export interface RaptorProfile {
   version: string;
   scenarios: number;
-  /** address -> numar de update-uri (signal update frequency, 22). */
+  /** address -> number of updates (signal update frequency, 22). */
   signalUpdateFrequency: Record<string, number>;
-  /** nodeId derived -> numar de consumatori (derived fan-out static, 22). */
+  /** derived nodeId -> number of consumers (static derived fan-out, 22). */
   derivedFanOut: Record<string, number>;
-  /** path -> numar de vizite (route frequency, 22). */
+  /** path -> number of visits (route frequency, 22). */
   routeFrequency: Record<string, number>;
-  /** perechi de routes vizitate impreuna (chunk co-usage, 22). */
+  /** pairs of routes visited together (chunk co-usage, 22). */
   routeCoUsage: RouteCoUsage[];
-  /** distributia payload-ului wire per adresa (encoding specialization, 22). */
+  /** wire payload distribution per address (encoding specialization, 22). */
   wirePayload: WirePayloadStat[];
-  /** rafale de mutatii DOM (batch sizing, 22). */
+  /** DOM mutation bursts (batch sizing, 22). */
   domBursts: { count: number; maxBatch: number; totalMutations: number };
-  /** derivate: semnale/routes fierbinti peste prag (hot vs cold paths, 22). */
+  /** derived: signals/routes hot above threshold (hot vs cold paths, 22). */
   hotSignals: string[];
   hotRoutes: string[];
 }
@@ -57,7 +57,7 @@ export function emptyProfile(): RaptorProfile {
   };
 }
 
-/** JSON canonic al profilului (chei sortate) - artefact reproductibil (21). */
+/** Canonical JSON of the profile (sorted keys) - reproducible artifact (21). */
 export function serializeProfile(profile: RaptorProfile): string {
   return JSON.stringify(canonicalize(profile), null, 2);
 }

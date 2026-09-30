@@ -1,12 +1,12 @@
 /**
- * Tabs - taburi cu roving tabindex si navigare la sageti.
+ * Tabs - tabs with roving tabindex and arrow-key navigation.
  *
- * Doar tabul activ e in ordinea de Tab; sagetile muta intre taburi. Asa cere
- * pattern-ul ARIA: un set de 8 taburi nu trebuie sa coste 8 apasari de Tab ca
- * sa-l depasesti.
+ * Only the active tab is in the Tab order; arrows move between tabs. That's
+ * what the ARIA pattern requires: a set of 8 tabs shouldn't cost 8 Tab presses
+ * to get past.
  *
- * `activation: "manual"` (implicit) muta focusul fara sa schimbe panoul pana la
- * Enter/Space - important cand panourile sunt scumpe sau incarca date.
+ * `activation: "manual"` (default) moves focus without changing the panel until
+ * Enter/Space - important when the panels are expensive or load data.
  */
 import { state, type Accessor, type State } from "raptorjs";
 import { R, For, Show, type Child } from "raptorjs/dom";
@@ -17,7 +17,7 @@ import { type El } from "./primitives/env.ts";
 let idSeq = 0;
 
 export interface Tab {
-  /** Cheie stabila; devine parte din `id`-urile ARIA. */
+  /** Stable key; becomes part of the ARIA `id`s. */
   key: string;
   label: Child;
   content: Child | (() => Child);
@@ -26,17 +26,17 @@ export interface Tab {
 
 export interface TabsProps {
   tabs: readonly Tab[];
-  /** Tabul activ. Da-i un semnal daca vrei sa-l controlezi din afara. */
+  /** The active tab. Pass a signal if you want to control it from outside. */
   active?: State<string>;
-  /** Cheia initiala, daca nu dai `active`. */
+  /** The initial key, if you don't pass `active`. */
   initial?: string;
   orientation?: "horizontal" | "vertical";
   /**
-   * `automatic` schimba panoul odata cu focusul (sageti), `manual` cere
-   * Enter/Space. Implicit `manual`.
+   * `automatic` changes the panel together with focus (arrows), `manual`
+   * requires Enter/Space. Default `manual`.
    */
   activation?: "automatic" | "manual";
-  /** Randeaza panoul doar cand devine activ, si il tine montat dupa. */
+  /** Renders the panel only when it becomes active, and keeps it mounted after. */
   lazy?: boolean;
   onChange?: (key: string) => void;
   label?: string;
@@ -56,10 +56,10 @@ export function tabs(props: TabsProps): TabsHandle {
   const activation = props.activation ?? "manual";
   const vertical = props.orientation === "vertical";
 
-  // Focusul poate fi pe alt tab decat cel activ (activare manuala).
+  // Focus can be on a tab other than the active one (manual activation).
   const focused = state(active.peek());
   const buttons = new Map<string, El>();
-  /** Panourile deja vizitate, pentru `lazy`. */
+  /** The panels already visited, for `lazy`. */
   const seen = new Set<string>([active.peek()]);
 
   const tabId = (key: string): string => id + "-tab-" + key;
@@ -155,7 +155,7 @@ export function tabs(props: TabsProps): TabsHandle {
             "aria-selected": () => String(active() === tab.key),
             "aria-controls": panelId(tab.key),
             disabled: tab.disabled === true,
-            // Roving tabindex: un singur tab e tabbable.
+            // Roving tabindex: only one tab is tabbable.
             tabindex: () => (focused() === tab.key ? "0" : "-1"),
             ref: (node: El) => {
               if (node) buttons.set(tab.key, node);
@@ -174,8 +174,8 @@ export function tabs(props: TabsProps): TabsHandle {
             class: "rui-tabpanel",
             role: "tabpanel",
             "aria-labelledby": tabId(tab.key),
-            // Panoul inactiv ramane in DOM dar e ascuns: asa Ctrl+F il gaseste
-            // si nu pierdem starea din el (input-uri completate, scroll).
+            // The inactive panel stays in the DOM but hidden: that way Ctrl+F
+            // finds it and we don't lose its state (filled inputs, scroll).
             hidden: () => active() !== tab.key,
             tabindex: "0",
           },
@@ -194,7 +194,7 @@ export function tabs(props: TabsProps): TabsHandle {
   return { el, active: () => active(), select };
 }
 
-/** Varianta componenta. */
+/** Component variant. */
 export function Tabs(props: TabsProps): El {
   return tabs(props).el;
 }

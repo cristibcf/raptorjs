@@ -1,11 +1,11 @@
 /**
  * RaptorDev live server (whitepaper RaptorEngine 10, 11, 12).
  *
- * File watching e doar primul nivel (10): pe fiecare edit reparseaza modulul
- * atins, calculeaza graph diff-ul (DevEngine, din @raptor/engine) si trimite
- * update-ul HMR structurat clientilor prin SSE, apoi reface SSR-ul. Logica de
- * baza (`applyChange`) e testabila determinist; `fs.watch` e un adapter subtire
- * peste ea.
+ * File watching is only the first level (10): on each edit it reparses the
+ * touched module, computes the graph diff (DevEngine, from @raptor/engine) and
+ * sends the structured HMR update to clients over SSE, then rebuilds the SSR.
+ * The core logic (`applyChange`) is deterministically testable; `fs.watch` is a
+ * thin adapter over it.
  */
 import { watch, readFileSync, type FSWatcher } from "node:fs";
 import { resolve, join } from "node:path";
@@ -21,12 +21,12 @@ import { renderDocument } from "./ssr.ts";
 import type { RouteDef } from "./router.ts";
 
 export interface DevServerOptions {
-  /** path -> sursa initiala (.raptor). */
+  /** path -> initial source (.raptor). */
   files: Record<string, string>;
-  /** Fisierul a carui componenta se serveste la "/". */
+  /** The file whose component is served at "/". */
   entry: string;
   routes?: RouteDef[];
-  /** Sink pentru log-ul de update (§12). Default: no-op. */
+  /** Sink for the update log (§12). Default: no-op. */
   onLog?: (line: string) => void;
 }
 
@@ -83,21 +83,22 @@ export class RaptorDevServer {
 
   private buildRuntime(): RaptorRuntime {
     const source = this.sources.get(this.entry);
-    if (!source) throw new Error(`[raptor:dev] entry necunoscut: ${this.entry}`);
+    if (!source) throw new Error(`[raptor:dev] unknown entry: ${this.entry}`);
     const result = buildModule(source, this.entry);
     return this.routes
       ? RaptorRuntime.fromBuild(result, { routes: this.routes })
       : RaptorRuntime.fromBuild(result);
   }
 
-  /** Aboneaza-te la update-uri HMR; intoarce un unsubscribe. */
+  /** Subscribe to HMR updates; returns an unsubscribe. */
   /**
-   * Cati ascultatori HMR sunt inregistrati acum (clienti SSE + abonati interni).
+   * How many HMR listeners are currently registered (SSE clients + internal
+   * subscribers).
    *
-   * Exista ca sa se poata astepta pe o CONDITIE, nu pe un cronometru. Testul
-   * care verifica difuzarea SSE dormea 60 ms sperand ca cererea a ajuns si
-   * clientul s-a inregistrat; pe o masina incarcata nu ajungea, `applyChange`
-   * difuza catre nimeni, si testul pica dupa 4 secunde de asteptare degeaba.
+   * Exists so tests can wait on a CONDITION, not a timer. The test that checks
+   * SSE broadcast used to sleep 60 ms hoping the request had arrived and the
+   * client had registered; on a loaded machine it hadn't, `applyChange`
+   * broadcast to nobody, and the test failed after 4 seconds of waiting in vain.
    */
   get hmrClientCount(): number {
     return this.hmrListeners.size;
@@ -109,8 +110,8 @@ export class RaptorDevServer {
   }
 
   /**
-   * Aplica un edit (nucleul, determinist): diff incremental -> refresh SSR daca
-   * e entry-ul -> broadcast HMR + log. Un no-op nu declanseaza nimic.
+   * Applies an edit (the deterministic core): incremental diff -> refresh SSR if
+   * it's the entry -> broadcast HMR + log. A no-op triggers nothing.
    */
   applyChange(path: string, source: string): DevUpdate {
     const abs = resolve(path);
@@ -121,7 +122,7 @@ export class RaptorDevServer {
       try {
         this.runtime = this.buildRuntime();
       } catch (err) {
-        this.onLog(`[raptor:dev] eroare de build: ${(err as Error).message}`);
+        this.onLog(`[raptor:dev] build error: ${(err as Error).message}`);
       }
     }
     this.onLog(formatUpdateLog(update));
@@ -129,7 +130,7 @@ export class RaptorDevServer {
     return update;
   }
 
-  /** HTML de dev pentru o cale (SSR + scriptul client HMR injectat). */
+  /** Dev HTML for a path (SSR + injected HMR client script). */
   render(path: string): string | null {
     const ssr = this.runtime.ssr(path);
     if (!ssr) return null;
@@ -137,14 +138,14 @@ export class RaptorDevServer {
     return doc.replace("</body>", `<script src="/@raptor/client.js"></script></body>`);
   }
 
-  /** Porneste watching-ul pe un director (fs.watch recursiv). */
+  /** Starts watching a directory (recursive fs.watch). */
   watch(root: string): void {
     const base = resolve(root);
     this.watcher = watch(base, { recursive: true }, (_event, filename) => {
       if (!filename) return;
       const abs = resolve(join(base, filename.toString()));
       if (!abs.endsWith(".raptor")) return;
-      // Debounce: coalescere de evenimente rapide (save = multiple ticks).
+      // Debounce: coalesce rapid events (a save = multiple ticks).
       const existing = this.debounce.get(abs);
       if (existing) clearTimeout(existing);
       this.debounce.set(
@@ -154,14 +155,14 @@ export class RaptorDevServer {
           try {
             this.applyChange(abs, readFileSync(abs, "utf8"));
           } catch {
-            /* fisier in curs de scriere; urmatorul eveniment il prinde */
+            /* file mid-write; the next event will catch it */
           }
         }, 30),
       );
     });
   }
 
-  /** Porneste serverul HTTP de dev (SSR + SSE HMR). Rezolva cu portul efectiv. */
+  /** Starts the dev HTTP server (SSR + SSE HMR). Resolves with the effective port. */
   listen(port = 0, host = "127.0.0.1"): Promise<number> {
     this.httpServer = createServer((req, res) => this.onHttp(req.url ?? "/", res));
     return new Promise((resolve2, reject) => {
@@ -202,7 +203,7 @@ export class RaptorDevServer {
     res.end(html);
   }
 
-  /** Inchide watcher-ul, timerele si serverul HTTP (graceful). */
+  /** Closes the watcher, the timers and the HTTP server (graceful). */
   close(): Promise<void> {
     for (const t of this.debounce.values()) clearTimeout(t);
     this.debounce.clear();
@@ -218,7 +219,7 @@ export class RaptorDevServer {
   }
 }
 
-/** Helper de test/CLI: citeste un SSE si intoarce primul obiect `data:`. */
+/** Test/CLI helper: reads an SSE stream and returns the first `data:` object. */
 export function readFirstSseEvent(url: string, timeoutMs = 4000): Promise<unknown> {
   return new Promise((resolve2, reject) => {
     const req = httpGet(url, (res) => {
@@ -236,7 +237,7 @@ export function readFirstSseEvent(url: string, timeoutMs = 4000): Promise<unknow
     req.on("error", reject);
     setTimeout(() => {
       req.destroy();
-      reject(new Error("timeout SSE"));
+      reject(new Error("SSE timeout"));
     }, timeoutMs);
   });
 }

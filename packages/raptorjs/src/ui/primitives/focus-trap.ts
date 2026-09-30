@@ -1,19 +1,19 @@
 /**
- * focusTrap - tine focusul inauntrul unui element cat timp e activ.
+ * focusTrap - keeps focus inside an element while it is active.
  *
- * Precondiție pentru orice Dialog/Drawer: fara ea, Tab plimba utilizatorul prin
- * pagina de dedesubt, care pentru un screen reader e ca si cum modalul n-ar
- * exista. La dezactivare readuce focusul de unde a plecat.
+ * A precondition for any Dialog/Drawer: without it, Tab walks the user through
+ * the page underneath, which for a screen reader is as if the modal didn't
+ * exist. On deactivation it returns focus to where it left from.
  */
 import { effect, onCleanup } from "raptorjs";
 import { focus, focusable, type El } from "./env.ts";
 
 export interface FocusTrapOptions {
-  /** Cat timp intoarce `false`, capcana e inactiva. Implicit mereu activa. */
+  /** While this returns `false`, the trap is inactive. Active by default. */
   active?: () => boolean;
-  /** Ce primeste focusul la activare. Implicit primul element focusabil. */
+  /** What receives focus on activation. Defaults to the first focusable element. */
   initial?: () => El | null;
-  /** Readu focusul unde a fost la dezactivare. Implicit `true`. */
+  /** Return focus to where it was on deactivation. Defaults to `true`. */
   restore?: boolean;
 }
 
@@ -33,7 +33,7 @@ export function focusTrap(options?: FocusTrapOptions): (el: El) => void {
       const first = items[0]!;
       const last = items[items.length - 1]!;
       const active = (globalThis as any).document?.activeElement;
-      // Ciclam manual la capete; in interior lasam browserul sa-si faca treaba.
+      // We cycle manually at the ends; inside we let the browser do its job.
       if (e.shiftKey && (active === first || !contains(el, active))) {
         e.preventDefault?.();
         focus(last);

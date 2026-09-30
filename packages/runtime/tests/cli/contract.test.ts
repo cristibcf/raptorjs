@@ -1,16 +1,16 @@
 /**
- * Suita de contract RaptorRuntime - lista de acceptanta a spike-ului
- * (spec sectiunea 14), rulata impotriva exemplului real din depozit.
+ * The RaptorRuntime contract suite - the spike's acceptance list
+ * (spec section 14), run against the real example in the repository.
  *
- * Spec-ul cere ca aceste cinci verificari sa devina suita de baza. Ele nu
- * testeaza detalii de implementare, ci comportamentul observabil al produsului:
- * ce vede cineva care instaleaza runtime-ul si ii da un proiect.
+ * The spec requires these five checks to become the base suite. They do not
+ * test implementation details, but the product's observable behavior: what
+ * someone who installs the runtime and gives it a project sees.
  *
- * O limitare onesta: verificarea "lansare autonoma" confirma aici ca launcher-ul
- * porneste ca proces separat si raporteaza structurat. Partea "fara Node.js
- * instalat pe masina" apartine binarului nativ si ramane criteriul de iesire al
- * milestone-ului 0 - nu poate fi demonstrata de un launcher care ruleaza in
- * bootstrap pe motorul deja prezent.
+ * An honest limitation: the "autonomous launch" check confirms here that the
+ * launcher starts as a separate process and reports structured output. The "with
+ * no Node.js installed on the machine" part belongs to the native binary and
+ * remains the exit criterion of milestone 0 - it cannot be demonstrated by a
+ * launcher that runs in bootstrap on the engine already present.
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -32,8 +32,8 @@ async function cli(...argv: string[]) {
   return await runCli(argv, { cwd: SPIKE_ROOT, interactive: false, waitForSignals: false });
 }
 
-/** (1) Lansare autonoma: binarul porneste singur si raporteaza structurat. */
-test("verificarea 1 - launcher-ul porneste ca proces propriu si raporteaza structurat", async () => {
+/** (1) Autonomous launch: the binary starts on its own and reports structured output. */
+test("check 1 - the launcher starts as its own process and reports structured output", async () => {
   const { stdout } = await run(process.execPath, [BINARY, "doctor", "--json", "--cwd", SPIKE_ROOT], {
     cwd: REPO_ROOT,
     timeout: 60_000,
@@ -43,11 +43,11 @@ test("verificarea 1 - launcher-ul porneste ca proces propriu si raporteaza struc
   assert.equal(typeof report["environment"]!["runtimeVersion"], "string");
   assert.equal(typeof report["environment"]!["platform"], "string");
   assert.equal(report["project"]!["name"], "raptor-runtime-spike");
-  assert.ok(Array.isArray(report["findings"]), "diagnosticul este structurat, nu text liber");
+  assert.ok(Array.isArray(report["findings"]), "the diagnostics are structured, not free text");
 });
 
-/** (2) Modul TypeScript: un singur modul local se evalueaza si isi raporteaza rezultatul. */
-test("verificarea 2 - modulul TypeScript de intrare se evalueaza fara pas de compilare", async () => {
+/** (2) TypeScript module: a single local module evaluates and reports its result. */
+test("check 2 - the TypeScript entry module evaluates without a compile step", async () => {
   const result = await cli("run", "--json");
   assert.equal(result.code, 0, result.out);
 
@@ -55,89 +55,89 @@ test("verificarea 2 - modulul TypeScript de intrare se evalueaza fara pas de com
   const modules = diagnostics["modules"]!;
   assert.ok(
     modules.some((module) => String(module["url"]).endsWith("src/main.ts")),
-    "punctul de intrare TypeScript apare in graful de module",
+    "the TypeScript entry point appears in the module graph",
   );
   assert.ok(
     modules.some((module) => module["kind"] === "raptor"),
-    "modulele raptor: au fost rezolvate ca module reale",
+    "the raptor: modules were resolved as real modules",
   );
 });
 
-test("verificarea 2 - rezultatul este raportat prin diagnostice structurate", async () => {
+test("check 2 - the result is reported through structured diagnostics", async () => {
   const events: Array<Record<string, unknown>> = [];
   const result = await cli("trace", "--json");
   assert.equal(result.code, 0, result.out);
   events.push(...((result.data["requests"] as Array<Record<string, unknown>>) ?? []));
 
   const spanCount = Number(result.data["spanCount"]);
-  assert.ok(spanCount > 0, "rularea a produs span-uri de urmarire");
+  assert.ok(spanCount > 0, "the run produced trace spans");
   assert.match(String(result.data["trace"]), /trace\.json$/);
 });
 
-/** (3) Refuz de permisiune: o citire in afara domeniului declarat esueaza clar. */
-test("verificarea 3 - o citire in afara domeniului declarat este refuzata cu eroare clara", async () => {
+/** (3) Permission denial: a read outside the declared scope fails clearly. */
+test("check 3 - a read outside the declared scope is denied with a clear error", async () => {
   const result = await cli("run", "--json");
   const capabilities = (result.data["diagnostics"] as Record<string, Record<string, unknown>>)["capabilities"]!;
   const usage = capabilities["usage"] as Array<Record<string, unknown>>;
 
   const denied = usage.filter((entry) => entry["granted"] === false);
-  assert.ok(denied.length > 0, "spike-ul incearca deliberat un acces nepermis");
+  assert.ok(denied.length > 0, "the spike deliberately attempts a disallowed access");
   assert.ok(
     denied.some((entry) => entry["capability"] === "files.read"),
-    "refuzul este inregistrat pe capability-ul corect",
+    "the denial is recorded on the correct capability",
   );
-  assert.equal(result.code, 0, "aplicatia trateaza refuzul; runtime-ul nu se prabuseste");
+  assert.equal(result.code, 0, "the application handles the denial; the runtime does not crash");
 });
 
-/** (4) Oprire curata: dupa succes, dupa eroare si dupa anulare. */
-test("verificarea 4 - oprirea este curata dupa succes, esec si anulare", async () => {
+/** (4) Clean shutdown: after success, after error and after cancellation. */
+test("check 4 - shutdown is clean after success, failure and cancellation", async () => {
   const result = await cli("run", "--json");
   const tasks = (result.data["diagnostics"] as Record<string, Record<string, number | boolean>>)["tasks"]!;
 
-  assert.ok(Number(tasks["completed"]) >= 1, "cel putin un task s-a terminat cu bine");
-  assert.ok(Number(tasks["failed"]) >= 1, "esecul deliberat a fost inregistrat ca esec");
-  assert.ok(Number(tasks["cancelled"]) >= 1, "task-ul in zbor a fost anulat la oprire");
-  assert.equal(Number(tasks["active"]), 0, "nimic nu ramane in zbor dupa drenare");
+  assert.ok(Number(tasks["completed"]) >= 1, "at least one task completed successfully");
+  assert.ok(Number(tasks["failed"]) >= 1, "the deliberate failure was recorded as a failure");
+  assert.ok(Number(tasks["cancelled"]) >= 1, "the in-flight task was cancelled at shutdown");
+  assert.equal(Number(tasks["active"]), 0, "nothing remains in flight after draining");
 });
 
-test("verificarea 4 - binarul iese cu cod 0 dupa o oprire curata, fara sa atarne", async () => {
-  // Daca oprirea ar lasa un handle deschis, apelul ar expira aici.
+test("check 4 - the binary exits with code 0 after a clean shutdown, without hanging", async () => {
+  // If shutdown left a handle open, the call would time out here.
   const { stdout } = await run(process.execPath, [BINARY, "run", "--cwd", SPIKE_ROOT], { cwd: REPO_ROOT, timeout: 60_000 });
   assert.match(stdout, /raptor-runtime-spike/);
 });
 
-/** (5) Teste de contract: lista de acceptanta ruleaza si trece prin `raptor-runtime test`. */
-test("verificarea 5 - lista de acceptanta ruleaza prin `raptor-runtime test`", async () => {
+/** (5) Contract tests: the acceptance list runs and passes through `raptor-runtime test`. */
+test("check 5 - the acceptance list runs through `raptor-runtime test`", async () => {
   const result = await cli("test", "--json");
   assert.equal(result.code, 0, result.out);
 
   const summary = result.data["summary"] as Record<string, number>;
-  assert.ok(summary["total"]! >= 5, "suita de baza acopera cel putin cele cinci comportamente");
+  assert.ok(summary["total"]! >= 5, "the base suite covers at least the five behaviors");
   assert.equal(summary["failed"], 0);
 
   const cases = result.data["cases"] as Array<Record<string, unknown>>;
-  assert.ok(cases.every((item) => typeof item["durationMs"] === "number"), "raportarea este structurata, cu timpi per caz");
+  assert.ok(cases.every((item) => typeof item["durationMs"] === "number"), "reporting is structured, with per-case timings");
 });
 
-test("verificarea 5 - filtrul selecteaza un subset si ramane repetabil", async () => {
+test("check 5 - the filter selects a subset and stays repeatable", async () => {
   const all = await cli("test", "--json");
   const filtered = await cli("test", "--filter", "checks", "--json");
   assert.equal(filtered.code, 0, filtered.out);
   assert.ok(
     (filtered.data["files"] as string[]).length <= (all.data["files"] as string[]).length,
-    "filtrul nu poate adauga fisiere",
+    "the filter cannot add files",
   );
 
   const again = await cli("test", "--filter", "checks", "--json");
   assert.deepEqual(
     (again.data["cases"] as Array<Record<string, unknown>>).map((item) => [item["file"], item["name"], item["status"]]),
     (filtered.data["cases"] as Array<Record<string, unknown>>).map((item) => [item["file"], item["name"], item["status"]]),
-    "aceeasi suita produce acelasi rezultat la a doua rulare",
+    "the same suite produces the same result on a second run",
   );
 });
 
-/** Ambalarea proiectului spike ramane reproductibila (spec sectiunile 8 si 12). */
-test("unitatea ambalata a spike-ului este reproductibila si poarta capabilitatile", async () => {
+/** Packaging the spike project stays reproducible (spec sections 8 and 12). */
+test("the spike's packaged unit is reproducible and carries the capabilities", async () => {
   const first = await cli("pack", "--out", "./.raptor/pack-test", "--json");
   assert.equal(first.code, 0, first.out);
   const second = await cli("pack", "--out", "./.raptor/pack-test", "--json");

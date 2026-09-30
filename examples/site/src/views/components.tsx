@@ -23,15 +23,15 @@ const current = (): ComponentDoc | null => findComponent(sub());
 
 function Sidebar() {
   /**
-   * Sidebar-ul e construit O SINGURA DATA si nu se mai reconstruieste la
-   * navigare — doar clasa `active` a unui element se schimba. Asa isi pastreaza
-   * scroll-ul, ceea ce conteaza intr-o lista de ~200 de componente.
+   * The sidebar is built ONCE and never rebuilt on navigation — only an
+   * element's `active` class changes. That is how it keeps its scroll
+   * position, which matters in a list of ~200 components.
    */
   const items = new Map<string, HTMLElement>();
 
-  // Cand ajungi la o componenta altfel decat prin click (Prev/Next, link direct,
-  // butonul Back), o aducem in vizor. `nearest` nu misca nimic daca e deja
-  // vizibila, deci nu smucim pagina sub degetul utilizatorului.
+  // When you reach a component by something other than a click (Prev/Next, a
+  // direct link, the Back button), we bring it into view. `nearest` moves
+  // nothing if it is already visible, so we don't jerk the page under the user's finger.
   effect(() => {
     const slug = current()?.slug;
     const el = slug ? items.get(slug) : undefined;
@@ -40,7 +40,7 @@ function Sidebar() {
     if (!list) return;
     const a = el.getBoundingClientRect();
     const b = list.getBoundingClientRect();
-    if (a.top >= b.top && a.bottom <= b.bottom) return; // deja vizibila
+    if (a.top >= b.top && a.bottom <= b.bottom) return; // already visible
     el.scrollIntoView({ block: "nearest", behavior: "smooth" });
   });
 

@@ -1,16 +1,16 @@
 /**
- * Sursa unica pentru cifrele pe care le afirmam despre proiect.
+ * The single source for the numbers we claim about the project.
  *
- * Numarul de teste si numarul de componente erau scrise de mana in trei locuri
- * (README, pagina de start a site-ului, ROADMAP) si au divergat: 799 vs 747 vs
- * realitatea. O cifra despre care spui "onest" nu are voie sa fie tastata.
+ * The test count and the component count used to be typed by hand in three places
+ * (README, the site's home page, ROADMAP) and they diverged: 799 vs 747 vs
+ * reality. A number you call "honest" is not allowed to be typed by hand.
  *
- * `pnpm stats` ruleaza suita reala, numara, si rescrie:
- *   - `examples/site/src/content/stats.ts` (consumat de pagina de start)
- *   - linia cu `pnpm test` din README.md
+ * `pnpm stats` runs the real suite, counts, and rewrites:
+ *   - `examples/site/src/content/stats.ts` (consumed by the home page)
+ *   - the `pnpm test` line in README.md
  *
- * `pnpm stats --check` nu scrie nimic si iese cu cod 1 daca fisierele difera de
- * realitate - forma potrivita pentru CI.
+ * `pnpm stats --check` writes nothing and exits with code 1 if the files differ
+ * from reality - the shape suited for CI.
  */
 import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync, readdirSync, existsSync } from "node:fs";
@@ -27,11 +27,11 @@ export interface Stats {
   readonly packages: number;
   readonly components: number;
   readonly uiEntryPoints: number;
-  /** Numele dependentelor externe; gol inseamna ca teza tine.  */
+  /** The names of the external dependencies; empty means the thesis holds.  */
   readonly runtimeDependencies: readonly string[];
 }
 
-/** Ruleaza suita si citeste sumarul TAP al lui `node --test`. */
+/** Runs the suite and reads the TAP summary from `node --test`. */
 function measureTests(): Pick<Stats, "tests" | "pass" | "skip" | "fail"> {
   const result = spawnSync(
     process.execPath,
@@ -40,17 +40,17 @@ function measureTests(): Pick<Stats, "tests" | "pass" | "skip" | "fail"> {
   );
   const output = `${result.stdout ?? ""}${result.stderr ?? ""}`;
   const read = (label: string): number => {
-    // `node --test` isi schimba reporter-ul dupa versiune si dupa TTY: piped, Node
-    // 24 scoate spec (`ℹ tests 875`) iar Node 22 scoate TAP (`# tests 875`).
-    // Prindem ambele prefixe, altfel `stats:check` pica pe una dintre platforme.
+    // `node --test` changes its reporter by version and by TTY: when piped, Node
+    // 24 emits spec (`ℹ tests 875`) while Node 22 emits TAP (`# tests 875`).
+    // We catch both prefixes, otherwise `stats:check` fails on one of the platforms.
     const match = output.match(new RegExp(`^(?:\\u2139|#) ${label} (\\d+)$`, "m"));
-    if (!match) throw new Error(`nu am gasit linia de sumar '${label}' in iesirea lui node --test`);
+    if (!match) throw new Error(`could not find the summary line '${label}' in the output of node --test`);
     return Number(match[1]);
   };
   return { tests: read("tests"), pass: read("pass"), skip: read("skipped"), fail: read("fail") };
 }
 
-/** Pachetele publicabile din workspace (cele cu package.json propriu). */
+/** The publishable packages in the workspace (those with their own package.json). */
 function countPackages(): number {
   return readdirSync(join(ROOT, "packages")).filter((name) =>
     existsSync(join(ROOT, "packages", name, "package.json")),
@@ -58,10 +58,10 @@ function countPackages(): number {
 }
 
 /**
- * Componentele documentate = intrarile din catalogul site-ului.
+ * The documented components = the entries in the site's catalog.
  *
- * Numaram sursa, nu o importam: fisierele de catalog sunt `.tsx`, deci ar cere
- * bundler-ul doar ca sa aflam o lungime de lista.
+ * We count the source, we don't import it: the catalog files are `.tsx`, so they
+ * would require the bundler just to learn the length of a list.
  */
 function countComponents(): number {
   const dir = join(ROOT, "examples", "site", "src", "catalog");
@@ -74,13 +74,13 @@ function countComponents(): number {
 }
 
 /**
- * Dependentele de runtime EXTERNE ale pachetelor publicate. Teza cere 0.
+ * The EXTERNAL runtime dependencies of the published packages. The thesis requires 0.
  *
- * Legaturile din workspace nu se numara: sunt acelasi proiect, nu cod strain.
- * Le recunoastem dupa versiunea `workspace:*`. `peerDependencies` (ex. compilatorul
- * TypeScript, folosit doar la build de `@raptor/engine`) nu sunt dependente de
- * runtime livrate, deci nu intra nici ele. Daca le-am numara, "zero dependente"
- * ar arata altfel si cifra si-ar pierde intelesul exact in locul in care conteaza.
+ * Workspace links don't count: they are the same project, not foreign code.
+ * We recognize them by the `workspace:*` version. `peerDependencies` (e.g. the
+ * TypeScript compiler, used only at build time by `@raptor/engine`) are not shipped
+ * runtime dependencies, so they don't count either. If we counted them, "zero dependencies"
+ * would look different and the number would lose its exact meaning right where it matters.
  */
 function countRuntimeDependencies(): readonly string[] {
   const external = new Set<string>();
@@ -96,7 +96,7 @@ function countRuntimeDependencies(): readonly string[] {
   return [...external].sort();
 }
 
-/** Punctele de intrare UI publice: subpath-urile `./ui*` din `raptorjs`. */
+/** The public UI entry points: the `./ui*` subpaths in `raptorjs`. */
 function countUiEntryPoints(): number {
   const manifest = JSON.parse(readFileSync(join(ROOT, "packages", "raptorjs", "package.json"), "utf8")) as {
     exports?: Record<string, string>;
@@ -119,10 +119,10 @@ const README = join(ROOT, "README.md");
 
 function renderSiteStats(stats: Stats): string {
   return `/**
- * GENERAT DE \`pnpm stats\` - nu edita de mana.
+ * GENERATED BY \`pnpm stats\` - do not edit by hand.
  *
- * Cifrele de pe pagina de start trebuie sa vina din suita reala, nu din memoria
- * cuiva. \`pnpm stats --check\` pica in CI daca fisierul a ramas in urma.
+ * The numbers on the home page must come from the real suite, not from someone's
+ * memory. \`pnpm stats --check\` fails in CI if the file has fallen behind.
  */
 export const TEST_COUNT = ${stats.tests};
 export const PACKAGE_COUNT = ${stats.packages};
@@ -131,37 +131,37 @@ export const RUNTIME_DEPENDENCIES = ${stats.runtimeDependencies.length};
 `;
 }
 
-/** Locurile din README care poarta o cifra masurabila. */
+/** The places in the README that carry a measurable number. */
 const README_TEST_LINE = /^pnpm test( +)#.*$/m;
-const README_CATALOG = /\*\*\d+ de intrări în catalog\*\*/;
-const README_ENTRIES = /\*\*\d+ de puncte de intrare\*\*/;
+const README_CATALOG = /\*\*\d+ catalog entries\*\*/;
+const README_ENTRIES = /\*\*\d+ entry points\*\*/;
 
 function renderReadme(current: string, stats: Stats): string {
-  // Doar totalul: cate teste trec vs se sar variaza intre platforme (symlink-uri
-  // de fisier ruleaza pe Linux dar se sar pe Windows, Rolldown lipseste unde nu e
-  // instalat), deci un numar de `pass`/`skip` fixat aici ar face `stats:check` sa
-  // pice pe cealalta platforma. Totalul si zero-esecuri sunt stabile peste tot.
-  const line = `pnpm test             # ${stats.tests} de teste`;
-  if (!README_TEST_LINE.test(current)) throw new Error("nu am gasit linia 'pnpm test' in README.md");
-  if (!README_CATALOG.test(current)) throw new Error("nu am gasit numarul de intrari de catalog in README.md");
-  if (!README_ENTRIES.test(current)) throw new Error("nu am gasit numarul de puncte de intrare in README.md");
+  // Only the total: how many tests pass vs. get skipped varies between platforms (file
+  // symlinks run on Linux but are skipped on Windows, Rolldown is missing where it isn't
+  // installed), so a `pass`/`skip` count fixed here would make `stats:check` fail on
+  // the other platform. The total and zero-failures are stable everywhere.
+  const line = `pnpm test             # ${stats.tests} tests`;
+  if (!README_TEST_LINE.test(current)) throw new Error("could not find the 'pnpm test' line in README.md");
+  if (!README_CATALOG.test(current)) throw new Error("could not find the catalog entry count in README.md");
+  if (!README_ENTRIES.test(current)) throw new Error("could not find the entry-point count in README.md");
   return current
     .replace(README_TEST_LINE, line)
-    .replace(README_CATALOG, `**${stats.components} de intrări în catalog**`)
-    .replace(README_ENTRIES, `**${stats.uiEntryPoints} de puncte de intrare**`);
+    .replace(README_CATALOG, `**${stats.components} catalog entries**`)
+    .replace(README_ENTRIES, `**${stats.uiEntryPoints} entry points**`);
 }
 
 export function run(check: boolean): number {
   const stats = collect();
 
-  // O cifra masurata pe o suita rosie nu e mai buna decat una scrisa de mana -
-  // e mai rea, fiindca pare masurata. Unealta asta exista ca sa nu publicam
-  // numere in care nu ne putem increde, deci nu publica nici numere de aici.
+  // A number measured on a red suite is no better than a hand-typed one -
+  // it's worse, because it looks measured. This tool exists so we don't publish
+  // numbers we can't trust, so don't publish numbers from here either.
   if (stats.fail > 0) {
     console.error(
-      `suita are ${stats.fail} test(e) care pica - nu scriu cifre pornind de la ea.
+      `the suite has ${stats.fail} failing test(s) - I won't write numbers based on it.
 ` +
-        "Ruleaza 'pnpm test', repara, apoi 'pnpm stats'.",
+        "Run 'pnpm test', fix it, then 'pnpm stats'.",
     );
     return 1;
   }
@@ -175,22 +175,22 @@ export function run(check: boolean): number {
 
   if (check) {
     if (stale.length === 0) {
-      console.log(`cifrele sunt la zi: ${stats.tests} teste, ${stats.components} componente, ${stats.runtimeDependencies.length} dependente externe`);
+      console.log(`the numbers are up to date: ${stats.tests} tests, ${stats.components} components, ${stats.runtimeDependencies.length} external dependencies`);
       return 0;
     }
-    console.error(`cifre invechite in: ${stale.join(", ")} - ruleaza 'pnpm stats'`);
+    console.error(`stale numbers in: ${stale.join(", ")} - run 'pnpm stats'`);
     return 1;
   }
 
   writeFileSync(SITE_STATS, site);
   writeFileSync(README, readme);
   console.log(
-    `stats: ${stats.tests} teste (${stats.pass} pass, ${stats.skip} skip, ${stats.fail} fail), ` +
-      `${stats.packages} pachete, ${stats.components} componente, ` +
-      `${stats.runtimeDependencies.length} dependente de runtime externe` +
+    `stats: ${stats.tests} tests (${stats.pass} pass, ${stats.skip} skip, ${stats.fail} fail), ` +
+      `${stats.packages} packages, ${stats.components} components, ` +
+      `${stats.runtimeDependencies.length} external runtime dependencies` +
       (stats.runtimeDependencies.length > 0 ? ` (${stats.runtimeDependencies.join(", ")})` : ""),
   );
-  if (stale.length > 0) console.log(`  actualizat: ${stale.join(", ")}`);
+  if (stale.length > 0) console.log(`  updated: ${stale.join(", ")}`);
   return 0;
 }
 

@@ -1,15 +1,15 @@
 /**
- * Placheta, ca interfata.
+ * The board, as an interface.
  *
- * Pinii si magistralele nu sunt "o resursa" oarecare: pe o placheta reala, un
- * pin scris gresit poate scurtcircuita ceva sau poate tine un releu inchis.
- * De aceea descrierea de aici este mai stricta decat la celelalte host-uri -
- * fiecare pin are o directie declarata, iar host-ul refuza o scriere pe un pin
- * declarat ca intrare inainte sa ajunga la hardware.
+ * Pins and buses are not just "a resource": on a real board, a wrongly written
+ * pin can short something out or hold a relay closed. That is why the
+ * description here is stricter than on the other hosts - each pin has a
+ * declared direction, and the host denies a write to a pin declared as input
+ * before it reaches the hardware.
  *
- * Ca peste tot in familia asta de adaptoare, placheta se injecteaza: un test
- * ruleaza pe una simulata, firmware-ul real pe una adevarata, iar codul
- * aplicatiei nu vede diferenta.
+ * As everywhere in this family of adapters, the board is injected: a test runs
+ * on a simulated one, the real firmware on an actual one, and the app's code
+ * sees no difference.
  */
 
 export type PinDirection = "in" | "out";
@@ -17,20 +17,20 @@ export type PinDirection = "in" | "out";
 export interface PinDefinition {
   readonly pin: number;
   readonly direction: PinDirection;
-  /** Numele din schema; apare in diagnostice, ca sa nu se vorbeasca in numere. */
+  /** The name from the schematic; appears in diagnostics, so it is not all numbers. */
   readonly label?: string;
 }
 
 export interface BusDefinition {
   readonly bus: string;
-  /** Adresele de pe magistrala pe care aplicatia are voie sa le atinga. */
+  /** The addresses on the bus the app is allowed to touch. */
   readonly addresses: readonly number[];
 }
 
 export interface DeviceIdentity {
   readonly chip: string;
   readonly firmware: string;
-  /** De ce a pornit ultima oara: pornire, reset software, sau watchdog. */
+  /** Why it last booted: power-on, software reset, or watchdog. */
   readonly resetReason: "power-on" | "software" | "watchdog" | "wake";
 }
 
@@ -38,12 +38,12 @@ export interface Board {
   readonly identity: DeviceIdentity;
   readNextPin(pin: number): boolean;
   writePin(pin: number, value: boolean): void;
-  /** Un schimb pe magistrala; intoarce octetii cititi. */
+  /** A transfer on the bus; returns the bytes read. */
   transfer(bus: string, address: number, write: Uint8Array, readLength: number): Uint8Array;
-  /** Octeti liberi in heap; pe o placheta este o cifra care conteaza. */
+  /** Free bytes in the heap; on a board it is a number that matters. */
   freeHeap(): number;
-  /** Reset hardware. Host-ul il cheama cand watchdog-ul expira. */
+  /** Hardware reset. The host calls it when the watchdog expires. */
   reset(reason: string): void;
-  /** Somn; intoarce motivul trezirii. */
+  /** Sleep; returns the wake reason. */
   sleep(durationMs: number): Promise<"timer" | "external">;
 }

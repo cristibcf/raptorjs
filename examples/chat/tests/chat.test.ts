@@ -13,7 +13,7 @@ async function connect(app: ReturnType<typeof buildChatApp>): Promise<RaptorClie
   return client;
 }
 
-test("send difuzeaza APPEND catre toti clientii", async () => {
+test("send broadcasts APPEND to all clients", async () => {
   const app = buildChatApp();
   const ana = await connect(app);
   const bob = await connect(app);
@@ -27,7 +27,7 @@ test("send difuzeaza APPEND catre toti clientii", async () => {
   assert.deepEqual(bob.signal(`message:${id}`)(), { from: "Ana", text: "hei", status: "sent" });
 });
 
-test("setStatus difuzeaza PATCH (sent -> delivered -> read)", async () => {
+test("setStatus broadcasts PATCH (sent -> delivered -> read)", async () => {
   const app = buildChatApp();
   const ana = await connect(app);
   const bob = await connect(app);
@@ -45,7 +45,7 @@ test("setStatus difuzeaza PATCH (sent -> delivered -> read)", async () => {
   assert.equal((bob.signal(`message:${id}`)() as any).status, "read");
 });
 
-test("deleteMessage difuzeaza REMOVE", async () => {
+test("deleteMessage broadcasts REMOVE", async () => {
   const app = buildChatApp();
   const ana = await connect(app);
   const bob = await connect(app);

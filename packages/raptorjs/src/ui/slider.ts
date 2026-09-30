@@ -1,14 +1,14 @@
 /**
- * Slider / RangeSlider - selectare de valoare prin tragere.
+ * Slider / RangeSlider - value selection by dragging.
  *
- * Componenta-teza. Tragerea manerului produce `pointermove` la 60-120Hz; aici
- * fiecare eveniment scrie **doua atribute** (pozitia manerului si `aria-valuenow`)
- * si nu atinge niciun nod. Testul trage 60 de evenimente si verifica
+ * A thesis component. Dragging the thumb produces `pointermove` at 60-120Hz;
+ * here each event writes **two attributes** (the thumb position and
+ * `aria-valuenow`) and touches no node. The test drags 60 events and checks
  * `stats.createElement === 0`.
  *
- * Geometria pistei se citeste din `getBoundingClientRect`; acolo unde nu exista
- * (mini-dom, SSR) `setTrack()` o poate impinge din afara, deci logica de
- * cuantizare si plafonare e testabila fara layout real.
+ * The track geometry is read from `getBoundingClientRect`; where it doesn't
+ * exist (mini-dom, SSR) `setTrack()` can push it from outside, so the
+ * quantization and clamping logic is testable without real layout.
  */
 import { state, onCleanup, type Accessor, type State } from "raptorjs";
 import { R } from "raptorjs/dom";
@@ -17,19 +17,19 @@ import { onDoc, pointOf, type El } from "./primitives/env.ts";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 export interface SliderProps {
-  /** Semnalul detinut de tine. Slider-ul doar il scrie. */
+  /** The signal you own. The slider just writes it. */
   value: State<number>;
   min?: number;
   max?: number;
-  /** Cuantizare. Implicit 1. `0` inseamna continuu. */
+  /** Quantization. Defaults to 1. `0` means continuous. */
   step?: number;
   vertical?: boolean;
   disabled?: () => boolean;
-  /** Text citit de screen reader in locul numarului (ex. "12 lei"). */
+  /** Text read by the screen reader instead of the number (e.g. "12 lei"). */
   valueText?: (value: number) => string;
   label?: string;
   onChange?: (value: number) => void;
-  /** La final de drag (util pentru salvare/commit). */
+  /** At the end of a drag (useful for save/commit). */
   onCommit?: (value: number) => void;
   class?: string;
 }
@@ -39,7 +39,7 @@ interface Track {
   size: number;
 }
 
-/** Geometria pistei; fallback {0,1} ca sa nu impartim la zero fara layout. */
+/** The track geometry; fallback {0,1} so we don't divide by zero without layout. */
 function trackOf(el: El, vertical: boolean): Track {
   if (el && typeof el.getBoundingClientRect === "function") {
     const r = el.getBoundingClientRect();
@@ -63,7 +63,7 @@ function quantize(raw: number, axis: Axis): number {
   const { min, max, step } = axis;
   const stepped = step > 0 ? min + Math.round((raw - min) / step) * step : raw;
   const clamped = Math.min(max, Math.max(min, stepped));
-  // Evitam 0.30000000000000004 la pasi fractionari.
+  // We avoid 0.30000000000000004 for fractional steps.
   return step > 0 && !Number.isInteger(step) ? Number(clamped.toFixed(10)) : clamped;
 }
 
@@ -72,7 +72,7 @@ function fractionOf(value: number, axis: Axis): number {
   return Math.min(1, Math.max(0, (value - axis.min) / span));
 }
 
-/** Un maner: pointer + tastatura + ARIA. Refolosit de Slider si RangeSlider. */
+/** One thumb: pointer + keyboard + ARIA. Reused by Slider and RangeSlider. */
 function thumb(
   axis: Axis,
   read: Accessor<number>,
@@ -88,7 +88,7 @@ function thumb(
     if (t.size <= 0) return;
     const p = pointOf(e);
     const raw = axis.vertical
-      ? 1 - (p.y - t.start) / t.size // vertical: sus = max
+      ? 1 - (p.y - t.start) / t.size // vertical: top = max
       : (p.x - t.start) / t.size;
     write(quantize(axis.min + raw * (axis.max - axis.min), axis));
   };
@@ -160,7 +160,7 @@ function thumb(
     ...(opts.label ? { "aria-label": opts.label } : {}),
     ...(opts.valueText ? { "aria-valuetext": () => opts.valueText!(read()) } : {}),
     "aria-disabled": () => (opts.disabled?.() ? "true" : "false"),
-    // Singurul stil care se misca in timpul drag-ului.
+    // The only style that moves during the drag.
     style: () =>
       (axis.vertical ? "bottom:" : "left:") + (fractionOf(read(), axis) * 100).toFixed(3) + "%",
     "on:pointerdown": onPointerDown,
@@ -209,7 +209,7 @@ export function Slider(props: SliderProps): El {
     }),
   );
 
-  // Punte de test/SSR: impinge geometria pistei fara layout real.
+  // Test/SSR bridge: push the track geometry without real layout.
   (el as any).setTrack = (start: number, size: number): void => {
     override = { start, size };
   };
@@ -217,7 +217,7 @@ export function Slider(props: SliderProps): El {
 }
 
 export interface RangeSliderProps extends Omit<SliderProps, "value"> {
-  /** `[jos, sus]`. Manerele nu se pot depasi. */
+  /** `[low, high]`. The thumbs can't cross each other. */
   value: State<readonly [number, number]>;
 }
 
@@ -237,7 +237,7 @@ export function RangeSlider(props: RangeSliderProps): El {
   const writeAt = (index: 0 | 1) => (next: number): void => {
     if (props.disabled?.()) return;
     const [lo, hi] = props.value.peek();
-    // Manerele nu trec unul peste altul: se opresc la vecin.
+    // The thumbs don't cross each other: they stop at the neighbor.
     const bounded = index === 0 ? Math.min(next, hi) : Math.max(next, lo);
     const pair: readonly [number, number] = index === 0 ? [bounded, hi] : [lo, bounded];
     if (pair[0] === lo && pair[1] === hi) return;
@@ -268,12 +268,12 @@ export function RangeSlider(props: RangeSliderProps): El {
       },
     })),
     thumb(axis, () => props.value()[0], writeAt(0), commit, track, {
-      label: props.label ? props.label + " (minim)" : "minim",
+      label: props.label ? props.label + " (minimum)" : "minimum",
       valueText: props.valueText,
       disabled: props.disabled,
     }),
     thumb(axis, () => props.value()[1], writeAt(1), commit, track, {
-      label: props.label ? props.label + " (maxim)" : "maxim",
+      label: props.label ? props.label + " (maximum)" : "maximum",
       valueText: props.valueText,
       disabled: props.disabled,
     }),

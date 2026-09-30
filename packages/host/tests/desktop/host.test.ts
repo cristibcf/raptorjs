@@ -7,15 +7,15 @@ import type { DesktopHost, DesktopHostOptions } from "../../src/desktop/index.ts
 
 const BASE = {
   target: "desktop",
-  bundleId: "com.exemplu.desktop",
-  displayName: "Exemplu Desktop",
+  bundleId: "com.example.desktop",
+  displayName: "Example Desktop",
   version: "1.0.0",
   entry: "./index.html",
   capabilities: [] as string[],
-  allowedOrigins: ["https://api.exemplu.com"],
-  deepLinkSchemes: ["exemplu"],
-  window: { title: "Exemplu", width: 1200, height: 800, resizable: true },
-  update: { feed: "https://actualizari.exemplu.com/stable.json", channel: "stable" },
+  allowedOrigins: ["https://api.example.com"],
+  deepLinkSchemes: ["example"],
+  window: { title: "Example", width: 1200, height: 800, resizable: true },
+  update: { feed: "https://updates.example.com/stable.json", channel: "stable" },
 };
 
 function manifestWith(patch: Record<string, unknown> = {}): HostManifest {
@@ -47,9 +47,9 @@ function connect(manifest: HostManifest, options: Partial<DesktopHostOptions> = 
   };
 }
 
-test("adaptorul refuza un manifest care nu este de desktop", () => {
+test("the adapter rejects a manifest that is not for desktop", () => {
   const mobile = requireHostManifest(
-    JSON.stringify({ ...BASE, target: "mobile", window: undefined, deepLinkSchemes: ["exemplu"] }),
+    JSON.stringify({ ...BASE, target: "mobile", window: undefined, deepLinkSchemes: ["example"] }),
   );
   assert.throws(
     () => createDesktopHost({ manifest: mobile, transport: createMemoryChannel().host }),
@@ -57,16 +57,16 @@ test("adaptorul refuza un manifest care nu este de desktop", () => {
   );
 });
 
-test("ferestrele se deschid cu dimensiunile din manifest si se inchid", async () => {
+test("windows open with the dimensions from the manifest and close", async () => {
   const link = connect(manifestWith());
   try {
-    const opened = (await link.app.call("window.open", { title: "Principala" })) as { id: string };
+    const opened = (await link.app.call("window.open", { title: "Main" })) as { id: string };
     assert.equal(link.host.windows.length, 1);
     assert.equal(link.host.windows[0]?.width, 1200);
-    assert.equal(link.host.windows[0]?.url, "./index.html", "fara url explicit se incarca intrarea aplicatiei");
+    assert.equal(link.host.windows[0]?.url, "./index.html", "without an explicit url the app entry is loaded");
 
-    await link.app.call("window.setTitle", { id: opened.id, title: "Redenumita" });
-    assert.equal(link.host.windows[0]?.title, "Redenumita");
+    await link.app.call("window.setTitle", { id: opened.id, title: "Renamed" });
+    assert.equal(link.host.windows[0]?.title, "Renamed");
 
     await link.app.call("window.close", { id: opened.id });
     assert.equal(link.host.windows.length, 0);
@@ -75,63 +75,63 @@ test("ferestrele se deschid cu dimensiunile din manifest si se inchid", async ()
   }
 });
 
-test("navigarea in afara originilor declarate este refuzata", async () => {
+test("navigation outside the declared origins is denied", async () => {
   const link = connect(manifestWith());
   try {
     const opened = (await link.app.call("window.open", {})) as { id: string };
-    await link.app.call("window.navigate", { id: opened.id, url: "https://api.exemplu.com/panou" });
-    assert.equal(link.host.windows[0]?.url, "https://api.exemplu.com/panou");
+    await link.app.call("window.navigate", { id: opened.id, url: "https://api.example.com/panel" });
+    assert.equal(link.host.windows[0]?.url, "https://api.example.com/panel");
 
     await assert.rejects(
-      link.app.call("window.navigate", { id: opened.id, url: "https://atacator.example/pagina" }),
-      /navigare refuzata/,
+      link.app.call("window.navigate", { id: opened.id, url: "https://attacker.example/page" }),
+      /navigation denied/,
     );
-    assert.equal(link.host.windows[0]?.url, "https://api.exemplu.com/panou", "starea nu se schimba la refuz");
+    assert.equal(link.host.windows[0]?.url, "https://api.example.com/panel", "the state does not change on a denial");
 
-    // Caile relative raman permise: sunt in unitatea ambalata a aplicatiei.
-    await link.app.call("window.navigate", { id: opened.id, url: "/setari" });
-    assert.equal(link.host.windows[0]?.url, "/setari");
+    // Relative paths stay allowed: they are inside the app's packaged unit.
+    await link.app.call("window.navigate", { id: opened.id, url: "/settings" });
+    assert.equal(link.host.windows[0]?.url, "/settings");
   } finally {
     link.dispose();
   }
 });
 
-test("o fereastra inexistenta nu poate fi manipulata", async () => {
+test("a nonexistent window cannot be manipulated", async () => {
   const link = connect(manifestWith());
   try {
-    await assert.rejects(link.app.call("window.setTitle", { id: "w99", title: "x" }), /nu exista/);
-    await assert.rejects(link.app.call("window.close", { id: "w99" }), /nu exista/);
+    await assert.rejects(link.app.call("window.setTitle", { id: "w99", title: "x" }), /does not exist/);
+    await assert.rejects(link.app.call("window.close", { id: "w99" }), /does not exist/);
   } finally {
     link.dispose();
   }
 });
 
-test("stocarea locala este un spatiu plat, legat de aplicatie", async () => {
+test("local storage is a flat space, tied to the app", async () => {
   const magazin = new Map<string, string>();
   const link = connect(manifestWith(), { storage: magazin });
   try {
-    await link.app.call("storage.set", { key: "sesiune", value: "abc" });
-    assert.equal(await link.app.call("storage.get", { key: "sesiune" }), "abc");
-    assert.equal(await link.app.call("storage.get", { key: "lipsa" }), null);
-    assert.deepEqual(await link.app.call("storage.keys"), ["sesiune"]);
-    assert.equal(magazin.get("sesiune"), "abc", "magazinul injectat este cel scris");
+    await link.app.call("storage.set", { key: "session", value: "abc" });
+    assert.equal(await link.app.call("storage.get", { key: "session" }), "abc");
+    assert.equal(await link.app.call("storage.get", { key: "missing" }), null);
+    assert.deepEqual(await link.app.call("storage.keys"), ["session"]);
+    assert.equal(magazin.get("session"), "abc", "the injected store is the one written to");
 
-    for (const key of ["../escapare", "sub/cale", ".ascuns", "a\\b"]) {
-      await assert.rejects(link.app.call("storage.get", { key }), /cheie de stocare invalida/);
+    for (const key of ["../escape", "sub/path", ".hidden", "a\\b"]) {
+      await assert.rejects(link.app.call("storage.get", { key }), /invalid storage key/);
     }
 
-    assert.deepEqual(await link.app.call("storage.delete", { key: "sesiune" }), { deleted: true });
-    assert.deepEqual(await link.app.call("storage.delete", { key: "sesiune" }), { deleted: false });
+    assert.deepEqual(await link.app.call("storage.delete", { key: "session" }), { deleted: true });
+    assert.deepEqual(await link.app.call("storage.delete", { key: "session" }), { deleted: false });
   } finally {
     link.dispose();
   }
 });
 
-test("notificarile cer capabilitatea lor", async () => {
+test("notifications require their own capability", async () => {
   const fara = connect(manifestWith());
   try {
     await assert.rejects(
-      fara.app.call("notify.show", { title: "Salut" }),
+      fara.app.call("notify.show", { title: "Hello" }),
       (error: unknown) => (error as { code: string }).code === "raptor:host/capability-undeclared",
     );
   } finally {
@@ -140,14 +140,14 @@ test("notificarile cer capabilitatea lor", async () => {
 
   const cu = connect(manifestWith({ capabilities: ["device.notifications"] }), { now: () => 1000 });
   try {
-    await cu.app.call("notify.show", { title: "Salut", body: "gata" });
-    assert.deepEqual(cu.host.notifications, [{ title: "Salut", body: "gata", atMs: 1000 }]);
+    await cu.app.call("notify.show", { title: "Hello", body: "done" });
+    assert.deepEqual(cu.host.notifications, [{ title: "Hello", body: "done", atMs: 1000 }]);
   } finally {
     cu.dispose();
   }
 });
 
-test("subprocesele cer si capabilitatea, si comanda din lista explicita", async () => {
+test("subprocesses require both the capability and a command from the explicit list", async () => {
   const manifest = manifestWith({ capabilities: ["process.spawn"] });
   const link = connect(manifest, {
     allowedCommands: ["git"],
@@ -174,39 +174,39 @@ test("subprocesele cer si capabilitatea, si comanda din lista explicita", async 
     await assert.rejects(
       fara.app.call("process.spawn", { command: "git" }),
       (error: unknown) => (error as { code: string }).code === "raptor:host/capability-undeclared",
-      "lista explicita nu inlocuieste capabilitatea",
+      "the explicit list does not replace the capability",
     );
   } finally {
     fara.dispose();
   }
 });
 
-test("deep link-urile cu schema nedeclarata nu ajung la aplicatie", async () => {
+test("deep links with an undeclared scheme do not reach the app", async () => {
   const link = connect(manifestWith());
   try {
     const primite: string[] = [];
     link.app.on("deeplink.received", (payload) => primite.push(String(payload["url"])));
 
-    link.host.deliverDeepLink("exemplu://comanda/42");
+    link.host.deliverDeepLink("example://command/42");
     await new Promise((resolve) => setTimeout(resolve, 5));
-    assert.deepEqual(primite, ["exemplu://comanda/42"]);
-    assert.deepEqual(await link.app.call("deeplink.pending"), ["exemplu://comanda/42"]);
-    assert.deepEqual(await link.app.call("deeplink.pending"), [], "lista se consuma o singura data");
+    assert.deepEqual(primite, ["example://command/42"]);
+    assert.deepEqual(await link.app.call("deeplink.pending"), ["example://command/42"]);
+    assert.deepEqual(await link.app.call("deeplink.pending"), [], "the list is consumed only once");
 
-    assert.throws(() => link.host.deliverDeepLink("altceva://comanda"), /nu este declarata/);
-    assert.throws(() => link.host.deliverDeepLink("nu-e-url"), /deep link invalid/);
+    assert.throws(() => link.host.deliverDeepLink("other://command"), /is not declared/);
+    assert.throws(() => link.host.deliverDeepLink("not-a-url"), /invalid deep link/);
   } finally {
     link.dispose();
   }
 });
 
-test("meniul este definit de aplicatie si comenzile vin inapoi ca evenimente", async () => {
+test("the menu is defined by the app and commands come back as events", async () => {
   const link = connect(manifestWith());
   try {
     await link.app.call("menu.set", {
       items: [
-        { id: "file.new", label: "Fisier nou", accelerator: "Ctrl+N" },
-        { id: "file.quit", label: "Iesire" },
+        { id: "file.new", label: "New file", accelerator: "Ctrl+N" },
+        { id: "file.quit", label: "Quit" },
       ],
     });
     assert.deepEqual(link.host.menu.map((item) => item.id), ["file.new", "file.quit"]);
@@ -217,14 +217,14 @@ test("meniul este definit de aplicatie si comenzile vin inapoi ca evenimente", a
     await new Promise((resolve) => setTimeout(resolve, 5));
     assert.deepEqual(comenzi, ["file.new"]);
 
-    assert.throws(() => link.host.invokeMenu("file.inexistent"), /nu exista/);
-    await assert.rejects(link.app.call("menu.set", { items: [{ label: "fara id" }] }), /id, label/);
+    assert.throws(() => link.host.invokeMenu("file.nonexistent"), /does not exist/);
+    await assert.rejects(link.app.call("menu.set", { items: [{ label: "no id" }] }), /id, label/);
   } finally {
     link.dispose();
   }
 });
 
-test("ciclul de viata al host-ului ajunge la aplicatie ca evenimente", async () => {
+test("the host's lifecycle reaches the app as events", async () => {
   const link = connect(manifestWith());
   try {
     const stari: string[] = [];
@@ -242,22 +242,22 @@ test("ciclul de viata al host-ului ajunge la aplicatie ca evenimente", async () 
   }
 });
 
-test("actualizarile raporteaza starea canalului si refuza ce nu pot face", async () => {
+test("updates report the channel state and deny what they cannot do", async () => {
   const fara = connect(manifestWith());
   try {
     assert.deepEqual(await fara.app.call("update.check"), { available: false, version: "1.0.0", url: null });
-    await assert.rejects(fara.app.call("update.apply"), /nicio actualizare/);
+    await assert.rejects(fara.app.call("update.apply"), /no update/);
   } finally {
     fara.dispose();
   }
 
   const cu = connect(manifestWith(), {
-    availableUpdate: { version: "1.1.0", url: "https://actualizari.exemplu.com/1.1.0" },
+    availableUpdate: { version: "1.1.0", url: "https://updates.example.com/1.1.0" },
   });
   try {
     assert.equal((await cu.app.call<{ version: string }>("update.check")).version, "1.1.0");
     assert.deepEqual(await cu.app.call("update.apply"), { applied: true, version: "1.1.0" });
-    assert.equal(cu.host.lifecycle.state, "stopped", "aplicarea opreste aplicatia pentru repornire");
+    assert.equal(cu.host.lifecycle.state, "stopped", "applying stops the app for a restart");
   } finally {
     cu.dispose();
   }
@@ -266,13 +266,13 @@ test("actualizarile raporteaza starea canalului si refuza ce nu pot face", async
     availableUpdate: { version: "1.1.0", url: "https://x" },
   });
   try {
-    await assert.rejects(magazin.app.call("update.apply"), /magazin/);
+    await assert.rejects(magazin.app.call("update.apply"), /store/);
   } finally {
     magazin.dispose();
   }
 });
 
-test("jurnalul de audit al host-ului retine fiecare apel, permis sau refuzat", async () => {
+test("the host's audit log retains every call, allowed or denied", async () => {
   const channel = createMemoryChannel();
   const audit: Array<{ method: string; granted: boolean }> = [];
   const host = createDesktopHost({
@@ -280,7 +280,7 @@ test("jurnalul de audit al host-ului retine fiecare apel, permis sau refuzat", a
     transport: channel.host,
     onAudit: (entry) => audit.push({ method: entry.method, granted: entry.granted }),
   });
-  // Punte care pretinde capabilitati pe care manifestul nu le da: host-ul decide.
+  // A bridge that claims capabilities the manifest does not grant: the host decides.
   const app = createBridge({
     target: "desktop",
     capabilities: ["device.notifications"],
@@ -300,11 +300,12 @@ test("jurnalul de audit al host-ului retine fiecare apel, permis sau refuzat", a
   }
 });
 
-test("pe desktop nu exista stiva de navigare: aplicatia conduce ferestrele", async () => {
+test("on desktop there is no navigation stack: the app drives the windows", async () => {
   const link = connect(manifestWith());
   try {
-    // Metoda este permisa de protocol pe orice tinta, dar adaptorul desktop nu
-    // are ce raspunde: acolo navigarea se face per fereastra, prin window.navigate.
+    // The method is allowed by the protocol on any target, but the desktop
+    // adapter has nothing to answer: there navigation is done per window, via
+    // window.navigate.
     await assert.rejects(
       link.app.call("navigation.current"),
       (error: unknown) => (error as { code: string }).code === "raptor:host/unimplemented",

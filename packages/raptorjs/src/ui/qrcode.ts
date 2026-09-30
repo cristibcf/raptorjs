@@ -1,15 +1,15 @@
 /**
- * QRCode - generator de coduri QR, fara dependinte.
+ * QRCode - a QR code generator, with no dependencies.
  *
- * Implementeaza ISO/IEC 18004 pentru **modul byte**, versiunile 1-10, cu toate
- * cele patru niveluri de corectie. Modul byte acopera URL-uri si text UTF-8,
- * adica 99% din utilizari; modurile numeric si alfanumeric ar comprima mai bine
- * dar ar dubla codul pentru un castig pe care rareori il observi.
+ * Implements ISO/IEC 18004 for **byte mode**, versions 1-10, with all four
+ * error-correction levels. Byte mode covers URLs and UTF-8 text, that is 99% of
+ * uses; the numeric and alphanumeric modes would compress better but would
+ * double the code for a gain you rarely notice.
  *
- * Partile care nu pot fi aproximate, si de aceea sunt implementate complet:
- * aritmetica in GF(256), codurile Reed-Solomon, intreteserea blocurilor,
- * cele opt masti cu scorul lor de penalizare si bitii BCH de format. Un QR cu
- * masca gresit aleasa se scaneaza prost; unul cu RS gresit nu se scaneaza deloc.
+ * The parts that can't be approximated, and are therefore implemented in full:
+ * GF(256) arithmetic, the Reed-Solomon codes, block interleaving, the eight
+ * masks with their penalty score, and the BCH format bits. A QR with a badly
+ * chosen mask scans poorly; one with wrong RS doesn't scan at all.
  */
 import { derived, type Accessor } from "raptorjs";
 import { R, type Child } from "raptorjs/dom";
@@ -29,7 +29,7 @@ const LOG = new Uint8Array(256);
     EXP[i] = x;
     LOG[x] = i;
     x <<= 1;
-    // Polinomul primitiv al QR: x^8 + x^4 + x^3 + x^2 + 1 (0x11D).
+    // QR's primitive polynomial: x^8 + x^4 + x^3 + x^2 + 1 (0x11D).
     if (x & 0x100) x ^= 0x11d;
   }
   for (let i = 255; i < 512; i++) EXP[i] = EXP[i - 255]!;
@@ -40,7 +40,7 @@ function gfMul(a: number, b: number): number {
   return EXP[LOG[a]! + LOG[b]!]!;
 }
 
-/** Polinomul generator pentru `degree` codewords de corectie. */
+/** The generator polynomial for `degree` error-correction codewords. */
 function generatorPoly(degree: number): number[] {
   let poly = [1];
   for (let i = 0; i < degree; i++) {
@@ -54,7 +54,7 @@ function generatorPoly(degree: number): number[] {
   return poly;
 }
 
-/** Restul impartirii datelor la polinomul generator = codewords de corectie. */
+/** The remainder of dividing the data by the generator polynomial = error-correction codewords. */
 export function reedSolomon(data: readonly number[], ecCount: number): number[] {
   const gen = generatorPoly(ecCount);
   const remainder = new Array<number>(ecCount).fill(0);
@@ -72,9 +72,9 @@ export function reedSolomon(data: readonly number[], ecCount: number): number[] 
   return remainder;
 }
 
-/* ------------------------------------------------------- tabele versiuni -- */
+/* ------------------------------------------------------- version tables -- */
 
-/** `[ecPerBlock, blocuriGrup1, dateGrup1, blocuriGrup2, dateGrup2]`. */
+/** `[ecPerBlock, blocksGroup1, dataGroup1, blocksGroup2, dataGroup2]`. */
 const BLOCKS: Record<EcLevel, ReadonlyArray<readonly [number, number, number, number, number]>> = {
   L: [
     [7, 1, 19, 0, 0], [10, 1, 34, 0, 0], [15, 1, 55, 0, 0], [20, 1, 80, 0, 0], [26, 1, 108, 0, 0],
@@ -94,7 +94,7 @@ const BLOCKS: Record<EcLevel, ReadonlyArray<readonly [number, number, number, nu
   ],
 };
 
-/** Centrele tiparelor de aliniere, per versiune. */
+/** The centers of the alignment patterns, per version. */
 const ALIGNMENT: ReadonlyArray<readonly number[]> = [
   [], [6, 18], [6, 22], [6, 26], [6, 30], [6, 34], [6, 22, 38], [6, 24, 42], [6, 26, 46], [6, 28, 50],
 ];
@@ -103,7 +103,7 @@ const EC_BITS: Record<EcLevel, number> = { L: 0b01, M: 0b00, Q: 0b11, H: 0b10 };
 
 export const MAX_VERSION = 10;
 
-/** Cate codewords de date incap intr-o versiune la un nivel dat. */
+/** How many data codewords fit in a version at a given level. */
 export function dataCapacity(version: number, ec: EcLevel): number {
   const spec = BLOCKS[ec][version - 1];
   if (!spec) return 0;
@@ -111,10 +111,10 @@ export function dataCapacity(version: number, ec: EcLevel): number {
   return g1 * d1 + g2 * d2;
 }
 
-/** Cea mai mica versiune in care incap `byteLength` octeti. */
+/** The smallest version that `byteLength` bytes fit into. */
 export function pickVersion(byteLength: number, ec: EcLevel): number | null {
   for (let version = 1; version <= MAX_VERSION; version++) {
-    // 4 biti mod + 8/16 biti lungime + date.
+    // 4 mode bits + 8/16 length bits + data.
     const countBits = version < 10 ? 8 : 16;
     const needed = Math.ceil((4 + countBits + byteLength * 8) / 8);
     if (needed <= dataCapacity(version, ec)) return version;
@@ -122,7 +122,7 @@ export function pickVersion(byteLength: number, ec: EcLevel): number | null {
   return null;
 }
 
-/* ------------------------------------------------------------- codificare */
+/* ------------------------------------------------------------- encoding -- */
 
 class BitWriter {
   private readonly bits: number[] = [];
@@ -162,28 +162,28 @@ function utf8Bytes(text: string): number[] {
   return out;
 }
 
-/** Datele codificate + corectia, intretesute conform standardului. */
+/** The encoded data + correction, interleaved per the standard. */
 export function encodeData(text: string, version: number, ec: EcLevel): number[] {
   const bytes = utf8Bytes(text);
   const capacity = dataCapacity(version, ec);
   const writer = new BitWriter();
 
-  writer.push(0b0100, 4); // mod byte
+  writer.push(0b0100, 4); // byte mode
   writer.push(bytes.length, version < 10 ? 8 : 16);
   for (const byte of bytes) writer.push(byte, 8);
 
-  // Terminator: pana la 4 biti de zero, dar nu peste capacitate.
+  // Terminator: up to 4 zero bits, but not beyond capacity.
   const capacityBits = capacity * 8;
   writer.push(0, Math.min(4, capacityBits - writer.length));
-  // Aliniere la octet.
+  // Align to a byte.
   if (writer.length % 8 !== 0) writer.push(0, 8 - (writer.length % 8));
 
   const data = writer.toBytes();
-  // Umplere alternativa 0xEC / 0x11, cum cere standardul.
+  // Alternating 0xEC / 0x11 padding, as the standard requires.
   const PAD = [0xec, 0x11];
   for (let i = 0; data.length < capacity; i++) data.push(PAD[i % 2]!);
 
-  // Impartirea in blocuri.
+  // Splitting into blocks.
   const [ecPerBlock, g1, d1, g2, d2] = BLOCKS[ec][version - 1]!;
   const blocks: number[][] = [];
   const ecBlocks: number[][] = [];
@@ -201,7 +201,7 @@ export function encodeData(text: string, version: number, ec: EcLevel): number[]
     ecBlocks.push(reedSolomon(block, ecPerBlock));
   }
 
-  // Intretesere: codeword i din fiecare bloc, apoi corectia la fel.
+  // Interleaving: codeword i from each block, then the correction the same way.
   const out: number[] = [];
   const maxData = Math.max(d1, d2);
   for (let i = 0; i < maxData; i++) {
@@ -213,14 +213,14 @@ export function encodeData(text: string, version: number, ec: EcLevel): number[]
   return out;
 }
 
-/* --------------------------------------------------------------- matrice -- */
+/* ---------------------------------------------------------------- matrix -- */
 
 export interface QrMatrix {
   size: number;
   version: number;
   ec: EcLevel;
   mask: number;
-  /** `true` = modul negru. Indexare `[rand][coloana]`. */
+  /** `true` = black module. Indexed `[row][column]`. */
   modules: boolean[][];
 }
 
@@ -244,12 +244,12 @@ const MASK_FN: ReadonlyArray<(row: number, col: number) => boolean> = [
   (r, c) => (((r + c) % 2) + ((r * c) % 3)) % 2 === 0,
 ];
 
-/** Penalizarea unei matrice mascate (regulile 1-4 din standard). */
+/** The penalty of a masked matrix (rules 1-4 from the standard). */
 export function maskPenalty(modules: readonly (readonly boolean[])[]): number {
   const size = modules.length;
   let penalty = 0;
 
-  // Regula 1: serii de 5+ module de aceeasi culoare.
+  // Rule 1: runs of 5+ modules of the same color.
   for (let i = 0; i < size; i++) {
     for (const horizontal of [true, false]) {
       let run = 1;
@@ -267,7 +267,7 @@ export function maskPenalty(modules: readonly (readonly boolean[])[]): number {
     }
   }
 
-  // Regula 2: blocuri 2x2 de aceeasi culoare.
+  // Rule 2: 2x2 blocks of the same color.
   for (let r = 0; r < size - 1; r++) {
     for (let c = 0; c < size - 1; c++) {
       const v = modules[r]![c]!;
@@ -277,7 +277,7 @@ export function maskPenalty(modules: readonly (readonly boolean[])[]): number {
     }
   }
 
-  // Regula 3: tipare care seamana cu un finder (1:1:3:1:1 cu spatiu).
+  // Rule 3: patterns that look like a finder (1:1:3:1:1 with spacing).
   const P1 = [true, false, true, true, true, false, true, false, false, false, false];
   const P2 = [false, false, false, false, true, false, true, true, true, false, true];
   const matches = (line: readonly boolean[], at: number, pattern: readonly boolean[]): boolean => {
@@ -293,7 +293,7 @@ export function maskPenalty(modules: readonly (readonly boolean[])[]): number {
     }
   }
 
-  // Regula 4: abaterea de la 50% module negre.
+  // Rule 4: the deviation from 50% black modules.
   let dark = 0;
   for (const row of modules) for (const v of row) if (v) dark++;
   const percent = (dark * 100) / (size * size);
@@ -302,14 +302,14 @@ export function maskPenalty(modules: readonly (readonly boolean[])[]): number {
   return penalty;
 }
 
-/** Construieste matricea completa: tipare, date, masca aleasa, format. */
+/** Builds the complete matrix: patterns, data, chosen mask, format. */
 export function buildMatrix(text: string, ec: EcLevel = "M", forcedVersion?: number): QrMatrix {
   const bytes = utf8Bytes(text).length;
   const version = forcedVersion ?? pickVersion(bytes, ec);
   if (version === null) {
     throw new Error(
-      `[raptor] textul are ${bytes} octeti, prea mult pentru un QR versiunea ${MAX_VERSION} la nivelul ${ec}. ` +
-        "Scurteaza textul sau scade nivelul de corectie.",
+      `[raptor] the text is ${bytes} bytes, too much for a QR version ${MAX_VERSION} at level ${ec}. ` +
+        "Shorten the text or lower the error-correction level.",
     );
   }
 
@@ -322,7 +322,7 @@ export function buildMatrix(text: string, ec: EcLevel = "M", forcedVersion?: num
     reserved[r]![c] = true;
   };
 
-  // Finder patterns + separatoare.
+  // Finder patterns + separators.
   const finder = (top: number, left: number): void => {
     for (let r = -1; r <= 7; r++) {
       for (let c = -1; c <= 7; c++) {
@@ -347,7 +347,7 @@ export function buildMatrix(text: string, ec: EcLevel = "M", forcedVersion?: num
     put(i, 6, i % 2 === 0);
   }
 
-  // Alignment patterns (nu peste findere).
+  // Alignment patterns (not over the finders).
   const centers = ALIGNMENT[version - 1] ?? [];
   for (const r of centers) {
     for (const c of centers) {
@@ -362,10 +362,10 @@ export function buildMatrix(text: string, ec: EcLevel = "M", forcedVersion?: num
     }
   }
 
-  // Modulul intunecat obligatoriu.
+  // The mandatory dark module.
   put(size - 8, 8, true);
 
-  // Rezervam zonele de format (se umplu dupa alegerea mastii).
+  // Reserve the format areas (filled after the mask is chosen).
   for (let i = 0; i < 9; i++) {
     if (!reserved[8]![i]) reserved[8]![i] = true;
     if (!reserved[i]![8]) reserved[i]![8] = true;
@@ -375,7 +375,7 @@ export function buildMatrix(text: string, ec: EcLevel = "M", forcedVersion?: num
     reserved[size - 1 - i]![8] = true;
   }
 
-  // Informatia de versiune (doar 7+).
+  // Version information (7+ only).
   if (version >= 7) {
     const info = (version << 12) | bch(version, 0x1f25, 12);
     for (let i = 0; i < 18; i++) {
@@ -387,7 +387,7 @@ export function buildMatrix(text: string, ec: EcLevel = "M", forcedVersion?: num
     }
   }
 
-  // Datele, in zigzag de jos-dreapta spre stanga.
+  // The data, zigzagging from bottom-right toward the left.
   const codewords = encodeData(text, version, ec);
   let bitIndex = 0;
   const nextBit = (): boolean => {
@@ -399,7 +399,7 @@ export function buildMatrix(text: string, ec: EcLevel = "M", forcedVersion?: num
 
   let upward = true;
   for (let right = size - 1; right > 0; right -= 2) {
-    // Coloana de timing se sare cu totul.
+    // The timing column is skipped entirely.
     if (right === 6) right = 5;
     for (let step = 0; step < size; step++) {
       const row = upward ? size - 1 - step : step;
@@ -411,7 +411,7 @@ export function buildMatrix(text: string, ec: EcLevel = "M", forcedVersion?: num
     upward = !upward;
   }
 
-  // Alegem masca cu penalizarea minima.
+  // Pick the mask with the minimum penalty.
   let bestMask = 0;
   let bestScore = Number.POSITIVE_INFINITY;
   let bestModules = modules;
@@ -432,7 +432,7 @@ export function buildMatrix(text: string, ec: EcLevel = "M", forcedVersion?: num
   return { size, version, ec, mask: bestMask, modules: bestModules };
 }
 
-/** Scrie cei 15 biti de format (nivel EC + masca + BCH). */
+/** Writes the 15 format bits (EC level + mask + BCH). */
 function applyFormat(
   modules: boolean[][],
   reserved: readonly (readonly boolean[])[],
@@ -446,21 +446,21 @@ function applyFormat(
 
   for (let i = 0; i < 15; i++) {
     const bit = ((format >> i) & 1) === 1;
-    // Copia 1: in jurul finderului din stanga-sus.
+    // Copy 1: around the top-left finder.
     if (i < 6) modules[8]![i] = bit;
     else if (i === 6) modules[8]![7] = bit;
     else if (i === 7) modules[8]![8] = bit;
     else if (i === 8) modules[7]![8] = bit;
     else modules[14 - i]![8] = bit;
 
-    // Copia 2: sub finderul din stanga-jos si langa cel din dreapta-sus.
+    // Copy 2: below the bottom-left finder and next to the top-right one.
     if (i < 8) modules[size - 1 - i]![8] = bit;
     else modules[8]![size - 15 + i] = bit;
   }
-  modules[size - 8]![8] = true; // modulul intunecat
+  modules[size - 8]![8] = true; // the dark module
 }
 
-/** Extrage nivelul EC si masca din matricea gata construita (pentru teste). */
+/** Extracts the EC level and mask from an already-built matrix (for tests). */
 export function readFormat(matrix: QrMatrix): { ec: EcLevel; mask: number } | null {
   let raw = 0;
   for (let i = 0; i < 15; i++) {
@@ -478,31 +478,31 @@ export function readFormat(matrix: QrMatrix): { ec: EcLevel; mask: number } | nu
   return level ? { ec: level, mask: value & 0b111 } : null;
 }
 
-/* ------------------------------------------------------------- componenta */
+/* ------------------------------------------------------------- component -- */
 
 export interface QRCodeProps {
   value: Accessor<string> | string;
-  /** Nivel de corectie. `H` rezista la ~30% deteriorare. Implicit `M`. */
+  /** Error-correction level. `H` withstands ~30% damage. Default `M`. */
   level?: EcLevel;
-  /** Latimea totala in px. Implicit 160. */
+  /** The total width in px. Default 160. */
   size?: number;
-  /** Module de margine (zona linistita). Standardul cere 4. */
+  /** Margin modules (quiet zone). The standard requires 4. */
   quietZone?: number;
   foreground?: string;
   background?: string;
-  /** Text alternativ. Fara el, codul e ascuns de screen reader. */
+  /** Alternative text. Without it, the code is hidden from the screen reader. */
   label?: string;
-  /** Continut afisat daca textul nu incape. */
+  /** Content shown if the text doesn't fit. */
   fallback?: Child;
   class?: string;
 }
 
 /**
- * Randeaza codul ca un singur `path` SVG.
+ * Renders the code as a single SVG `path`.
  *
- * Un `<rect>` per modul ar insemna ~1000 de elemente pentru o versiune 5.
- * Toate patratele intr-un singur `d` inseamna **un singur nod** si o singura
- * scriere de atribut cand textul se schimba.
+ * A `<rect>` per module would mean ~1000 elements for a version 5. All the
+ * squares in a single `d` means **a single node** and a single attribute write
+ * when the text changes.
  */
 export function QRCode(props: QRCodeProps): El {
   const read = (): string => (typeof props.value === "function" ? props.value() : props.value);

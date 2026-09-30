@@ -13,7 +13,7 @@ import {
 import { Writer, Reader } from "@raptor/wire/codec";
 
 // --- Reactive Address Space (5.2) -----------------------------------------
-test("RAS: ops pe adrese, numele handle-ului trimis o singura data", () => {
+test("RAS: ops over addresses, the handle name sent only once", () => {
   const serverBook = new AddressBook();
   const clientBook = new AddressBook();
 
@@ -29,12 +29,12 @@ test("RAS: ops pe adrese, numele handle-ului trimis o singura data", () => {
   };
   const bytes1 = encodeOpsFrame(serverBook, frame1);
   assert.equal(peekFrameType(bytes1), FrameType.OPS);
-  // Primul frame contine numele "BTC.price" (introducerea adresei).
+  // The first frame contains the name "BTC.price" (introducing the address).
   assert.ok(bytesContain(bytes1, "BTC.price"));
   const decoded1 = decodeOpsFrame(clientBook, bytes1);
   assert.deepEqual(decoded1.batch.ops[0], { kind: "replace", handle: "BTC.price", value: 67231.45 });
 
-  // Al doilea update pe acelasi handle: FARA nume pe fir (doar adresa).
+  // The second update on the same handle: NO name on the wire (address only).
   const frame2: OpsMsg = {
     type: "ops",
     queryId: 1,
@@ -46,14 +46,14 @@ test("RAS: ops pe adrese, numele handle-ului trimis o singura data", () => {
     },
   };
   const bytes2 = encodeOpsFrame(serverBook, frame2);
-  assert.ok(!bytesContain(bytes2, "BTC.price"), "numele nu mai apare dupa negociere");
+  assert.ok(!bytesContain(bytes2, "BTC.price"), "the name no longer appears after negotiation");
   const decoded2 = decodeOpsFrame(clientBook, bytes2);
   assert.deepEqual(decoded2.batch.ops[0], { kind: "replace", handle: "BTC.price", value: 67240.0 });
-  // Frame steady-state mult mai mic decat cel initial.
+  // Steady-state frame much smaller than the initial one.
   assert.ok(bytes2.length < bytes1.length);
 });
 
-test("RAS: atomic si transactionId sunt pastrate prin frame", () => {
+test("RAS: atomic and transactionId are preserved through the frame", () => {
   const sb = new AddressBook();
   const cb = new AddressBook();
   const msg: OpsMsg = {
@@ -79,22 +79,22 @@ test("RAS: atomic si transactionId sunt pastrate prin frame", () => {
 });
 
 // --- Adaptive encoding (13.2) ---------------------------------------------
-test("adaptive encoding: percentage intr-un byte vs float64 in 8", () => {
+test("adaptive encoding: percentage in one byte vs float64 in 8", () => {
   const schema: Schema = { cpu: { type: "percentage" } };
   const codec = new SchemaCodec(schema);
   const w = new Writer();
   codec.encode(w, "cpu", 47);
-  assert.equal(w.length, 1, "percentage ocupa 1 byte");
+  assert.equal(w.length, 1, "percentage takes 1 byte");
   const value = codec.decode(new Reader(w.finish()), "cpu");
   assert.equal(value, 47);
 
-  // Baseline generic (value.ts) ar folosi tag + zigzag/float.
+  // The generic baseline (value.ts) would use tag + zigzag/float.
   const genericFloat = new Writer();
   genericFloat.float64(47);
   assert.ok(w.length < genericFloat.length);
 });
 
-test("adaptive encoding: money ca scaled integer", () => {
+test("adaptive encoding: money as a scaled integer", () => {
   const codec = new SchemaCodec({ price: { type: "money", scale: 2 } });
   const w = new Writer();
   codec.encode(w, "price", 1532.45);
@@ -102,7 +102,7 @@ test("adaptive encoding: money ca scaled integer", () => {
   assert.equal(value, 1532.45);
 });
 
-test("adaptive encoding: enum mic ca index", () => {
+test("adaptive encoding: small enum as an index", () => {
   const codec = new SchemaCodec({ status: { type: "enum", values: ["sent", "delivered", "read"] } });
   const w = new Writer();
   codec.encode(w, "status", "delivered");
@@ -110,7 +110,7 @@ test("adaptive encoding: enum mic ca index", () => {
   assert.equal(codec.decode(new Reader(w.finish()), "status"), "delivered");
 });
 
-test("adaptive encoding: int cu range foloseste offset uint8", () => {
+test("adaptive encoding: int with a range uses a uint8 offset", () => {
   const codec = new SchemaCodec({ temp: { type: "int", min: -40, max: 125 } });
   const w = new Writer();
   codec.encode(w, "temp", -10);

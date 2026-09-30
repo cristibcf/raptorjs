@@ -1,11 +1,11 @@
 /**
- * ReactiveStore - starea autoritativa a serverului plus motorul de sincronizare
- * (whitepaper 24, 24.1). Aplica operatii asupra unui Document autoritativ, le
- * difuzeaza subscriberilor ca batch-uri versionate cu numere de secventa, si
- * pastreaza un op-log pentru automatic delta resync (v0.2, 14.3).
+ * ReactiveStore - the server's authoritative state plus the synchronization
+ * engine (whitepaper 24, 24.1). Applies operations to an authoritative
+ * Document, broadcasts them to subscribers as versioned batches with sequence
+ * numbers, and keeps an op-log for automatic delta resync (v0.2, 14.3).
  *
- * Motorul de sync e separat de business logic: mutatorii produc rezultate
- * canonice, iar broadcast-ul + resync calculeaza ce vede fiecare subscriber.
+ * The sync engine is separate from business logic: mutators produce canonical
+ * results, and broadcast + resync compute what each subscriber sees.
  */
 import { Document, AddressBook, type Operation, type WireValue, type OpsBatch } from "@raptor/wire";
 
@@ -20,7 +20,7 @@ export interface Subscription {
   queryId: number;
   prefixes: string[];
   seq: number;
-  /** Reactive Address Space per conexiune (session-scoped, v0.2 5.2). */
+  /** Reactive Address Space per connection (session-scoped, v0.2 5.2). */
   book: AddressBook;
 }
 
@@ -29,15 +29,15 @@ interface LogEntry {
   ops: Operation[];
 }
 
-/** Rezultatul unei incercari de resync incremental. */
+/** The result of an incremental resync attempt. */
 export type ResyncResult =
   | { mode: "delta"; ops: Operation[]; base: number; toVersion: number }
   | { mode: "snapshot" };
 
 function matches(handle: string, prefixes: string[]): boolean {
-  // Un prefix expune handle-uri copil DOAR daca se termina cu un delimitator
-  // (":", "/", "."). Altfel se cere potrivire exacta - previne expunerea
-  // accidentala a unor handle-uri vecine (ex. "cpu" sa nu prinda "cpuSecret").
+  // A prefix exposes child handles ONLY if it ends with a delimiter
+  // (":", "/", "."). Otherwise an exact match is required - prevents accidental
+  // exposure of neighboring handles (e.g. "cpu" must not catch "cpuSecret").
   return prefixes.some((p) => {
     if (handle === p) return true;
     const isPrefix = p.endsWith(":") || p.endsWith("/") || p.endsWith(".");
@@ -68,12 +68,12 @@ export class ReactiveStore {
     }
   }
 
-  /** Cate subscriptii sunt active - util ca sa verifici ca deconectarile chiar curata. */
+  /** How many subscriptions are active - useful to check that disconnects really clean up. */
   get subscriptionCount(): number {
     return this.subs.length;
   }
 
-  /** Snapshot doar cu handle-urile care se potrivesc prefixelor. */
+  /** Snapshot with only the handles that match the prefixes. */
   snapshotFor(prefixes: string[]): Uint8Array {
     const snap = new Document();
     snap.version = this.doc.version;
@@ -84,9 +84,9 @@ export class ReactiveStore {
   }
 
   /**
-   * Automatic delta resync (v0.2, 14.3): daca istoricul acopera continuu de la
-   * `sinceVersion`, intoarce doar operatiile lipsa; altfel cere snapshot.
-   * "Zero full resend" cand aceeasi epoca si istoric suficient.
+   * Automatic delta resync (v0.2, 14.3): if the history covers continuously
+   * from `sinceVersion`, return only the missing operations; otherwise request
+   * a snapshot. "Zero full resend" when the same epoch and enough history.
    */
   resyncSince(sinceVersion: number, prefixes: string[]): ResyncResult {
     if (sinceVersion <= 0 || sinceVersion > this.doc.version) return { mode: "snapshot" };
@@ -94,7 +94,7 @@ export class ReactiveStore {
       return { mode: "delta", ops: [], base: sinceVersion, toVersion: sinceVersion };
     }
     const missed = this.log.filter((e) => e.version > sinceVersion);
-    // Continuitate: prima intrare lipsa trebuie sa fie exact sinceVersion+1.
+    // Continuity: the first missing entry must be exactly sinceVersion+1.
     if (missed.length === 0 || missed[0]!.version !== sinceVersion + 1) return { mode: "snapshot" };
     const ops: Operation[] = [];
     for (const entry of missed) {
@@ -103,7 +103,7 @@ export class ReactiveStore {
     return { mode: "delta", ops, base: sinceVersion, toVersion: this.doc.version };
   }
 
-  // --- Mutatori (aplica autoritativ + difuzeaza) ---------------------------
+  // --- Mutators (apply authoritatively + broadcast) ------------------------
   private push(op: Operation): void {
     this.doc.apply(op);
     if (this.pending) this.pending.push(op);
@@ -139,11 +139,11 @@ export class ReactiveStore {
   }
 
   /**
-   * Tranzactie de retea (v0.2, 16.1): grupeaza operatiile intr-un singur batch
-   * atomic; clientul face UN singur DOM commit la final.
+   * Network transaction (v0.2, 16.1): groups the operations into a single
+   * atomic batch; the client does ONE DOM commit at the end.
    */
   transaction<T>(fn: () => T): T {
-    if (this.pending) return fn(); // deja intr-o tranzactie
+    if (this.pending) return fn(); // already inside a transaction
     this.pending = [];
     try {
       return fn();

@@ -1,9 +1,10 @@
 /**
- * `raptor-runtime doctor` (spec sectiunea 4): raporteaza versiunea binarului,
- * platforma tinta, starea proiectului si problemele de capabilitati.
+ * `raptor-runtime doctor` (spec section 4): reports the binary's version, the
+ * target platform, the project's state and capability problems.
  *
- * `doctor` nu executa niciodata codul aplicatiei: raspunde doar din manifest,
- * politici si graful static. Asta il face sigur de rulat pe un proiect strain.
+ * `doctor` never executes the application's code: it answers only from the
+ * manifest, policies and static graph. That makes it safe to run on a foreign
+ * project.
  */
 import { MANIFEST_FILENAME, RUNTIME_VERSION, buildStaticGraph, loadProject, parseManifest } from "@raptor/runtime";
 import { readFile } from "node:fs/promises";
@@ -18,7 +19,7 @@ interface Finding {
   readonly message: string;
 }
 
-/** Modulele publicate de acest runtime; orice altceva este nesuportat. */
+/** The modules published by this runtime; anything else is unsupported. */
 const KNOWN_HOST_MODULES = new Set([
   "raptor:files",
   "raptor:net",
@@ -43,16 +44,16 @@ export async function doctorCommand(input: CommandInput): Promise<CommandResult>
   let project: Awaited<ReturnType<typeof loadProject>> | null = null;
   try {
     project = await loadProject(input.cwd);
-    findings.push({ level: "ok", message: `manifest gasit: ${project.manifestPath}` });
+    findings.push({ level: "ok", message: `manifest found: ${project.manifestPath}` });
   } catch {
-    // Diagnostic mai util decat "nu am gasit": spune daca fisierul exista dar e invalid.
+    // More useful diagnostic than "not found": says whether the file exists but is invalid.
     try {
       const source = await readFile(join(input.cwd, MANIFEST_FILENAME), "utf8");
       for (const issue of parseManifest(source).issues) {
         findings.push({ level: "error", message: `${MANIFEST_FILENAME}: ${issue.path ? issue.path + ": " : ""}${issue.message}` });
       }
     } catch {
-      findings.push({ level: "error", message: `niciun ${MANIFEST_FILENAME} in ${input.cwd} sau in directoarele parinte` });
+      findings.push({ level: "error", message: `no ${MANIFEST_FILENAME} in ${input.cwd} or in the parent directories` });
     }
   }
 
@@ -79,13 +80,13 @@ export async function doctorCommand(input: CommandInput): Promise<CommandResult>
     if (declared.length === 0) {
       findings.push({
         level: mode === "production" ? "error" : "warn",
-        message: "nicio capability declarata; in regim strict aplicatia nu va putea citi nimic",
+        message: "no capability declared; in strict mode the application will not be able to read anything",
       });
     }
     if (manifest.capabilities["process.spawn"] && manifest.capabilities["process.spawn"]!.length > 0) {
       findings.push({
         level: "warn",
-        message: `process.spawn este declarata pentru: ${manifest.capabilities["process.spawn"]!.join(", ")}`,
+        message: `process.spawn is declared for: ${manifest.capabilities["process.spawn"]!.join(", ")}`,
       });
     }
 
@@ -98,51 +99,51 @@ export async function doctorCommand(input: CommandInput): Promise<CommandResult>
         externalImports: graph.externalImports,
         unresolved: graph.unresolved,
       };
-      findings.push({ level: "ok", message: `graf static: ${graph.modules.length} module din ${graph.entry}` });
+      findings.push({ level: "ok", message: `static graph: ${graph.modules.length} modules from ${graph.entry}` });
 
       for (const specifier of graph.hostImports) {
         if (specifier.startsWith("raptor:") && !KNOWN_HOST_MODULES.has(specifier)) {
-          findings.push({ level: "error", message: `modul de host necunoscut: ${specifier}` });
+          findings.push({ level: "error", message: `unknown host module: ${specifier}` });
         }
         if (isBypass(specifier)) {
-          // Spec sectiunea 8: ce depinde de interne se raporteaza ca nesuportat,
-          // nu se emuleaza la nesfarsit. Aceeasi regula o aplica si `run` - de
-          // aceea sta in `bypass.ts`, nu aici.
+          // Spec section 8: what depends on internals is reported as unsupported,
+          // not emulated forever. `run` applies the same rule - that is why it
+          // lives in `bypass.ts`, not here.
           findings.push({ level: bypassSeverity(mode), message: describeBypass(specifier).message });
         }
       }
       for (const external of graph.externalImports) {
-        findings.push({ level: "warn", message: `pachet extern '${external}': cere puntea npm (faza 3)` });
+        findings.push({ level: "warn", message: `external package '${external}': requires the npm bridge (phase 3)` });
       }
       for (const problem of graph.unresolved) {
-        // Acelasi nivel ca un ocol dovedit: un import pe care nu-l putem rezolva
-        // nu dovedeste ca nu ocoleste brokerul, ci doar ca nu putem sti.
+        // The same level as a proven bypass: an import we cannot resolve does not
+        // prove it does not bypass the broker, only that we cannot know.
         findings.push({
           level: bypassSeverity(mode),
-          message: `${problem.from}: ${problem.specifier} - ${problem.reason} (un ocol aici nu ar fi vizibil)`,
+          message: `${problem.from}: ${problem.specifier} - ${problem.reason} (a bypass here would not be visible)`,
         });
       }
     } catch (error) {
-      findings.push({ level: "error", message: `graful static nu a putut fi construit: ${(error as Error).message}` });
+      findings.push({ level: "error", message: `the static graph could not be built: ${(error as Error).message}` });
     }
   }
 
   const errors = findings.filter((finding) => finding.level === "error");
   const warnings = findings.filter((finding) => finding.level === "warn");
 
-  const icons: Record<Finding["level"], string> = { ok: "ok  ", warn: "warn", error: "eroare" };
+  const icons: Record<Finding["level"], string> = { ok: "ok  ", warn: "warn", error: "error" };
   const out = [
     `RaptorRuntime ${environment.runtimeVersion} (${environment.channel}) - ${environment.platform}`,
     table([
-      ["binar", environment.binary],
-      ["motor", environment.engine],
-      ["proiect", project ? `${project.manifest.name}@${project.manifest.version}` : "(negasit)"],
-      ["politica", String((payload["project"] as Record<string, unknown> | undefined)?.["policy"] ?? "-")],
+      ["binary", environment.binary],
+      ["engine", environment.engine],
+      ["project", project ? `${project.manifest.name}@${project.manifest.version}` : "(not found)"],
+      ["policy", String((payload["project"] as Record<string, unknown> | undefined)?.["policy"] ?? "-")],
     ]),
     "",
     ...findings.map((finding) => `  [${icons[finding.level]}] ${finding.message}`),
     "",
-    `  ${errors.length} erori, ${warnings.length} avertismente`,
+    `  ${errors.length} errors, ${warnings.length} warnings`,
   ].join("\n");
 
   return errors.length > 0 ? fail(1, out, payload) : ok(out, payload);

@@ -1,9 +1,9 @@
 /**
  * TreeView / ListView / MultiSelect / Autocomplete / CommandPalette.
  *
- * Componente de date care folosesc primitivele existente: `selectionState`
- * pentru click cu Shift/Ctrl, `positioner` pentru liste flotante,
- * `clickOutside` si `focusTrap` pentru paleta de comenzi.
+ * Data components that use the existing primitives: `selectionState` for
+ * Shift/Ctrl clicks, `positioner` for floating lists, `clickOutside` and
+ * `focusTrap` for the command palette.
  */
 import { state, derived, effect, onCleanup, untracked, type Accessor, type State } from "raptorjs";
 import { R, For, Show, type Child } from "raptorjs/dom";
@@ -25,7 +25,7 @@ export interface TreeNode {
   key: string;
   label: Child;
   children?: readonly TreeNode[];
-  /** Are copii care se incarca la cerere. */
+  /** Has children that load on demand. */
   hasChildren?: boolean;
   disabled?: boolean;
   icon?: Child;
@@ -33,10 +33,10 @@ export interface TreeNode {
 
 export interface TreeViewProps {
   nodes: readonly TreeNode[] | Accessor<readonly TreeNode[]>;
-  /** Cheile expandate. */
+  /** The expanded keys. */
   expanded?: State<ReadonlySet<string>>;
   selected?: State<string | null>;
-  /** Incarcare lazy: cheama pentru un nod cu `hasChildren` si fara `children`. */
+  /** Lazy loading: called for a node with `hasChildren` and no `children`. */
   loadChildren?: (node: TreeNode) => Promise<readonly TreeNode[]>;
   onSelect?: (node: TreeNode) => void;
   label?: string;
@@ -52,12 +52,12 @@ export interface TreeViewHandle {
 }
 
 /**
- * TreeView - arbore expandabil cu incarcare lazy.
+ * TreeView - an expandable tree with lazy loading.
  *
- * Navigarea urmeaza pattern-ul ARIA tree: sageata dreapta expandeaza sau
- * coboara la primul copil, stanga colapseaza sau urca la parinte. Doar un nod
- * e tabbable (roving tabindex); Tab iese din intregul arbore, nu trece prin
- * toate cele 400 de noduri.
+ * Navigation follows the ARIA tree pattern: the right arrow expands or descends
+ * to the first child, the left one collapses or moves up to the parent. Only
+ * one node is tabbable (roving tabindex); Tab leaves the whole tree, it does not
+ * step through all 400 nodes.
  */
 export function treeView(props: TreeViewProps): TreeViewHandle {
   const id = "rui-tree-" + ++idSeq;
@@ -123,7 +123,7 @@ export function treeView(props: TreeViewProps): TreeViewHandle {
     });
   };
 
-  /** Nodurile vizibile, in ordinea documentului - baza pentru sus/jos. */
+  /** The visible nodes, in document order - the basis for up/down. */
   const flat = derived<Array<{ node: TreeNode; parent: string | null; depth: number }>>(() => {
     const out: Array<{ node: TreeNode; parent: string | null; depth: number }> = [];
     const walk = (list: readonly TreeNode[], parent: string | null, depth: number): void => {
@@ -194,7 +194,7 @@ export function treeView(props: TreeViewProps): TreeViewHandle {
         break;
       case "*":
         e.preventDefault?.();
-        // Asterisc expandeaza toti fratii de la nivelul curent (pattern ARIA).
+        // Asterisk expands all siblings at the current level (ARIA pattern).
         expanded.update((prev) => {
           const next = new Set(prev);
           for (const other of list) {
@@ -224,7 +224,7 @@ export function treeView(props: TreeViewProps): TreeViewHandle {
             (props.selected?.() === node.key ? " rui-selected" : "") +
             (node.disabled ? " rui-disabled" : ""),
           style: "padding-left:" + (8 + depth * 16) + "px",
-          // Roving tabindex: un singur nod din tot arborele e tabbable.
+          // Roving tabindex: a single node in the whole tree is tabbable.
           tabindex: () => (focusedKey() === node.key ? "0" : "-1"),
           ref: (el: El) => {
             if (el) elements.set(node.key, el);
@@ -265,7 +265,7 @@ export function treeView(props: TreeViewProps): TreeViewHandle {
     );
   }
 
-  // Primul nod primeste focusul logic, ca Tab sa aiba unde ateriza.
+  // The first node gets the logical focus, so Tab has somewhere to land.
   effect(() => {
     if (focusedKey() !== "") return;
     const first = untracked(() => roots()[0]);
@@ -312,13 +312,13 @@ export function TreeView(props: TreeViewProps): El {
 
 export interface ListViewProps<T> {
   items: Accessor<readonly T[]>;
-  /** Continutul unui rand. */
+  /** The content of a row. */
   render: (item: T, index: number) => Child;
-  /** Cheie de grupare; randurile cu aceeasi cheie stau impreuna. */
+  /** Grouping key; rows with the same key stay together. */
   groupBy?: (item: T) => string;
-  /** Actiuni afisate pe rand. */
+  /** Actions shown on the row. */
   actions?: (item: T) => Child;
-  /** Activeaza selectia cu click/Ctrl/Shift. */
+  /** Enables selection with click/Ctrl/Shift. */
   selectable?: boolean;
   multiple?: boolean;
   onActivate?: (item: T) => void;
@@ -333,11 +333,11 @@ export interface ListViewHandle<T> {
 }
 
 /**
- * ListView - lista interactiva cu grupuri, actiuni si selectie.
+ * ListView - an interactive list with groups, actions and selection.
  *
- * Selectia trece prin `selectionState`, deci Shift si Ctrl se comporta ca
- * intr-un manager de fisiere. Dublu-click (sau Enter) "activeaza" randul, ceea
- * ce e altceva decat a-l selecta.
+ * Selection goes through `selectionState`, so Shift and Ctrl behave as in a
+ * file manager. Double-click (or Enter) "activates" the row, which is different
+ * from selecting it.
  */
 export function listView<T>(props: ListViewProps<T>): ListViewHandle<T> {
   const selection = selectionState<T>({ items: () => props.items(), multiple: props.multiple !== false });
@@ -439,7 +439,7 @@ export function listView<T>(props: ListViewProps<T>): ListViewHandle<T> {
     }),
     Show({
       when: () => props.items().length === 0,
-      children: R.div({ class: "rui-listview-empty" }, props.empty ?? "Nimic de afișat"),
+      children: R.div({ class: "rui-listview-empty" }, props.empty ?? "Nothing to show"),
     }),
   );
 
@@ -458,9 +458,9 @@ export interface MultiSelectProps<T> {
   label: (option: T) => string;
   disabled?: (option: T) => boolean;
   placeholder?: string;
-  /** Numar maxim de selectii. */
+  /** Maximum number of selections. */
   max?: number;
-  /** Permite cautare in lista. Implicit `true`. */
+  /** Allows searching the list. Default `true`. */
   searchable?: boolean;
   placement?: Placement;
   onChange?: (value: readonly T[]) => void;
@@ -474,11 +474,12 @@ export interface MultiSelectHandle {
 }
 
 /**
- * MultiSelect - selectie multipla cu chip-uri.
+ * MultiSelect - multiple selection with chips.
  *
- * Chip-urile sunt in AFARA inputului, nu inauntru: un chip pus intr-un input e
- * inaccesibil (nu poate fi butonat) si se rupe la scroll orizontal.
- * Backspace pe camp gol sterge ultima selectie, ca in orice client de email.
+ * The chips are OUTSIDE the input, not inside it: a chip placed in an input is
+ * inaccessible (it cannot be given a button) and breaks on horizontal scroll.
+ * Backspace on an empty field removes the last selection, as in any email
+ * client.
  */
 export function multiSelect<T>(props: MultiSelectProps<T>): MultiSelectHandle {
   const id = "rui-ms-" + ++idSeq;
@@ -582,7 +583,7 @@ export function multiSelect<T>(props: MultiSelectProps<T>): MultiSelectHandle {
           Tag({
             children: props.label(option),
             size: "sm",
-            removeLabel: "Elimină " + props.label(option),
+            removeLabel: "Remove " + props.label(option),
             onRemove: () => toggle(option),
           }),
       }),
@@ -654,7 +655,7 @@ export function multiSelect<T>(props: MultiSelectProps<T>): MultiSelectHandle {
         }),
         Show({
           when: () => visible().length === 0,
-          children: R.li({ class: "rui-multiselect-empty", role: "presentation" }, "Niciun rezultat"),
+          children: R.li({ class: "rui-multiselect-empty", role: "presentation" }, "No results"),
         }),
       ),
     }),
@@ -671,12 +672,12 @@ export function MultiSelect<T>(props: MultiSelectProps<T>): El {
 
 export interface AutocompleteProps<T> {
   value: State<string>;
-  /** Cautare asincrona. Rezultatele vechi sunt ignorate daca sosesc tarziu. */
+  /** Async search. Stale results are ignored if they arrive late. */
   search: (query: string) => Promise<readonly T[]>;
   label: (option: T) => string;
-  /** Ms de asteptare inainte de cerere. Implicit 250. */
+  /** Ms to wait before the request. Default 250. */
   debounce?: number;
-  /** Nu cauta sub atatea caractere. Implicit 1. */
+  /** Do not search below this many characters. Default 1. */
   minLength?: number;
   onSelect?: (option: T) => void;
   placeholder?: string;
@@ -692,12 +693,12 @@ export interface AutocompleteHandle<T> {
 }
 
 /**
- * Autocomplete - sugestii de la server.
+ * Autocomplete - suggestions from the server.
  *
- * Partea in care se greseste: **cursa dintre cereri**. Daca tastezi "ab" si
- * apoi "abc", raspunsul pentru "ab" poate sosi DUPA cel pentru "abc" si il
- * suprascrie. Fiecare cerere primeste un numar de ordine si doar cea mai
- * recenta are voie sa scrie rezultatele.
+ * The part that goes wrong: **the race between requests**. If you type "ab" and
+ * then "abc", the response for "ab" may arrive AFTER the one for "abc" and
+ * overwrite it. Each request gets a sequence number and only the most recent one
+ * is allowed to write the results.
  */
 export function autocomplete<T>(props: AutocompleteProps<T>): AutocompleteHandle<T> {
   const id = "rui-ac-" + ++idSeq;
@@ -733,7 +734,7 @@ export function autocomplete<T>(props: AutocompleteProps<T>): AutocompleteHandle
       loading.set(true);
       props.search(query).then(
         (found) => {
-          // Raspuns invechit: a plecat deja o cerere mai noua.
+          // Stale response: a newer request has already gone out.
           if (seq !== requestSeq) return;
           results.set(found);
           loading.set(false);
@@ -843,7 +844,7 @@ export function Autocomplete<T>(props: AutocompleteProps<T>): El {
 export interface Command {
   key: string;
   label: Child;
-  /** Text dupa care se cauta; implicit `label` daca e string. */
+  /** Text to search by; defaults to `label` if it is a string. */
   searchText?: string;
   group?: string;
   hint?: string;
@@ -855,7 +856,7 @@ export interface Command {
 export interface CommandPaletteProps {
   commands: readonly Command[] | Accessor<readonly Command[]>;
   open?: State<boolean>;
-  /** Filtrare proprie. Implicit potrivire de subsir, case-insensitive. */
+  /** Custom filtering. Defaults to case-insensitive substring matching. */
   filter?: (command: Command, query: string) => boolean;
   placeholder?: string;
   empty?: Child;
@@ -876,8 +877,9 @@ function commandText(command: Command): string {
 /**
  * CommandPalette - Ctrl+K.
  *
- * Nu inregistreaza singura scurtatura globala: ti-o legi tu cu `hotkeys`, ca sa
- * nu-ti fure `mod+k` fara sa stii. Montata prin `Portal`, cu `focusTrap`.
+ * It does not register the global shortcut itself: you bind it with `hotkeys`,
+ * so it does not steal `mod+k` without you knowing. Mounted via `Portal`, with
+ * `focusTrap`.
  */
 export function commandPalette(props: CommandPaletteProps): CommandPaletteHandle {
   const id = "rui-cmd-" + ++idSeq;
@@ -907,7 +909,7 @@ export function commandPalette(props: CommandPaletteProps): CommandPaletteHandle
     return [...map].map(([title, items]) => ({ title, items }));
   });
 
-  /** Indexul global al unei comenzi in lista aplatizata. */
+  /** The global index of a command in the flattened list. */
   const indexOf = (command: Command): number => visible().indexOf(command);
 
   const close = (): void => {
@@ -931,7 +933,7 @@ export function commandPalette(props: CommandPaletteProps): CommandPaletteHandle
     onCleanup(unbind);
   });
 
-  // Filtrarea resetează selecția: altfel ai putea rula comanda greșită.
+  // Filtering resets the selection: otherwise you could run the wrong command.
   effect(() => {
     void query();
     active.set(0);
@@ -957,7 +959,7 @@ export function commandPalette(props: CommandPaletteProps): CommandPaletteHandle
             class: props.class ? "rui-cmd " + props.class : "rui-cmd",
             role: "dialog",
             "aria-modal": "true",
-            "aria-label": "Paletă de comenzi",
+            "aria-label": "Command palette",
             ref: focusTrap(),
           },
           R.input({
@@ -967,8 +969,8 @@ export function commandPalette(props: CommandPaletteProps): CommandPaletteHandle
             "aria-expanded": "true",
             "aria-controls": id + "-list",
             "aria-activedescendant": () => id + "-opt-" + active(),
-            "aria-label": "Caută o comandă",
-            placeholder: props.placeholder ?? "Caută o comandă…",
+            "aria-label": "Search for a command",
+            placeholder: props.placeholder ?? "Search for a command…",
             value: () => query(),
             "on:input": (e: any) => query.set(String(e.target?.value ?? "")),
             "on:keydown": (e: any) => {
@@ -1021,7 +1023,7 @@ export function commandPalette(props: CommandPaletteProps): CommandPaletteHandle
             }),
             Show({
               when: () => visible().length === 0,
-              children: R.div({ class: "rui-cmd-empty" }, props.empty ?? "Nicio comandă"),
+              children: R.div({ class: "rui-cmd-empty" }, props.empty ?? "No commands"),
             }),
           ),
         ),

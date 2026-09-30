@@ -1,12 +1,12 @@
 /**
- * `raptor-runtime test` (spec sectiunea 4): descopera `*.test.ts` si le executa
- * cu ceasuri izolate si raportare structurata.
+ * `raptor-runtime test` (spec section 4): discovers `*.test.ts` files and runs
+ * them with isolated clocks and structured reporting.
  *
- * Contractul unui fisier de test este minimal si propriu Raptor: modulul exporta
- * `tests` (sau un `default`) - un obiect nume -> functie. Fiecare caz primeste
- * contextul de host, deci ruleaza sub aceleasi capabilitati ca aplicatia.
- * Fiecare fisier primeste propriul runtime si propriul ceas, pornit de la zero,
- * ca timpii raportati sa nu depinda de ordinea rularii.
+ * The contract of a test file is minimal and Raptor's own: the module exports
+ * `tests` (or a `default`) - a name -> function object. Each case receives the
+ * host context, so it runs under the same capabilities as the application. Each
+ * file gets its own runtime and its own clock, started from zero, so the
+ * reported times do not depend on the run order.
  */
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
@@ -68,7 +68,7 @@ export async function testCommand(input: CommandInput): Promise<CommandResult> {
     const filter = typeof input.flags["filter"] === "string" ? input.flags["filter"] : null;
     const files = await discoverTests(project.projectRoot, filter);
     if (files.length === 0) {
-      return fail(1, `niciun fisier *.test.ts in ${project.projectRoot}${filter ? ` (filtru: ${filter})` : ""}`, {
+      return fail(1, `no *.test.ts file in ${project.projectRoot}${filter ? ` (filter: ${filter})` : ""}`, {
         files: [],
         cases: [],
       });
@@ -77,7 +77,7 @@ export async function testCommand(input: CommandInput): Promise<CommandResult> {
     const reports: CaseReport[] = [];
 
     for (const file of files) {
-      // Ceas izolat per fisier: pornit de la zero, independent de celelalte.
+      // Isolated clock per file: started from zero, independent of the others.
       const origin = performance.now();
       const observer = createObserver({ now: () => performance.now() - origin });
       const host = createRuntime({
@@ -94,10 +94,10 @@ export async function testCommand(input: CommandInput): Promise<CommandResult> {
         if (cases.length === 0) {
           reports.push({
             file,
-            name: "(niciun caz exportat)",
+            name: "(no exported case)",
             status: "failed",
             durationMs: 0,
-            error: { code: "raptor:test/empty", message: "modulul nu exporta `tests` sau `default` cu functii" },
+            error: { code: "raptor:test/empty", message: "the module does not export `tests` or `default` with functions" },
           });
           continue;
         }
@@ -121,7 +121,7 @@ export async function testCommand(input: CommandInput): Promise<CommandResult> {
       } catch (error) {
         reports.push({
           file,
-          name: "(incarcare modul)",
+          name: "(module load)",
           status: "failed",
           durationMs: 0,
           error: {
@@ -150,8 +150,8 @@ export async function testCommand(input: CommandInput): Promise<CommandResult> {
       );
     }
 
-    const summary = `${reports.length - failed.length}/${reports.length} cazuri trecute in ${formatMs(totalMs)} (${files.length} fisiere)`;
-    const out = [`RaptorRuntime test - politica ${mode}${strict ? ", strict" : ""}`, ...lines, "", `  ${summary}`].join("\n");
+    const summary = `${reports.length - failed.length}/${reports.length} cases passed in ${formatMs(totalMs)} (${files.length} files)`;
+    const out = [`RaptorRuntime test - policy ${mode}${strict ? ", strict" : ""}`, ...lines, "", `  ${summary}`].join("\n");
     const data = { files, cases: reports, summary: { total: reports.length, failed: failed.length, totalMs } };
 
     return failed.length > 0 ? fail(1, out, data) : ok(out, data);

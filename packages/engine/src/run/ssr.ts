@@ -1,10 +1,10 @@
 /**
  * SSR + resume (whitepaper RaptorEngine 9, 19.1: "SSR/resume orchestration").
  *
- * Randeaza o componenta la HTML pe server folosind valorile curente ale
- * server-signals (din store) si valorile initiale ale signal-urilor locale.
- * Emite si un payload de resume: ce adrese RAS trebuie sa (re)abonoze clientul
- * ca sa continue reactiv, fara re-fetch (14, 15).
+ * Renders a component to HTML on the server using the current values of the
+ * server-signals (from the store) and the initial values of the local signals.
+ * Also emits a resume payload: which RAS addresses the client must (re)subscribe
+ * to in order to continue reactively, without re-fetch (14, 15).
  */
 import { evalExpr, type Env } from "./eval.ts";
 import type { IRComponent, IRElement, IRChild } from "@raptor/engine/compiler";
@@ -43,7 +43,7 @@ function renderElement(el: IRElement, env: Env): string {
     if (value === false || value == null) continue;
     attrs.push(` ${a.name}="${escapeHtml(String(value))}"`);
   }
-  // Evenimentele nu se randeaza in SSR; clientul le ataseaza la hydration.
+  // Events are not rendered in SSR; the client attaches them at hydration.
 
   const inner: string[] = [];
   for (const child of el.children as IRChild[]) {
@@ -59,16 +59,16 @@ function renderElement(el: IRElement, env: Env): string {
 }
 
 export interface SsrOptions {
-  /** Valoarea curenta a unui server signal, dupa adresa (din store). */
+  /** The current value of a server signal, by address (from the store). */
   serverValue: (address: string) => unknown;
 }
 
-/** Randeaza o componenta IR la HTML + payload de resume. */
+/** Renders an IR component to HTML + resume payload. */
 export function renderComponent(component: IRComponent, options: SsrOptions): SsrResult {
   const env: Env = {};
   for (const s of component.signals) env[s.name] = evalExpr(s.init, {});
   for (const ss of component.serverSignals) env[ss.name] = options.serverValue(ss.address);
-  // Deriveds in ordinea declararii (pot depinde de cele anterioare).
+  // Deriveds in declaration order (they may depend on earlier ones).
   for (const d of component.deriveds) env[d.name] = evalExpr(d.expr, env);
 
   return {
@@ -84,7 +84,7 @@ export function renderComponent(component: IRComponent, options: SsrOptions): Ss
   };
 }
 
-/** Document HTML complet cu payload-ul de resume inline (pentru hydration). */
+/** Complete HTML document with the resume payload inline (for hydration). */
 export function renderDocument(result: SsrResult, title = "RaptorRun"): string {
   const resumeJson = escapeHtml(JSON.stringify(result.resume));
   return (

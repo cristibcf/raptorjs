@@ -1,11 +1,11 @@
-// Un server HTTP Raptor, rulat de binarul nativ - fara Node, fara tsc.
+// A Raptor HTTP server, run by the native binary - no Node, no tsc.
 //
-// Acopera randul "Servicii platforma" din etapa 3 a roadmap-ului.
+// Covers the "Platform services" row of stage 3 of the roadmap.
 //
-// Bucla de acceptare este a aplicatiei, pentru ca motorul este inca sincron:
-// cere urmatoarea cerere, raspunde, repeta. Forma `serve({ fetch })` din
-// runtime-ul TypeScript ajunge odata cu bucla de evenimente - contractul de
-// acolo nu se schimba, se adauga peste acesta.
+// The accept loop belongs to the app, because the engine is still synchronous:
+// request the next request, respond, repeat. The `serve({ fetch })` form from the
+// TypeScript runtime arrives together with the event loop - the contract there
+// does not change, it is added on top of this one.
 import serve from "raptor:serve";
 import observe from "raptor:observe";
 import kv from "raptor:kv";
@@ -16,10 +16,10 @@ interface Nota {
 
 type Raspuns = { readonly status: number; readonly body: string };
 
-/** Portul este fix, ca scriptul care testeaza serverul sa stie unde sa bata. */
+/** The port is fixed, so the script that tests the server knows where to knock. */
 const PORT = 8787;
 
-/** Bucla este marginita, ca demo-ul sa se termine singur. */
+/** The loop is bounded, so the demo ends on its own. */
 const DE_SERVIT = 5;
 
 function citesteNote(): Nota[] {
@@ -40,17 +40,17 @@ function ruteaza(metoda: string, cale: string, corp: string): Raspuns {
     try {
       text = (JSON.parse(corp || "{}") as { text?: unknown }).text;
     } catch {
-      return { status: 400, body: JSON.stringify({ eroare: "corp JSON invalid" }) };
+      return { status: 400, body: JSON.stringify({ eroare: "invalid JSON body" }) };
     }
     if (typeof text !== "string" || text.trim() === "") {
-      return { status: 400, body: JSON.stringify({ eroare: "campul 'text' este obligatoriu" }) };
+      return { status: 400, body: JSON.stringify({ eroare: "the 'text' field is required" }) };
     }
     const urmatoarele: Nota[] = [...note, { text: text.trim() }];
     kv.set("note", JSON.stringify(urmatoarele));
     return { status: 201, body: JSON.stringify({ salvate: urmatoarele.length }) };
   }
 
-  return { status: 404, body: JSON.stringify({ eroare: `nicio ruta pentru ${metoda} ${cale}` }) };
+  return { status: 404, body: JSON.stringify({ eroare: `no route for ${metoda} ${cale}` }) };
 }
 
 kv.set("note", JSON.stringify([] as Nota[]));
@@ -61,7 +61,7 @@ observe.log("info", "server.pornit", { port: server.port });
 let servite = 0;
 while (servite < DE_SERVIT) {
   const cerere = serve.next({ timeoutMs: 5000 });
-  // `null` inseamna "nicio cerere in fereastra ceruta" - nu o eroare.
+  // `null` means "no request within the requested window" - not an error.
   if (cerere === null) break;
 
   const cale = cerere.target.split("?")[0] ?? "/";

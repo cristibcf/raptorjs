@@ -1,5 +1,5 @@
 /**
- * CLI RaptorBundle. Doua comenzi:
+ * RaptorBundle CLI. Two commands:
  *   raptor-bundle build <entry.tsx> [--out dist/bundle.js] [--html index.html]
  *   raptor-bundle dev   <entry.tsx> [--port 5173] [--host 127.0.0.1] [--root .] [--html index.html]
  */
@@ -12,7 +12,7 @@ import { rewriteHtml } from "./html.ts";
 export interface BundleCliResult {
   ok: boolean;
   message: string;
-  /** true daca procesul trebuie sa ramana viu (dev server). */
+  /** true if the process must stay alive (dev server). */
   keepAlive?: boolean;
 }
 
@@ -47,8 +47,8 @@ export function runBundleCli(argv: string[]): BundleCliResult {
       writeFileSync(htmlOut, html);
       extra = ` + ${htmlOut}`;
     }
-    const shakeNote = shaken > 0 ? ` | tree-shaking: ${shaken} re-exporturi taiate` : "";
-    return { ok: true, message: `bundled ${files.length} module → ${out} (${code.length} B)${extra}${shakeNote}` };
+    const shakeNote = shaken > 0 ? ` | tree-shaking: ${shaken} re-exports cut` : "";
+    return { ok: true, message: `bundled ${files.length} modules → ${out} (${code.length} B)${extra}${shakeNote}` };
   }
 
   if (cmd === "dev") {

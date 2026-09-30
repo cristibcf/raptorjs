@@ -1,8 +1,8 @@
 /**
- * Testele exemplului. Regulile de business merg pe loopback (rapid, fara
- * porturi); ultimul test porneste serverul adevarat si trece prin exact ce
- * parcurge un cititor al tutorialului: pagina, bundle-ul si doua ferestre care
- * se sincronizeaza peste WebSocket.
+ * The example's tests. The business rules run over loopback (fast, no ports);
+ * the last test starts the real server and goes through exactly what a reader
+ * of the tutorial walks through: the page, the bundle and two windows that sync
+ * over WebSocket.
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -24,73 +24,73 @@ const todoOf = (client: RaptorClient, id: number): Todo | undefined =>
   client.signal(`todo:${id}`)() as Todo | undefined;
 const orderOf = (client: RaptorClient): number[] => (client.signal<number[]>("order")() ?? []) as number[];
 
-test("add / toggle / remove modifica starea partajata", async () => {
+test("add / toggle / remove change the shared state", async () => {
   const app = buildTodoApp();
   const client = await loopbackClient(app, "solo");
 
-  const added = await client.mutate("add", { text: "cumpara lapte" });
+  const added = await client.mutate("add", { text: "buy milk" });
   await flushLoopback();
   const id = (added.value as { id: number }).id;
   assert.deepEqual(orderOf(client), [id]);
-  assert.equal(todoOf(client, id)?.text, "cumpara lapte");
+  assert.equal(todoOf(client, id)?.text, "buy milk");
   assert.equal(todoOf(client, id)?.done, false);
 
   await client.mutate("toggle", { id });
   await flushLoopback();
-  assert.equal(todoOf(client, id)?.done, true, "toggle intoarce done");
+  assert.equal(todoOf(client, id)?.done, true, "toggle flips done");
 
   await client.mutate("remove", { id });
   await flushLoopback();
-  assert.deepEqual(orderOf(client), [], "remove scoate id-ul din ordine");
+  assert.deepEqual(orderOf(client), [], "remove drops the id from the order");
 });
 
-test("serverul refuza textul gol, oricat de politicos ar fi clientul", async () => {
+test("the server rejects empty text, however polite the client is", async () => {
   const app = buildTodoApp();
   const client = await loopbackClient(app, "rude");
 
   const blank = await client.mutate("add", { text: "   " });
-  assert.equal(blank.ok, false, "spatiile nu sunt un todo");
+  assert.equal(blank.ok, false, "whitespace is not a todo");
 
   const wrongType = await client.mutate("add", { text: 42 });
-  assert.equal(wrongType.ok, false, "authorize respinge alt tip");
+  assert.equal(wrongType.ok, false, "authorize rejects another type");
 
   await flushLoopback();
-  assert.deepEqual(orderOf(client), [], "nimic nu a intrat in stare");
+  assert.deepEqual(orderOf(client), [], "nothing entered the state");
 });
 
-test("doi clienti vad aceeasi lista fara sa o ceara din nou", async () => {
+test("two clients see the same list without re-requesting it", async () => {
   const app = buildTodoApp();
   const ana = await loopbackClient(app, "ana");
   const bob = await loopbackClient(app, "bob");
 
-  const added = await ana.mutate("add", { text: "plimba cainele" });
+  const added = await ana.mutate("add", { text: "walk the dog" });
   await flushLoopback();
   const id = (added.value as { id: number }).id;
 
-  assert.deepEqual(orderOf(bob), [id], "Bob a primit operatia, nu un snapshot nou");
-  assert.equal(bob.snapshotsReceived, 1, "un singur snapshot: cel de la abonare");
-  assert.ok(bob.opsFramesReceived > 0, "restul a venit ca delta");
+  assert.deepEqual(orderOf(bob), [id], "Bob received the operation, not a new snapshot");
+  assert.equal(bob.snapshotsReceived, 1, "a single snapshot: the one from subscribing");
+  assert.ok(bob.opsFramesReceived > 0, "the rest arrived as delta");
 
   await bob.mutate("toggle", { id });
   await flushLoopback();
-  assert.equal(todoOf(ana, id)?.done, true, "si invers");
+  assert.equal(todoOf(ana, id)?.done, true, "and the other way around");
 });
 
-test("end-to-end: serverul real serveste pagina si sincronizeaza doua ferestre", async () => {
+test("end-to-end: the real server serves the page and syncs two windows", async () => {
   const server = await startTodoServer(0);
   const base = `http://127.0.0.1:${server.port}`;
   try {
     const page = await fetch(base + "/");
     assert.equal(page.status, 200);
     const html = await page.text();
-    assert.match(html, /bundle\.js/, "index.html a fost rescris catre bundle");
+    assert.match(html, /bundle\.js/, "index.html was rewritten to point at the bundle");
 
     const bundle = await fetch(base + "/bundle.js");
     assert.equal(bundle.status, 200);
     const code = await bundle.text();
-    assert.match(code, /raptor/i, "clientul chiar s-a compilat");
+    assert.match(code, /raptor/i, "the client actually compiled");
 
-    // Doua "ferestre" pe acelasi URL de wire.
+    // Two "windows" on the same wire URL.
     const url = `ws://127.0.0.1:${server.port}/raptor`;
     const open = async (build: string): Promise<RaptorClient> => {
       const client = new RaptorClient(await connectWebSocket(url), { build });
@@ -106,17 +106,17 @@ test("end-to-end: serverul real serveste pagina si sincronizeaza doua ferestre",
       }
     };
 
-    const w1 = await open("fereastra-1");
-    const w2 = await open("fereastra-2");
-    await until(() => w1.snapshotsReceived > 0 && w2.snapshotsReceived > 0, "snapshot-uri");
+    const w1 = await open("window-1");
+    const w2 = await open("window-2");
+    await until(() => w1.snapshotsReceived > 0 && w2.snapshotsReceived > 0, "snapshots");
 
-    const added = await w1.mutate("add", { text: "scrie tutorialul" });
+    const added = await w1.mutate("add", { text: "write the tutorial" });
     const id = (added.value as { id: number }).id;
-    await until(() => orderOf(w2).length === 1, "fereastra 2 a primit todo-ul");
-    assert.equal(todoOf(w2, id)?.text, "scrie tutorialul");
+    await until(() => orderOf(w2).length === 1, "window 2 received the todo");
+    assert.equal(todoOf(w2, id)?.text, "write the tutorial");
 
     await w2.mutate("toggle", { id });
-    await until(() => todoOf(w1, id)?.done === true, "fereastra 1 a vazut bifa");
+    await until(() => todoOf(w1, id)?.done === true, "window 1 saw the check");
 
     w1.close();
     w2.close();

@@ -1,10 +1,10 @@
 /**
- * Manifestul `raptor.runtime.json` (spec sectiunile 7 si 8).
+ * The `raptor.runtime.json` manifest (spec sections 7 and 8).
  *
- * Schema este proprie Raptor, nu o clona de package.json: capabilitatile sunt
- * declarate explicit, iar dependintele poarta integritate + origine pentru
- * lockfile reproductibil. Parserul nu arunca la prima problema - aduna toate
- * erorile ca sa poata fi raportate intr-un singur diagnostic.
+ * The schema is Raptor's own, not a package.json clone: capabilities are
+ * declared explicitly, and dependencies carry integrity + origin for a
+ * reproducible lockfile. The parser does not throw at the first problem - it
+ * gathers all errors so they can be reported in a single diagnostic.
  */
 import { RaptorError } from "./errors.ts";
 
@@ -15,27 +15,29 @@ export const CAPABILITY_KINDS = [
   "files.write",
   "net.connect",
   /**
-   * A deschide un port de ascultare. Tinta are aceeasi forma ca `net.connect`
-   * (`gazda:port`, cu `*` acceptat pe oricare parte), ca `127.0.0.1:*` sa poata
-   * insemna "doar local" fara sa fixeze portul.
+   * Opening a listening port. The target has the same shape as `net.connect`
+   * (`host:port`, with `*` accepted on either side), so that `127.0.0.1:*` can
+   * mean "local only" without pinning the port.
    *
-   * Exista pentru ca `@raptor/host` cerea deja capability pentru exact aceleasi
-   * metode (`serve.listen` -> `net.listen` in `packages/host/src/protocol.ts`),
-   * in timp ce runtime-ul lega porturi cu manifestul gol.
+   * It exists because `@raptor/host` already required a capability for exactly
+   * the same methods (`serve.listen` -> `net.listen` in
+   * `packages/host/src/protocol.ts`), while the runtime was binding ports with
+   * an empty manifest.
    */
   "net.listen",
   "env.read",
   /**
-   * Ce variabile de mediu poate **seta** aplicatia pentru un proces copil.
+   * Which environment variables the application can **set** for a child process.
    *
-   * Separata de `env.read` pentru ca a citi si a scrie nu sunt acelasi lucru:
-   * a doua trecere de audit a aratat ca o aplicatie cu `env.read: ["*"]` putea
-   * transforma `process.spawn: ["git"]` in "orice cod" prin `JAVA_TOOL_OPTIONS`,
-   * `NODE_PATH`, `RUBYOPT` si altele - orice listă de variabile interzise ramane
-   * in urma fata de inventivitatea ecosistemelor.
+   * Separate from `env.read` because reading and writing are not the same thing:
+   * a second audit pass showed that an application with `env.read: ["*"]` could
+   * turn `process.spawn: ["git"]` into "any code" via `JAVA_TOOL_OPTIONS`,
+   * `NODE_PATH`, `RUBYOPT` and others - any list of forbidden variables always
+   * lags behind the inventiveness of ecosystems.
    *
-   * Implicit: **niciuna**. Copilul primeste mediul filtrat prin `env.read`, iar
-   * ce vrea aplicatia sa adauge peste el trebuie declarat aici, pe nume.
+   * Default: **none**. The child receives the environment filtered through
+   * `env.read`, and whatever the application wants to add on top of it must be
+   * declared here, by name.
    */
   "env.set",
   "process.spawn",
@@ -45,7 +47,7 @@ export const CAPABILITY_KINDS = [
 
 export type CapabilityKind = (typeof CAPABILITY_KINDS)[number];
 
-/** Capabilitatile cu tinte sunt liste; cele ambientale sunt boolean. */
+/** Capabilities with targets are lists; ambient ones are boolean. */
 export type CapabilityDeclarations = {
   [K in CapabilityKind]?: K extends "clock.real" | "crypto.random" ? boolean : string[];
 };
@@ -53,7 +55,7 @@ export type CapabilityDeclarations = {
 export interface ManifestDependency {
   readonly name: string;
   readonly range: string;
-  /** `sha256-<base64>`; completat de `pack` daca lipseste la declarare. */
+  /** `sha256-<base64>`; filled in by `pack` if missing at declaration time. */
   readonly integrity?: string;
   readonly origin?: string;
 }
@@ -89,7 +91,7 @@ function readCapabilities(raw: unknown, issues: ManifestIssue[]): CapabilityDecl
   const out: Record<string, unknown> = {};
   if (raw === undefined) return out as CapabilityDeclarations;
   if (!isRecord(raw)) {
-    issues.push({ path: "capabilities", message: "trebuie sa fie un obiect" });
+    issues.push({ path: "capabilities", message: "must be an object" });
     return out as CapabilityDeclarations;
   }
 
@@ -97,20 +99,20 @@ function readCapabilities(raw: unknown, issues: ManifestIssue[]): CapabilityDecl
     if (!(CAPABILITY_KINDS as readonly string[]).includes(key)) {
       issues.push({
         path: `capabilities.${key}`,
-        message: `capability necunoscuta (valide: ${CAPABILITY_KINDS.join(", ")})`,
+        message: `unknown capability (valid: ${CAPABILITY_KINDS.join(", ")})`,
       });
       continue;
     }
     if (key === "clock.real" || key === "crypto.random") {
       if (typeof value !== "boolean") {
-        issues.push({ path: `capabilities.${key}`, message: "trebuie sa fie boolean" });
+        issues.push({ path: `capabilities.${key}`, message: "must be a boolean" });
         continue;
       }
       out[key] = value;
       continue;
     }
     if (!Array.isArray(value) || value.some((entry) => typeof entry !== "string")) {
-      issues.push({ path: `capabilities.${key}`, message: "trebuie sa fie o lista de siruri" });
+      issues.push({ path: `capabilities.${key}`, message: "must be a list of strings" });
       continue;
     }
     out[key] = [...(value as string[])];
@@ -121,7 +123,7 @@ function readCapabilities(raw: unknown, issues: ManifestIssue[]): CapabilityDecl
 function readDependencies(raw: unknown, issues: ManifestIssue[]): ManifestDependency[] {
   if (raw === undefined) return [];
   if (!isRecord(raw)) {
-    issues.push({ path: "dependencies", message: "trebuie sa fie un obiect nume -> specificatie" });
+    issues.push({ path: "dependencies", message: "must be a name -> specifier object" });
     return [];
   }
   const out: ManifestDependency[] = [];
@@ -133,7 +135,7 @@ function readDependencies(raw: unknown, issues: ManifestIssue[]): ManifestDepend
     if (!isRecord(value) || typeof value["range"] !== "string") {
       issues.push({
         path: `dependencies.${name}`,
-        message: "cere un sir de versiune sau { range, integrity?, origin? }",
+        message: "requires a version string or { range, integrity?, origin? }",
       });
       continue;
     }
@@ -154,30 +156,30 @@ export function parseManifest(source: string): ManifestParseResult {
   try {
     raw = JSON.parse(source);
   } catch (error) {
-    return { manifest: null, issues: [{ path: "", message: `JSON invalid: ${(error as Error).message}` }] };
+    return { manifest: null, issues: [{ path: "", message: `invalid JSON: ${(error as Error).message}` }] };
   }
 
   if (!isRecord(raw)) {
-    return { manifest: null, issues: [{ path: "", message: "manifestul trebuie sa fie un obiect JSON" }] };
+    return { manifest: null, issues: [{ path: "", message: "the manifest must be a JSON object" }] };
   }
 
   const name = typeof raw["name"] === "string" ? raw["name"] : null;
-  if (!name) issues.push({ path: "name", message: "camp obligatoriu (sir)" });
+  if (!name) issues.push({ path: "name", message: "required field (string)" });
 
   const version = typeof raw["version"] === "string" ? raw["version"] : "0.0.0";
   if (raw["version"] !== undefined && typeof raw["version"] !== "string") {
-    issues.push({ path: "version", message: "trebuie sa fie un sir" });
+    issues.push({ path: "version", message: "must be a string" });
   }
 
   const entry = typeof raw["entry"] === "string" ? raw["entry"] : null;
-  if (!entry) issues.push({ path: "entry", message: "camp obligatoriu: modulul de pornire" });
+  if (!entry) issues.push({ path: "entry", message: "required field: the startup module" });
 
   let policy: PolicyMode = "development";
   if (raw["policy"] !== undefined) {
     if (raw["policy"] === "development" || raw["policy"] === "production") {
       policy = raw["policy"];
     } else {
-      issues.push({ path: "policy", message: "trebuie sa fie 'development' sau 'production'" });
+      issues.push({ path: "policy", message: "must be 'development' or 'production'" });
     }
   }
 
@@ -185,10 +187,10 @@ export function parseManifest(source: string): ManifestParseResult {
   const engines = raw["engines"];
   if (engines !== undefined) {
     if (!isRecord(engines)) {
-      issues.push({ path: "engines", message: "trebuie sa fie un obiect" });
+      issues.push({ path: "engines", message: "must be an object" });
     } else if (engines["raptorRuntime"] !== undefined) {
       if (typeof engines["raptorRuntime"] === "string") raptorRuntime = engines["raptorRuntime"];
-      else issues.push({ path: "engines.raptorRuntime", message: "trebuie sa fie un sir de versiune" });
+      else issues.push({ path: "engines.raptorRuntime", message: "must be a version string" });
     }
   }
 
@@ -200,20 +202,20 @@ export function parseManifest(source: string): ManifestParseResult {
   const tasks = raw["tasks"];
   if (tasks !== undefined) {
     if (!isRecord(tasks)) {
-      issues.push({ path: "tasks", message: "trebuie sa fie un obiect" });
+      issues.push({ path: "tasks", message: "must be an object" });
     } else {
       const concurrent = tasks["maxConcurrent"];
       if (concurrent !== undefined) {
         if (typeof concurrent === "number" && Number.isInteger(concurrent) && concurrent > 0) {
           maxConcurrent = concurrent;
         } else {
-          issues.push({ path: "tasks.maxConcurrent", message: "trebuie sa fie un intreg pozitiv" });
+          issues.push({ path: "tasks.maxConcurrent", message: "must be a positive integer" });
         }
       }
       const deadline = tasks["defaultDeadlineMs"];
       if (deadline !== undefined && deadline !== null) {
         if (typeof deadline === "number" && deadline > 0) defaultDeadlineMs = deadline;
-        else issues.push({ path: "tasks.defaultDeadlineMs", message: "trebuie sa fie un numar pozitiv sau null" });
+        else issues.push({ path: "tasks.defaultDeadlineMs", message: "must be a positive number or null" });
       }
     }
   }
@@ -235,18 +237,18 @@ export function parseManifest(source: string): ManifestParseResult {
   };
 }
 
-/** Varianta care arunca; folosita de launcher dupa ce a raportat diagnosticele. */
+/** The throwing variant; used by the launcher after it has reported the diagnostics. */
 export function requireManifest(source: string): RuntimeManifest {
   const result = parseManifest(source);
   if (!result.manifest) {
-    throw new RaptorError("raptor:manifest/invalid", `${MANIFEST_FILENAME} este invalid`, {
+    throw new RaptorError("raptor:manifest/invalid", `${MANIFEST_FILENAME} is invalid`, {
       issues: result.issues.map((i) => (i.path ? `${i.path}: ${i.message}` : i.message)),
     });
   }
   return result.manifest;
 }
 
-/** Serializare determinista (chei sortate) pentru manifest si lockfile. */
+/** Deterministic serialization (sorted keys) for manifest and lockfile. */
 export function stableStringify(value: unknown, indent = 2): string {
   return JSON.stringify(sortValue(value), null, indent);
 }

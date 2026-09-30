@@ -1,6 +1,6 @@
 /**
- * @raptor/dom - runtime DOM fine-grained + control flow.
- * Re-exporta si primitivele reactive din @raptor/core pentru ergonomie.
+ * @raptor/dom - fine-grained DOM runtime + control flow.
+ * Also re-exports the reactive primitives from @raptor/core for ergonomics.
  */
 export {
   render,

@@ -1,18 +1,18 @@
 /**
- * Portal - monteaza continutul in alt nod din document, pastrand ownership-ul
- * reactiv al locului unde a fost declarat.
+ * Portal - mounts content into another node in the document, keeping the
+ * reactive ownership of the place where it was declared.
  *
- * Conteaza pentru overlay-uri: un Dialog declarat adanc in arbore trebuie sa
- * randeze in `document.body`, altfel `overflow:hidden` sau `z-index`-ul unui
- * parinte il taie. Cleanup-ul scoate nodurile din destinatie, nu din locul
- * declararii - de unde si `onCleanup` explicit.
+ * It matters for overlays: a Dialog declared deep in the tree must render into
+ * `document.body`, otherwise a parent's `overflow:hidden` or `z-index` clips it.
+ * Cleanup removes the nodes from the destination, not from where they were
+ * declared - hence the explicit `onCleanup`.
  */
 import { onCleanup } from "raptorjs";
 import { block, mountChild, type Block, type Child } from "raptorjs/dom";
 import { doc, type El } from "./env.ts";
 
 export interface PortalProps {
-  /** Unde se monteaza. Implicit `document.body`, sau documentul insusi. */
+  /** Where it mounts. Defaults to `document.body`, or the document itself. */
   mount?: El;
   children: Child;
 }
@@ -22,7 +22,7 @@ export function Portal(props: PortalProps): Block {
     const target = props.mount ?? doc()?.body ?? doc();
     if (!target) return;
 
-    // Un container propriu: la cleanup scoatem un singur nod, nu N.
+    // Our own container: on cleanup we remove a single node, not N.
     const host = doc().createElement("div");
     host.setAttribute("data-raptor-portal", "");
     target.appendChild(host);

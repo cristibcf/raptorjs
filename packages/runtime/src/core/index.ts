@@ -1,10 +1,10 @@
 /**
- * @raptor/runtime - contractele de host RaptorRuntime.
+ * @raptor/runtime - the RaptorRuntime host contracts.
  *
- * Pachetul nu contine CLI si nu porneste nimic de la sine: expune manifestul,
- * capability broker-ul, task fabric-ul, telemetria, adaptorul de motor si
- * modulele `raptor:`. Launcher-ul si, mai tarziu, host-ul nativ consuma exact
- * aceste tipuri (spec sectiunea 9: spatiu de lucru separat, aditiv).
+ * The package contains no CLI and starts nothing on its own: it exposes the
+ * manifest, the capability broker, the task fabric, telemetry, the engine
+ * adapter and the `raptor:` modules. The launcher and, later, the native host
+ * consume exactly these types (spec section 9: separate, additive workspace).
  */
 export { RaptorError, CapabilityError, isRaptorError } from "./errors.ts";
 export type { RaptorErrorCode } from "./errors.ts";

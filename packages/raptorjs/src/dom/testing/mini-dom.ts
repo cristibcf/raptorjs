@@ -1,8 +1,8 @@
 /**
- * mini-dom - un DOM minimal, headless, pentru teste, demo-uri Node si pentru
- * a demonstra "mutatii DOM exacte" (whitepaper sectiunea 6). Numara fiecare
- * operatie ca sa putem arata ca update-urile fine-grained ating doar nodurile
- * afectate. NU este un DOM complet; acopera doar ce foloseste runtime-ul.
+ * mini-dom - a minimal, headless DOM for tests, Node demos and for
+ * demonstrating "exact DOM mutations" (whitepaper section 6). It counts every
+ * operation so we can show that fine-grained updates touch only the affected
+ * nodes. It is NOT a full DOM; it covers only what the runtime uses.
  */
 
 export interface MutationStats {
@@ -108,9 +108,10 @@ export class MiniElement extends MiniNode {
   }
 
   /**
-   * Clona ca `Node.cloneNode`: copiaza tag + atribute (si copiii, daca deep),
-   * FARA listeneri. Nu incrementeaza contoarele de mutatii (createElement/
-   * insert) — clonarea e exact optimizarea pe care o masuram la #3 (template).
+   * Clone like `Node.cloneNode`: copies tag + attributes (and children, if
+   * deep), WITHOUT listeners. Does not increment the mutation counters
+   * (createElement/insert) — cloning is exactly the optimization we measure in
+   * #3 (template).
    */
   cloneNode(deep?: boolean): MiniElement {
     const el = new MiniElement(this.tagName);
@@ -148,8 +149,8 @@ export class MiniElement extends MiniNode {
     if (value !== "") this.appendChild(new MiniText(value));
   }
   get textContent(): string {
-    // Ca in DOM-ul real: comentariile NU contribuie la textContent. Conteaza,
-    // fiindca `For`/`Show` lasa comentarii-ancora in arbore.
+    // As in the real DOM: comments do NOT contribute to textContent. This
+    // matters, because `For`/`Show` leave anchor comments in the tree.
     return this.childNodes
       .map((n) => (n instanceof MiniElement ? n.textContent : n instanceof MiniText ? n.data : ""))
       .join("");
@@ -161,33 +162,34 @@ export class MiniElement extends MiniNode {
   }
 
   insertBefore<T extends MiniNode>(node: T, ref: MiniNode | null): T {
-    // Un DocumentFragment nu se insereaza pe sine: isi muta copiii la pozitia
-    // ceruta si ramane gol (DOM standard). `For` se bazeaza pe asta ca sa ataseze
-    // o lista intreaga printr-un singur apel.
+    // A DocumentFragment does not insert itself: it moves its children to the
+    // requested position and stays empty (standard DOM). `For` relies on this to
+    // attach a whole list through a single call.
     if (node instanceof MiniElement && node.tagName === "#fragment") {
       const moved = node.childNodes.slice();
       node.childNodes.length = 0;
       relink(node);
       for (let i = 0; i < moved.length; i++) {
         const child = moved[i]!;
-        // Fiecare copil intra prin calea normala, deci indexul se recalculeaza
-        // dupa eventuala detasare - la fel ca la o inserare obisnuita.
+        // Each child goes through the normal path, so the index is recomputed
+        // after any detachment - just like on an ordinary insertion.
         this.insertBefore(child, ref);
       }
       return node;
     }
 
-    // Detasarea trebuie sa se intample INAINTE de calculul pozitiei: daca nodul
-    // era deja copil aici, scoaterea lui deplaseaza indicii de dupa el.
+    // Detachment must happen BEFORE computing the position: if the node was
+    // already a child here, removing it shifts the indices after it.
     if (node.parentNode) node.parentNode.removeChild(node);
     const index = ref ? this.childNodes.indexOf(ref) : this.childNodes.length;
     const at = index === -1 ? this.childNodes.length : index;
     this.childNodes.splice(at, 0, node);
     node.parentNode = this;
-    // Contorizam fiecare nod atasat, nu un singur "insert" pentru tot fragmentul:
-    // altfel un fragment ar parea ca muta N noduri pe gratis, iar benchmark-ul ar
-    // masura contorul, nu munca. Castigul real al fragmentului e ca browserul
-    // face o singura trecere, si el se vede in timp, nu in numarul de noduri.
+    // We count each attached node, not a single "insert" for the whole fragment:
+    // otherwise a fragment would look like it moves N nodes for free, and the
+    // benchmark would measure the counter, not the work. The real win of a
+    // fragment is that the browser does a single pass, and that shows up in time,
+    // not in the node count.
     stats.insert++;
     relink(this);
     return node;
@@ -205,10 +207,10 @@ export class MiniElement extends MiniNode {
     return node;
   }
 
-  /** Obiect de stil scriibil, ca in DOM (scroll lock-ul din Dialog il foloseste). */
+  /** A writable style object, as in the DOM (Dialog's scroll lock uses it). */
   readonly style: Record<string, string> = {};
 
-  /** Marcheaza elementul ca `document.activeElement` (focusTrap, Dialog). */
+  /** Marks the element as `document.activeElement` (focusTrap, Dialog). */
   focus(): void {
     const doc = (globalThis as { document?: unknown }).document;
     if (doc instanceof MiniDocument) doc.activeElement = this;
@@ -225,10 +227,10 @@ export class MiniElement extends MiniNode {
   }
 
   /**
-   * Utilitar de test: declanseaza un eveniment sincron pe acest element.
-   * `init` pune campuri suplimentare pe eveniment (`key`, `button`, ...), iar
-   * propagarea urca pana la `document` - ca in browser, ca sa poata fi testate
-   * handlere globale (click-outside, shortcut-uri de tastatura).
+   * Test utility: fires a synchronous event on this element. `init` sets extra
+   * fields on the event (`key`, `button`, ...), and propagation bubbles up to
+   * `document` - as in the browser, so that global handlers (click-outside,
+   * keyboard shortcuts) can be tested.
    */
   dispatch(type: string, init?: Record<string, unknown>): MiniEvent {
     const event = new MiniEvent(type, this, init);
@@ -247,11 +249,11 @@ export class MiniElement extends MiniNode {
   click(): void {
     this.dispatch("click");
   }
-  /** Utilitar de test: `el.keydown("Escape")`. */
+  /** Test utility: `el.keydown("Escape")`. */
   keydown(key: string): MiniEvent {
     return this.dispatch("keydown", { key });
   }
-  /** `true` daca `other` e acest nod sau un descendent (ca Node.contains). */
+  /** `true` if `other` is this node or a descendant (like Node.contains). */
   contains(other: MiniNode | null): boolean {
     let node: MiniNode | null = other;
     while (node) {
@@ -331,12 +333,12 @@ function escapeHtml(s: string): string {
 export class MiniDocument {
   private readonly listeners = new Map<string, Listener[]>();
 
-  /** `body` si `head` exista ca in documentul real: Portal si scroll-lock-ul
-   *  din Dialog le cauta implicit, iar testele nu trebuie sa le simuleze. */
+  /** `body` and `head` exist as in the real document: Portal and Dialog's
+   *  scroll-lock look them up implicitly, and tests need not simulate them. */
   readonly documentElement: MiniElement;
   readonly head: MiniElement;
   readonly body: MiniElement;
-  /** Ultimul element care a primit focus (setat de `MiniElement.focus`). */
+  /** The last element that received focus (set by `MiniElement.focus`). */
   activeElement: MiniElement | null = null;
 
   constructor() {
@@ -369,7 +371,7 @@ export class MiniDocument {
     const list = this.listeners.get(type);
     if (list) this.listeners.set(type, list.filter((l) => l !== listener));
   }
-  /** Livreaza un eveniment care a urcat pana la document (apelat de dispatch). */
+  /** Delivers an event that bubbled up to the document (called by dispatch). */
   deliver(event: MiniEvent): void {
     const list = this.listeners.get(event.type);
     if (list) for (const l of list.slice()) l(event);
@@ -379,7 +381,7 @@ export class MiniDocument {
     stats.createElement++;
     return new MiniElement(tag);
   }
-  /** SVG si alte namespace-uri. Numara la fel, ca tezele sa ramana corecte. */
+  /** SVG and other namespaces. Counts the same, so the theses stay correct. */
   createElementNS(namespace: string, tag: string): MiniElement {
     stats.createElement++;
     const el = new MiniElement(tag);
@@ -398,7 +400,7 @@ export class MiniDocument {
   }
 }
 
-/** Instaleaza mini-dom ca `globalThis.document` (pentru Node/teste). */
+/** Installs mini-dom as `globalThis.document` (for Node/tests). */
 export function installMiniDom(): MiniDocument {
   const doc = new MiniDocument();
   (globalThis as unknown as { document: MiniDocument }).document = doc;

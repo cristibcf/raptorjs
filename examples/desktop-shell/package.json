@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Exemplu: o aplicatie RaptorJS care ruleaza intr-un host desktop nativ prin puntea de capabilitati (roadmap sectiunile 6 si 8).",
+  "description": "Example: a RaptorJS app running in a native desktop host through the capability bridge (roadmap sections 6 and 8).",
   "dependencies": {
     "raptorjs": "workspace:*",
     "@raptor/host": "workspace:*"

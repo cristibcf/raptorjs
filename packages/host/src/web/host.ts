@@ -1,21 +1,22 @@
 /**
- * Host-ul de browser.
+ * The browser host.
  *
- * **Ce este si ce nu este.** Pe desktop si pe mobil, puntea traverseaza un
- * proces: refuzul host-ului este o granita de securitate reala. In browser nu
- * exista asa ceva - pagina si "host-ul" sunt acelasi izolat, iar granita reala
- * este sandbox-ul de origine al browserului. Verificarile de aici sunt deci
- * *portabilitate si disciplina*, nu izolare: garanteaza ca o aplicatie scrisa pe
- * contractul Raptor se comporta la fel pe toate cele trei tinte si ca nu se
- * sprijina pe ceva ce lipseste pe unele dintre ele. Nu garanteaza ca un cod
- * ostil din aceeasi pagina nu poate atinge `localStorage` direct - poate.
+ * **What it is and what it is not.** On desktop and mobile, the bridge crosses
+ * a process: the host's denial is a real security boundary. In the browser
+ * there is no such thing - the page and the "host" are the same isolate, and
+ * the real boundary is the browser's origin sandbox. The checks here are
+ * therefore *portability and discipline*, not isolation: they guarantee that an
+ * app written to the Raptor contract behaves the same on all three targets and
+ * does not lean on something that is missing on some of them. They do not
+ * guarantee that hostile code in the same page cannot touch `localStorage`
+ * directly - it can.
  *
- * Diferenta fata de celelalte doua adaptoare, in doua randuri:
- *  - navigarea este impartita: si pagina o poate conduce (History API), si
- *    utilizatorul o poate schimba de sub ea (butonul de back), deci adaptorul
- *    asculta `popstate` si anunta aplicatia exact ca pe mobil;
- *  - meniurile si subprocesele nu exista, iar `update.*` nu are ce raporta:
- *    o pagina web se "actualizeaza" prin reincarcare.
+ * The difference from the other two adapters, in two lines:
+ *  - navigation is split: the page can drive it (History API), and the user can
+ *    change it out from under it (the back button), so the adapter listens for
+ *    `popstate` and notifies the app exactly as on mobile;
+ *  - menus and subprocesses do not exist, and `update.*` has nothing to report:
+ *    a web page "updates" by reloading.
  */
 import { HostError, createLifecycle, serveHost } from "@raptor/host";
 import type { AuditEntry, HostManifest, HostServer, HostTransport, LifecycleMachine, MethodHandler } from "@raptor/host";
@@ -25,7 +26,7 @@ export interface WebHostOptions {
   readonly manifest: HostManifest;
   readonly transport: HostTransport;
   readonly platform: WebPlatform;
-  /** Prefix pentru cheile din `localStorage`; implicit din `bundleId`. */
+  /** Prefix for the `localStorage` keys; defaults to `bundleId`. */
   readonly storagePrefix?: string;
   readonly initialRoute?: string;
   readonly now?: () => number;
@@ -36,9 +37,9 @@ export interface WebHost {
   readonly server: HostServer;
   readonly lifecycle: LifecycleMachine;
   readonly route: string;
-  /** Deep link-urile web sunt URL-uri de intrare, nu scheme proprii. */
+  /** Web deep links are entry URLs, not custom schemes. */
   deliverDeepLink(url: string): void;
-  /** Butonul de back al browserului, sau orice schimbare din afara paginii. */
+  /** The browser's back button, or any change from outside the page. */
   routeChanged(path: string): void;
   close(): void;
 }
@@ -46,31 +47,31 @@ export interface WebHost {
 function requireString(params: Readonly<Record<string, unknown>>, key: string): string {
   const value = params[key];
   if (typeof value !== "string" || value.length === 0) {
-    throw new HostError("raptor:host/protocol", `parametrul '${key}' lipseste sau nu este sir`, { key });
+    throw new HostError("raptor:host/protocol", `the '${key}' parameter is missing or is not a string`, { key });
   }
   return value;
 }
 
-/** Aceeasi politica de chei ca pe native: spatiu plat, fara cai. */
+/** The same key policy as on native: a flat space, no paths. */
 function requireKey(params: Readonly<Record<string, unknown>>): string {
   const key = requireString(params, "key");
   if (key.includes("/") || key.includes("\\") || key.includes("..") || key.startsWith(".")) {
-    throw new HostError("raptor:host/capability-unavailable", `cheie de stocare invalida: ${key}`, {
+    throw new HostError("raptor:host/capability-unavailable", `invalid storage key: ${key}`, {
       key,
-      policy: "limitata la originea paginii",
+      policy: "limited to the page origin",
     });
   }
   return key;
 }
 
 function missing(module: string): never {
-  throw new HostError("raptor:host/unimplemented", `mediul acestei pagini nu ofera '${module}'`, { module });
+  throw new HostError("raptor:host/unimplemented", `this page's environment does not offer '${module}'`, { module });
 }
 
 export function createWebHost(options: WebHostOptions): WebHost {
   const manifest = options.manifest;
   if (manifest.target !== "web") {
-    throw new HostError("raptor:host/manifest-invalid", "createWebHost cere un manifest cu target 'web'", {
+    throw new HostError("raptor:host/manifest-invalid", "createWebHost requires a manifest with target 'web'", {
       target: manifest.target,
     });
   }
@@ -103,7 +104,7 @@ export function createWebHost(options: WebHostOptions): WebHost {
   const requireUrl = (params: Readonly<Record<string, unknown>>): string => {
     const url = requireString(params, "url");
     if (!allowsUrl(url)) {
-      throw new HostError("raptor:host/capability-unavailable", `navigare refuzata catre '${url}'`, {
+      throw new HostError("raptor:host/capability-unavailable", `navigation denied to '${url}'`, {
         url,
         allowedOrigins: [...manifest.allowedOrigins],
       });
@@ -119,11 +120,11 @@ export function createWebHost(options: WebHostOptions): WebHost {
   const methods: Record<string, MethodHandler> = {
     "lifecycle.state": () => lifecycle.state,
     "lifecycle.requestStop": () => {
-      // O pagina nu se inchide singura: `window.close()` este ignorat pentru
-      // pagini pe care nu le-a deschis scriptul. Trecerea in fundal este tot ce
-      // se poate spune cinstit aici.
-      lifecycle.settle("background", "aplicatia a cerut oprirea");
-      return { state: lifecycle.state, note: "o pagina web nu se poate inchide singura" };
+      // A page does not close itself: `window.close()` is ignored for pages the
+      // script did not open. Moving to the background is all that can honestly
+      // be said here.
+      lifecycle.settle("background", "the app requested a stop");
+      return { state: lifecycle.state, note: "a web page cannot close itself" };
     },
 
     "deeplink.pending": () => {
@@ -136,10 +137,10 @@ export function createWebHost(options: WebHostOptions): WebHost {
 
     "update.check": () => ({ available: false, version: manifest.version, managedBy: "reload" }),
     "update.apply": () => {
-      throw new HostError("raptor:host/unimplemented", "o pagina web se actualizeaza prin reincarcare", {});
+      throw new HostError("raptor:host/unimplemented", "a web page updates by reloading", {});
     },
 
-    // Pe web, `window.manage` acopera navigarea proprie si popup-urile.
+    // On web, `window.manage` covers the page's own navigation and popups.
     "window.navigate": (params) => {
       const url = requireUrl(params);
       if (!platform.history) missing("history");
@@ -155,9 +156,9 @@ export function createWebHost(options: WebHostOptions): WebHost {
       const height = manifest.window?.height ?? 768;
       const handle = platform.opener.open(url, "_blank", `width=${width},height=${height}`);
       if (!handle) {
-        // Browserul blocheaza popup-urile fara gest de utilizator. Spunem asta,
-        // in loc sa raportam un succes care nu s-a intamplat.
-        throw new HostError("raptor:host/capability-unavailable", "popup blocat de browser (lipseste gestul de utilizator)", {
+        // The browser blocks popups without a user gesture. We say so, instead
+        // of reporting a success that did not happen.
+        throw new HostError("raptor:host/capability-unavailable", "popup blocked by the browser (missing user gesture)", {
           url,
         });
       }
@@ -193,7 +194,7 @@ export function createWebHost(options: WebHostOptions): WebHost {
       const keys: string[] = [];
       for (let index = 0; index < platform.storage.length; index += 1) {
         const key = platform.storage.key(index);
-        // Alte aplicatii pot imparti aceeasi origine: le sarim, nu le listam.
+        // Other apps may share the same origin: we skip them, not list them.
         if (key !== null && key.startsWith(prefix)) keys.push(key.slice(prefix.length));
       }
       return keys.sort();
@@ -203,7 +204,7 @@ export function createWebHost(options: WebHostOptions): WebHost {
       if (!platform.notifications) missing("Notification");
       const permission = await platform.notifications.requestPermission();
       if (permission !== "granted") {
-        throw new HostError("raptor:host/capability-unavailable", "utilizatorul nu a acordat permisiunea de notificari", {
+        throw new HostError("raptor:host/capability-unavailable", "the user did not grant notification permission", {
           permission,
         });
       }
@@ -233,8 +234,8 @@ export function createWebHost(options: WebHostOptions): WebHost {
     server.emit("lifecycle.changed", { state, reason });
   });
 
-  // Butonul de back schimba ruta fara sa treaca prin aplicatie - exact cazul
-  // pentru care exista `navigation.changed` si pe mobil.
+  // The back button changes the route without going through the app - exactly
+  // the case `navigation.changed` exists for on mobile too.
   platform.onPopState?.((path) => setRoute(path, "popstate"));
 
   return {
@@ -245,10 +246,10 @@ export function createWebHost(options: WebHostOptions): WebHost {
     },
 
     deliverDeepLink(url: string): void {
-      // Pe web nu exista scheme proprii inregistrate in sistem: un "deep link"
-      // este URL-ul cu care a fost deschisa pagina. Il validam ca origine.
+      // On web there are no custom schemes registered with the system: a "deep
+      // link" is the URL the page was opened with. We validate it by origin.
       if (!allowsUrl(url)) {
-        throw new HostError("raptor:host/capability-unavailable", `deep link din afara originilor permise: ${url}`, {
+        throw new HostError("raptor:host/capability-unavailable", `deep link from outside the allowed origins: ${url}`, {
           url,
           allowedOrigins: [...manifest.allowedOrigins],
         });
@@ -262,7 +263,7 @@ export function createWebHost(options: WebHostOptions): WebHost {
     },
 
     close(): void {
-      lifecycle.settle("stopped", "host inchis");
+      lifecycle.settle("stopped", "host closed");
       server.close();
     },
   };

@@ -1,16 +1,16 @@
 /**
- * Expression parser pentru DSL-ul .raptor (whitepaper RaptorEngine sectiunea 7).
+ * Expression parser for the .raptor DSL (RaptorEngine whitepaper section 7).
  *
- * Nu parsam JavaScript arbitrar in v0.1 (non-obiectiv explicit, sectiunea 1.2).
- * In schimb, definim o gramatica mica pe care o parsam COMPLET, ca sa avem o
- * analiza de dependente reala - pe ea se bazeaza Dead Signal Elimination si
- * Dependency Fusion (14.1, 14.2). Fara AST real optimizarile ar fi ghicit.
+ * We do not parse arbitrary JavaScript in v0.1 (an explicit non-goal, section 1.2).
+ * Instead, we define a small grammar that we parse COMPLETELY, so we have a real
+ * dependency analysis - Dead Signal Elimination and Dependency Fusion (14.1,
+ * 14.2) rely on it. Without a real AST the optimizations would be guessing.
  *
- * Gramatica suportata: literali (numar/string/bool), identificatori, member
- * access (`a.b`), call (`f(x)`), unary (`! - +`), binary aritmetic/comparatie,
- * logic (`&& ||`), conditional (`?:`), assignment (`= += -= *= /=`), update
- * (`++ --` prefix/postfix) si arrow (`() => expr`). Suficient pentru toate
- * exemplele din whitepaper (`count++`, `() => x * 2`, `price.toFixed(2)`).
+ * Supported grammar: literals (number/string/bool), identifiers, member
+ * access (`a.b`), call (`f(x)`), unary (`! - +`), arithmetic/comparison binary,
+ * logical (`&& ||`), conditional (`?:`), assignment (`= += -= *= /=`), update
+ * (`++ --` prefix/postfix) and arrow (`() => expr`). Enough for all the
+ * examples in the whitepaper (`count++`, `() => x * 2`, `price.toFixed(2)`).
  */
 
 export const ExprKind = {
@@ -160,7 +160,7 @@ function tokenize(src: string): Token[] {
       i++;
       continue;
     }
-    // String literals (simple si double quote, fara escape complex).
+    // String literals (single and double quote, no complex escaping).
     if (c === '"' || c === "'") {
       const quote = c;
       let j = i + 1;
@@ -214,7 +214,7 @@ function tokenize(src: string): Token[] {
 
 // --- Pratt parser ----------------------------------------------------------
 
-// Binding power pentru operatorii binari/logici (mai mare = leaga mai strans).
+// Binding power for binary/logical operators (higher = binds tighter).
 const BINDING: Record<string, number> = {
   "||": 3,
   "&&": 4,
@@ -238,12 +238,12 @@ const ASSIGN_OPS = new Set(["=", "+=", "-=", "*=", "/=", "%=", "**="]);
 const LOGICAL_OPS = new Set(["&&", "||"]);
 
 /**
- * Cat de adanc poate cobori parserul de expresii.
+ * How deep the expression parser can descend.
  *
- * E un parser recursiv-descendent, deci `((((...))))` il duce in stiva. Fara
- * limita, o expresie patologica da `RangeError: Maximum call stack size
- * exceeded` - un mesaj care arata ca s-a stricat compilatorul, cand de fapt
- * expresia e absurda. 256 e cu mult peste orice expresie scrisa de om.
+ * It is a recursive-descent parser, so `((((...))))` drives it into the stack.
+ * Without a limit, a pathological expression gives `RangeError: Maximum call
+ * stack size exceeded` - a message that looks like the compiler broke, when in
+ * fact the expression is absurd. 256 is well above any human-written expression.
  */
 const MAX_EXPR_DEPTH = 256;
 
@@ -256,10 +256,10 @@ class Parser {
     this.idx = 0;
   }
 
-  /** Coboara un nivel, verificand limita. Perechea lui e `leave()`. */
+  /** Descend one level, checking the limit. Its pair is `leave()`. */
   private enter(): void {
     if (++this.depth > MAX_EXPR_DEPTH) {
-      throw new SyntaxError(`[raptor:expr] expresie imbricata pe mai mult de ${MAX_EXPR_DEPTH} niveluri`);
+      throw new SyntaxError(`[raptor:expr] expression nested more than ${MAX_EXPR_DEPTH} levels`);
     }
   }
   private leave(): void {
@@ -275,7 +275,7 @@ class Parser {
   private eat(value: string): void {
     const t = this.peek();
     if (t.value !== value) {
-      throw new SyntaxError(`[raptor:expr] astept '${value}', gasit '${t.value || "EOF"}'`);
+      throw new SyntaxError(`[raptor:expr] expected '${value}', found '${t.value || "EOF"}'`);
     }
     this.idx++;
   }
@@ -286,7 +286,7 @@ class Parser {
   parse(): Expr {
     const expr = this.parseAssign();
     if (this.peek().type !== "eof") {
-      throw new SyntaxError(`[raptor:expr] token neasteptat '${this.peek().value}'`);
+      throw new SyntaxError(`[raptor:expr] unexpected token '${this.peek().value}'`);
     }
     return expr;
   }
@@ -301,7 +301,7 @@ class Parser {
   }
 
   private parseAssignInner(): Expr {
-    // Arrow: `(a, b) => body` sau `a => body`.
+    // Arrow: `(a, b) => body` or `a => body`.
     const arrow = this.tryParseArrow();
     if (arrow) return arrow;
 
@@ -382,7 +382,7 @@ class Parser {
       const bp = BINDING[t.value];
       if (bp === undefined || bp < minBp) break;
       this.next();
-      // `**` este dreapta-asociativ; restul stanga-asociativ.
+      // `**` is right-associative; the rest are left-associative.
       const nextMin = t.value === "**" ? bp : bp + 1;
       const right = this.parseBinary(nextMin);
       left = LOGICAL_OPS.has(t.value)
@@ -422,7 +422,7 @@ class Parser {
         this.next();
         const prop = this.peek();
         if (prop.type !== "ident") {
-          throw new SyntaxError(`[raptor:expr] astept nume proprietate dupa '.'`);
+          throw new SyntaxError(`[raptor:expr] expected property name after '.'`);
         }
         this.next();
         expr = { kind: "Member", object: expr, property: prop.value };
@@ -474,23 +474,23 @@ class Parser {
       this.eat(")");
       return expr;
     }
-    throw new SyntaxError(`[raptor:expr] token neasteptat '${t.value || "EOF"}'`);
+    throw new SyntaxError(`[raptor:expr] unexpected token '${t.value || "EOF"}'`);
   }
 }
 
-/** Parseaza un string expresie in AST. Arunca SyntaxError pentru input invalid. */
+/** Parses an expression string into an AST. Throws SyntaxError for invalid input. */
 export function parseExpression(src: string): Expr {
   return new Parser(tokenize(src)).parse();
 }
 
-// --- Analiza de dependente -------------------------------------------------
+// --- Dependency analysis ---------------------------------------------------
 
 export interface ExprAnalysis {
-  /** Identificatori radacina cititi (in pozitie de citire). */
+  /** Root identifiers read (in read position). */
   reads: string[];
-  /** Identificatori radacina scrisi (target de assign/update). */
+  /** Root identifiers written (assign/update targets). */
   writes: string[];
-  /** Nume de functii apelate direct (ex. `state`, `derived`, `serverSignal`). */
+  /** Names of directly called functions (e.g. `state`, `derived`, `serverSignal`). */
   calls: string[];
 }
 
@@ -501,9 +501,9 @@ function rootIdent(expr: Expr): string | null {
 }
 
 /**
- * Colecteaza reads/writes/calls dintr-o expresie. Parametrii arrow-urilor sunt
- * legati local si NU se raporteaza ca reads (altfel `() => count` ar raporta
- * gresit ca fiecare param e un semnal extern).
+ * Collects reads/writes/calls from an expression. Arrow parameters are bound
+ * locally and are NOT reported as reads (otherwise `() => count` would wrongly
+ * report each param as an external signal).
  */
 export function analyze(expr: Expr): ExprAnalysis {
   const reads = new Set<string>();
@@ -552,7 +552,7 @@ export function analyze(expr: Expr): ExprAnalysis {
       case "Assign": {
         const root = rootIdent(e.target);
         if (root && !bound.has(root)) writes.add(root);
-        // `+=` etc. citesc si target-ul.
+        // `+=` etc. also read the target.
         if (e.op !== "=" && root && !bound.has(root)) reads.add(root);
         walk(e.value, bound);
         return;
@@ -574,9 +574,9 @@ export function analyze(expr: Expr): ExprAnalysis {
   };
 }
 
-// --- Transformari (folosite de Dependency Fusion, 14.2) --------------------
+// --- Transformations (used by Dependency Fusion, 14.2) ---------------------
 
-/** Copie profunda a unei expresii. */
+/** Deep copy of an expression. */
 export function cloneExpr(e: Expr): Expr {
   switch (e.kind) {
     case "Num":
@@ -611,16 +611,16 @@ export function cloneExpr(e: Expr): Expr {
 }
 
 /**
- * Inlocuieste fiecare referinta a identificatorului `name` cu `replacement`
- * (folosit la fuziune: `derived c = () => b + 1` cu `b` fuzionat devine
- * `() => <expr-b> + 1`). Nu intra in scope-uri arrow care leaga `name`.
+ * Replaces every reference to the identifier `name` with `replacement`
+ * (used in fusion: `derived c = () => b + 1` with `b` fused becomes
+ * `() => <expr-b> + 1`). Does not enter arrow scopes that bind `name`.
  */
-/** Identificatorii liberi ai unei expresii (fara cei legati de arrow-uri). */
+/** The free identifiers of an expression (excluding those bound by arrows). */
 export function freeIdents(e: Expr): Set<string> {
   return new Set(analyze(e).reads);
 }
 
-/** De cate ori apare `name` ca identificator liber in `e`. */
+/** How many times `name` appears as a free identifier in `e`. */
 export function countIdent(e: Expr, name: string): number {
   switch (e.kind) {
     case "Num":
@@ -650,23 +650,23 @@ export function countIdent(e: Expr, name: string): number {
 }
 
 /**
- * Inlocuieste `name` cu `replacement`, sau intoarce `null` daca inlocuirea ar
- * **captura** o variabila.
+ * Replaces `name` with `replacement`, or returns `null` if the replacement
+ * would **capture** a variable.
  *
- * Captura arata asa:
+ * Capture looks like this:
  *
  * ```
- * const a = derived(() => x + 1)             // `x` liber = semnalul x
- * const b = derived(() => items.map(x => a)) // `x` aici = parametrul lui map
+ * const a = derived(() => x + 1)             // `x` free = the signal x
+ * const b = derived(() => items.map(x => a)) // `x` here = map's parameter
  * ```
  *
- * Inlocuind naiv iese `items.map(x => x + 1)`, unde `x` nu mai e semnalul, ci
- * parametrul - alt program. Runda 3 de audit a gasit exact asta in Dependency
- * Fusion: expresia se schimba, iar lista de dependinte primea `x`, deci
- * bindingul se abona la un semnal pe care codul emis nici nu-l mai citea.
+ * A naive substitution yields `items.map(x => x + 1)`, where `x` is no longer the
+ * signal but the parameter - a different program. Audit round 3 found exactly this
+ * in Dependency Fusion: the expression changed and the dependency list gained `x`,
+ * so the binding subscribed to a signal that the emitted code no longer even read.
  *
- * Semnatura intoarce `null` dinadins: un apelant nu are cum sa "uite" de
- * captura, fiindca trebuie sa trateze cazul ca sa compileze.
+ * The signature returns `null` on purpose: a caller cannot "forget" about
+ * capture, because it has to handle the case in order to compile.
  */
 export function substituteIdent(e: Expr, name: string, replacement: Expr): Expr | null {
   const free = freeIdents(replacement);
@@ -691,8 +691,8 @@ function substituteChecked(
       return e;
     case "Ident": {
       if (e.name !== name) return e;
-      // Aici s-ar face inlocuirea: daca vreun identificator liber al
-      // inlocuitorului e legat pe drumul pana aici, l-am captura.
+      // The substitution would happen here: if any free identifier of the
+      // replacement is bound on the path down to here, we would capture it.
       for (const f of free) if (bound.has(f)) return null;
       return cloneExpr(replacement);
     }
@@ -733,7 +733,7 @@ function substituteChecked(
     case "Assign":
       return both(go(e.target), go(e.value), (target, value) => ({ kind: "Assign", op: e.op, target, value }) as Expr);
     case "Arrow": {
-      if (e.params.includes(name)) return e; // numele e umbrit aici
+      if (e.params.includes(name)) return e; // the name is shadowed here
       const inner = new Set(bound);
       for (const p of e.params) inner.add(p);
       const body = go(e.body, inner);
@@ -743,9 +743,9 @@ function substituteChecked(
 }
 
 /**
- * Reda o expresie ca sursa JS, rescriind citirile de semnale in apeluri
- * (`count` -> `count()`) conform setului `readAsCall`. Baza codegen-ului
- * (whitepaper 9): binding-urile fine-grained cheama accesorii reactivi.
+ * Renders an expression as JS source, rewriting signal reads into calls
+ * (`count` -> `count()`) according to the `readAsCall` set. The basis of codegen
+ * (whitepaper 9): fine-grained bindings call the reactive accessors.
  */
 export function exprToJs(e: Expr, readAsCall: Set<string>): string {
   switch (e.kind) {
@@ -771,7 +771,7 @@ export function exprToJs(e: Expr, readAsCall: Set<string>): string {
       return `(${exprToJs(e.test, readAsCall)} ? ${exprToJs(e.consequent, readAsCall)} : ${exprToJs(e.alternate, readAsCall)})`;
     case "Update":
     case "Assign":
-      // Mutatiile de semnale sunt gestionate separat de codegen (writeToJs).
+      // Signal mutations are handled separately by codegen (writeToJs).
       return exprToJs(e.kind === "Update" ? e.arg : e.value, readAsCall);
     case "Arrow":
       return `(${e.params.join(", ")}) => ${exprToJs(e.body, readAsCall)}`;

@@ -1,7 +1,7 @@
 /**
- * raptorServer - SDK server TypeScript (whitepaper 24). Defineste query-uri
- * (proiectii reactive) si mutatii (comenzi tipate, autorizate), si gestioneaza
- * conexiuni RaptorWire peste orice transport.
+ * raptorServer - the TypeScript server SDK (whitepaper 24). Defines queries
+ * (reactive projections) and mutations (typed, authorized commands), and
+ * manages RaptorWire connections over any transport.
  */
 import {
   encodeMessage,
@@ -19,9 +19,9 @@ export interface QueryContext {
 }
 
 export interface QueryDef {
-  /** Autorizare per query (whitepaper 21): intoarce false pentru a refuza. */
+  /** Per-query authorization (whitepaper 21): return false to deny. */
   authorize?: (ctx: QueryContext) => boolean;
-  /** Proiectie: prefixele de handle pe care le expune query-ul. */
+  /** Projection: the handle prefixes the query exposes. */
   select: (ctx: QueryContext) => string[];
 }
 
@@ -55,7 +55,7 @@ export function raptorServer(options: RaptorServerOptions = {}): RaptorServer {
   const build = options.build ?? "0.1.0";
   let sessionSeq = 0;
 
-  // Hot path: operatiile pleaca pe adrese compacte (RAS per conexiune), nu pe nume de field.
+  // Hot path: operations go out over compact addresses (per-connection RAS), not field names.
   store.onBroadcast((sub: Subscription, batch, sequence) => {
     sub.conn.send(encodeOpsFrame(sub.book, { type: "ops", queryId: sub.queryId, sequence, batch }));
   });
@@ -71,7 +71,7 @@ export function raptorServer(options: RaptorServerOptions = {}): RaptorServer {
       return api;
     },
     serve(conn) {
-      // Reactive Address Space per conexiune (o sesiune = un address space, v0.2 5.2).
+      // Reactive Address Space per connection (one session = one address space, v0.2 5.2).
       const book = new AddressBook();
       conn.onMessage((bytes) => {
         let msg: Message;
@@ -96,7 +96,7 @@ export function raptorServer(options: RaptorServerOptions = {}): RaptorServer {
           case "query": {
             const def = queries.get(msg.name);
             if (!def) {
-              conn.send(encodeMessage({ type: "error", code: 404, message: `query necunoscut: ${msg.name}` }));
+              conn.send(encodeMessage({ type: "error", code: 404, message: `unknown query: ${msg.name}` }));
               return;
             }
             const ctx: QueryContext = { args: msg.args, store };
@@ -108,7 +108,7 @@ export function raptorServer(options: RaptorServerOptions = {}): RaptorServer {
             const sub: Subscription = { conn, queryId: msg.queryId, prefixes, seq: 0, book };
             store.addSubscription(sub);
 
-            // Automatic delta resync (v0.2, 14.3): incearca reluare incrementala.
+            // Automatic delta resync (v0.2, 14.3): attempt incremental replay.
             if (msg.sinceVersion !== undefined && msg.sinceVersion > 0) {
               const res = store.resyncSince(msg.sinceVersion, prefixes);
               if (res.mode === "delta") {
@@ -129,7 +129,7 @@ export function raptorServer(options: RaptorServerOptions = {}): RaptorServer {
                 break;
               }
             }
-            // Prima sincronizare (sau fallback): snapshot complet al proiectiei.
+            // First sync (or fallback): a full snapshot of the projection.
             conn.send(
               encodeMessage({ type: "snapshot", queryId: msg.queryId, snapshot: store.snapshotFor(prefixes) }),
             );
@@ -138,7 +138,7 @@ export function raptorServer(options: RaptorServerOptions = {}): RaptorServer {
           case "mutation": {
             const def = mutations.get(msg.name);
             if (!def) {
-              conn.send(encodeMessage({ type: "error", code: 404, message: `mutatie necunoscuta: ${msg.name}` }));
+              conn.send(encodeMessage({ type: "error", code: 404, message: `unknown mutation: ${msg.name}` }));
               return;
             }
             const ctx: MutationContext = { input: msg.input, store };
@@ -161,10 +161,10 @@ export function raptorServer(options: RaptorServerOptions = {}): RaptorServer {
             break;
           }
           case "ack":
-            // MVP: numarul de secventa confirmat este ignorat (resume ulterior).
+            // MVP: the acknowledged sequence number is ignored (resume later).
             break;
           default:
-            conn.send(encodeMessage({ type: "error", code: 400, message: `frame neasteptat: ${msg.type}` }));
+            conn.send(encodeMessage({ type: "error", code: 400, message: `unexpected frame: ${msg.type}` }));
         }
       });
     },

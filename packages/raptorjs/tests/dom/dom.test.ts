@@ -12,7 +12,7 @@ function h(tag: string): any {
   return doc.createElement(tag);
 }
 
-test("binding text fine-grained: click actualizeaza DOAR text-node-ul", () => {
+test("fine-grained text binding: a click updates ONLY the text-node", () => {
   resetStats();
   const root = h("div") as MiniElement;
   const count = state(0);
@@ -20,7 +20,7 @@ test("binding text fine-grained: click actualizeaza DOAR text-node-ul", () => {
   render(() => {
     const button = h("button");
     button.addEventListener("click", () => count.update((n) => n + 1));
-    // continut dinamic -> text node legat de semnal
+    // dynamic content -> text node bound to the signal
     const span = h("span");
     mount(span, () => `Clicks: ${count()}`);
     button.appendChild(span);
@@ -34,22 +34,22 @@ test("binding text fine-grained: click actualizeaza DOAR text-node-ul", () => {
   root.querySelector("button")!.click();
   assert.equal(root.querySelector("span")!.textContent, "Clicks: 1");
 
-  // Nu s-au creat elemente noi; s-a facut exact o actualizare de text.
+  // No new elements were created; exactly one text update happened.
   assert.equal(stats.createElement, createdAtStart);
   assert.equal(stats.textUpdate, textUpdatesAtStart + 1);
 
   root.querySelector("button")!.click();
   root.querySelector("button")!.click();
   assert.equal(root.querySelector("span")!.textContent, "Clicks: 3");
-  assert.equal(stats.createElement, createdAtStart); // inca zero elemente noi
+  assert.equal(stats.createElement, createdAtStart); // still zero new elements
 });
 
-test("binding atribut fine-grained", () => {
+test("fine-grained attribute binding", () => {
   const root = h("div") as MiniElement;
   const active = state(true);
   render(() => {
     const el = h("div");
-    // atribut reactiv
+    // reactive attribute
     bindAttr(el, "class", () => (active() ? "on" : "off"));
     return el;
   }, root);
@@ -58,7 +58,7 @@ test("binding atribut fine-grained", () => {
   assert.equal(root.querySelector("div")!.getAttribute("class"), "off");
 });
 
-test("For keyed: reutilizeaza nodurile, nu recreeaza la reordonare", () => {
+test("keyed For: reuses nodes, does not recreate on reorder", () => {
   resetStats();
   const root = h("div") as MiniElement;
   const items = state<Array<{ id: number; name: string }>>([
@@ -84,19 +84,19 @@ test("For keyed: reutilizeaza nodurile, nu recreeaza la reordonare", () => {
   assert.equal(ul.querySelector("li")!.textContent, "a");
   const createdAfterMount = stats.createElement;
 
-  // Reordoneaza -> aceleasi obiecte item -> zero elemente noi.
+  // Reorder -> same item objects -> zero new elements.
   const arr = items.peek();
   items.set([arr[2]!, arr[0]!, arr[1]!]);
   const lis = ul.childNodes.filter((n: any) => n.nodeType === 1);
   assert.deepEqual(lis.map((l: any) => l.textContent), ["c", "a", "b"]);
-  assert.equal(stats.createElement, createdAfterMount); // nimic recreat
+  assert.equal(stats.createElement, createdAfterMount); // nothing recreated
 
-  // Adauga un item -> exact un element nou.
+  // Add an item -> exactly one new element.
   items.update((a) => [...a, { id: 4, name: "d" }]);
   assert.equal(stats.createElement, createdAfterMount + 1);
 });
 
-test("For keyed: elimina itemii disparuti", () => {
+test("keyed For: removes items that disappeared", () => {
   const root = h("div") as MiniElement;
   const items = state([1, 2, 3]);
   render(() => {
@@ -118,7 +118,7 @@ test("For keyed: elimina itemii disparuti", () => {
   assert.equal(ul.querySelector("li")!.textContent, "2");
 });
 
-test("Show: comuta intre ramuri", () => {
+test("Show: switches between branches", () => {
   const root = h("div") as MiniElement;
   const visible = state(true);
   render(() => {
@@ -127,25 +127,25 @@ test("Show: comuta intre ramuri", () => {
       when: visible,
       children: (() => {
         const y = h("p");
-        y.textContent = "DA";
+        y.textContent = "YES";
         return y;
       })(),
       fallback: (() => {
         const n = h("p");
-        n.textContent = "NU";
+        n.textContent = "NO";
         return n;
       })(),
     }).mount(box, null);
     return box;
   }, root);
-  assert.equal(root.querySelector("p")!.textContent, "DA");
+  assert.equal(root.querySelector("p")!.textContent, "YES");
   visible.set(false);
-  assert.equal(root.querySelector("p")!.textContent, "NU");
+  assert.equal(root.querySelector("p")!.textContent, "NO");
   visible.set(true);
-  assert.equal(root.querySelector("p")!.textContent, "DA");
+  assert.equal(root.querySelector("p")!.textContent, "YES");
 });
 
-test("text dinamic pur: fara comment-anchor, reuseste text-node-ul", () => {
+test("pure dynamic text: no comment-anchor, reuses the text-node", () => {
   resetStats();
   const root = h("div") as MiniElement;
   const s = state("a");
@@ -156,20 +156,20 @@ test("text dinamic pur: fara comment-anchor, reuseste text-node-ul", () => {
   }, root);
 
   const span = root.querySelector("span")!;
-  // #2: regiune pur-text => DOAR un text-node, niciun comment-anchor.
+  // #2: pure-text region => ONLY a text-node, no comment-anchor.
   assert.equal(span.childNodes.length, 1);
   assert.equal(span.textContent, "a");
 
   const createTextAfter = stats.createText;
   const insertAfter = stats.insert;
   s.set("b");
-  // Fast-path: acelasi text-node, doar `.data` se schimba.
+  // Fast-path: the same text-node, only `.data` changes.
   assert.equal(span.textContent, "b");
   assert.equal(stats.createText, createTextAfter);
   assert.equal(stats.insert, insertAfter);
 });
 
-test("For clear: O(randuri) removeChild, nu O(noduri)", () => {
+test("For clear: O(rows) removeChild, not O(nodes)", () => {
   resetStats();
   const root = h("div") as MiniElement;
   const items = state<number[]>([1, 2, 3]);
@@ -191,11 +191,11 @@ test("For clear: O(randuri) removeChild, nu O(noduri)", () => {
 
   const removesBefore = stats.remove;
   items.set([]);
-  // #1: 3 randuri => exact 3 removeChild (nodul <li>), fara stergeri interne redundante.
+  // #1: 3 rows => exactly 3 removeChild (the <li> node), no redundant internal removals.
   assert.equal(stats.remove - removesBefore, 3);
 });
 
-test("template: cloneNode reuseste scheletul, createElement o singura data", () => {
+test("template: cloneNode reuses the skeleton, createElement only once", () => {
   resetStats();
   const rowTpl = template(() => {
     const tr = h("tr");
@@ -204,22 +204,22 @@ test("template: cloneNode reuseste scheletul, createElement o singura data", () 
     return tr;
   });
 
-  const a = rowTpl(); // construieste prototipul (3 createElement) + clona
+  const a = rowTpl(); // builds the prototype (3 createElement) + clone
   const afterProto = stats.createElement;
   assert.equal(afterProto, 3);
 
   const b = rowTpl();
   const c = rowTpl();
-  // #3: clonele NU mai apeleaza createElement.
+  // #3: the clones no longer call createElement.
   assert.equal(stats.createElement, afterProto);
-  // Structura clonata e corecta si independenta.
+  // The cloned structure is correct and independent.
   assert.equal(a.childNodes.length, 2);
   assert.equal((b as MiniElement).tagName, "tr");
   assert.notEqual(a, b);
   assert.notEqual(b, c);
 });
 
-// Helpers locale peste runtime (pentru claritatea testelor).
+// Local helpers over the runtime (for clarity of the tests).
 import { mountChild, applyProps, template } from "../../src/dom/runtime.ts";
 function mount(parent: any, child: any): void {
   mountChild(parent, child, null);
@@ -228,9 +228,10 @@ function bindAttr(el: any, name: string, accessor: () => unknown): void {
   applyProps(el, { [name]: accessor });
 }
 
-test("value si checked se scriu ca proprietate, nu ca atribut", () => {
-  // Un input in care s-a tastat e "dirty": setAttribute("value") nu mai schimba
-  // ce se vede, deci un binding reactiv ar muri exact dupa prima interactiune.
+test("value and checked are written as a property, not as an attribute", () => {
+  // An input that was typed into is "dirty": setAttribute("value") no longer
+  // changes what is shown, so a reactive binding would die right after the first
+  // interaction.
   const input = h("input");
   const draft = state("start");
   render(() => {
@@ -238,11 +239,11 @@ test("value si checked se scriu ca proprietate, nu ca atribut", () => {
     return input;
   }, h("div"));
 
-  assert.equal(input.value, "start", "valoarea initiala ajunge pe proprietate");
-  assert.equal(input.getAttribute("value"), "start", "si pe atribut, pentru SSR / form.reset()");
+  assert.equal(input.value, "start", "the initial value lands on the property");
+  assert.equal(input.getAttribute("value"), "start", "and on the attribute, for SSR / form.reset()");
 
-  draft.set("dupa");
-  assert.equal(input.value, "dupa", "bindingul continua sa functioneze");
+  draft.set("after");
+  assert.equal(input.value, "after", "the binding keeps working");
 
   const box = h("input");
   const done = state(false);
@@ -253,5 +254,5 @@ test("value si checked se scriu ca proprietate, nu ca atribut", () => {
 
   assert.equal(box.checked, false);
   done.set(true);
-  assert.equal(box.checked, true, "checked urmareste semnalul dupa prima bifa");
+  assert.equal(box.checked, true, "checked follows the signal after the first tick");
 });

@@ -1,9 +1,9 @@
 /**
  * @raptor/run - RaptorRun: server runtime (whitepaper RaptorEngine 19-21).
  *
- * Leaga serverSignal -> store reactiv -> RaptorWire -> client din acelasi graf
- * semantic produs de RaptorEngine, plus routing, SSR/resume, sesiuni,
- * observability si targets Node/memory.
+ * Wires serverSignal -> reactive store -> RaptorWire -> client from the same
+ * semantic graph produced by RaptorEngine, plus routing, SSR/resume, sessions,
+ * observability and Node/memory targets.
  */
 export {
   RaptorRuntime,

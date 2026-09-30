@@ -1,21 +1,22 @@
 /**
- * Adaptive encoding bazat pe schema - whitepaper v0.2 sectiunea 13.2.
+ * Schema-based adaptive encoding - whitepaper v0.2 section 13.2.
  *
- * Schema poate contine range, scale, cardinalitate si tip semantic; codec-ul
- * alege reprezentarea cu cel mai bun compromis bytes/decode. Este o optimizare
- * OPTIONALA: formatul generic (value.ts) ramane fallback pentru tipuri fara
- * constrangeri. Acesta este tinta unui codec generat din schema (8.3, 31.4).
+ * A schema can contain range, scale, cardinality and semantic type; the codec
+ * picks the representation with the best bytes/decode trade-off. It is an
+ * OPTIONAL optimization: the generic format (value.ts) remains the fallback for
+ * types without constraints. This is the target of a schema-generated codec
+ * (8.3, 31.4).
  */
 import { Writer, Reader } from "@raptor/wire/codec";
 
 export interface FieldSchema {
   type: "bool" | "uint" | "int" | "percentage" | "money" | "enum" | "float" | "string";
-  /** range pentru uint/int */
+  /** range for uint/int */
   min?: number;
   max?: number;
-  /** zecimale pentru money (scaled integer) */
+  /** decimals for money (scaled integer) */
   scale?: number;
-  /** valori pentru enum mic */
+  /** values for a small enum */
   values?: string[];
 }
 
@@ -25,7 +26,7 @@ function clamp(n: number, lo: number, hi: number): number {
   return n < lo ? lo : n > hi ? hi : n;
 }
 
-/** Codec pentru valori scalare ghidat de schema (per field). */
+/** Schema-guided codec for scalar values (per field). */
 export class SchemaCodec {
   private readonly schema: Schema;
   constructor(schema: Schema) {
@@ -35,7 +36,7 @@ export class SchemaCodec {
   encode(w: Writer, field: string, value: unknown): void {
     const s = this.schema[field];
     if (!s) {
-      // Fallback: float64 pentru numere, string altfel.
+      // Fallback: float64 for numbers, string otherwise.
       if (typeof value === "number") w.u8(0).float64(value);
       else w.u8(1).string(String(value));
       return;

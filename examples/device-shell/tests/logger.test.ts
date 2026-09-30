@@ -9,7 +9,7 @@ async function started(options: Partial<Parameters<typeof createSession>[0]> = {
   return session;
 }
 
-test("harta de hardware descrie ce are voie aplicatia sa atinga", () => {
+test("the hardware map describes what the app is allowed to touch", () => {
   assert.deepEqual(
     PINS.map((pin) => [pin.pin, pin.direction]),
     [
@@ -19,7 +19,7 @@ test("harta de hardware descrie ce are voie aplicatia sa atinga", () => {
   );
 });
 
-test("pornirea aprinde LED-ul prin pinul declarat", async () => {
+test("startup turns on the LED through the declared pin", async () => {
   const board = simulatedBoard();
   const session = await started({ board });
   try {
@@ -29,20 +29,20 @@ test("pornirea aprinde LED-ul prin pinul declarat", async () => {
   }
 });
 
-test("o bucla de citiri produce valori de la senzor, cu somn intre ele", async () => {
+test("a loop of readings produces values from the sensor, with sleep between them", async () => {
   const board = simulatedBoard({ start: 20, step: 1 });
   const session = await started({ board });
   try {
     await session.logger.run(3, 250);
     assert.equal(session.logger.readings().length, 3);
-    assert.deepEqual(board.sleeps, [250, 250], "nu se doarme si dupa ultima citire");
-    assert.match(session.logger.summary(), /treaz - 3 citiri/);
+    assert.deepEqual(board.sleeps, [250, 250], "it does not sleep after the last reading");
+    assert.match(session.logger.summary(), /awake - 3 readings/);
   } finally {
     session.close();
   }
 });
 
-test("scrierile in flash se fac doar la deriva reala, nu la fiecare citire", async () => {
+test("flash writes happen only on real drift, not on every reading", async () => {
   const storage = new Map<string, string>();
   const board = simulatedBoard({ start: 20, step: 0.2 });
   const session = await started({ board, storage });
@@ -50,14 +50,14 @@ test("scrierile in flash se fac doar la deriva reala, nu la fiecare citire", asy
     await session.logger.run(6, 100);
     const info = (await session.bridge.call("device.info")) as { nvsWrites: number };
     assert.equal(session.logger.readings().length, 6);
-    assert.ok(info.nvsWrites < 6, `sase citiri nu ar trebui sa dea sase scrieri (au dat ${info.nvsWrites})`);
-    assert.ok(info.nvsWrites >= 1, "dar prima valoare ajunge pe disc");
+    assert.ok(info.nvsWrites < 6, `six readings should not produce six writes (they produced ${info.nvsWrites})`);
+    assert.ok(info.nvsWrites >= 1, "but the first value reaches the disk");
   } finally {
     session.close();
   }
 });
 
-test("citirile salvate supravietuiesc repornirii, pentru ca traiesc in NVS", async () => {
+test("saved readings survive a restart, because they live in NVS", async () => {
   const storage = new Map<string, string>();
   const first = await started({ board: simulatedBoard({ start: 30, step: 1 }), storage });
   try {
@@ -68,34 +68,34 @@ test("citirile salvate supravietuiesc repornirii, pentru ca traiesc in NVS", asy
 
   const second = await started({ board: simulatedBoard(), storage });
   try {
-    assert.equal(second.logger.readings().length, 2, "a doua pornire citeste ce a scris prima");
+    assert.equal(second.logger.readings().length, 2, "the second startup reads what the first wrote");
   } finally {
     second.close();
   }
 });
 
-test("aplicatia da semne de viata la fiecare trecere prin bucla", async () => {
+test("the app shows signs of life on every pass through the loop", async () => {
   const board = simulatedBoard();
   const session = await started({ board, watchdogMs: 1000 });
   try {
     for (let round = 0; round < 4; round += 1) {
-      // Ceasul trece aproape de fereastra, dar bucla il reimprospateaza la timp.
+      // The clock gets close to the window, but the loop refreshes it in time.
       session.host.tick(900);
       await session.logger.step();
     }
-    assert.deepEqual(board.resets, [], "o bucla sanatoasa nu ajunge niciodata la reset");
+    assert.deepEqual(board.resets, [], "a healthy loop never reaches a reset");
     assert.equal(session.logger.readings().length, 4);
   } finally {
     session.close();
   }
 });
 
-test("o aplicatie blocata este resetata de host, nu lasata sa atarne", async () => {
+test("a hung app is reset by the host, not left to hang", async () => {
   const board = simulatedBoard();
   const session = await started({ board, watchdogMs: 1000 });
   try {
     await session.logger.step();
-    // Bucla nu mai trece pe la `watchdog.pet`: exact cazul pentru care exista.
+    // The loop no longer passes through `watchdog.pet`: exactly the case it exists for.
     session.host.tick(1500);
     assert.deepEqual(board.resets, ["watchdog"]);
     assert.equal(session.host.lifecycle.state, "stopped");
@@ -104,45 +104,45 @@ test("o aplicatie blocata este resetata de host, nu lasata sa atarne", async () 
   }
 });
 
-test("avertismentul de watchdog ajunge in starea aplicatiei", async () => {
+test("the watchdog warning reaches the app's state", async () => {
   const session = await started({ watchdogMs: 1000 });
   try {
     await session.logger.step();
     session.host.tick(800);
     await new Promise((resolve) => setTimeout(resolve, 5));
-    assert.match(String(session.logger.lastError()), /watchdog: \d+ms ramase/);
+    assert.match(String(session.logger.lastError()), /watchdog: \d+ms remaining/);
   } finally {
     session.close();
   }
 });
 
-test("fara periferice declarate, logger-ul nu citeste si nu aprinde nimic", async () => {
+test("without declared peripherals, the logger reads nothing and turns on nothing", async () => {
   const board = simulatedBoard();
   const session = await started({ board, capabilities: [] });
   try {
     await session.logger.run(3, 100);
-    assert.deepEqual(board.writes, [], "LED-ul nu a fost atins");
-    assert.deepEqual(board.sleeps, [], "nici somnul nu este permis");
-    assert.equal(session.logger.readings().length, 0, "fara magistrala nu exista citiri");
-    // Si totusi aplicatia a rulat pana la capat, fara sa crape.
-    assert.match(session.logger.summary(), /0 citiri/);
+    assert.deepEqual(board.writes, [], "the LED was not touched");
+    assert.deepEqual(board.sleeps, [], "sleep is not allowed either");
+    assert.equal(session.logger.readings().length, 0, "without a bus there are no readings");
+    // And yet the app ran to the end, without crashing.
+    assert.match(session.logger.summary(), /0 readings/);
   } finally {
     session.close();
   }
 });
 
-test("aplicatia urmareste somnul prin evenimentele host-ului", async () => {
+test("the app tracks sleep through the host's events", async () => {
   const board = simulatedBoard({ blockSleep: true });
   const session = await started({ board });
   try {
     const sleeping = session.bridge.call("power.sleep", { durationMs: 100 });
     await new Promise((resolve) => setTimeout(resolve, 5));
-    assert.match(session.logger.summary(), /^adormit/, "aplicatia stie ca placheta doarme");
+    assert.match(session.logger.summary(), /^asleep/, "the app knows the board is sleeping");
 
     board.finishSleep();
     await sleeping;
     await new Promise((resolve) => setTimeout(resolve, 5));
-    assert.match(session.logger.summary(), /^treaz/, "si stie cand s-a trezit");
+    assert.match(session.logger.summary(), /^awake/, "and it knows when it woke up");
   } finally {
     session.close();
   }

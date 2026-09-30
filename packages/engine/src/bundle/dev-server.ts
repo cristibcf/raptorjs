@@ -1,8 +1,8 @@
 /**
- * Dev server zero-dep (node:http): serveste index.html cu scriptul rescris spre
- * bundle, construieste bundle-ul la cerere, serveste asset-uri statice, face
- * fallback history pentru rutele SPA si live-reload prin SSE cand fs.watch
- * detecteaza o schimbare. Inlocuieste `vite`.
+ * Zero-dep dev server (node:http): serves index.html with the script rewritten to
+ * the bundle, builds the bundle on demand, serves static assets, does history
+ * fallback for SPA routes and live-reload over SSE when fs.watch detects a change.
+ * Replaces `vite`.
  */
 import { createServer, type Server, type ServerResponse } from "node:http";
 import { readFileSync, existsSync, statSync, watch, type FSWatcher } from "node:fs";
@@ -11,21 +11,21 @@ import { bundleApp } from "./bundle.ts";
 import { rewriteHtml } from "./html.ts";
 
 export interface DevServerOptions {
-  /** Entry .tsx/.ts (cale absoluta sau relativa la cwd). */
+  /** Entry .tsx/.ts (absolute path or relative to cwd). */
   entry: string;
-  /** Radacina pentru index.html si asset-uri statice (implicit dirul entry-ului). */
+  /** Root for index.html and static assets (defaults to the entry's directory). */
   root?: string;
-  /** Calea index.html (implicit <root>/index.html). */
+  /** The index.html path (defaults to <root>/index.html). */
   html?: string;
-  /** Portul (implicit 5173). */
+  /** The port (defaults to 5173). */
   port?: number;
   /**
-   * Interfata pe care asculta (implicit `127.0.0.1`).
+   * The interface it listens on (defaults to `127.0.0.1`).
    *
-   * Implicitul e deliberat local: un server de dezvoltare compileaza si serveste
-   * fisiere din directorul tau de lucru, deci a-l lega pe toate interfetele il
-   * expune retelei fara ca nimeni sa fi cerut asta. Cine chiar vrea sa-l
-   * deschida (test pe telefon, container) trece `"0.0.0.0"` explicit.
+   * The default is deliberately local: a dev server compiles and serves files
+   * from your working directory, so binding it on all interfaces exposes it to
+   * the network without anyone having asked for that. Whoever actually wants to
+   * open it up (testing on a phone, a container) passes `"0.0.0.0"` explicitly.
    */
   host?: string;
 }
@@ -45,35 +45,36 @@ const MIME: Record<string, string> = {
 const BUNDLE_PATH = "/__raptor_bundle.js";
 const RELOAD_PATH = "/__raptor_reload";
 
-/** Windows compara caile fara sa tina cont de registrul literelor. */
+/** Windows compares paths case-insensitively. */
 const CASE_INSENSITIVE = sep === "\\";
 
 /**
- * Calea de pe disc a unui asset cerut, sau `null` daca cererea nu are voie.
+ * The on-disk path of a requested asset, or `null` if the request is not allowed.
  *
- * Trei reguli, fiecare pentru o gaura reala:
+ * Three rules, each for a real hole:
  *
- * 1. **Decodam calea.** `req.url` este tinta bruta din cerere, nedecodata. Fara
- *    pasul asta, `/logo%20mic.png` cauta un fisier cu `%20` in nume si da 404.
+ * 1. **We decode the path.** `req.url` is the raw target from the request,
+ *    undecoded. Without this step, `/logo%20mic.png` looks for a file with `%20`
+ *    in its name and returns 404.
  *
- * 2. **Continerea se verifica pe segmente, nu pe prefix de sir.** `startsWith`
- *    parea corect si nu era: cu radacina `.../site`, cererea `/../site-privat/.env`
- *    da o cale care chiar incepe cu radacina, deci trecea. Este exact greseala
- *    reparata in `server/store.ts` la auditul precedent, reaparuta aici.
+ * 2. **Containment is checked per segment, not by string prefix.** `startsWith`
+ *    looked correct and wasn't: with root `.../site`, the request `/../site-private/.env`
+ *    yields a path that does start with the root, so it passed. This is exactly the
+ *    mistake fixed in `server/store.ts` at the previous audit, resurfaced here.
  *
- * 3. **Nu servim nimic care incepe cu punct, si nicio sursa.** `.env`, `.git/`
- *    si `raptor.runtime.json`-ul cu capabilitati nu au ce cauta pe fir nici pe
- *    `localhost`; sursele `.ts`/`.tsx` trec oricum prin bundle.
+ * 3. **We serve nothing that starts with a dot, and no source.** `.env`, `.git/`
+ *    and the `raptor.runtime.json` with capabilities have no business on the wire,
+ *    not even on `localhost`; `.ts`/`.tsx` sources go through the bundle anyway.
  */
 function resolveAsset(root: string, url: string): string | null {
   let decoded: string;
   try {
     decoded = decodeURIComponent(url);
   } catch {
-    // Secventa procentuala invalida: cerere malformata, nu asset.
+    // Invalid percent sequence: a malformed request, not an asset.
     return null;
   }
-  // NUL taie sirul in apelurile de sistem: `/a.png\0.ts` ar ocoli filtrul.
+  // NUL truncates the string in system calls: `/a.png\0.ts` would bypass the filter.
   if (decoded.includes("\0")) return null;
 
   const segments = decoded.split(/[/\\]+/).filter((part) => part.length > 0);
@@ -98,7 +99,7 @@ export function startDevServer(options: DevServerOptions): Server {
   const sendIndex = (res: ServerResponse): void => {
     if (!existsSync(htmlPath)) {
       res.writeHead(404, { "content-type": MIME[".html"] });
-      res.end(`<pre>index.html negasit la ${htmlPath}</pre>`);
+      res.end(`<pre>index.html not found at ${htmlPath}</pre>`);
       return;
     }
     const html = rewriteHtml(readFileSync(htmlPath, "utf8"), BUNDLE_PATH + "?t=" + Date.now(), true);
@@ -146,7 +147,7 @@ export function startDevServer(options: DevServerOptions): Server {
       return;
     }
 
-    // Asset static (nu servim surse .ts/.tsx: acelea trec prin bundle).
+    // Static asset (we don't serve .ts/.tsx sources: those go through the bundle).
     const filePath = resolveAsset(root, url);
     if (filePath !== null && existsSync(filePath) && statSync(filePath).isFile()) {
       res.writeHead(200, { "content-type": MIME[extname(filePath)] ?? "application/octet-stream" });
@@ -154,10 +155,10 @@ export function startDevServer(options: DevServerOptions): Server {
       return;
     }
 
-    // Fallback history: o ruta de client (`/learn`) primeste index.html, ca
-    // deep-link-urile si refresh-ul pe subpagini sa nu cada pe 404. Cerem accept
-    // text/html si absenta extensiei, ca un asset lipsa (`/logo.png`, un import
-    // gresit) sa ramana 404 vizibil in loc sa primeasca HTML.
+    // History fallback: a client route (`/learn`) gets index.html, so that
+    // deep-links and refreshes on subpages don't fall to 404. We require an
+    // accept of text/html and the absence of an extension, so that a missing
+    // asset (`/logo.png`, a wrong import) stays a visible 404 instead of getting HTML.
     const wantsHtml = (req.headers.accept ?? "").includes("text/html");
     const looksLikeFile = /\.[^/]+$/.test(url);
     if ((req.method === "GET" || req.method === "HEAD") && wantsHtml && !looksLikeFile) {
@@ -169,13 +170,13 @@ export function startDevServer(options: DevServerOptions): Server {
     res.end("Not found");
   });
 
-  // Live-reload: urmareste dirul entry-ului (recursiv) + radacina.
+  // Live-reload: watches the entry's directory (recursively) + the root.
   const notify = (): void => {
     for (const c of clients) {
       try {
         c.write("data: reload\n\n");
       } catch {
-        /* client inchis */
+        /* client closed */
       }
     }
   };
@@ -184,22 +185,22 @@ export function startDevServer(options: DevServerOptions): Server {
     try {
       watchers.push(watch(dir, { recursive: true }, notify));
     } catch {
-      /* fs.watch recursiv indisponibil pe unele platforme */
+      /* recursive fs.watch unavailable on some platforms */
     }
   }
-  // Fara asta watcher-ele tin procesul viu dupa server.close().
+  // Without this the watchers keep the process alive after server.close().
   server.on("close", () => {
     for (const w of watchers) w.close();
   });
 
   server.listen(port, host, () => {
-    // Nu `port`: cu 0 sistemul alege unul, si vrem sa-l tiparim pe cel real.
+    // Not `port`: with 0 the system picks one, and we want to print the real one.
     const bound = (server.address() as { port: number } | null)?.port ?? port;
     const shown = host === "127.0.0.1" ? "localhost" : host;
     console.log(`RaptorBundle dev  →  http://${shown}:${bound}`);
     console.log(`  entry: ${entry}`);
     console.log(`  root : ${root}`);
-    if (host !== "127.0.0.1") console.log(`  atentie: expus pe ${host}, nu doar local`);
+    if (host !== "127.0.0.1") console.log(`  warning: exposed on ${host}, not just local`);
   });
   return server;
 }

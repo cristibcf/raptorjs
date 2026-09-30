@@ -1,6 +1,6 @@
 /**
- * Changelog: o listă de release-uri pe o linie de timp, fiecare cu blocuri de
- * conținut randate de `renderBlocks`. Construit cu RaptorJS ca tot restul.
+ * Changelog: a list of releases on a timeline, each with content blocks
+ * rendered by `renderBlocks`. Built with RaptorJS like everything else.
  */
 import { SectionHead, renderBlocks } from "../lib/ui.tsx";
 import { RELEASES } from "../content/changelog.ts";

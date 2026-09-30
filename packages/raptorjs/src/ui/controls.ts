@@ -1,10 +1,10 @@
 /**
- * Controale de formular, runda a doua.
+ * Form controls, round two.
  *
- * Toate primesc semnalul din afara. Detaliile pe care le rezolva sunt cele
- * uitate cand fiecare isi scrie propriul control: `NumberInput` care nu produce
- * `0.30000000000000004`, `PinInput` care accepta un cod lipit dintr-un SMS,
- * `SearchInput` care nu trimite o cerere pe fiecare litera.
+ * They all take their signal from the outside. The details they handle are the
+ * ones that get forgotten when everyone writes their own control: a `NumberInput`
+ * that doesn't produce `0.30000000000000004`, a `PinInput` that accepts a code
+ * pasted from an SMS, a `SearchInput` that doesn't fire a request on every letter.
  */
 import { state, derived, onCleanup, type Accessor, type State } from "raptorjs";
 import { R, For, Show, type Child } from "raptorjs/dom";
@@ -28,12 +28,12 @@ export interface NumberInputProps {
   min?: number;
   max?: number;
   step?: number;
-  /** Zecimale afisate. Dedus din `step` daca lipseste. */
+  /** Decimals displayed. Inferred from `step` if omitted. */
   precision?: number;
   disabled?: Accessor<boolean> | boolean;
   id?: string;
   label?: string;
-  /** Unitate afisata dupa numar (ex. "kg", "%"). */
+  /** Unit shown after the number (e.g. "kg", "%"). */
   suffix?: Child;
   onChange?: (value: number) => void;
   class?: string;
@@ -54,8 +54,8 @@ export function NumberInput(props: NumberInputProps): El {
 
   const clamp = (n: number): number => {
     const bounded = Math.min(max, Math.max(min, n));
-    // Aritmetica in virgula mobila: 0.1 + 0.2 = 0.30000000000000004.
-    // Rotunjim la precizia pasului, altfel campul afiseaza gunoi.
+    // Floating-point arithmetic: 0.1 + 0.2 = 0.30000000000000004.
+    // Round to the step's precision, otherwise the field shows garbage.
     return precision > 0 ? Number(bounded.toFixed(precision)) : Math.round(bounded);
   };
 
@@ -82,8 +82,8 @@ export function NumberInput(props: NumberInputProps): El {
     R.button({
       type: "button",
       class: "rui-number-step",
-      "aria-label": "Scade",
-      tabindex: "-1", // pasul e accesibil prin sageti pe input
+      "aria-label": "Decrease",
+      tabindex: "-1", // the step is accessible via arrow keys on the input
       disabled: () => read(props.disabled) || atMin(),
       "on:click": () => bump(-1),
     }, "−"),
@@ -101,11 +101,11 @@ export function NumberInput(props: NumberInputProps): El {
       value: () => display(),
       "on:input": (e: any) => {
         const raw = String(e.target?.value ?? "").replace(",", ".");
-        // Nu plafonam in timpul tastarii: ai bloca scrierea lui "-" sau "0.".
+        // Don't clamp while typing: you'd block typing "-" or "0.".
         const parsed = Number(raw);
         if (raw !== "" && Number.isFinite(parsed)) props.value.set(parsed);
       },
-      // Plafonarea se aplica la blur, cand utilizatorul a terminat de scris.
+      // Clamping applies on blur, once the user has finished typing.
       "on:blur": () => write(props.value.peek()),
       "on:keydown": (e: any) => {
         if (e.key === "ArrowUp") {
@@ -127,7 +127,7 @@ export function NumberInput(props: NumberInputProps): El {
     R.button({
       type: "button",
       class: "rui-number-step",
-      "aria-label": "Crește",
+      "aria-label": "Increase",
       tabindex: "-1",
       disabled: () => read(props.disabled) || atMax(),
       "on:click": () => bump(1),
@@ -143,12 +143,12 @@ export interface PasswordInputProps {
   label?: string;
   placeholder?: string;
   disabled?: Accessor<boolean> | boolean;
-  /** Bara de putere a parolei. */
+  /** Password strength bar. */
   strength?: boolean;
   class?: string;
 }
 
-/** Scor 0..4, dupa lungime si varietate de caractere. */
+/** Score 0..4, based on length and character variety. */
 export function passwordStrength(value: string): number {
   if (value.length === 0) return 0;
   let score = 0;
@@ -159,7 +159,7 @@ export function passwordStrength(value: string): number {
   return Math.min(4, score);
 }
 
-const STRENGTH_LABEL = ["", "slabă", "acceptabilă", "bună", "puternică"];
+const STRENGTH_LABEL = ["", "weak", "acceptable", "good", "strong"];
 
 export function PasswordInput(props: PasswordInputProps): El {
   const id = props.id ?? "rui-pw-" + ++idSeq;
@@ -172,7 +172,7 @@ export function PasswordInput(props: PasswordInputProps): El {
       { class: "rui-password-row" },
       R.input({
         id,
-        // Tipul se schimba reactiv; browserul pastreaza valoarea si cursorul.
+        // The type changes reactively; the browser keeps the value and cursor.
         type: () => (visible() ? "text" : "password"),
         class: "rui-input-control",
         value: () => props.value(),
@@ -185,9 +185,9 @@ export function PasswordInput(props: PasswordInputProps): El {
       R.button({
         type: "button",
         class: "rui-password-toggle",
-        // Eticheta descrie ACTIUNEA, nu starea: altfel utilizatorul nu stie
-        // ce se intampla daca apasa.
-        "aria-label": () => (visible() ? "Ascunde parola" : "Arată parola"),
+        // The label describes the ACTION, not the state: otherwise the user
+        // doesn't know what happens if they press it.
+        "aria-label": () => (visible() ? "Hide password" : "Show password"),
         "aria-pressed": () => String(visible()),
         "on:click": () => visible.update((v) => !v),
       }, () => (visible() ? "🙈" : "👁")),
@@ -200,7 +200,7 @@ export function PasswordInput(props: PasswordInputProps): El {
             style: () => "width:" + score() * 25 + "%",
           }),
           R.span({ class: "rui-sr-only", "aria-live": "polite" }, () =>
-            score() === 0 ? "" : "Putere parolă: " + STRENGTH_LABEL[score()],
+            score() === 0 ? "" : "Password strength: " + STRENGTH_LABEL[score()],
           ),
         )
       : null,
@@ -211,9 +211,9 @@ export function PasswordInput(props: PasswordInputProps): El {
 
 export interface SearchInputProps {
   value: State<string>;
-  /** Apelat dupa `debounce` ms de liniste, nu la fiecare tasta. */
+  /** Called after `debounce` ms of quiet, not on every keystroke. */
   onSearch?: (query: string) => void;
-  /** Ms de asteptare. Implicit 250. `0` dezactiveaza. */
+  /** Ms to wait. Default 250. `0` disables it. */
   debounce?: number;
   placeholder?: string;
   disabled?: Accessor<boolean> | boolean;
@@ -265,7 +265,7 @@ export function SearchInput(props: SearchInputProps): El {
         emit(next, false);
       },
       "on:keydown": (e: any) => {
-        // Enter cauta imediat; Escape goleste.
+        // Enter searches immediately; Escape clears.
         if (e.key === "Enter") emit(props.value.peek(), true);
         else if (e.key === "Escape" && props.value.peek() !== "") {
           e.preventDefault?.();
@@ -279,7 +279,7 @@ export function SearchInput(props: SearchInputProps): El {
       children: R.button({
         type: "button",
         class: "rui-search-clear",
-        "aria-label": "Golește căutarea",
+        "aria-label": "Clear search",
         "on:click": () => {
           props.value.set("");
           emit("", true);
@@ -294,9 +294,9 @@ export function SearchInput(props: SearchInputProps): El {
 export interface PinInputProps {
   value: State<string>;
   length?: number;
-  /** Ascunde cifrele. */
+  /** Hide the digits. */
   mask?: boolean;
-  /** Doar cifre. Implicit `true`. */
+  /** Digits only. Default `true`. */
   numeric?: boolean;
   disabled?: Accessor<boolean> | boolean;
   label?: string;
@@ -305,11 +305,11 @@ export interface PinInputProps {
 }
 
 /**
- * PinInput - casete separate pentru un cod scurt.
+ * PinInput - separate boxes for a short code.
  *
- * Partea care lipseste din majoritatea implementarilor: **lipirea unui cod
- * intreg**. Utilizatorul copiaza "123456" din SMS si il lipeste in prima
- * caseta; daca nu tratezi `paste`, primeste un singur "1".
+ * The part missing from most implementations: **pasting a whole code**. The
+ * user copies "123456" from an SMS and pastes it into the first box; if you
+ * don't handle `paste`, they get a single "1".
  */
 export function PinInput(props: PinInputProps): El {
   const length = props.length ?? 6;
@@ -354,7 +354,7 @@ export function PinInput(props: PinInputProps): El {
         inputmode: numeric ? "numeric" : "text",
         maxlength: "1",
         autocomplete: index === 0 ? "one-time-code" : "off",
-        "aria-label": (props.label ?? "Cifra") + " " + (index + 1) + " din " + length,
+        "aria-label": (props.label ?? "Digit") + " " + (index + 1) + " of " + length,
         disabled: () => read(props.disabled),
         value: () => charAt(index),
         ref: (el: El) => {
@@ -399,10 +399,10 @@ export function PinInput(props: PinInputProps): El {
 export interface TagsInputProps {
   value: State<readonly string[]>;
   placeholder?: string;
-  /** Caractere care confirma un tag. Implicit Enter si virgula. */
+  /** Characters that confirm a tag. Default Enter and comma. */
   separators?: readonly string[];
   max?: number;
-  /** Respinge duplicatele. Implicit `true`. */
+  /** Reject duplicates. Default `true`. */
   unique?: boolean;
   disabled?: Accessor<boolean> | boolean;
   label?: string;
@@ -441,7 +441,7 @@ export function TagsInput(props: TagsInputProps): El {
     For({
       each: () => props.value(),
       children: (tag: string, index: number) =>
-        Tag({ children: tag, removeLabel: "Elimină " + tag, onRemove: () => removeAt(index) }),
+        Tag({ children: tag, removeLabel: "Remove " + tag, onRemove: () => removeAt(index) }),
     }),
     R.input({
       type: "text",
@@ -455,12 +455,12 @@ export function TagsInput(props: TagsInputProps): El {
           e.preventDefault?.();
           add(draft.peek());
         } else if (e.key === "Backspace" && draft.peek() === "") {
-          // Backspace pe input gol sterge ultimul tag - ca in orice client de email.
+          // Backspace on an empty input removes the last tag - like any email client.
           const current = props.value.peek();
           if (current.length > 0) removeAt(current.length - 1);
         }
       },
-      // Ce e in curs de scriere la iesirea din camp se confirma, nu se pierde.
+      // Whatever is being typed when the field loses focus is confirmed, not lost.
       "on:blur": () => add(draft.peek()),
     }),
   );
@@ -471,7 +471,7 @@ export function TagsInput(props: TagsInputProps): El {
 export interface EditableProps {
   value: State<string>;
   placeholder?: string;
-  /** Validare inainte de confirmare; `false` anuleaza. */
+  /** Validation before commit; `false` cancels. */
   validate?: (value: string) => boolean;
   onCommit?: (value: string) => void;
   label?: string;
@@ -479,10 +479,10 @@ export interface EditableProps {
 }
 
 /**
- * Editable - text care devine input la click.
+ * Editable - text that turns into an input on click.
  *
- * Escape anuleaza si restaureaza valoarea initiala, Enter confirma. Fara
- * anulare, o editare gresita nu mai poate fi reparata decat rescriind.
+ * Escape cancels and restores the initial value, Enter confirms. Without a
+ * cancel, a mistaken edit can only be fixed by retyping.
  */
 export function Editable(props: EditableProps): El {
   const editing = state(false);
@@ -492,7 +492,7 @@ export function Editable(props: EditableProps): El {
   const start = (): void => {
     draft.set(props.value.peek());
     editing.set(true);
-    // Focusul se cere dupa ce inputul exista in DOM.
+    // Focus is requested after the input exists in the DOM.
     queueMicrotask(() => {
       if (inputEl && typeof inputEl.focus === "function") inputEl.focus();
     });
@@ -539,7 +539,7 @@ export function Editable(props: EditableProps): El {
         {
           type: "button",
           class: "rui-editable-preview",
-          "aria-label": (props.label ?? "Editează") + ": " + "click pentru a edita",
+          "aria-label": (props.label ?? "Edit") + ": " + "click to edit",
           "on:click": start,
         },
         () => props.value() || props.placeholder || "—",
@@ -548,7 +548,7 @@ export function Editable(props: EditableProps): El {
   );
 }
 
-/* --------------------------------------------------------- selectii mici -- */
+/* --------------------------------------------------------- small selects -- */
 
 export interface NativeSelectProps<T extends string> {
   value: State<T>;
@@ -559,7 +559,7 @@ export interface NativeSelectProps<T extends string> {
   class?: string;
 }
 
-/** `<select>` nativ stilizat. Pe mobil e adesea preferabil unuia custom. */
+/** A styled native `<select>`. On mobile it's often preferable to a custom one. */
 export function NativeSelect<T extends string>(props: NativeSelectProps<T>): El {
   return R.select(
     {
@@ -587,7 +587,7 @@ export interface CheckboxGroupProps<T> {
   value: State<ReadonlySet<T>>;
   options: readonly { value: T; label: Child; disabled?: boolean }[];
   label?: string;
-  /** Casuta "selectează tot", cu stare `indeterminate`. */
+  /** A "select all" checkbox, with an `indeterminate` state. */
   selectAll?: boolean;
   selectAllLabel?: string;
   orientation?: "horizontal" | "vertical";
@@ -631,14 +631,14 @@ export function CheckboxGroup<T>(props: CheckboxGroupProps<T>): El {
             type: "checkbox",
             class: "rui-checkbox-box",
             checked: () => allChecked(),
-            // Starea partiala e `mixed`, nu "bifat" sau "nebifat".
+            // The partial state is `mixed`, not "checked" or "unchecked".
             "aria-checked": () => (allChecked() ? "true" : someChecked() ? "mixed" : "false"),
             ref: (el: El) => {
               if (el) el.indeterminate = someChecked() && !allChecked();
             },
             "on:change": toggleAll,
           }),
-          R.span({ class: "rui-checkbox-label" }, props.selectAllLabel ?? "Selectează tot"),
+          R.span({ class: "rui-checkbox-label" }, props.selectAllLabel ?? "Select all"),
         )
       : null,
     props.options.map((option) =>
@@ -666,7 +666,7 @@ export interface SegmentedControlProps<T extends string> {
   class?: string;
 }
 
-/** Taburi-buton pentru 2-5 optiuni exclusive. Roving tabindex, ca RadioGroup. */
+/** Button-tabs for 2-5 exclusive options. Roving tabindex, like RadioGroup. */
 export function SegmentedControl<T extends string>(props: SegmentedControlProps<T>): El {
   const enabled = (): typeof props.options => props.options.filter((o) => !o.disabled);
 
@@ -721,7 +721,7 @@ export interface ToggleButtonProps {
   class?: string;
 }
 
-/** Buton cu stare. `aria-pressed`, nu `aria-checked`: e buton, nu checkbox. */
+/** A stateful button. `aria-pressed`, not `aria-checked`: it's a button, not a checkbox. */
 export function ToggleButton(props: ToggleButtonProps): El {
   return R.button(
     {
@@ -741,7 +741,7 @@ export function ToggleButton(props: ToggleButtonProps): El {
 }
 
 export interface ToggleGroupProps<T extends string> {
-  /** `single` tine o valoare, `multiple` un set. */
+  /** `single` holds one value, `multiple` a set. */
   mode?: "single" | "multiple";
   value: State<T | null> | State<ReadonlySet<T>>;
   options: readonly { value: T; label: Child; disabled?: boolean }[];
@@ -789,7 +789,7 @@ export function ToggleGroup<T extends string>(props: ToggleGroupProps<T>): El {
   );
 }
 
-/* ----------------------------------------------------------- mici utile -- */
+/* ----------------------------------------------------------- small bits -- */
 
 export interface CloseButtonProps {
   onClick: () => void;
@@ -803,7 +803,7 @@ export function CloseButton(props: CloseButtonProps): El {
     {
       type: "button",
       class: "rui-close rui-close-" + (props.size ?? "md") + (props.class ? " " + props.class : ""),
-      "aria-label": props.label ?? "Închide",
+      "aria-label": props.label ?? "Close",
       "on:click": props.onClick,
     },
     "✕",
@@ -811,11 +811,11 @@ export function CloseButton(props: CloseButtonProps): El {
 }
 
 export interface CopyButtonProps {
-  /** Textul copiat. */
+  /** The text to copy. */
   text: Accessor<string> | string;
   children?: Child;
   copiedLabel?: Child;
-  /** Ms cat ramane starea "copiat". Implicit 1500. */
+  /** Ms the "copied" state lasts. Default 1500. */
   resetAfter?: number;
   class?: string;
 }
@@ -838,7 +838,7 @@ export function CopyButton(props: CopyButtonProps): El {
         copied.set(false);
       }, props.resetAfter ?? 1500);
     } catch {
-      /* clipboard blocat: butonul ramane in starea initiala */
+      /* clipboard blocked: the button stays in its initial state */
     }
   };
 
@@ -847,16 +847,16 @@ export function CopyButton(props: CopyButtonProps): El {
     size: "sm",
     class: props.class,
     onClick: copy,
-    // `aria-live` pe eticheta: schimbarea "copiază" -> "copiat" e anuntata.
+    // `aria-live` on the label: the change "copy" -> "copied" is announced.
     children: R.span({ "aria-live": "polite" }, () =>
-      copied() ? (props.copiedLabel ?? "copiat ✓") : (props.children ?? "copiază"),
+      copied() ? (props.copiedLabel ?? "copied ✓") : (props.children ?? "copy"),
     ),
   });
 }
 
 export interface InputGroupProps {
   children: Child;
-  /** Continut lipit in stanga (prefix) si in dreapta (sufix). */
+  /** Content attached on the left (prefix) and right (suffix). */
   prefix?: Child;
   suffix?: Child;
   class?: string;

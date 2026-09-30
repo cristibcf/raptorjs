@@ -1,12 +1,12 @@
 /**
- * Parser .raptor -> Raptor IR (whitepaper RaptorEngine, pasii 1-4 din 6).
+ * Parser .raptor -> Raptor IR (RaptorEngine whitepaper, steps 1-4 of 6).
  *
- * v0.1 fuzioneaza parse+resolve+lower intr-o singura trecere peste un DSL mic,
- * bine definit (vezi expr.ts pentru justificare). Rezultatul e IR real cu
- * stable IDs, nu un AST de string-uri. Un parser JS complet (Oxc) este un
- * non-obiectiv v0.1 (1.2) - engine-ul consuma parser-ul printr-un adapter.
+ * v0.1 fuses parse+resolve+lower into a single pass over a small, well-defined
+ * DSL (see expr.ts for the rationale). The result is real IR with stable IDs,
+ * not an AST of strings. A full JS parser (Oxc) is a v0.1 non-goal (1.2) - the
+ * engine consumes the parser through an adapter.
  *
- * Forma sursei:
+ * Source shape:
  *
  *   component Counter {
  *     const count = state(0)
@@ -76,29 +76,29 @@ class Scanner {
   }
   expect(s: string): void {
     if (!this.startsWith(s)) {
-      throw new RaptorParseError(`astept '${s}', gasit '${this.src.slice(this.pos, this.pos + 8)}'`, this.pos);
+      throw new RaptorParseError(`expected '${s}', found '${this.src.slice(this.pos, this.pos + 8)}'`, this.pos);
     }
     this.pos += s.length;
   }
   readIdent(): string {
     const start = this.pos;
     while (!this.eof() && /[A-Za-z0-9_$-]/.test(this.peek())) this.pos++;
-    if (this.pos === start) throw new RaptorParseError("astept identificator", this.pos);
+    if (this.pos === start) throw new RaptorParseError("expected identifier", this.pos);
     return this.src.slice(start, this.pos);
   }
-  /** Citeste un bloc echilibrat delimitat de open/close, returneaza interiorul. */
+  /** Reads a balanced block delimited by open/close, returns the interior. */
   readBalanced(open: string, close: string): string {
-    if (this.peek() !== open) throw new RaptorParseError(`astept '${open}'`, this.pos);
+    if (this.peek() !== open) throw new RaptorParseError(`expected '${open}'`, this.pos);
     this.pos++;
     const start = this.pos;
-    // Delimitatori egali (string literals): citeste pana la close ne-escapat.
+    // Equal delimiters (string literals): read until the unescaped close.
     if (open === close) {
       while (!this.eof() && this.peek() !== close) {
         if (this.peek() === "\\") this.pos++;
         this.pos++;
       }
       const inner = this.src.slice(start, this.pos);
-      if (this.eof()) throw new RaptorParseError(`'${close}' lipsa`, this.pos);
+      if (this.eof()) throw new RaptorParseError(`'${close}' missing`, this.pos);
       this.pos++;
       return inner;
     }
@@ -125,11 +125,11 @@ class Scanner {
       }
       this.pos++;
     }
-    throw new RaptorParseError(`'${close}' lipsa`, this.pos);
+    throw new RaptorParseError(`'${close}' missing`, this.pos);
   }
 }
 
-/** Sparge un string de argumente pe virgulele de nivel top (respecta paranteze/string-uri). */
+/** Splits an argument string on top-level commas (respects parens/strings). */
 function splitTopLevel(src: string): string[] {
   const parts: string[] = [];
   let depth = 0;
@@ -160,23 +160,23 @@ interface ParseContext {
   component: string;
   reactiveNames: Set<string>;
   elementCounter: { n: number };
-  /** Cate niveluri de JSX suntem adanc; vezi `MAX_ELEMENT_DEPTH`. */
+  /** How many JSX levels deep we are; see `MAX_ELEMENT_DEPTH`. */
   depth: number;
 }
 
 /**
- * Cat de adanc poate fi imbricat JSX-ul dintr-o componenta.
+ * How deeply the JSX inside a component can be nested.
  *
- * `parseElement` e recursiv, deci fara limita o imbricare patologica da
- * `RangeError: Maximum call stack size exceeded` - un mesaj care arata ca s-a
- * stricat compilatorul, cand de fapt fisierul e absurd. Cu limita, primesti o
- * eroare de parsare cu pozitie, ca pentru orice alta greseala de sintaxa.
+ * `parseElement` is recursive, so without a limit a pathological nesting gives
+ * `RangeError: Maximum call stack size exceeded` - a message that looks like the
+ * compiler broke, when in fact the file is absurd. With a limit, you get a parse
+ * error with a position, like any other syntax mistake.
  *
- * 256 e cu mult peste orice interfata scrisa de om.
+ * 256 is well above any human-written interface.
  */
 const MAX_ELEMENT_DEPTH = 256;
 
-/** Filtreaza reads la doar numele reactive cunoscute in componenta. */
+/** Filters reads down to only the reactive names known in the component. */
 function reactiveReads(expr: Expr, ctx: ParseContext): string[] {
   return analyze(expr).reads.filter((r) => ctx.reactiveNames.has(r));
 }
@@ -190,8 +190,8 @@ function parseComponent(sc: Scanner): IRComponent {
   sc.skipTrivia();
   const name = sc.readIdent();
   sc.skipTrivia();
-  if (sc.peek() !== "{") throw new RaptorParseError("astept '{' dupa numele componentei", sc.pos);
-  sc.pos++; // consuma '{'
+  if (sc.peek() !== "{") throw new RaptorParseError("expected '{' after the component name", sc.pos);
+  sc.pos++; // consume '{'
 
   const cid = name;
   const ctx: ParseContext = {
@@ -209,20 +209,20 @@ function parseComponent(sc: Scanner): IRComponent {
 
   while (true) {
     sc.skipTrivia();
-    if (sc.eof()) throw new RaptorParseError("'}' lipsa la finalul componentei", sc.pos);
+    if (sc.eof()) throw new RaptorParseError("'}' missing at the end of the component", sc.pos);
     if (sc.peek() === "}") {
       sc.pos++;
       break;
     }
     if (sc.peek() === "<") {
-      if (root) throw new RaptorParseError("o componenta are un singur element radacina", sc.pos);
+      if (root) throw new RaptorParseError("a component has a single root element", sc.pos);
       root = parseElement(sc, cid, ctx);
       continue;
     }
     parseDeclaration(sc, ctx, signals, deriveds, serverSignals, effects, cid);
   }
 
-  if (!root) throw new RaptorParseError(`componenta '${name}' nu are template`, sc.pos);
+  if (!root) throw new RaptorParseError(`component '${name}' has no template`, sc.pos);
 
   return {
     id: cid,
@@ -301,15 +301,15 @@ function parseDeclaration(
     const parsed = parseExpression(inner);
     const body = parsed.kind === "Arrow" ? parsed.body : parsed;
 
-    // Un `derived` este o valoare CITITA, nu o actiune. Scrierile sunt emise
-    // separat de codegen (`writeToJs`), deci intr-o pozitie de citire `exprToJs`
-    // le ignora: `derived(() => n++)` se compila tacut ca `n`, adica incrementul
-    // dispare fara ca nimeni sa spuna nimic. Mai bine refuzam la parsare decat
-    // sa producem un program care nu face ce scrie in el. Runda 3 de audit, U3.
+    // A `derived` is a READ value, not an action. Writes are emitted separately
+    // by codegen (`writeToJs`), so in a read position `exprToJs` ignores them:
+    // `derived(() => n++)` compiles silently as `n`, i.e. the increment
+    // disappears without anyone saying a word. Better to reject at parse time
+    // than to produce a program that does not do what it says. Audit round 3, U3.
     const scrieri = analyze(body).writes;
     if (scrieri.length > 0) {
       throw new RaptorParseError(
-        `'${name}' este un derived, deci nu poate scrie (${scrieri.join(", ")}); muta scrierea intr-un handler sau intr-un effect`,
+        `'${name}' is a derived, so it cannot write (${scrieri.join(", ")}); move the write into a handler or an effect`,
         declStart,
       );
     }
@@ -353,13 +353,13 @@ function parseDeclaration(
     return;
   }
 
-  throw new RaptorParseError(`declaratie necunoscuta '${name} = ...' (astept state/derived/serverSignal)`, declStart);
+  throw new RaptorParseError(`unknown declaration '${name} = ...' (expected state/derived/serverSignal)`, declStart);
 }
 
 function parseElement(sc: Scanner, cid: string, ctx: ParseContext): IRElement {
   const start = sc.pos;
   if (ctx.depth >= MAX_ELEMENT_DEPTH) {
-    throw new RaptorParseError(`JSX imbricat pe mai mult de ${MAX_ELEMENT_DEPTH} niveluri`, start);
+    throw new RaptorParseError(`JSX nested more than ${MAX_ELEMENT_DEPTH} levels`, start);
   }
   ctx.depth++;
   try {
@@ -391,12 +391,12 @@ function parseElementBody(sc: Scanner, cid: string, ctx: ParseContext, start: nu
 
   const children = parseChildren(sc, cid, ctx, elId);
 
-  // Inchidere </tag>
+  // Closing tag </tag>
   sc.expect("</");
   sc.skipTrivia();
   const closeTag = sc.readIdent();
   if (closeTag !== tag) {
-    throw new RaptorParseError(`tag inchis '${closeTag}' nu se potriveste cu '${tag}'`, sc.pos);
+    throw new RaptorParseError(`closing tag '${closeTag}' does not match '${tag}'`, sc.pos);
   }
   sc.skipTrivia();
   sc.expect(">");
@@ -416,7 +416,7 @@ function parseAttribute(
   const nameStart = sc.pos;
   while (!sc.eof() && /[A-Za-z0-9_:.-]/.test(sc.peek())) sc.pos++;
   const name = sc.src.slice(nameStart, sc.pos);
-  if (!name) throw new RaptorParseError("astept nume atribut", sc.pos);
+  if (!name) throw new RaptorParseError("expected attribute name", sc.pos);
 
   let hasValue = false;
   let staticValue: string | null = null;
@@ -432,15 +432,15 @@ function parseAttribute(
       const inner = sc.readBalanced("{", "}");
       expr = parseExpression(inner);
     } else {
-      throw new RaptorParseError(`valoare atribut invalida pentru '${name}'`, sc.pos);
+      throw new RaptorParseError(`invalid attribute value for '${name}'`, sc.pos);
     }
   }
 
-  // Event binding: `on:click` sau `onClick`.
+  // Event binding: `on:click` or `onClick`.
   const isEvent =
     name.startsWith("on:") || (name.startsWith("on") && name.length > 2 && name[2] === name[2]?.toUpperCase());
   if (isEvent) {
-    if (!expr) throw new RaptorParseError(`handler-ul '${name}' cere {expresie}`, sc.pos);
+    if (!expr) throw new RaptorParseError(`handler '${name}' requires {expression}`, sc.pos);
     const event = name.startsWith("on:") ? name.slice(3) : name.slice(2).toLowerCase();
     const handlerBody = expr.kind === "Arrow" ? expr.body : expr;
     events.push({
@@ -468,7 +468,7 @@ function parseChildren(sc: Scanner, cid: string, ctx: ParseContext, elId: string
   const children: IRChild[] = [];
   let textIndex = 0;
   while (true) {
-    if (sc.eof()) throw new RaptorParseError("tag de inchidere lipsa", sc.pos);
+    if (sc.eof()) throw new RaptorParseError("closing tag missing", sc.pos);
     if (sc.startsWith("</")) break;
 
     if (sc.peek() === "<") {
@@ -489,7 +489,7 @@ function parseChildren(sc: Scanner, cid: string, ctx: ParseContext, elId: string
       continue;
     }
 
-    // Text static: pana la urmatorul '<' sau '{'.
+    // Static text: up to the next '<' or '{'.
     const textStart = sc.pos;
     while (!sc.eof() && sc.peek() !== "<" && sc.peek() !== "{") sc.pos++;
     const raw = sc.src.slice(textStart, sc.pos);
@@ -507,7 +507,7 @@ function parseChildren(sc: Scanner, cid: string, ctx: ParseContext, elId: string
   return children;
 }
 
-/** Parseaza un modul .raptor complet (1+ componente) in IR. */
+/** Parses a complete .raptor module (1+ components) into IR. */
 export function parseModule(source: string, path: string): IRModule {
   const sc = new Scanner(source);
   const components: IRComponent[] = [];
@@ -515,7 +515,7 @@ export function parseModule(source: string, path: string): IRModule {
     sc.skipTrivia();
     if (sc.eof()) break;
     if (!sc.startsWith("component")) {
-      throw new RaptorParseError(`astept 'component', gasit '${sc.src.slice(sc.pos, sc.pos + 12)}'`, sc.pos);
+      throw new RaptorParseError(`expected 'component', found '${sc.src.slice(sc.pos, sc.pos + 12)}'`, sc.pos);
     }
     components.push(parseComponent(sc));
   }

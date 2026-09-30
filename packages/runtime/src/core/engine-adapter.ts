@@ -1,20 +1,19 @@
 /**
- * Adaptorul de motor (spec sectiunea 5).
+ * The engine adapter (spec section 5).
  *
- * Motorul JavaScript sta in spatele acestei interfete tocmai ca inlocuirea lui
- * ulterioara (V8 printr-un adaptor ingust, in host-ul nativ Rust) sa nu schimbe
- * niciun API de aplicatie. In bootstrap folosim motorul deja prezent pe masina
- * de dezvoltare, dar codul de aplicatie nu il vede niciodata direct.
+ * The JavaScript engine sits behind this interface precisely so that replacing
+ * it later (V8 through a narrow adapter, in the native Rust host) does not change
+ * any application API. In bootstrap we use the engine already present on the
+ * development machine, but application code never sees it directly.
  *
- * Implementarea acopera cerintele spike-ului: incarca un modul TypeScript local
- * fara pas de compilare separat, expune spatiul de nume `raptor:` ca module
- * reale si inregistreaza graful de module pentru diagnostic.
+ * The implementation covers the spike's requirements: it loads a local
+ * TypeScript module with no separate compile step, exposes the `raptor:`
+ * namespace as real modules, and records the module graph for diagnostics.
  *
- * Izolarea: fiecare adaptor primeste un identificator de izolat, purtat ca
- * parametru de interogare pe URL-urile modulelor. Doua runtime-uri din acelasi
- * proces nu impart nici obiectele de host, nici starea de modul - exact
- * proprietatea ceruta de spec ("fiecare obiect de host este legat de un izolat
- * si de o capability acordata").
+ * Isolation: each adapter receives an isolate identifier, carried as a query
+ * parameter on the module URLs. Two runtimes in the same process share neither
+ * host objects nor module state - exactly the property the spec requires ("each
+ * host object is bound to an isolate and to a granted capability").
  */
 import { registerHooks } from "node:module";
 import { pathToFileURL } from "node:url";
@@ -37,11 +36,11 @@ export interface EngineAdapter {
   readonly name: string;
   readonly version: string;
   readonly isolateId: string;
-  /** Publica modulele `raptor:` pentru izolatul curent. */
+  /** Publishes the `raptor:` modules for the current isolate. */
   install(modules: ReadonlyMap<string, unknown>): void;
   evaluate(entryPath: string): Promise<EvaluationResult>;
   graph(): readonly ModuleGraphNode[];
-  /** Traduce orice eroare a motorului intr-o eroare Raptor stabila. */
+  /** Translates any engine error into a stable Raptor error. */
   mapError(error: unknown): RaptorError;
   dispose(): void;
 }
@@ -63,7 +62,7 @@ function isolates(): IsolateTable {
   return table;
 }
 
-/** Izolatul caruia ii apartine un URL de modul (purtat in query string). */
+/** The isolate a module URL belongs to (carried in the query string). */
 function isolateOf(url: string | undefined): string | null {
   if (!url) return null;
   const index = url.indexOf(`${ISOLATE_PARAM}=`);
@@ -79,8 +78,8 @@ function withIsolate(url: string, isolateId: string): string {
 }
 
 /**
- * Sursa sintetica pentru `raptor:<nume>`. Metodele sunt legate de obiectul
- * host, ca destructurarea din codul utilizatorului sa nu piarda contextul.
+ * Synthetic source for `raptor:<name>`. Methods are bound to the host object so
+ * that destructuring in user code does not lose the context.
  */
 function synthesize(isolateId: string, name: string, target: unknown): string {
   const keys =
@@ -117,7 +116,7 @@ function classify(url: string): ModuleGraphNode["kind"] {
   return "external";
 }
 
-/** URL lizibil in diagnostice: fara parametrul intern de izolat. */
+/** A URL readable in diagnostics: without the internal isolate parameter. */
 function clean(url: string): string {
   return url.replace(new RegExp(`[?&]${ISOLATE_PARAM}=[^&#]*`), "");
 }
@@ -153,13 +152,13 @@ function ensureHooks(): void {
       if (specifier.startsWith(RAPTOR_SCHEME)) {
         const name = specifier.slice(RAPTOR_SCHEME.length).split("?")[0]!;
         if (!isolateId) {
-          throw new RaptorError("raptor:module/not-found", `'${specifier}' poate fi importat doar din codul rulat de RaptorRuntime`, {
+          throw new RaptorError("raptor:module/not-found", `'${specifier}' can only be imported from code run by RaptorRuntime`, {
             specifier,
           });
         }
         const table = isolates().get(isolateId);
         if (!table || !table.has(name)) {
-          throw new RaptorError("raptor:module/not-found", `modulul '${specifier}' nu exista in acest runtime`, {
+          throw new RaptorError("raptor:module/not-found", `module '${specifier}' does not exist in this runtime`, {
             specifier,
             available: table ? [...table.keys()].sort() : [],
           });
@@ -173,8 +172,8 @@ function ensureHooks(): void {
 
       record(isolateId, specifier, resolved.url, context.parentURL);
 
-      // Doar modulele locale primesc identitate per izolat; builtin-urile si
-      // pachetele externe raman partajate, ca in orice incarcator ESM.
+      // Only local modules get a per-isolate identity; builtins and external
+      // packages stay shared, as in any ESM loader.
       if (!resolved.url.startsWith("file:") || resolved.url.includes("/node_modules/")) return resolved;
       return { ...resolved, url: withIsolate(resolved.url, isolateId), shortCircuit: true };
     },
@@ -185,7 +184,7 @@ function ensureHooks(): void {
         const name = url.slice(RAPTOR_SCHEME.length).split("?")[0]!;
         const table = isolateId ? isolates().get(isolateId) : undefined;
         if (!table) {
-          throw new RaptorError("raptor:module/not-found", `izolatul modulului '${url}' nu mai exista`, { url });
+          throw new RaptorError("raptor:module/not-found", `the isolate of module '${url}' no longer exists`, { url });
         }
         return { format: "module", source: synthesize(isolateId!, name, table.get(name)), shortCircuit: true };
       }
@@ -197,23 +196,24 @@ function ensureHooks(): void {
 let isolateCounter = 0;
 
 /**
- * Adaptorul de bootstrap. Ruleaza in procesul curent.
+ * The bootstrap adapter. Runs in the current process.
  *
- * **Aici capability broker-ul este consultativ, nu o granita.** Codul de
- * aplicatie poate scrie `import fs from "node:fs"` si ajunge la disc fara ca
- * brokerul sa fie intrebat. Hook-urile de mai sus *inregistreaza* importurile
- * `node:` (le clasifica in graf), dar nu le pot bloca fara sa rupa exact
- * pachetele de care are nevoie launcher-ul insusi.
+ * **Here the capability broker is advisory, not a boundary.** Application code
+ * can write `import fs from "node:fs"` and reach the disk without the broker
+ * being asked. The hooks above *record* `node:` imports (classify them in the
+ * graph), but cannot block them without breaking exactly the packages the
+ * launcher itself needs.
  *
- * Granita reala apartine host-ului nativ, unde `node:*` pur si simplu nu exista
- * si singurul drum catre sistem sunt functiile de host. Pana atunci, apararea e
- * in unelte, nu in motor: `raptor-runtime doctor` raporteaza fiecare ocol, iar
- * `raptor-runtime run` refuza sa porneasca in politica `production` si il scrie
- * in jurnalul de audit in `development` (`runtime-cli/src/bypass.ts`).
+ * The real boundary belongs to the native host, where `node:*` simply does not
+ * exist and the only path to the system is the host functions. Until then, the
+ * defense is in the tools, not in the engine: `raptor-runtime doctor` reports
+ * every bypass, and `raptor-runtime run` refuses to start under the `production`
+ * policy and writes it to the audit log in `development`
+ * (`runtime-cli/src/bypass.ts`).
  *
- * Distinctia conteaza: "izolarea apartine host-ului nativ" si "aici poate fi
- * ocolita" nu sunt acelasi lucru, iar a doua e cea care trebuie stiuta de cine
- * isi alege modelul de amenintare.
+ * The distinction matters: "isolation belongs to the native host" and "here it
+ * can be bypassed" are not the same thing, and the second is the one whoever
+ * chooses their threat model needs to know.
  */
 export function createBootstrapAdapter(isolateId = `iso${++isolateCounter}`): EngineAdapter {
   return {
@@ -263,14 +263,14 @@ export function createBootstrapAdapter(isolateId = `iso${++isolateCounter}`): En
     },
 
     dispose(): void {
-      // Obiectele de host dispar odata cu izolatul; graful ramane pentru
-      // diagnosticul de dupa oprire.
+      // Host objects disappear together with the isolate; the graph remains for
+      // post-shutdown diagnostics.
       isolates().delete(isolateId);
     },
   };
 }
 
-/** Golire a grafurilor inregistrate (teste de contract). */
+/** Clears the recorded graphs (contract tests). */
 export function resetModuleGraph(): void {
   graphs.clear();
 }

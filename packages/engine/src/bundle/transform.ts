@@ -1,25 +1,25 @@
 /**
- * Transform primitiv: TSX/TS -> JS (CommonJS), cu JSX legat de runtime-ul
- * fine-grained @raptor/dom. Type-stripping + transform JSX sunt facute de
- * compilatorul TypeScript, folosit STRICT ca primitiva de build (nu la runtime).
+ * Primitive transform: TSX/TS -> JS (CommonJS), with JSX wired to the fine-grained
+ * @raptor/dom runtime. Type-stripping + JSX transform are done by the TypeScript
+ * compiler, used STRICTLY as a build primitive (not at runtime).
  *
- * De ce CommonJS: bundler-ul (bundle.ts) impacheteaza modulele intr-un registru
- * cu `require` lazy; emisia CommonJS a lui tsc ne da exact `require("spec")` /
- * `exports.x`, pe care le rescriem la ID-uri interne. Zero Vite/esbuild/Rolldown.
+ * Why CommonJS: the bundler (bundle.ts) packs the modules into a registry with a
+ * lazy `require`; tsc's CommonJS emit gives us exactly `require("spec")` /
+ * `exports.x`, which we rewrite to internal IDs. Zero Vite/esbuild/Rolldown.
  */
 import ts from "typescript";
 
-/** jsxImportSource implicit: runtime-ul DOM fine-grained al proiectului. */
+/** Default jsxImportSource: the project's fine-grained DOM runtime. */
 export const DEFAULT_JSX_IMPORT_SOURCE = "raptorjs/dom";
 
 export interface TranspileOptions {
-  /** Sursa pentru importul automat de JSX (implicit @raptor/dom). */
+  /** Source for the automatic JSX import (defaults to @raptor/dom). */
   jsxImportSource?: string;
-  /** Emite source map inline (util in dev). */
+  /** Emit an inline source map (useful in dev). */
   sourceMap?: boolean;
 }
 
-/** Transforma o sursa .ts/.tsx in CommonJS browser-ready (fara tipuri, JSX rezolvat). */
+/** Transforms a .ts/.tsx source into browser-ready CommonJS (no types, JSX resolved). */
 export function transpile(source: string, fileName: string, options: TranspileOptions = {}): string {
   const out = ts.transpileModule(source, {
     fileName,
@@ -30,7 +30,7 @@ export function transpile(source: string, fileName: string, options: TranspileOp
       module: ts.ModuleKind.CommonJS,
       target: ts.ScriptTarget.ES2022,
       esModuleInterop: true,
-      // In bundler nu vrem restrictiile de verbatim/erasable: transformam complet.
+      // In the bundler we don't want the verbatim/erasable restrictions: we transform fully.
       verbatimModuleSyntax: false,
       isolatedModules: true,
       inlineSourceMap: options.sourceMap === true,

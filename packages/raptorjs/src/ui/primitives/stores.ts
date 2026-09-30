@@ -1,10 +1,10 @@
 /**
- * Primitive de stare: persistedState, undoRedo, selectionState, idle, networkStatus.
+ * State primitives: persistedState, undoRedo, selectionState, idle, networkStatus.
  *
- * Nu randeaza nimic; sunt semnale cu comportament. Sunt aici fiindca fiecare
- * aplicatie le rescrie, si de fiecare data cu aceleasi trei bug-uri:
- * localStorage care arunca in mod privat, un istoric de undo care creste la
- * infinit, si o selectie cu Shift care se strica atunci cand lista se filtreaza.
+ * They render nothing; they are signals with behavior. They're here because
+ * every app rewrites them, and every time with the same three bugs: localStorage
+ * that throws in private mode, an undo history that grows without bound, and a
+ * Shift selection that breaks when the list is filtered.
  */
 import { state, derived, onCleanup, untracked, type Accessor, type State } from "raptorjs";
 import { onDoc } from "./env.ts";
@@ -14,18 +14,18 @@ import { onDoc } from "./env.ts";
 /* --------------------------------------------------------- persistedState */
 
 export interface PersistOptions<T> {
-  /** Serializare proprie. Implicit JSON. */
+  /** Custom serialization. Defaults to JSON. */
   serialize?: (value: T) => string;
   deserialize?: (raw: string) => T;
-  /** `localStorage` (implicit) sau `sessionStorage`. */
+  /** `localStorage` (default) or `sessionStorage`. */
   session?: boolean;
-  /** Sincronizeaza intre file. Implicit `true`. */
+  /** Sync across tabs. Defaults to `true`. */
   syncTabs?: boolean;
 }
 
 function storage(session: boolean): any | null {
   try {
-    // Accesul insusi poate arunca: mod privat, cookies blocate, iframe sandbox.
+    // The access itself can throw: private mode, blocked cookies, sandboxed iframe.
     return (globalThis as any)[session ? "sessionStorage" : "localStorage"] ?? null;
   } catch {
     return null;
@@ -33,11 +33,11 @@ function storage(session: boolean): any | null {
 }
 
 /**
- * Un semnal care se salveaza singur.
+ * A signal that saves itself.
  *
- * Daca stocarea nu e disponibila sau valoarea salvata e coruptă, cade curat pe
- * `initial` - o aplicatie nu trebuie sa pice fiindca cineva a editat manual
- * localStorage sau navigheaza in mod privat.
+ * If storage isn't available or the saved value is corrupt, it falls back
+ * cleanly to `initial` - an app must not crash because someone edited
+ * localStorage by hand or is browsing in private mode.
  */
 export function persistedState<T>(key: string, initial: T, options?: PersistOptions<T>): State<T> {
   const store = storage(options?.session ?? false);
@@ -50,7 +50,7 @@ export function persistedState<T>(key: string, initial: T, options?: PersistOpti
       const raw = store.getItem(key);
       if (raw !== null) start = deserialize(raw);
     } catch {
-      start = initial; // valoare coruptă: o ignoram, nu aruncam
+      start = initial; // corrupt value: we ignore it, we don't throw
     }
   }
 
@@ -61,12 +61,12 @@ export function persistedState<T>(key: string, initial: T, options?: PersistOpti
     try {
       store.setItem(key, serialize(value));
     } catch {
-      /* cota depasita sau stocare read-only */
+      /* quota exceeded or read-only storage */
     }
   };
 
-  // Interceptam scrierile in loc sa folosim un effect: asa nu scriem in
-  // storage la montare, cand valoarea vine chiar de acolo.
+  // We intercept writes instead of using an effect: that way we don't write to
+  // storage on mount, when the value comes from there in the first place.
   const set = signal.set;
   const update = signal.update;
   signal.set = (value: T) => {
@@ -84,7 +84,7 @@ export function persistedState<T>(key: string, initial: T, options?: PersistOpti
       try {
         set(e.newValue === null ? initial : deserialize(e.newValue));
       } catch {
-        /* alta filă a scris ceva ce nu putem citi */
+        /* another tab wrote something we can't read */
       }
     };
     (globalThis as any).addEventListener("storage", onStorage);
@@ -97,31 +97,31 @@ export function persistedState<T>(key: string, initial: T, options?: PersistOpti
 /* ---------------------------------------------------------------- undoRedo */
 
 export interface UndoRedoOptions {
-  /** Cate stari se pastreaza. Implicit 100. */
+  /** How many states are kept. Defaults to 100. */
   limit?: number;
 }
 
 export interface UndoRedo<T> {
   value: Accessor<T>;
-  /** Scrie o stare noua in istoric. */
+  /** Writes a new state into the history. */
   set: (value: T) => void;
-  /** Modifica fara sa creeze intrare noua (ex. in timpul unui drag). */
+  /** Modify without creating a new entry (e.g. during a drag). */
   replace: (value: T) => void;
   undo: () => void;
   redo: () => void;
   canUndo: Accessor<boolean>;
   canRedo: Accessor<boolean>;
   clear: () => void;
-  /** Cate intrari sunt in urma si in fata. */
+  /** How many entries are behind and ahead. */
   size: Accessor<{ past: number; future: number }>;
 }
 
 /**
- * Istoric cu undo/redo.
+ * Undo/redo history.
  *
- * Limita e obligatorie, nu optionala: un editor lasat deschis o zi cu istoric
- * nelimitat tine in memorie fiecare stare intermediara. Cand se depaseste,
- * cele mai vechi intrari sunt uitate.
+ * The limit is mandatory, not optional: an editor left open for a day with an
+ * unbounded history keeps every intermediate state in memory. When it is
+ * exceeded, the oldest entries are forgotten.
  */
 export function undoRedo<T>(initial: T, options?: UndoRedoOptions): UndoRedo<T> {
   const limit = Math.max(1, options?.limit ?? 100);
@@ -137,7 +137,7 @@ export function undoRedo<T>(initial: T, options?: UndoRedoOptions): UndoRedo<T> 
       return next.length > limit ? next.slice(next.length - limit) : next;
     });
     present.set(value);
-    // O actiune noua invalideaza redo-ul: ramura veche nu mai e accesibila.
+    // A new action invalidates redo: the old branch is no longer reachable.
     future.set([]);
   };
 
@@ -182,7 +182,7 @@ export function undoRedo<T>(initial: T, options?: UndoRedoOptions): UndoRedo<T> 
 /* ---------------------------------------------------------- selectionState */
 
 export interface SelectionOptions<T> {
-  /** Lista curenta, in ordinea afisata. Necesara pentru Shift+click. */
+  /** The current list, in display order. Needed for Shift+click. */
   items: Accessor<readonly T[]>;
   multiple?: boolean;
 }
@@ -191,14 +191,14 @@ export interface SelectionState<T> {
   selected: Accessor<ReadonlySet<T>>;
   isSelected: (item: T) => boolean;
   /**
-   * Click cu modificatori, ca intr-un manager de fisiere:
-   * simplu = doar el, Ctrl/Cmd = comuta, Shift = interval de la ancora.
+   * Click with modifiers, like in a file manager:
+   * plain = only it, Ctrl/Cmd = toggle, Shift = range from the anchor.
    */
   click: (item: T, modifiers?: { shift?: boolean; meta?: boolean }) => void;
   toggle: (item: T) => void;
   selectAll: () => void;
   clear: () => void;
-  /** `true` daca toate elementele din lista curenta sunt selectate. */
+  /** `true` if all items in the current list are selected. */
   allSelected: Accessor<boolean>;
   count: Accessor<number>;
 }
@@ -206,7 +206,7 @@ export interface SelectionState<T> {
 export function selectionState<T>(options: SelectionOptions<T>): SelectionState<T> {
   const selected = state<ReadonlySet<T>>(new Set());
   const multiple = options.multiple !== false;
-  /** Ultimul element clicat fara Shift; capatul fix al intervalului. */
+  /** The last item clicked without Shift; the fixed end of the range. */
   let anchor: T | null = null;
 
   const isSelected = (item: T): boolean => selected().has(item);
@@ -232,8 +232,8 @@ export function selectionState<T>(options: SelectionOptions<T>): SelectionState<
       const list = options.items();
       const from = list.indexOf(anchor);
       const to = list.indexOf(item);
-      // Ancora poate sa nu mai fie in lista dupa o filtrare: atunci tratam
-      // clickul ca unul simplu, in loc sa selectam un interval aiurea.
+      // The anchor may no longer be in the list after a filter: in that case we
+      // treat the click as a plain one, instead of selecting a nonsensical range.
       if (from === -1 || to === -1) {
         selected.set(new Set([item]));
         anchor = item;
@@ -241,7 +241,7 @@ export function selectionState<T>(options: SelectionOptions<T>): SelectionState<
       }
       const [lo, hi] = from <= to ? [from, to] : [to, from];
       selected.set(new Set(list.slice(lo, hi + 1)));
-      return; // Shift NU muta ancora
+      return; // Shift does NOT move the anchor
     }
 
     if (modifiers?.meta) {
@@ -284,18 +284,18 @@ export function selectionState<T>(options: SelectionOptions<T>): SelectionState<
 /* ------------------------------------------------------------------ idle -- */
 
 export interface IdleOptions {
-  /** Ms de inactivitate dupa care utilizatorul e considerat inactiv. */
+  /** Ms of inactivity after which the user is considered idle. */
   timeout?: number;
-  /** Evenimente care resetează cronometrul. */
+  /** Events that reset the timer. */
   events?: readonly string[];
 }
 
 /**
- * `idle()` - `true` cand utilizatorul n-a mai facut nimic de `timeout` ms.
+ * `idle()` - `true` when the user hasn't done anything for `timeout` ms.
  *
- * Util pentru auto-logout sau pentru a opri polling-ul cand nimeni nu se uita.
- * Resetarea se face pe un set mic de evenimente; a asculta absolut tot ar
- * insemna sa rulezi cod la fiecare pixel de scroll.
+ * Useful for auto-logout or to stop polling when no one is looking. The reset
+ * happens on a small set of events; listening to absolutely everything would
+ * mean running code on every scroll pixel.
  */
 export function idle(options?: IdleOptions): Accessor<boolean> {
   const timeout = options?.timeout ?? 60_000;
@@ -325,17 +325,17 @@ export function idle(options?: IdleOptions): Accessor<boolean> {
 
 export interface NetworkStatus {
   online: Accessor<boolean>;
-  /** Momentul ultimei schimbari, sau `null`. */
+  /** The moment of the last change, or `null`. */
   since: Accessor<number | null>;
 }
 
 /**
- * `networkStatus()` - starea conexiunii ca semnal.
+ * `networkStatus()` - the connection state as a signal.
  *
- * `navigator.onLine` spune doar daca exista o interfata de retea activa, nu
- * daca serverul tau raspunde: `true` nu garanteaza nimic, dar `false` e de
- * incredere. Foloseste-l ca sa afisezi un banner, nu ca sa decizi daca merita
- * sa incerci o cerere.
+ * `navigator.onLine` only tells you whether there is an active network
+ * interface, not whether your server responds: `true` guarantees nothing, but
+ * `false` is reliable. Use it to show a banner, not to decide whether a request
+ * is worth attempting.
  */
 export function networkStatus(): NetworkStatus {
   const nav: any = (globalThis as any).navigator;

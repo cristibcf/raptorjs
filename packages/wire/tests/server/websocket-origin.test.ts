@@ -1,12 +1,12 @@
 /**
- * Regresie pentru auditul din 2026-09-24 (S7): handshake-ul WebSocket accepta
- * orice origine.
+ * Regression for the 2026-09-24 audit (S7): the WebSocket handshake accepted
+ * any origin.
  *
- * Contextul, pentru cine citeste peste un an: politica same-origin a browserului
- * NU se aplica la WebSocket. O pagina de pe `evil.example` poate deschide o
- * conexiune catre un server Raptor la care ajunge - inclusiv `ws://localhost` -
- * si o face cu autoritatea ambientala a utilizatorului. Singurul loc unde asta
- * poate fi oprit este serverul.
+ * The context, for whoever reads this in a year: the browser's same-origin
+ * policy does NOT apply to WebSocket. A page on `evil.example` can open a
+ * connection to a Raptor server it can reach - including `ws://localhost` - and
+ * does so with the user's ambient authority. The only place this can be stopped
+ * is the server.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -16,41 +16,41 @@ import type { AddressInfo } from "node:net";
 import { raptorServer, serveOverWebSocket, originAllowed } from "../../src/server/index.ts";
 import type { WebSocketOptions } from "../../src/server/index.ts";
 
-/* ------------------------------------------------- regula, fara socket ---- */
+/* ------------------------------------------------- the rule, no socket ---- */
 
-test("S7: implicit trece doar same-origin", () => {
+test("S7: by default only same-origin passes", () => {
   assert.equal(originAllowed("https://app.example:8443", "app.example:8443", undefined), true);
   assert.equal(originAllowed("https://evil.example", "app.example:8443", undefined), false);
-  // Autoritatea se compara, nu sirul: `Origin` poarta schema, `Host` nu.
+  // The authority is compared, not the string: `Origin` carries the scheme, `Host` does not.
   assert.equal(originAllowed("http://app.example", "app.example", undefined), true);
-  assert.equal(originAllowed("https://APP.example", "app.example", undefined), true, "gazdele nu tin de registru");
+  assert.equal(originAllowed("https://APP.example", "app.example", undefined), true, "hosts are case-insensitive");
 });
 
-test("S7: un client care nu e browser (fara Origin) nu e blocat", () => {
-  // O unealta CLI sau alt serviciu nu poarta autoritate ambientala, deci nu e
-  // amenintarea de care apara regula asta. Autentificarea ramane la `authorize`.
+test("S7: a non-browser client (no Origin) is not blocked", () => {
+  // A CLI tool or another service carries no ambient authority, so it's not the
+  // threat this rule defends against. Authentication stays with `authorize`.
   assert.equal(originAllowed(undefined, "app.example", undefined), true);
   assert.equal(originAllowed("", "app.example", undefined), true);
 });
 
-test("S7: o origine pe care nu o putem citi este refuzata, nu ghicita", () => {
-  // `Origin: null` vine din iframe-uri sandbox si din redirect-uri cross-origin.
+test("S7: an origin we cannot read is denied, not guessed", () => {
+  // `Origin: null` comes from sandboxed iframes and cross-origin redirects.
   assert.equal(originAllowed("null", "app.example", undefined), false);
-  assert.equal(originAllowed("nu-e-un-url", "app.example", undefined), false);
-  assert.equal(originAllowed("https://app.example", undefined, undefined), false, "fara Host nu avem cu ce compara");
+  assert.equal(originAllowed("not-a-url", "app.example", undefined), false);
+  assert.equal(originAllowed("https://app.example", undefined, undefined), false, "without a Host we have nothing to compare against");
 });
 
-test("S7: o lista explicita inlocuieste regula same-origin", () => {
+test("S7: an explicit list replaces the same-origin rule", () => {
   const allowed = ["https://app.example", "https://studio.example"];
   assert.equal(originAllowed("https://studio.example", "api.example", allowed), true);
-  assert.equal(originAllowed("https://api.example", "api.example", allowed), false, "lista e lista, nu o completare");
+  assert.equal(originAllowed("https://api.example", "api.example", allowed), false, "the list is the list, not an addition");
 });
 
-test('S7: "any" dezactiveaza verificarea, si trebuie scris in litere', () => {
+test('S7: "any" disables the check, and must be spelled out in letters', () => {
   assert.equal(originAllowed("https://evil.example", "app.example", "any"), true);
 });
 
-/* ------------------------------------------------- handshake-ul real ------ */
+/* ------------------------------------------------- the real handshake ----- */
 
 interface Live {
   readonly port: number;
@@ -72,7 +72,7 @@ async function live(options: WebSocketOptions = {}): Promise<Live> {
   };
 }
 
-/** Trimite un handshake WebSocket brut si intoarce linia de stare. */
+/** Send a raw WebSocket handshake and return the status line. */
 function handshake(port: number, headers: Record<string, string>): Promise<string> {
   return new Promise((resolve, reject) => {
     const socket = connect(port, "127.0.0.1", () => {
@@ -103,27 +103,27 @@ function handshake(port: number, headers: Record<string, string>): Promise<strin
   });
 }
 
-test("S7: o pagina straina primeste 403, nu 101", async () => {
+test("S7: a foreign page gets 403, not 101", async () => {
   const server = await live();
   try {
     const strain = await handshake(server.port, { Origin: "https://evil.example" });
-    assert.match(strain, /403/, `o origine straina nu are voie sa faca upgrade: ${strain}`);
+    assert.match(strain, /403/, `a foreign origin must not be allowed to upgrade: ${strain}`);
 
     const propriu = await handshake(server.port, { Origin: `http://127.0.0.1:${server.port}` });
-    assert.match(propriu, /101/, `same-origin trebuie sa treaca: ${propriu}`);
+    assert.match(propriu, /101/, `same-origin must pass: ${propriu}`);
 
     const faraOrigin = await handshake(server.port, {});
-    assert.match(faraOrigin, /101/, `un client fara Origin nu e o pagina straina: ${faraOrigin}`);
+    assert.match(faraOrigin, /101/, `a client without an Origin is not a foreign page: ${faraOrigin}`);
   } finally {
     await server.dispose();
   }
 });
 
-test("S7: peste plafon, o conexiune noua primeste 503", async () => {
+test("S7: over the cap, a new connection gets 503", async () => {
   const server = await live({ maxConnections: 1 });
   const deschise: ReturnType<typeof connect>[] = [];
   try {
-    // Prima ocupa singurul loc si RAMANE deschisa.
+    // The first takes the only slot and STAYS open.
     const prima = await new Promise<string>((resolve, reject) => {
       const socket = connect(server.port, "127.0.0.1", () => {
         socket.write(
@@ -146,7 +146,7 @@ test("S7: peste plafon, o conexiune noua primeste 503", async () => {
     assert.match(prima, /101/);
 
     const aDoua = await handshake(server.port, {});
-    assert.match(aDoua, /503/, `plafonul trebuie sa raspunda, nu sa atarne: ${aDoua}`);
+    assert.match(aDoua, /503/, `the cap must respond, not hang: ${aDoua}`);
   } finally {
     for (const socket of deschise) socket.destroy();
     await server.dispose();

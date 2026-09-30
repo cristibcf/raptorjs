@@ -1,14 +1,14 @@
 /**
- * Tipuri de grafic suplimentare: Pie, Donut, Scatter, Bubble, Heatmap, Gauge,
+ * Additional chart types: Pie, Donut, Scatter, Bubble, Heatmap, Gauge,
  * Radar, Funnel, Candlestick, Treemap, Sankey. Plus `Meter`.
  *
- * Toate stau pe primitivele din `chart.ts` (scale, extent, culori) si respecta
- * aceeasi regula: `For` keyed pe indici, atribute reactive - datele care se
- * schimba rescriu atribute, nu recreeaza noduri.
+ * They all build on the primitives in `chart.ts` (scale, extent, colors) and
+ * follow the same rule: `For` keyed by index, reactive attributes - data that
+ * changes rewrites attributes, it does not recreate nodes.
  *
- * Fiecare grafic e `role="img"` cu `aria-label` din `summary`; geometria e
- * `aria-hidden`, fiindca un screen reader care citeste 200 de coordonate nu
- * ajuta pe nimeni.
+ * Each chart is `role="img"` with an `aria-label` from `summary`; the geometry
+ * is `aria-hidden`, because a screen reader that reads 200 coordinates does not
+ * help anyone.
  */
 import { derived, type Accessor } from "raptorjs";
 import { R, For, Show, type Child } from "raptorjs/dom";
@@ -30,7 +30,7 @@ function shell(props: { summary?: string; class?: string; legend?: Child }, svg:
   );
 }
 
-/* --------------------------------------------------------- Pie si Donut -- */
+/* --------------------------------------------------------- Pie and Donut -- */
 
 export interface Slice {
   label: string;
@@ -41,16 +41,16 @@ export interface Slice {
 export interface PieChartProps {
   data: Accessor<readonly Slice[]> | readonly Slice[];
   size?: number;
-  /** Raza gaurii, 0..1 din raza totala. `0` = pie, `0.6` = donut. */
+  /** Hole radius, 0..1 of the total radius. `0` = pie, `0.6` = donut. */
   innerRadius?: number;
-  /** Text in centrul inelului (doar pentru donut). */
+  /** Text in the center of the ring (donut only). */
   center?: Child;
   legend?: boolean;
   summary?: string;
   class?: string;
 }
 
-/** Descrie un sector de cerc ca `path` SVG. */
+/** Describes a circle sector as an SVG `path`. */
 export function arcPath(
   cx: number,
   cy: number,
@@ -59,8 +59,8 @@ export function arcPath(
   startAngle: number,
   endAngle: number,
 ): string {
-  // Un sector de exact 360° nu poate fi desenat cu un singur arc (punctul de
-  // start coincide cu cel de final): il spargem in doua jumatati.
+  // A sector of exactly 360° cannot be drawn with a single arc (the start
+  // point coincides with the end point): we split it into two halves.
   const sweep = endAngle - startAngle;
   if (sweep >= Math.PI * 2 - 1e-9) {
     const half = startAngle + Math.PI;
@@ -92,7 +92,7 @@ export function PieChart(props: PieChartProps): El {
   const model = derived(() => {
     const slices = read();
     const total = slices.reduce((sum, s) => sum + Math.max(0, s.value), 0);
-    let angle = -Math.PI / 2; // pornim de sus, nu de la ora 3
+    let angle = -Math.PI / 2; // start from the top, not from 3 o'clock
     return slices.map((slice, i) => {
       const share = total > 0 ? Math.max(0, slice.value) / total : 0;
       const start = angle;
@@ -145,12 +145,12 @@ export function DonutChart(props: PieChartProps): El {
   return PieChart({ ...props, innerRadius: props.innerRadius ?? 0.62 });
 }
 
-/* ---------------------------------------------------- Scatter si Bubble -- */
+/* ---------------------------------------------------- Scatter and Bubble -- */
 
 export interface Point {
   x: number;
   y: number;
-  /** Marime (doar pentru bubble). */
+  /** Size (bubble only). */
   size?: number;
   label?: string;
 }
@@ -160,9 +160,9 @@ export interface ScatterChartProps {
     readonly { label: string; points: readonly Point[]; color?: string }[];
   width?: number;
   height?: number;
-  /** Raza punctelor. Implicit 4. */
+  /** Radius of the points. Default 4. */
   radius?: number;
-  /** Scaleaza raza dupa `point.size` (bubble). */
+  /** Scale the radius by `point.size` (bubble). */
   bubble?: boolean;
   maxRadius?: number;
   grid?: boolean;
@@ -186,8 +186,8 @@ export function ScatterChart(props: ScatterChartProps): El {
     const x = scaleLinear(extent(xs, false), [margin.left, margin.left + innerW]);
     const y = scaleLinear(extent(ys, false), [margin.top + innerH, margin.top]);
     const maxSize = Math.max(1, ...sizes);
-    // Raza dupa RADACINA valorii: aria trebuie sa fie proportionala, nu raza -
-    // altfel o valoare dubla arata de patru ori mai mare.
+    // Radius by the SQUARE ROOT of the value: the area must be proportional,
+    // not the radius - otherwise a doubled value looks four times larger.
     const r = (value: number): number =>
       props.bubble
         ? Math.max(2, Math.sqrt(value / maxSize) * (props.maxRadius ?? 22))
@@ -195,7 +195,7 @@ export function ScatterChart(props: ScatterChartProps): El {
     return { series, x, y, r };
   });
 
-  /** Perechi (serie, punct) cu chei stabile. */
+  /** (series, point) pairs with stable keys. */
   const keys = derived<number[]>(() => {
     const out: number[] = [];
     model().series.forEach((s, si) => s.points.forEach((_, pi) => out.push(si * 10000 + pi)));
@@ -268,18 +268,18 @@ export function BubbleChart(props: Omit<ScatterChartProps, "bubble">): El {
 /* --------------------------------------------------------------- Heatmap -- */
 
 export interface HeatmapProps {
-  /** Matrice `rows x cols` de valori. */
+  /** A `rows x cols` matrix of values. */
   values: Accessor<readonly (readonly number[])[]> | readonly (readonly number[])[];
   rowLabels?: readonly string[];
   colLabels?: readonly string[];
   cellSize?: number;
-  /** Culoarea de intensitate maxima. */
+  /** The color at maximum intensity. */
   color?: string;
   summary?: string;
   class?: string;
 }
 
-/** Interpoleaza opacitatea unei culori dupa valoare. */
+/** Interpolates a color's opacity by value. */
 export function Heatmap(props: HeatmapProps): El {
   const cell = props.cellSize ?? 28;
   const read = () => (typeof props.values === "function" ? props.values() : props.values);
@@ -354,7 +354,7 @@ export function Heatmap(props: HeatmapProps): El {
             height: String(cell - 2),
             rx: "3",
             fill: props.color ?? CHART_COLORS[0]!,
-            // Intensitatea prin opacitate: o singura scriere de atribut.
+            // Intensity via opacity: a single attribute write.
             "fill-opacity": () => (0.08 + ((value() - model().lo) / model().span) * 0.92).toFixed(3),
           });
         },
@@ -372,7 +372,7 @@ export interface GaugeProps {
   max?: number;
   size?: number;
   thickness?: number;
-  /** Praguri de culoare: `[{ at, color }]`, aplicate crescator. */
+  /** Color thresholds: `[{ at, color }]`, applied in ascending order. */
   thresholds?: readonly { at: number; color: string }[];
   label?: Child;
   format?: (value: number) => string;
@@ -380,7 +380,7 @@ export interface GaugeProps {
   class?: string;
 }
 
-/** Vitezometru: arc de 240°, deschis in jos. */
+/** Speedometer: a 240° arc, open at the bottom. */
 export function Gauge(props: GaugeProps): El {
   const size = props.size ?? 160;
   const thickness = props.thickness ?? 14;
@@ -420,7 +420,7 @@ export function Gauge(props: GaugeProps): El {
         viewBox: `0 0 ${size} ${size}`,
         role: "img",
         "aria-label": props.summary,
-        // Un gauge e o valoare intr-un interval: `meter`, nu `progressbar`.
+        // A gauge is a value within a range: `meter`, not `progressbar`.
         ...(props.summary ? {} : { "aria-hidden": "true" }),
       },
       R.path({
@@ -456,7 +456,7 @@ export function Gauge(props: GaugeProps): El {
 /* ------------------------------------------------------------ RadarChart -- */
 
 export interface RadarChartProps {
-  /** Axele graficului. */
+  /** The chart axes. */
   axes: readonly string[];
   series: Accessor<readonly Series[]> | readonly Series[];
   size?: number;
@@ -505,7 +505,7 @@ export function RadarChart(props: RadarChartProps): El {
         role: "img",
         ...(props.summary ? { "aria-label": props.summary } : { "aria-hidden": "true" }),
       },
-      // Panza: cercuri concentrice + raze.
+      // The web: concentric circles + spokes.
       R.g({ class: "rui-radar-web", "aria-hidden": "true" },
         [0.25, 0.5, 0.75, 1].map((step) =>
           R.polygon({
@@ -562,9 +562,9 @@ export interface FunnelStage {
 export interface FunnelChartProps {
   stages: Accessor<readonly FunnelStage[]> | readonly FunnelStage[];
   width?: number;
-  /** Inaltimea unei trepte. */
+  /** The height of a stage. */
   stageHeight?: number;
-  /** Arata procentul fata de treapta anterioara. */
+  /** Show the percentage relative to the previous stage. */
   showRate?: boolean;
   summary?: string;
   class?: string;
@@ -671,8 +671,8 @@ export function CandlestickChart(props: CandlestickChartProps): El {
     const candles = read();
     const lows = candles.map((c) => c.low);
     const highs = candles.map((c) => c.high);
-    // Domeniul NU include zero: pretul unei actiuni la 150 nu se citeste pe o
-    // axa care porneste de la 0.
+    // The domain does NOT include zero: a stock price at 150 is not read on an
+    // axis that starts from 0.
     const y = scaleLinear(extent([...lows, ...highs], false), [margin.top + innerH, margin.top]);
     const step = candles.length > 0 ? innerW / candles.length : innerW;
     return { candles, y, step, bodyW: Math.max(1, step * 0.62) };
@@ -735,7 +735,7 @@ export function CandlestickChart(props: CandlestickChartProps): El {
               x: () => (cx() - model().bodyW / 2).toFixed(2),
               width: () => model().bodyW.toFixed(2),
               y: () => Math.min(model().y(candle().open), model().y(candle().close)).toFixed(2),
-              // Inaltime minima 1px: o lumanare doji ar fi invizibila.
+              // Minimum height 1px: a doji candle would be invisible.
               height: () =>
                 Math.max(1, Math.abs(model().y(candle().open) - model().y(candle().close))).toFixed(2),
             }),
@@ -765,9 +765,9 @@ export interface TreemapRect {
 }
 
 /**
- * Asezare "squarified": incearca sa produca dreptunghiuri cat mai apropiate de
- * patrate, fiindca raporturile extreme sunt imposibil de comparat vizual.
- * Algoritmul e cel din Bruls, Huizing & van Wijk (2000), simplificat.
+ * "Squarified" layout: tries to produce rectangles as close to squares as
+ * possible, because extreme aspect ratios are impossible to compare visually.
+ * The algorithm is the one from Bruls, Huizing & van Wijk (2000), simplified.
  */
 export function squarify(
   items: readonly TreemapItem[],
@@ -782,7 +782,7 @@ export function squarify(
     index,
     area: (Math.max(0, item.value) / total) * width * height,
   }));
-  // Descrescator: itemii mari primesc primii spatiul bun.
+  // Descending: large items get the good space first.
   scaled.sort((a, b) => b.area - a.area);
 
   const out: TreemapRect[] = [];
@@ -885,7 +885,7 @@ export function Treemap(props: TreemapProps): El {
                 class: "rui-treemap-label",
                 x: () => ((cell()?.x ?? 0) + 6).toFixed(2),
                 y: () => ((cell()?.y ?? 0) + 18).toFixed(2),
-                // Eticheta dispare cand celula e prea mica pentru ea.
+                // The label disappears when the cell is too small for it.
                 opacity: () => ((cell()?.width ?? 0) > 54 && (cell()?.height ?? 0) > 26 ? "1" : "0"),
               },
               () => cell()?.item.label ?? "",
@@ -918,12 +918,12 @@ export interface SankeyLayout {
 }
 
 /**
- * Asezare Sankey simplificata.
+ * Simplified Sankey layout.
  *
- * Adancimea unui nod = cel mai lung drum pana la el. **Graful trebuie sa fie
- * aciclic**; un ciclu ar face calculul sa nu se termine, asa ca il taiem la o
- * adancime maxima si continuam - un rezultat gresit e mai bun decat o bucla
- * infinita care ingheata pagina.
+ * The depth of a node = the longest path to it. **The graph must be acyclic**;
+ * a cycle would make the computation never terminate, so we cap it at a maximum
+ * depth and carry on - a wrong result is better than an infinite loop that
+ * freezes the page.
  */
 export function sankeyLayout(
   nodes: readonly SankeyNode[],
@@ -961,7 +961,7 @@ export function sankeyLayout(
     else columns.set(d, [n.key]);
   }
 
-  /** Debitul unui nod: maximul dintre ce intra si ce iese. */
+  /** The flow of a node: the maximum of what comes in and what goes out. */
   const flow = new Map<string, number>();
   for (const n of nodes) {
     const incoming = links.filter((l) => l.to === n.key).reduce((s, l) => s + l.value, 0);
@@ -992,7 +992,7 @@ export function sankeyLayout(
     }
   }
 
-  // Offseturi acumulate, ca legaturile sa nu se suprapuna pe acelasi nod.
+  // Accumulated offsets, so the links do not overlap on the same node.
   const outOffset = new Map<string, number>();
   const inOffset = new Map<string, number>();
   const layoutLinks: SankeyLayout["links"] = [];
@@ -1106,11 +1106,11 @@ export interface MeterProps {
   value: Accessor<number> | number;
   min?: number;
   max?: number;
-  /** Sub aceasta valoare, bara e marcata ca "putin". */
+  /** Below this value, the bar is marked as "low". */
   low?: number;
-  /** Peste aceasta valoare, ca "mult". */
+  /** Above this value, as "high". */
   high?: number;
-  /** Valoarea considerata optima; decide ce culoare e "buna". */
+  /** The value considered optimal; decides which color is "good". */
   optimum?: number;
   label?: string;
   format?: (value: number) => string;
@@ -1118,11 +1118,11 @@ export interface MeterProps {
 }
 
 /**
- * Meter - o valoare intr-un interval CUNOSCUT (spatiu pe disc, baterie).
+ * Meter - a value within a KNOWN range (disk space, battery).
  *
- * Diferit de `Progress`: acela masoara inaintarea unei sarcini catre final, asta
- * masoara cat de plin e ceva. ARIA are roluri diferite pentru ele si screen
- * readerele le anunta diferit.
+ * Different from `Progress`: that one measures a task's advance toward
+ * completion, this one measures how full something is. ARIA has different roles
+ * for them and screen readers announce them differently.
  */
 export function Meter(props: MeterProps): El {
   const min = props.min ?? 0;

@@ -1,11 +1,11 @@
 /**
- * Graph diff pentru Stateful Reactive HMR (whitepaper RaptorEngine 11, 12).
+ * Graph diff for Stateful Reactive HMR (RaptorEngine whitepaper 11, 12).
  *
- * HMR clasic inlocuieste module. Raptor merge mai jos: folosind stable IDs din
- * IR, comparam graful vechi cu cel nou si producem un plan de patch care
- * pastreaza numai starea compatibila si regenereaza numai nodurile modificate.
- * Cand un contract se schimba incompatibil, facem fallback explicit la remount
- * cu motiv (11.2: predictibilitatea > preservarea agresiva).
+ * Classic HMR replaces modules. Raptor goes lower: using stable IDs from the
+ * IR, we compare the old graph with the new one and produce a patch plan that
+ * preserves only the compatible state and regenerates only the changed nodes.
+ * When a contract changes incompatibly, we do an explicit fallback to remount
+ * with a reason (11.2: predictability > aggressive preservation).
  */
 import { canonicalize } from "./ir.ts";
 import type { IRModule, IRComponent, IRElement, IRChild } from "./ir.ts";
@@ -13,7 +13,7 @@ import type { IRModule, IRComponent, IRElement, IRChild } from "./ir.ts";
 export interface WireChange {
   serverSignal: string;
   address: string;
-  /** Sesiune wire pastrata (aceeasi adresa) sau pierduta (adresa schimbata). */
+  /** Wire session preserved (same address) or lost (address changed). */
   sessionPreserved: boolean;
   schemaChanged: boolean;
 }
@@ -35,7 +35,7 @@ export interface GraphDiff {
   addedComponents: string[];
   removedComponents: string[];
   patches: ComponentPatch[];
-  /** Numar total de sesiuni wire pastrate (linia "preserved: … wire session"). */
+  /** Total number of preserved wire sessions (the "preserved: … wire session" line). */
   preservedWireSessions: number;
 }
 
@@ -43,7 +43,7 @@ function exprEqual(a: unknown, b: unknown): boolean {
   return JSON.stringify(canonicalize(a)) === JSON.stringify(canonicalize(b));
 }
 
-/** Semnatura structurala a unui element: forma DOM, ignorand continutul expresiilor. */
+/** Structural signature of an element: DOM shape, ignoring expression contents. */
 function structuralSignature(el: IRElement): string {
   const attrs = el.attrs.map((a) => `${a.name}${a.expr ? "=~" : "=s"}`).sort();
   const events = el.events.map((e) => `on:${e.event}`).sort();
@@ -87,13 +87,13 @@ function diffComponent(oldC: IRComponent, newC: IRComponent): ComponentPatch {
     wireChanges: [],
   };
 
-  // 1. Structura DOM. Schimbarea formei -> remount (11.2).
+  // 1. DOM structure. A shape change -> remount (11.2).
   if (structuralSignature(oldC.root) !== structuralSignature(newC.root)) {
     patch.strategy = "remount";
-    patch.fallbackReason = "structura template s-a schimbat (boundary incompatibil)";
+    patch.fallbackReason = "template structure changed (incompatible boundary)";
   }
 
-  // 2. Signals: match dupa nume.
+  // 2. Signals: match by name.
   const oldSignals = indexByName(oldC.signals);
   const newSignals = indexByName(newC.signals);
   for (const [name, s] of newSignals) {
@@ -105,12 +105,12 @@ function diffComponent(oldC: IRComponent, newC: IRComponent): ComponentPatch {
       patch.disposedSignals.push(s.id);
       if (patch.strategy === "patch") {
         patch.strategy = "remount";
-        patch.fallbackReason = `signal '${name}' eliminat (identitate pierduta)`;
+        patch.fallbackReason = `signal '${name}' removed (identity lost)`;
       }
     }
   }
 
-  // 3. Deriveds: expr schimbat -> regenerat.
+  // 3. Deriveds: expr changed -> regenerated.
   const oldDeriveds = indexByName(oldC.deriveds);
   const newDeriveds = indexByName(newC.deriveds);
   for (const [name, d] of newDeriveds) {
@@ -118,8 +118,8 @@ function diffComponent(oldC: IRComponent, newC: IRComponent): ComponentPatch {
     if (!prev || !exprEqual(prev.expr, d.expr)) patch.regeneratedDeriveds.push(d.id);
   }
 
-  // 4. Bindings: expr schimbat -> regenerat (doar in strategia patch;
-  //    la remount tot subtree-ul se reconstruieste oricum).
+  // 4. Bindings: expr changed -> regenerated (only in the patch strategy;
+  //    on remount the whole subtree is rebuilt anyway).
   if (patch.strategy === "patch") {
     const oldB = new Map<string, unknown>();
     const newB: BindingInfo[] = [];
@@ -133,7 +133,7 @@ function diffComponent(oldC: IRComponent, newC: IRComponent): ComponentPatch {
     }
   }
 
-  // 5. Server signals / wire: schema sau address schimbate.
+  // 5. Server signals / wire: schema or address changed.
   const oldSS = indexByName(oldC.serverSignals);
   const newSS = indexByName(newC.serverSignals);
   for (const [name, ss] of newSS) {
@@ -154,7 +154,7 @@ function diffComponent(oldC: IRComponent, newC: IRComponent): ComponentPatch {
   return patch;
 }
 
-/** Compara doua compilari ale aceluiasi modul si produce planul de patch HMR. */
+/** Compares two compilations of the same module and produces the HMR patch plan. */
 export function diffModules(oldM: IRModule, newM: IRModule): GraphDiff {
   const oldComps = indexByName(oldM.components);
   const newComps = indexByName(newM.components);
@@ -183,7 +183,7 @@ export function diffModules(oldM: IRModule, newM: IRModule): GraphDiff {
       diff.changedComponents.push(name);
       diff.patches.push(patch);
     }
-    // Sesiuni wire pastrate: server signals neschimbate + cele cu adresa aceeasi.
+    // Preserved wire sessions: unchanged server signals + those with the same address.
     for (const ss of c.serverSignals) {
       const change = patch.wireChanges.find((w) => w.serverSignal === ss.id);
       if (!change || change.sessionPreserved) diff.preservedWireSessions++;

@@ -1,27 +1,27 @@
 /**
- * Declaratiile de tip ale spatiului `raptor:` pentru **binarul nativ**.
+ * The type declarations for the `raptor:` namespace for the **native binary**.
  *
- * Exista DOUA suprafete `raptor:`, nu una, si asta nu e o scapare:
+ * There are TWO `raptor:` surfaces, not one, and this is not an oversight:
  *
- *  - **bootstrap** (`raptor-modules.d.ts`) ruleaza pe Node, are bucla de
- *    evenimente, deci `files.readText` intoarce `Promise<string>` si serverul se
- *    porneste cu `serve.serve({ fetch })`;
- *  - **nativ** (acest fisier) ruleaza pe QuickJS, unde inca nu exista bucla de
- *    evenimente si nici promisiuni legate la host. Acolo totul e **sincron**,
- *    iar bucla de acceptare a serverului apartine aplicatiei:
+ *  - **bootstrap** (`raptor-modules.d.ts`) runs on Node, has an event loop, so
+ *    `files.readText` returns `Promise<string>` and the server is started with
+ *    `serve.serve({ fetch })`;
+ *  - **native** (this file) runs on QuickJS, where there is not yet an event
+ *    loop nor host-bound promises. There everything is **synchronous**, and the
+ *    server's accept loop belongs to the application:
  *    `serve.listen()` / `serve.next()` / `serve.respond()`.
  *
- * Aceleasi nume, doua profiluri. Le tinem in fisiere separate pentru ca doua
- * blocuri `declare module "raptor:files"` in acelasi program TypeScript s-ar
- * **contopi**, iar rezultatul ar fi un tip care nu descrie niciuna dintre cele
- * doua tinte. Deci programele sunt separate: `tsconfig.json` verifica tot ce
- * ruleaza pe Node, `tsconfig.native.json` verifica exemplele native. `pnpm
- * typecheck` le ruleaza pe amandoua.
+ * The same names, two profiles. We keep them in separate files because two
+ * `declare module "raptor:files"` blocks in the same TypeScript program would
+ * **merge**, and the result would be a type that describes neither of the two
+ * targets. So the programs are separate: `tsconfig.json` checks everything that
+ * runs on Node, `tsconfig.native.json` checks the native examples. `pnpm
+ * typecheck` runs both.
  *
- * Tipurile de aici sunt scrise de mana dupa contractele reale din
- * `packages/runtime-native/crates/raptor-runtime-core/src/modules.rs`. Cand
- * bucla de evenimente ajunge in host-ul nativ, profilul asta se apropie de
- * celalalt - contractul nu se schimba, se adauga peste el.
+ * The types here are hand-written after the real contracts in
+ * `packages/runtime-native/crates/raptor-runtime-core/src/modules.rs`. When the
+ * event loop reaches the native host, this profile moves closer to the other -
+ * the contract does not change, it is added on top of it.
  */
 
 declare module "raptor:files" {
@@ -35,7 +35,7 @@ declare module "raptor:files" {
     readText(path: string): string;
     write(path: string, contents: string): boolean;
     exists(path: string): boolean;
-    /** Numele intrarilor, sortate. Nu intoarce obiecte: host-ul da siruri. */
+    /** The entry names, sorted. Does not return objects: the host gives strings. */
     list(path: string): string[];
   }
 
@@ -65,12 +65,12 @@ declare module "raptor:process" {
   export interface NativeProcess {
     readonly args: readonly string[];
     readonly platform: string;
-    /** `null` cand variabila nu exista; arunca daca `env.read` nu o acopera. */
+    /** `null` when the variable does not exist; throws if `env.read` does not cover it. */
     env(name: string): string | null;
     /**
-     * Refuzat deliberat in host-ul nativ: capabilitatea poate trece, dar
-     * executia cere izolare de proces pe care host-ul nu o are inca, iar un
-     * refuz explicit e mai bun decat un `Command::new` fara granite.
+     * Deliberately denied in the native host: the capability may pass, but
+     * execution requires process isolation the host does not have yet, and an
+     * explicit denial is better than a `Command::new` without boundaries.
      */
     spawn(command: string): never;
   }
@@ -83,7 +83,7 @@ declare module "raptor:kv" {
   export interface NativeKv {
     get(key: string): string | null;
     set(key: string, value: string): boolean;
-    /** `delete` e cuvant rezervat, deci nu e exportat si ca nume separat. */
+    /** `delete` is a reserved word, so it is not exported as a separate name too. */
     delete(key: string): boolean;
     keys(): string[];
   }
@@ -131,7 +131,7 @@ declare module "raptor:net" {
   }
 
   export interface NativeNet {
-    /** Sincron, deliberat: fara bucla de evenimente nu exista alta forma. */
+    /** Synchronous, deliberately: without an event loop there is no other form. */
     fetch(url: string, options?: NativeFetchOptions): NativeResponse;
     allows(url: string): boolean;
   }
@@ -156,7 +156,7 @@ declare module "raptor:serve" {
   export interface NativeRequest {
     readonly id: number;
     readonly method: string;
-    /** Calea cruda din linia de cerere, interogarea inclusa. */
+    /** The raw path from the request line, query string included. */
     readonly target: string;
     readonly headers: Record<string, string>;
     readonly body: string;
@@ -175,12 +175,12 @@ declare module "raptor:serve" {
   }
 
   export interface NativeServe {
-    /** Cere `net.listen` pentru `gazda:port`, inainte de `bind`. */
+    /** Requires `net.listen` for `host:port`, before `bind`. */
     listen(options?: NativeListenOptions): NativeServer;
     /**
-     * Urmatoarea cerere, sau `null` daca niciuna nu a venit in fereastra
-     * ceruta. **Blocheaza** - bucla de acceptare apartine aplicatiei, pentru ca
-     * fara bucla de evenimente host-ul nu poate chema inapoi o functie JS.
+     * The next request, or `null` if none arrived within the requested window.
+     * **Blocks** - the accept loop belongs to the application, because without
+     * an event loop the host cannot call a JS function back.
      */
     next(options?: { readonly timeoutMs?: number }): NativeRequest | null;
     respond(id: number, reply: NativeReply): boolean;

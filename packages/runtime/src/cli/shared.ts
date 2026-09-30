@@ -1,9 +1,9 @@
 /**
- * Tipuri si utilitare comune comenzilor launcher-ului.
+ * Types and utilities common to the launcher's commands.
  *
- * Fiecare comanda intoarce acelasi obiect: un cod de iesire, un text lizibil si
- * o incarcatura structurata. `--json` tipareste incarcatura; fara flag se
- * tipareste textul. Asta face ca fiecare comanda sa fie testabila fara proces.
+ * Every command returns the same object: an exit code, a readable text and a
+ * structured payload. `--json` prints the payload; without the flag the text is
+ * printed. This makes every command testable without a process.
  */
 import type { PolicyMode } from "@raptor/runtime";
 import { isRaptorError } from "@raptor/runtime";
@@ -21,7 +21,7 @@ export interface CommandInput {
   readonly appArgs: readonly string[];
   readonly json: boolean;
   readonly interactive: boolean;
-  /** `--policy` suprascrie politica din manifest. */
+  /** `--policy` overrides the manifest's policy. */
   readonly policyOverride: PolicyMode | null;
 }
 
@@ -33,16 +33,16 @@ export function fail(code: number, out: string, data: Record<string, unknown>): 
   return { code, out, data };
 }
 
-/** Traduce orice exceptie intr-un rezultat de comanda cu cod stabil. */
+/** Translates any exception into a command result with a stable code. */
 export function fromError(error: unknown): CommandResult {
   if (isRaptorError(error)) {
     const detail = error.detail as Record<string, unknown>;
     const issues = Array.isArray(detail["issues"]) ? (detail["issues"] as string[]) : [];
-    const lines = [`eroare ${error.code}: ${error.message}`, ...issues.map((issue) => `  - ${issue}`)];
+    const lines = [`error ${error.code}: ${error.message}`, ...issues.map((issue) => `  - ${issue}`)];
     return fail(1, lines.join("\n"), { error: error.toJSON() });
   }
   const message = error instanceof Error ? error.message : String(error);
-  return fail(1, `eroare: ${message}`, { error: { code: "raptor:internal", message } });
+  return fail(1, `error: ${message}`, { error: { code: "raptor:internal", message } });
 }
 
 export function table(rows: readonly (readonly [string, string])[], indent = "  "): string {

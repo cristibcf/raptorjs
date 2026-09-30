@@ -1,11 +1,11 @@
 /**
- * Table - tabel sortabil peste `For` keyed.
+ * Table - a sortable table on top of a keyed `For`.
  *
- * De ce e interesant fine-grained aici: sortarea nu recreeaza randurile.
- * `For` e keyed pe identitatea obiectului-rand, iar sortarea intoarce un array
- * nou cu *aceleasi* referinte, deci nodurile existente sunt doar mutate
- * (`insertBefore`), nu reconstruite. O celula care primeste un accesor isi
- * actualizeaza doar propriul text-node cand se schimba datele.
+ * Why fine-grained is interesting here: sorting doesn't recreate the rows.
+ * `For` is keyed on the row object's identity, and sorting returns a new array
+ * with the *same* references, so the existing nodes are only moved
+ * (`insertBefore`), not rebuilt. A cell given an accessor updates only its own
+ * text node when the data changes.
  */
 import { state, derived, type Accessor, type State } from "raptorjs";
 import { R, For, Show, type Child } from "raptorjs/dom";
@@ -14,14 +14,14 @@ import { R, For, Show, type Child } from "raptorjs/dom";
 type El = any;
 
 export interface Column<T> {
-  /** Identifica coloana (folosit pentru starea de sortare). */
+  /** Identifies the column (used for the sort state). */
   key: string;
   header: Child;
-  /** Continutul celulei. Intoarce un accesor daca vrei celula reactiva. */
+  /** The cell content. Return an accessor if you want a reactive cell. */
   cell: (row: T, index: number) => Child;
   /**
-   * Comparator ascendent. Absenta lui face coloana nesortabila - nu exista
-   * sortare "implicita" pe string, ca sa nu ordonezi gresit numere sau date.
+   * Ascending comparator. Its absence makes the column unsortable - there's no
+   * "default" string sort, so you don't misorder numbers or dates.
    */
   sort?: (a: T, b: T) => number;
   width?: string;
@@ -36,13 +36,13 @@ export interface SortState {
 export interface TableProps<T> {
   rows: Accessor<readonly T[]>;
   columns: readonly Column<T>[];
-  /** Sortarea initiala. Omisa => ordinea din `rows`. */
+  /** The initial sort. Omitted => the order from `rows`. */
   sort?: SortState;
-  /** Continut afisat cand nu exista randuri. */
+  /** Content shown when there are no rows. */
   empty?: Child;
-  /** Selectie: da-i un semnal pe care il detii tu. Omis => fara selectie. */
+  /** Selection: give it a signal that you own. Omitted => no selection. */
   selected?: State<ReadonlySet<T>>;
-  /** Selectie multipla (implicit `true` cand `selected` e prezent). */
+  /** Multiple selection (default `true` when `selected` is present). */
   multiple?: boolean;
   onRowClick?: (row: T, index: number) => void;
   class?: string;
@@ -103,7 +103,7 @@ export function Table<T>(props: TableProps<T>): El {
         class: sortable ? "rui-th rui-sortable" : "rui-th",
         style: cellStyle(col),
         scope: "col",
-        // `aria-sort` e reactiv: un singur atribut rescris la sortare.
+        // `aria-sort` is reactive: a single attribute rewritten on sort.
         "aria-sort": () => {
           const d = dirOf();
           return d === null ? "none" : d === "asc" ? "ascending" : "descending";
@@ -155,8 +155,8 @@ export function Table<T>(props: TableProps<T>): El {
     R.thead(R.tr({ class: "rui-tr" }, columns.map(headCell))),
     R.tbody(
       For({ each: () => view(), children: bodyRow }),
-      // Randul de "gol" traieste langa lista, nu in locul ei: cand apar
-      // randuri, dispare singur fara sa atinga restul tabelului.
+      // The "empty" row lives alongside the list, not in its place: when rows
+      // appear, it disappears on its own without touching the rest of the table.
       Show({
         when: () => view().length === 0,
         children: R.tr(

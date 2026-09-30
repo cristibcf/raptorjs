@@ -1,9 +1,9 @@
 /**
- * @raptor/compiler - nucleul semantic stabil al RaptorEngine (whitepaper 6-9).
+ * @raptor/compiler - the stable semantic core of RaptorEngine (whitepaper 6-9).
  *
- * Separat de bundler/engine: parseaza .raptor in Raptor IR, construieste graful
- * semantic si calculeaza diff-ul pentru HMR. @raptor/engine consuma acest API
- * pentru optimizare, codegen si dev loop.
+ * Separate from the bundler/engine: it parses .raptor into Raptor IR, builds the
+ * semantic graph and computes the diff for HMR. @raptor/engine consumes this API
+ * for optimization, codegen and the dev loop.
  */
 export {
   ExprKind,

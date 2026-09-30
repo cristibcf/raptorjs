@@ -1,18 +1,18 @@
 /**
- * positioner - asaza un element flotant fata de o referinta, fara sa iasa din
- * ecran.
+ * positioner - places a floating element relative to a reference, without going
+ * off screen.
  *
- * Fara asta, orice overlay pozitionat cu CSS pur (`position:absolute; top:100%`)
- * se taie la marginea ferestrei: un meniu langa marginea de jos ramane pe
- * jumatate invizibil. `flip` intoarce plasamentul pe partea opusa cand nu incape,
- * `shift` il gliseaza pe axa secundara cat sa ramana inauntru.
+ * Without this, any overlay positioned with pure CSS (`position:absolute; top:100%`)
+ * is clipped at the window edge: a menu near the bottom edge stays half
+ * invisible. `flip` turns the placement to the opposite side when it doesn't fit,
+ * `shift` slides it on the secondary axis just enough to stay inside.
  *
- * Rezultatul e un semnal, deci repozitionarea rescrie **un singur atribut de
- * stil** - nu re-randeaza continutul overlay-ului.
+ * The result is a signal, so repositioning rewrites **a single style attribute**
+ * - it doesn't re-render the overlay's content.
  *
- * `getBoundingClientRect` nu exista pe mini-dom; atunci pozitia ramane {0,0} si
- * `update()` poate fi apelat manual cu dreptunghiuri date, ca logica de flip/shift
- * sa fie testabila fara layout real.
+ * `getBoundingClientRect` doesn't exist on mini-dom; in that case the position
+ * stays {0,0} and `update()` can be called manually with given rectangles, so
+ * the flip/shift logic is testable without real layout.
  */
 import { state, onCleanup, type Accessor } from "raptorjs";
 import { onDoc, type El } from "./env.ts";
@@ -29,32 +29,32 @@ export interface Rect {
 }
 
 export interface PositionerOptions {
-  /** Plasamentul dorit. Implicit `bottom-start`. */
+  /** The desired placement. Defaults to `bottom-start`. */
   placement?: Placement;
-  /** Distanta in px fata de referinta. Implicit 4. */
+  /** Distance in px from the reference. Defaults to 4. */
   offset?: number;
-  /** Intoarce pe partea opusa daca nu incape. Implicit `true`. */
+  /** Turn to the opposite side if it doesn't fit. Defaults to `true`. */
   flip?: boolean;
-  /** Gliseaza pe axa secundara cat sa ramana in ecran. Implicit `true`. */
+  /** Slide on the secondary axis to stay on screen. Defaults to `true`. */
   shift?: boolean;
-  /** Marginea pastrata fata de marginea ecranului. Implicit 8. */
+  /** The margin kept from the screen edge. Defaults to 8. */
   padding?: number;
-  /** Cat timp intoarce `false`, nu se recalculeaza (overlay inchis). */
+  /** While this returns `false`, nothing is recomputed (overlay closed). */
   enabled?: () => boolean;
 }
 
 export interface Positioner {
-  /** `ref` pentru elementul de referinta (trigger-ul). */
+  /** `ref` for the reference element (the trigger). */
   reference: (el: El) => void;
-  /** `ref` pentru elementul flotant. */
+  /** `ref` for the floating element. */
   floating: (el: El) => void;
-  /** Stil gata de pus pe elementul flotant. */
+  /** Style ready to put on the floating element. */
   style: Accessor<string>;
   x: Accessor<number>;
   y: Accessor<number>;
-  /** Plasamentul efectiv folosit (poate diferi de cel cerut, dupa flip). */
+  /** The placement actually used (may differ from the requested one, after flip). */
   placement: Accessor<Placement>;
-  /** Recalculeaza. Cu argumente, foloseste dreptunghiurile date (teste/SSR). */
+  /** Recompute. With arguments, uses the given rectangles (tests/SSR). */
   update: (rects?: { reference: Rect; floating: Rect; viewport?: Rect }) => void;
 }
 
@@ -83,7 +83,7 @@ function viewportRect(): Rect {
   };
 }
 
-/** Pozitia de baza pentru un plasament, fara corectii. */
+/** The base position for a placement, without corrections. */
 function place(ref: Rect, float: Rect, side: Side, align: Align, offset: number): { x: number; y: number } {
   const alongX = side === "top" || side === "bottom";
   let x = 0;
@@ -108,7 +108,7 @@ function place(ref: Rect, float: Rect, side: Side, align: Align, offset: number)
 }
 
 function fits(pos: { x: number; y: number }, float: Rect, view: Rect, padding: number): boolean {
-  if (view.width <= 0 || view.height <= 0) return true; // viewport necunoscut
+  if (view.width <= 0 || view.height <= 0) return true; // viewport unknown
   return (
     pos.x >= padding &&
     pos.y >= padding &&
@@ -137,8 +137,8 @@ export function positioner(options?: PositionerOptions): Positioner {
     let finalSide = side;
     let pos = place(ref, float, side, align, offset);
 
-    // flip: daca nu incape pe partea ceruta, incearca opusul si pastreaza
-    // varianta care incape (sau pe cea originala daca niciuna nu incape).
+    // flip: if it doesn't fit on the requested side, try the opposite and keep
+    // the variant that fits (or the original one if neither fits).
     if (doFlip && !fits(pos, float, view, padding)) {
       const alt = OPPOSITE[side];
       const altPos = place(ref, float, alt, align, offset);
@@ -148,7 +148,7 @@ export function positioner(options?: PositionerOptions): Positioner {
       }
     }
 
-    // shift: gliseaza pe axa secundara cat sa ramana inauntru.
+    // shift: slide on the secondary axis just enough to stay inside.
     if (doShift && view.width > 0 && view.height > 0) {
       const alongX = finalSide === "top" || finalSide === "bottom";
       if (alongX) {
@@ -184,8 +184,8 @@ export function positioner(options?: PositionerOptions): Positioner {
     floatEl = el;
     update();
     if (!el) return;
-    // Repozitionare la scroll/resize. `capture` prinde si scroll-ul
-    // containerelor intermediare, nu doar al ferestrei.
+    // Reposition on scroll/resize. `capture` catches the scroll of intermediate
+    // containers too, not just the window's.
     const unScroll = onDoc("scroll", update);
     const w = (globalThis as any).addEventListener ? globalThis : null;
     const onResize = (): void => update();

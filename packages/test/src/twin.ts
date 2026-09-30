@@ -1,10 +1,10 @@
 /**
- * RaptorTwin - backend digital twin stateful (whitepaper §9, §13).
+ * RaptorTwin - a stateful backend digital twin (whitepaper §9, §13).
  *
- * VirtualDB: entitati + CRUD + relatii de ID. RaptorTwin: rute peste DB, cu
- * snapshot/fork copy-on-write pentru State Forking (testare paralela fara
- * reseed complet). Nu recreeaza microserviciile reale, ci contractele si
- * tranzitiile observabile.
+ * VirtualDB: entities + CRUD + ID relations. RaptorTwin: routes over the DB,
+ * with copy-on-write snapshot/fork for State Forking (parallel testing without
+ * a full reseed). It does not recreate the real microservices, but the
+ * contracts and observable transitions.
  */
 
 export interface TwinRequest {
@@ -21,7 +21,7 @@ export type RouteHandler = (req: TwinRequest, db: VirtualDB) => TwinResponse;
 
 interface Route {
   method: string;
-  pattern: string; // ex. "/cart/items", "/orders/:id"
+  pattern: string; // e.g. "/cart/items", "/orders/:id"
   handler: RouteHandler;
 }
 
@@ -54,7 +54,7 @@ export class VirtualDB {
   update(collection: string, id: number, patch: Record<string, unknown>): Record<string, unknown> | undefined {
     const r = this.col(collection).get(id);
     if (!r) return undefined;
-    // Asignare proprie (nu Object.assign): evita setter-ul __proto__ / prototype pollution.
+    // Own-property assignment (not Object.assign): avoids the __proto__ setter / prototype pollution.
     for (const key of Object.keys(patch)) {
       Object.defineProperty(r, key, { value: patch[key], writable: true, enumerable: true, configurable: true });
     }
@@ -108,7 +108,7 @@ export class RaptorTwin {
     return { status: 404, body: { error: "no route" } };
   }
 
-  /** State fork copy-on-write: intoarce o functie care restaureaza snapshot-ul. */
+  /** Copy-on-write state fork: returns a function that restores the snapshot. */
   fork(): () => void {
     const snap = this.db.snapshot();
     return () => this.db.restore(snap);

@@ -1,14 +1,14 @@
 /**
  * ChartPrimitives / LineChart / AreaChart / BarChart.
  *
- * Grafice de baza, nu o biblioteca de vizualizare. Acopera cazurile uzuale
- * (serie in timp, comparatie intre categorii) si se opresc acolo: scale, axe,
- * grila, legenda, tooltip. Pentru altceva - sankey, treemap, hartii - ai nevoie
- * de o biblioteca dedicata, si e in regula.
+ * Basic charts, not a visualization library. They cover the common cases
+ * (time series, comparison across categories) and stop there: scales, axes,
+ * grid, legend, tooltip. For anything else - sankey, treemap, maps - you need
+ * a dedicated library, and that's fine.
  *
- * Teza fine-grained: datele care se schimba rescriu atributul `d` al unui
- * `path` sau `height`-ul unui `rect`. Nodurile nu se recreeaza, fiindca `For`
- * e keyed pe indice (ca la `virtualizer`), nu pe obiecte noi la fiecare tick.
+ * The fine-grained thesis: data that changes rewrites the `d` attribute of a
+ * `path` or the `height` of a `rect`. Nodes are not recreated, because `For`
+ * is keyed on index (as in `virtualizer`), not on new objects at every tick.
  */
 import { derived, state, type Accessor } from "raptorjs";
 import { R, For, Show, type Child } from "raptorjs/dom";
@@ -22,16 +22,16 @@ export interface LinearScale {
   (value: number): number;
   domain: readonly [number, number];
   range: readonly [number, number];
-  /** Valori "rotunde" pentru axa. */
+  /** "Round" values for the axis. */
   ticks: (count?: number) => number[];
   invert: (pixel: number) => number;
 }
 
-/** Scala liniara valoare → pixel. */
+/** Linear value → pixel scale. */
 export function scaleLinear(domain: readonly [number, number], range: readonly [number, number]): LinearScale {
   const [d0, d1] = domain;
   const [r0, r1] = range;
-  // Domeniu degenerat (toate valorile egale): trimitem la mijloc, nu la NaN.
+  // Degenerate domain (all values equal): map to the middle, not to NaN.
   const span = d1 - d0;
   const fn = ((value: number): number =>
     span === 0 ? (r0 + r1) / 2 : r0 + ((value - d0) / span) * (r1 - r0)) as LinearScale;
@@ -44,21 +44,21 @@ export function scaleLinear(domain: readonly [number, number], range: readonly [
   return fn;
 }
 
-/** Pasi "rotunzi" (1, 2, 5, 10...) care acopera intervalul. */
+/** "Round" steps (1, 2, 5, 10...) that cover the interval. */
 export function niceTicks(min: number, max: number, count = 5): number[] {
   if (!Number.isFinite(min) || !Number.isFinite(max)) return [];
   if (min === max) return [min];
   const raw = (max - min) / Math.max(1, count);
   const magnitude = Math.pow(10, Math.floor(Math.log10(raw)));
   const normalized = raw / magnitude;
-  // Cel mai mic pas "rotund" care e >= raw. Ordinea conteaza: cu `>=` in loc de
-  // `<=` se alege mereu treapta urmatoare si ies jumatate din marcaje.
+  // The smallest "round" step that is >= raw. Order matters: with `>=` instead
+  // of `<=` you'd always pick the next step up and end up with half the ticks.
   const step = (normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10) * magnitude;
 
   const start = Math.ceil(min / step) * step;
   const out: number[] = [];
   for (let v = start; v <= max + step / 1000; v += step) {
-    // Curatam erorile de virgula mobila acumulate din adunari repetate.
+    // Clean up floating-point errors accumulated from repeated additions.
     out.push(Number(v.toFixed(10)));
   }
   return out;
@@ -70,7 +70,7 @@ export interface BandScale {
   step: number;
 }
 
-/** Scala de categorii: imparte intervalul in `count` benzi cu spatiu intre ele. */
+/** Categorical scale: splits the interval into `count` bands with space between them. */
 export function scaleBand(count: number, range: readonly [number, number], padding = 0.2): BandScale {
   const [r0, r1] = range;
   const width = r1 - r0;
@@ -82,7 +82,7 @@ export function scaleBand(count: number, range: readonly [number, number], paddi
   return fn;
 }
 
-/** Extinde domeniul la 0 si adauga margine, ca varful sa nu atinga rama. */
+/** Extends the domain to 0 and adds margin, so the peak doesn't touch the frame. */
 export function extent(values: readonly number[], includeZero = true): [number, number] {
   if (values.length === 0) return [0, 1];
   let lo = Number.POSITIVE_INFINITY;
@@ -112,19 +112,19 @@ export const DEFAULT_MARGIN: ChartMargin = { top: 12, right: 12, bottom: 28, lef
 
 export interface AxisProps {
   scale: LinearScale | BandScale;
-  /** Pozitia axei in sistemul de coordonate al graficului. */
+  /** The axis position in the chart's coordinate system. */
   orientation: "bottom" | "left";
-  /** Pentru axa de jos cu `scaleBand`: etichetele categoriilor. */
+  /** For the bottom axis with `scaleBand`: the category labels. */
   labels?: readonly string[];
   tickCount?: number;
   format?: (value: number) => string;
-  /** Unde se deseneaza axa (y pentru `bottom`, x pentru `left`). */
+  /** Where the axis is drawn (y for `bottom`, x for `left`). */
   at: number;
-  /** Lungimea liniilor de grila; 0 le dezactiveaza. */
+  /** The length of the grid lines; 0 disables them. */
   gridLength?: number;
 }
 
-/** Axa cu marcaje si, optional, linii de grila. Marcajele sunt `aria-hidden`. */
+/** Axis with ticks and, optionally, grid lines. The ticks are `aria-hidden`. */
 export function Axis(props: AxisProps): El {
   const isBand = typeof (props.scale as BandScale).bandwidth === "number";
   const format = props.format ?? ((v: number) => String(v));
@@ -213,7 +213,7 @@ export function Legend(props: { items: readonly LegendItem[]; class?: string }):
   );
 }
 
-/* ------------------------------------------------------------- serii ----- */
+/* ------------------------------------------------------------- series ---- */
 
 export interface Series {
   label: string;
@@ -223,23 +223,23 @@ export interface Series {
 
 export interface BaseChartProps {
   series: Accessor<readonly Series[]> | readonly Series[];
-  /** Etichetele de pe axa X; lungimea lor da numarul de puncte. */
+  /** The X-axis labels; their length gives the number of points. */
   labels?: Accessor<readonly string[]> | readonly string[];
   width?: number;
   height?: number;
   margin?: Partial<ChartMargin>;
-  /** Format pentru valorile de pe axa Y. */
+  /** Format for the Y-axis values. */
   formatValue?: (value: number) => string;
-  /** Include zero in domeniu. Implicit `true`. */
+  /** Include zero in the domain. Default `true`. */
   zeroBased?: boolean;
   grid?: boolean;
   legend?: boolean;
-  /** Descriere pentru screen reader; graficul in sine e `aria-hidden`. */
+  /** Description for screen readers; the chart itself is `aria-hidden`. */
   summary?: string;
   class?: string;
 }
 
-/** Paleta implicita, suficient de distincta si in alb-negru. */
+/** Default palette, distinct enough even in black and white. */
 export const CHART_COLORS = ["#17457a", "#0f6e4f", "#b45309", "#8250a8", "#b42318", "#0e7490"];
 
 function readSeries(props: BaseChartProps): readonly Series[] {
@@ -277,7 +277,7 @@ function frameOf(props: BaseChartProps): Frame {
   };
 }
 
-/** Invelisul comun: `<svg>`, descriere accesibila, axe si legenda. */
+/** The common wrapper: `<svg>`, accessible description, axes and legend. */
 function chartShell(
   props: BaseChartProps,
   frame: Frame,
@@ -294,7 +294,7 @@ function chartShell(
         width: String(frame.width),
         height: String(frame.height),
         viewBox: `0 0 ${frame.width} ${frame.height}`,
-        // Graficul e imagine; textul alternativ e in `figcaption`.
+        // The chart is an image; the alternative text is in `figcaption`.
         role: "img",
         ...(props.summary ? { "aria-label": props.summary } : { "aria-hidden": "true" }),
       },
@@ -312,9 +312,9 @@ function chartShell(
 /* ----------------------------------------------------- Line / Area chart */
 
 export interface LineChartProps extends BaseChartProps {
-  /** Umple aria de sub linie. */
+  /** Fill the area below the line. */
   area?: boolean;
-  /** Puncte pe fiecare valoare. */
+  /** Dots on each value. */
   dots?: boolean;
   thickness?: number;
 }
@@ -374,12 +374,12 @@ export function LineChart(props: LineChartProps): El {
     labels: model().labels,
   });
 
-  /** Seria de la un indice, sau una goala daca lista s-a scurtat. */
+  /** The series at an index, or an empty one if the list has shrunk. */
   const seriesAt = (i: number): Series => model().series[i] ?? { label: "", values: [] };
 
   return chartShell(props, frame, xAxis, yAxis,
-    // `For` keyed pe indici: numerele sunt chei stabile, deci path-urile
-    // existente sunt reutilizate si li se rescrie doar atributul `d`.
+    // `For` keyed on indices: the numbers are stable keys, so existing paths
+    // are reused and only their `d` attribute is rewritten.
     For({
       each: () => model().series.map((_, i) => i),
       children: (i: number) =>
@@ -428,9 +428,9 @@ export function AreaChart(props: BaseChartProps): El {
 /* ------------------------------------------------------------- BarChart -- */
 
 export interface BarChartProps extends BaseChartProps {
-  /** Bare stivuite in loc de grupate. */
+  /** Stacked bars instead of grouped. */
   stacked?: boolean;
-  /** Bare orizontale. */
+  /** Horizontal bars. */
   horizontal?: boolean;
 }
 
@@ -442,8 +442,8 @@ export function BarChart(props: BarChartProps): El {
     const count = Math.max(...series.map((s) => s.values.length), 0);
     const labels = readLabels(props, count);
 
-    // Stivuit: domeniul merge pana la suma pe categorie, nu pana la maximul
-    // unei singure serii - altfel barele ies din grafic.
+    // Stacked: the domain goes up to the per-category sum, not to the maximum
+    // of a single series - otherwise the bars run off the chart.
     const totals: number[] = [];
     for (let i = 0; i < count; i++) {
       totals.push(series.reduce((sum, s) => sum + (s.values[i] ?? 0), 0));
@@ -472,9 +472,9 @@ export function BarChart(props: BarChartProps): El {
   });
 
   /**
-   * Geometria unei bare, recalculata la cerere. Pentru cele stivuite trebuie
-   * cunoscuta inaltimea barelor de dedesubt, deci o luam de la zero de fiecare
-   * data - e O(serii) per bara, neglijabil fata de un re-render.
+   * The geometry of a bar, recomputed on demand. For stacked bars you need to
+   * know the height of the bars below, so we compute it from scratch each time
+   * - it's O(series) per bar, negligible compared to a re-render.
    */
   const geometry = (categoryIndex: number, seriesIndex: number) => {
     const { series, band, y, groupWidth } = model();
@@ -498,7 +498,7 @@ export function BarChart(props: BarChartProps): El {
     return { x: band(categoryIndex), y: top - height, width: Math.max(0, groupWidth - 1), height };
   };
 
-  /** Cate o cheie stabila per bara: `categorie * 1000 + serie`. */
+  /** A stable key per bar: `category * 1000 + series`. */
   const barKeys = (): number[] => {
     const { series, count } = model();
     const out: number[] = [];

@@ -1,9 +1,9 @@
 /**
- * Transportul puntii.
+ * The bridge transport.
  *
- * Interfata este ingusta intentionat - linii de text, intr-un sens si in
- * celalalt. Host-ul nativ o va implementa peste canalul lui (stdio, socket sau
- * mesajele WebView-ului) fara sa schimbe nimic din punte sau din aplicatie.
+ * The interface is intentionally narrow - lines of text, one way and the other.
+ * The native host will implement it over its own channel (stdio, socket or the
+ * WebView's messages) without changing anything in the bridge or the app.
  */
 import { HostError } from "./errors.ts";
 
@@ -15,11 +15,11 @@ export interface HostTransport {
 }
 
 /**
- * Pereche in memorie: un capat pentru JS, unul pentru host.
+ * An in-memory pair: one endpoint for JS, one for the host.
  *
- * Livrarea este asincrona (microtask), nu sincrona, tocmai ca testele sa nu
- * poata trece accidental bazandu-se pe o ordine pe care un canal real - unde
- * exista un proces si o coada intre capete - nu o garanteaza.
+ * Delivery is asynchronous (microtask), not synchronous, precisely so tests
+ * cannot pass by accident by relying on an ordering that a real channel - where
+ * there is a process and a queue between the endpoints - does not guarantee.
  */
 export function createMemoryChannel(): { readonly app: HostTransport; readonly host: HostTransport } {
   const listeners: { app: Array<(line: string) => void>; host: Array<(line: string) => void> } = { app: [], host: [] };
@@ -28,7 +28,7 @@ export function createMemoryChannel(): { readonly app: HostTransport; readonly h
   const endpoint = (self: "app" | "host", peer: "app" | "host"): HostTransport => ({
     send(line: string): void {
       if (closed) {
-        throw new HostError("raptor:host/transport-closed", "canalul catre host este inchis", { from: self });
+        throw new HostError("raptor:host/transport-closed", "the channel to the host is closed", { from: self });
       }
       queueMicrotask(() => {
         if (closed) return;

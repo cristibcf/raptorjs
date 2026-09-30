@@ -1,14 +1,14 @@
 /**
- * `raptor.host.json` - manifestul granitei native.
+ * `raptor.host.json` - the native boundary manifest.
  *
- * Nu dubleaza `raptor.runtime.json`: acela descrie aplicatia pentru runtime
- * (intrare, politica, capabilitati de proces), pe cand acesta descrie ce ii cere
- * aplicatia sistemului de operare - fereastra, scheme de deep link, notificari,
- * canal de actualizari, identitate de semnare. Cele doua se citesc impreuna, dar
- * evolueaza separat: un proiect web nu are nevoie de al doilea.
+ * It does not duplicate `raptor.runtime.json`: that one describes the app for
+ * the runtime (entry, policy, process capabilities), while this one describes
+ * what the app asks of the operating system - the window, deep link schemes,
+ * notifications, the update channel, the signing identity. The two are read
+ * together but evolve separately: a web project does not need the second.
  *
- * Ca si parserul de manifest al runtime-ului, acesta aduna toate problemele
- * inainte sa raspunda, ca `doctor` sa le poata arata pe toate deodata.
+ * Like the runtime's manifest parser, this one gathers all the problems before
+ * answering, so `doctor` can show them all at once.
  */
 import { HOST_TARGETS, decideCapability, hostCapability } from "./capabilities.ts";
 import type { HostTarget } from "./capabilities.ts";
@@ -24,15 +24,15 @@ export interface WindowDefaults {
 }
 
 export interface UpdateChannel {
-  /** URL-ul feed-ului de actualizari, sau `null` pentru distributie prin magazin. */
+  /** The update feed URL, or `null` for distribution through a store. */
   readonly feed: string | null;
   readonly channel: "stable" | "beta";
 }
 
 export interface SigningIdentity {
-  /** Identificator de aplicatie invers-DNS: `com.exemplu.aplicatie`. */
+  /** Reverse-DNS app identifier: `com.example.app`. */
   readonly bundleId: string;
-  /** Numele echipei/organizatiei din certificat, sau `null` pana la semnare. */
+  /** The team/organization name from the certificate, or `null` until signing. */
   readonly team: string | null;
 }
 
@@ -41,11 +41,11 @@ export interface HostManifest {
   readonly bundleId: string;
   readonly displayName: string;
   readonly version: string;
-  /** Pagina incarcata de WebView la pornire, relativa la unitatea ambalata. */
+  /** The page the WebView loads at startup, relative to the packaged unit. */
   readonly entry: string;
-  /** Modulele optionale cerute explicit (matricea din sectiunea 6). */
+  /** The optional modules requested explicitly (the section 6 matrix). */
   readonly capabilities: readonly string[];
-  /** Domeniile permise; adaptorul le transporta, runtime-ul le aplica. */
+  /** The allowed origins; the adapter carries them, the runtime enforces them. */
   readonly allowedOrigins: readonly string[];
   readonly deepLinkSchemes: readonly string[];
   readonly window: WindowDefaults | null;
@@ -73,38 +73,38 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function stringList(raw: unknown, path: string, issues: HostManifestIssue[]): string[] {
   if (raw === undefined) return [];
   if (!Array.isArray(raw) || raw.some((entry) => typeof entry !== "string")) {
-    issues.push({ path, message: "trebuie sa fie o lista de siruri" });
+    issues.push({ path, message: "must be a list of strings" });
     return [];
   }
   return [...(raw as string[])];
 }
 
 function readWindow(raw: unknown, target: HostTarget, issues: HostManifestIssue[]): WindowDefaults | null {
-  // `null` este forma serializata a lui "fara fereastra", deci trebuie sa fie
-  // acceptata ca absenta: altfel un manifest produs de parserul nostru nu ar mai
-  // trece prin el la a doua citire.
+  // `null` is the serialized form of "no window", so it must be accepted as
+  // absence: otherwise a manifest produced by our parser would no longer pass
+  // through it on a second read.
   //
-  // Pe `web`, campul ramane valid dar isi schimba intelesul: descrie popup-ul pe
-  // care pagina il poate deschide, nu o fereastra a sistemului de operare.
+  // On `web`, the field stays valid but changes meaning: it describes the popup
+  // the page can open, not an operating-system window.
   if (raw === undefined || raw === null) return null;
   if (target === "mobile") {
-    // Sectiunea 6: pe mobil navigarea este controlata de adaptor, nu de aplicatie.
-    issues.push({ path: "window", message: "tinta 'mobile' nu configureaza ferestre; adaptorul le controleaza" });
+    // Section 6: on mobile, navigation is controlled by the adapter, not the app.
+    issues.push({ path: "window", message: "the 'mobile' target does not configure windows; the adapter controls them" });
     return null;
   }
   if (!isRecord(raw)) {
-    issues.push({ path: "window", message: "trebuie sa fie un obiect" });
+    issues.push({ path: "window", message: "must be an object" });
     return null;
   }
 
   const title = typeof raw["title"] === "string" ? raw["title"] : "";
-  if (!title) issues.push({ path: "window.title", message: "camp obligatoriu (sir)" });
+  if (!title) issues.push({ path: "window.title", message: "required field (string)" });
 
   const dimension = (key: "width" | "height", fallback: number): number => {
     const value = raw[key];
     if (value === undefined) return fallback;
     if (typeof value !== "number" || !Number.isInteger(value) || value <= 0) {
-      issues.push({ path: `window.${key}`, message: "trebuie sa fie un intreg pozitiv" });
+      issues.push({ path: `window.${key}`, message: "must be a positive integer" });
       return fallback;
     }
     return value;
@@ -112,7 +112,7 @@ function readWindow(raw: unknown, target: HostTarget, issues: HostManifestIssue[
 
   const resizable = raw["resizable"];
   if (resizable !== undefined && typeof resizable !== "boolean") {
-    issues.push({ path: "window.resizable", message: "trebuie sa fie boolean" });
+    issues.push({ path: "window.resizable", message: "must be a boolean" });
   }
 
   return {
@@ -126,7 +126,7 @@ function readWindow(raw: unknown, target: HostTarget, issues: HostManifestIssue[
 function readUpdate(raw: unknown, issues: HostManifestIssue[]): UpdateChannel {
   if (raw === undefined) return { feed: null, channel: "stable" };
   if (!isRecord(raw)) {
-    issues.push({ path: "update", message: "trebuie sa fie un obiect" });
+    issues.push({ path: "update", message: "must be an object" });
     return { feed: null, channel: "stable" };
   }
 
@@ -134,10 +134,10 @@ function readUpdate(raw: unknown, issues: HostManifestIssue[]): UpdateChannel {
   const rawFeed = raw["feed"];
   if (rawFeed !== undefined && rawFeed !== null) {
     if (typeof rawFeed !== "string") {
-      issues.push({ path: "update.feed", message: "trebuie sa fie un URL https sau null" });
+      issues.push({ path: "update.feed", message: "must be an https URL or null" });
     } else if (!rawFeed.startsWith("https://")) {
-      // Un canal de actualizari pe http ar permite inlocuirea binarului in tranzit.
-      issues.push({ path: "update.feed", message: "canalul de actualizari trebuie sa fie https" });
+      // An update channel over http would allow replacing the binary in transit.
+      issues.push({ path: "update.feed", message: "the update channel must be https" });
     } else {
       feed = rawFeed;
     }
@@ -145,7 +145,7 @@ function readUpdate(raw: unknown, issues: HostManifestIssue[]): UpdateChannel {
 
   const rawChannel = raw["channel"];
   if (rawChannel !== undefined && rawChannel !== "stable" && rawChannel !== "beta") {
-    issues.push({ path: "update.channel", message: "trebuie sa fie 'stable' sau 'beta'" });
+    issues.push({ path: "update.channel", message: "must be 'stable' or 'beta'" });
   }
 
   return { feed, channel: rawChannel === "beta" ? "beta" : "stable" };
@@ -157,10 +157,10 @@ export function parseHostManifest(source: string): HostManifestParseResult {
   try {
     raw = JSON.parse(source);
   } catch (error) {
-    return { manifest: null, issues: [{ path: "", message: `JSON invalid: ${(error as Error).message}` }] };
+    return { manifest: null, issues: [{ path: "", message: `invalid JSON: ${(error as Error).message}` }] };
   }
   if (!isRecord(raw)) {
-    return { manifest: null, issues: [{ path: "", message: "manifestul trebuie sa fie un obiect JSON" }] };
+    return { manifest: null, issues: [{ path: "", message: "the manifest must be a JSON object" }] };
   }
 
   const rawTarget = raw["target"];
@@ -168,32 +168,32 @@ export function parseHostManifest(source: string): HostManifestParseResult {
     ? (rawTarget as HostTarget)
     : null;
   if (!target) {
-    issues.push({ path: "target", message: `trebuie sa fie ${HOST_TARGETS.map((t) => `'${t}'`).join(", ")}` });
+    issues.push({ path: "target", message: `must be ${HOST_TARGETS.map((t) => `'${t}'`).join(", ")}` });
   }
 
   const bundleId = typeof raw["bundleId"] === "string" ? raw["bundleId"] : "";
-  if (!bundleId) issues.push({ path: "bundleId", message: "camp obligatoriu (sir)" });
+  if (!bundleId) issues.push({ path: "bundleId", message: "required field (string)" });
   else if (!BUNDLE_ID.test(bundleId)) {
-    issues.push({ path: "bundleId", message: "forma asteptata este invers-DNS, de ex. com.exemplu.aplicatie" });
+    issues.push({ path: "bundleId", message: "the expected form is reverse-DNS, e.g. com.example.app" });
   }
 
   const displayName = typeof raw["displayName"] === "string" ? raw["displayName"] : "";
-  if (!displayName) issues.push({ path: "displayName", message: "camp obligatoriu (sir)" });
+  if (!displayName) issues.push({ path: "displayName", message: "required field (string)" });
 
   const version = typeof raw["version"] === "string" ? raw["version"] : "0.1.0";
   if (raw["version"] !== undefined && typeof raw["version"] !== "string") {
-    issues.push({ path: "version", message: "trebuie sa fie un sir" });
+    issues.push({ path: "version", message: "must be a string" });
   }
 
   const entry = typeof raw["entry"] === "string" ? raw["entry"] : "./index.html";
   if (raw["entry"] !== undefined && typeof raw["entry"] !== "string") {
-    issues.push({ path: "entry", message: "trebuie sa fie o cale relativa in unitatea ambalata" });
+    issues.push({ path: "entry", message: "must be a relative path within the packaged unit" });
   }
 
   const capabilities = stringList(raw["capabilities"], "capabilities", issues);
   for (const id of capabilities) {
     if (!hostCapability(id)) {
-      issues.push({ path: `capabilities.${id}`, message: "capabilitate de host necunoscuta" });
+      issues.push({ path: `capabilities.${id}`, message: "unknown host capability" });
       continue;
     }
     if (!target) continue;
@@ -208,17 +208,17 @@ export function parseHostManifest(source: string): HostManifestParseResult {
     try {
       const url = new URL(origin);
       if (url.protocol !== "https:" && url.hostname !== "localhost") {
-        issues.push({ path: `allowedOrigins.${origin}`, message: "doar https (sau localhost in dezvoltare)" });
+        issues.push({ path: `allowedOrigins.${origin}`, message: "https only (or localhost in development)" });
       }
     } catch {
-      issues.push({ path: `allowedOrigins.${origin}`, message: "trebuie sa fie o origine absoluta" });
+      issues.push({ path: `allowedOrigins.${origin}`, message: "must be an absolute origin" });
     }
   }
 
   const deepLinkSchemes = stringList(raw["deepLinkSchemes"], "deepLinkSchemes", issues);
   for (const scheme of deepLinkSchemes) {
     if (!SCHEME.test(scheme)) {
-      issues.push({ path: `deepLinkSchemes.${scheme}`, message: "schema trebuie sa fie de forma 'aplicatie'" });
+      issues.push({ path: `deepLinkSchemes.${scheme}`, message: "the scheme must be of the form 'app'" });
     }
   }
 
@@ -228,10 +228,10 @@ export function parseHostManifest(source: string): HostManifestParseResult {
   let team: string | null = null;
   const signing = raw["signing"];
   if (signing !== undefined) {
-    if (!isRecord(signing)) issues.push({ path: "signing", message: "trebuie sa fie un obiect" });
+    if (!isRecord(signing)) issues.push({ path: "signing", message: "must be an object" });
     else if (signing["team"] !== undefined && signing["team"] !== null) {
       if (typeof signing["team"] === "string") team = signing["team"];
-      else issues.push({ path: "signing.team", message: "trebuie sa fie un sir sau null" });
+      else issues.push({ path: "signing.team", message: "must be a string or null" });
     }
   }
 
@@ -258,7 +258,7 @@ export function parseHostManifest(source: string): HostManifestParseResult {
 export function requireHostManifest(source: string): HostManifest {
   const result = parseHostManifest(source);
   if (!result.manifest) {
-    throw new HostError("raptor:host/manifest-invalid", `${HOST_MANIFEST_FILENAME} este invalid`, {
+    throw new HostError("raptor:host/manifest-invalid", `${HOST_MANIFEST_FILENAME} is invalid`, {
       issues: result.issues.map((issue) => (issue.path ? `${issue.path}: ${issue.message}` : issue.message)),
     });
   }

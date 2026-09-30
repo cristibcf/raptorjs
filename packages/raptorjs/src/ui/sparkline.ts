@@ -1,13 +1,13 @@
 /**
- * Sparkline - grafic minuscul, inline, fara axe.
+ * Sparkline - a tiny, inline chart with no axes.
  *
- * Componenta-teza pentru date live. Un flux care trimite o valoare pe secunda
- * rescrie **un singur atribut** (`d`-ul path-ului) si nu atinge niciun nod.
- * Intr-un framework cu Virtual DOM, acelasi flux ar re-crea arborele SVG la
- * fiecare tick si l-ar reconcilia punct cu punct.
+ * The flagship component for live data. A stream sending one value per second
+ * rewrites **a single attribute** (the path's `d`) and touches no nodes. In a
+ * framework with a Virtual DOM, the same stream would re-create the SVG tree on
+ * every tick and reconcile it point by point.
  *
- * Are nevoie de suportul SVG din `@raptor/dom` (`createElementNS`) - fara el,
- * `document.createElement("svg")` produce un element HTML care nu randeaza.
+ * It needs the SVG support from `@raptor/dom` (`createElementNS`) - without it,
+ * `document.createElement("svg")` produces an HTML element that doesn't render.
  */
 import { derived, type Accessor } from "raptorjs";
 import { R, Show } from "raptorjs/dom";
@@ -19,16 +19,16 @@ export interface SparklineProps {
   data: Accessor<readonly number[]>;
   width?: number;
   height?: number;
-  /** Grosimea liniei. Implicit 1.5. */
+  /** Line thickness. Default 1.5. */
   thickness?: number;
-  /** Umple aria de sub linie. Implicit `false`. */
+  /** Fill the area below the line. Default `false`. */
   area?: boolean;
-  /** Marcheaza ultimul punct cu un cerc. Implicit `false`. */
+  /** Mark the last point with a circle. Default `false`. */
   lastPoint?: boolean;
-  /** Fixeaza scara verticala; altfel se ia min/max din date. */
+  /** Fix the vertical scale; otherwise min/max are taken from the data. */
   min?: number;
   max?: number;
-  /** Eticheta pentru screen reader (graficul insusi e `aria-hidden`). */
+  /** Label for the screen reader (the chart itself is `aria-hidden`). */
   label?: string;
   class?: string;
 }
@@ -60,7 +60,7 @@ function geometry(
       if (fixedMax === undefined && v > hi) hi = v;
     }
   }
-  // Serie constanta: o linie la mijloc, nu o impartire la zero.
+  // Constant series: a line in the middle, not a division by zero.
   const span = hi - lo || 1;
   const innerW = width - pad * 2;
   const innerH = height - pad * 2;
@@ -86,10 +86,10 @@ export function Sparkline(props: SparklineProps): El {
   const width = props.width ?? 120;
   const height = props.height ?? 32;
   const thickness = props.thickness ?? 1.5;
-  const pad = thickness; // ca linia sa nu fie taiata la margini
+  const pad = thickness; // so the line isn't clipped at the edges
 
-  // Un singur derived alimenteaza toate atributele; fiecare atribut e propriul
-  // sau binding, deci se rescrie doar ce s-a schimbat.
+  // A single derived feeds all the attributes; each attribute is its own
+  // binding, so only what changed gets rewritten.
   const geo = derived(() => geometry(props.data(), width, height, pad, props.min, props.max));
 
   return R.span(

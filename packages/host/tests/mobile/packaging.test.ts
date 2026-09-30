@@ -8,49 +8,49 @@ function manifest(patch: Record<string, unknown> = {}): HostManifest {
   return requireHostManifest(
     JSON.stringify({
       target: "mobile",
-      bundleId: "com.exemplu.telefon",
-      displayName: "Exemplu",
+      bundleId: "com.example.phone",
+      displayName: "Example",
       version: "3.0.1",
       ...patch,
     }),
   );
 }
 
-test("fiecare platforma mobila isi declara WebView-ul, magazinul de secrete si deep link-urile", () => {
+test("each mobile platform declares its WebView, its secret store and its deep links", () => {
   assert.deepEqual(MOBILE_BACKENDS.map((backend) => backend.platform), ["android", "ios"]);
   assert.equal(mobileBackend("android")?.secureStore, "EncryptedSharedPreferences");
   assert.equal(mobileBackend("ios")?.secureStore, "Keychain");
   assert.ok(MOBILE_BACKENDS.every((backend) => backend.deepLinkMechanism.length > 0));
 });
 
-test("planul mobil acopera Android si iOS cu numele de artefact asteptate", () => {
+test("the mobile plan covers Android and iOS with the expected artifact names", () => {
   const plan = planMobilePackages(manifest());
   const nume = plan.artifacts.map((artifact) => artifact.filename);
-  assert.ok(nume.includes("com.exemplu.telefon-3.0.1-android-universal.aab"));
-  assert.ok(nume.includes("com.exemplu.telefon-3.0.1-ios-arm64.ipa"));
+  assert.ok(nume.includes("com.example.phone-3.0.1-android-universal.aab"));
+  assert.ok(nume.includes("com.example.phone-3.0.1-ios-arm64.ipa"));
   assert.deepEqual(plan.runners, ["macos-latest", "ubuntu-latest"]);
 });
 
-test("iOS se construieste doar pe macOS", () => {
+test("iOS builds only on macOS", () => {
   const ios = planMobilePackages(manifest(), { platforms: ["ios"] });
   assert.deepEqual(ios.runners, ["macos-latest"]);
 });
 
-test("artefactele de magazin sunt marcate ca atare, nu ca 'semnate de noi'", () => {
+test("store artifacts are marked as such, not as 'signed by us'", () => {
   const plan = planMobilePackages(manifest());
   const store = plan.artifacts.filter((artifact) => artifact.signing === "store").map((artifact) => artifact.format);
   assert.deepEqual(store.sort(), ["aab", "ipa"]);
   assert.deepEqual(
     plan.mustSign.filter((name) => name.endsWith(".ipa")),
     [],
-    "un ipa nu intra in lista 'trebuie semnat de CI': il semneaza profilul de provisioning",
+    "an ipa does not go into the 'must be signed by CI' list: the provisioning profile signs it",
   );
-  assert.ok(plan.mustSign.some((name) => name.endsWith(".apk")), "apk-ul distribuit direct trebuie semnat");
+  assert.ok(plan.mustSign.some((name) => name.endsWith(".apk")), "the directly distributed apk must be signed");
 });
 
-test("desktop si mobile nu impart formate", () => {
+test("desktop and mobile do not share formats", () => {
   const mobil = new Set(planMobilePackages(manifest()).artifacts.map((artifact) => artifact.format));
   for (const format of ["msi", "dmg", "deb", "appimage", "nsis"]) {
-    assert.ok(!mobil.has(format), `${format} nu are ce cauta pe mobil`);
+    assert.ok(!mobil.has(format), `${format} has no place on mobile`);
   }
 });

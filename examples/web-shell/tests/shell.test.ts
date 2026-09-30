@@ -74,48 +74,48 @@ async function started(options: Parameters<typeof harness>[0] = {}): Promise<Har
   return context;
 }
 
-test("aplicatia afla la pornire pe ce URL a fost deschisa", async () => {
+test("at startup the app finds out which URL it was opened on", async () => {
   const context = await started();
   try {
     assert.equal(context.session.shell.route(), "/note");
-    assert.equal(context.session.shell.summary(), "foreground - 0 note pe /note");
+    assert.equal(context.session.shell.summary(), "foreground - 0 notes on /note");
   } finally {
     context.session.close();
   }
 });
 
-test("lista de posibilitati spune adevarul: capabilitate acordata SI metoda implementata", async () => {
+test("the ability list tells the truth: capability granted AND method implemented", async () => {
   const context = await started();
   try {
     const abilities = await context.session.shell.abilities();
     assert.equal(abilities["window.navigate"], true);
     assert.equal(abilities["notify.show"], true);
-    // Capabilitatea `window.manage` acopera si meniurile, dar un browser nu are
-    // bara de meniu a aplicatiei - deci raspunsul onest este "nu".
+    // The `window.manage` capability also covers menus, but a browser has no
+    // application menu bar - so the honest answer is "no".
     assert.equal(abilities["menu.set"], false);
-    assert.equal(context.session.bridge.allows("menu.set"), true, "capabilitatea singura ar fi spus 'da'");
+    assert.equal(context.session.bridge.allows("menu.set"), true, "the capability alone would have said 'yes'");
     assert.equal(abilities["process.spawn"], false);
-    assert.equal(abilities["camera.capture"], false, "modul nedeclarat");
+    assert.equal(abilities["camera.capture"], false, "undeclared module");
   } finally {
     context.session.close();
   }
 });
 
-test("notele merg in localStorage, sub prefixul aplicatiei", async () => {
+test("notes go into localStorage, under the app's prefix", async () => {
   const context = await started();
   try {
-    await context.session.shell.addNote("prima");
+    await context.session.shell.addNote("first");
     assert.equal(
       context.store.get("com.raptor.web-shell:notes"),
-      '[{"text":"prima","route":"/note"}]',
-      "nota retine si ecranul pe care a fost scrisa",
+      '[{"text":"first","route":"/note"}]',
+      "the note also remembers the screen it was written on",
     );
   } finally {
     context.session.close();
   }
 });
 
-test("navigarea aplicatiei trece prin History API si actualizeaza ruta", async () => {
+test("the app's navigation goes through the History API and updates the route", async () => {
   const context = await started();
   try {
     assert.equal(await context.session.shell.goTo("/arhiva"), true);
@@ -128,13 +128,13 @@ test("navigarea aplicatiei trece prin History API si actualizeaza ruta", async (
   }
 });
 
-test("o navigare refuzata este informatie pentru interfata, nu o avarie", async () => {
+test("a denied navigation is information for the UI, not a failure", async () => {
   const context = await started();
   try {
     assert.equal(await context.session.shell.goTo("https://atacator.example/x"), false);
-    assert.match(String(context.session.shell.lastError()), /navigare refuzata/);
-    assert.deepEqual(context.pushed, [], "nimic nu a intrat in istoric");
-    // Aplicatia ramane utilizabila dupa refuz.
+    assert.match(String(context.session.shell.lastError()), /navigation denied/);
+    assert.deepEqual(context.pushed, [], "nothing entered the history");
+    // The app stays usable after the denial.
     assert.equal(await context.session.shell.goTo("/arhiva"), true);
     assert.equal(context.session.shell.lastError(), null);
   } finally {
@@ -142,7 +142,7 @@ test("o navigare refuzata este informatie pentru interfata, nu o avarie", async 
   }
 });
 
-test("butonul de back schimba ruta de sub aplicatie", async () => {
+test("the back button changes the route out from under the app", async () => {
   const context = await started();
   try {
     await context.session.shell.goTo("/arhiva");
@@ -155,12 +155,12 @@ test("butonul de back schimba ruta de sub aplicatie", async () => {
   }
 });
 
-test("utilizatorul poate refuza notificarile, chiar daca manifestul le declara", async () => {
+test("the user can deny notifications, even if the manifest declares them", async () => {
   const refuzat = await started({ permission: "denied" });
   try {
-    assert.equal(refuzat.session.bridge.allows("notify.show"), true, "manifestul le declara");
-    assert.equal(await refuzat.session.shell.announce("salut"), false, "browserul le refuza");
-    assert.match(String(refuzat.session.shell.lastError()), /permisiunea/);
+    assert.equal(refuzat.session.bridge.allows("notify.show"), true, "the manifest declares them");
+    assert.equal(await refuzat.session.shell.announce("hello"), false, "the browser denies them");
+    assert.match(String(refuzat.session.shell.lastError()), /permission/);
     assert.deepEqual(refuzat.shown, []);
   } finally {
     refuzat.session.close();
@@ -168,28 +168,28 @@ test("utilizatorul poate refuza notificarile, chiar daca manifestul le declara",
 
   const acceptat = await started();
   try {
-    assert.equal(await acceptat.session.shell.announce("salut"), true);
-    assert.deepEqual(acceptat.shown, ["Raptor Web Shell: salut"]);
+    assert.equal(await acceptat.session.shell.announce("hello"), true);
+    assert.deepEqual(acceptat.shown, ["Raptor Web Shell: hello"]);
   } finally {
     acceptat.session.close();
   }
 });
 
-test("fara capabilitatea de ferestre, aplicatia nici nu incearca sa navigheze", async () => {
+test("without the window capability, the app does not even try to navigate", async () => {
   const context = await started({ capabilities: [] });
   try {
     assert.equal(await context.session.shell.goTo("/arhiva"), false);
     assert.deepEqual(context.pushed, []);
-    assert.equal(context.session.shell.lastError(), null, "nu a fost o eroare, ci o functie inexistenta");
+    assert.equal(context.session.shell.lastError(), null, "it was not an error, but a nonexistent feature");
   } finally {
     context.session.close();
   }
 });
 
-test("aceeasi aplicatie, alt host: contractul de shell este identic cu cel nativ", async () => {
+test("same app, different host: the shell contract is identical to the native one", async () => {
   const context = await started();
   try {
-    // Aceleasi metode ca in desktop-shell si mobile-shell, cu aceleasi tipuri.
+    // The same methods as in desktop-shell and mobile-shell, with the same types.
     const shell = context.session.shell;
     assert.equal(typeof shell.start, "function");
     assert.equal(typeof shell.addNote, "function");

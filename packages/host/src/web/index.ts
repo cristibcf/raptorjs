@@ -1,15 +1,14 @@
 /**
- * @raptor/web-host - browserul ca host Raptor.
+ * @raptor/web-host - the browser as a Raptor host.
  *
- * Roadmap-ul §4 numeste browserul host-ul tintei `web`, iar §6 descrie doar
- * host-urile native. Pachetul acesta inchide cercul: aceeasi punte, aceleasi
- * capabilitati, aceeasi masina de lifecycle, implementate peste API-urile web -
- * ca o aplicatie scrisa pe contractul Raptor sa ruleze nemodificata pe toate
- * cele trei tinte.
+ * Roadmap §4 names the browser the host of the `web` target, and §6 describes
+ * only the native hosts. This package closes the loop: the same bridge, the
+ * same capabilities, the same lifecycle machine, implemented over the web APIs -
+ * so an app written to the Raptor contract runs unmodified on all three targets.
  *
- * O precizare care nu trebuie pierduta: aici contractul da **portabilitate**,
- * nu izolare. Granita de securitate a unei pagini ramane sandbox-ul de origine
- * al browserului, nu verificarile din `serveHost`.
+ * One point that must not be lost: here the contract gives **portability**, not
+ * isolation. A page's security boundary remains the browser's origin sandbox,
+ * not the checks in `serveHost`.
  */
 export { createWebHost } from "./host.ts";
 export type { WebHost, WebHostOptions } from "./host.ts";

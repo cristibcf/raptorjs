@@ -1,8 +1,8 @@
 /**
- * Search client-side, zero-dep. Indexul se construieste o singura data din
- * continutul deja structurat al site-ului (Learn, Docs, Components) - aceleasi
- * date care alimenteaza paginile, deci nu poate diverge de ele. Fara Algolia,
- * fara serviciu extern: se potriveste cu teza „zero dependente".
+ * Client-side search, zero-dep. The index is built once from the site's
+ * already-structured content (Learn, Docs, Components) - the same data that
+ * feeds the pages, so it cannot diverge from them. No Algolia, no external
+ * service: it fits the "zero dependencies" thesis.
  */
 import { LESSONS } from "../content/learn.ts";
 import { REF_PACKAGES } from "../content/reference.ts";
@@ -11,9 +11,9 @@ import type { Block } from "./ui.tsx";
 
 export interface SearchDoc {
   title: string;
-  /** Eticheta de sectiune afisata langa rezultat. */
+  /** Section label shown next to the result. */
   kind: string;
-  /** Ruta interna (fara `#/`). */
+  /** Internal route (without `#/`). */
   path: string;
   text: string;
 }
@@ -21,7 +21,7 @@ export interface SearchResult extends SearchDoc {
   score: number;
 }
 
-/** Textul cautabil dintr-un sir de blocuri de continut. */
+/** The searchable text from a sequence of content blocks. */
 function blockText(blocks: Block[]): string {
   const parts: string[] = [];
   for (const b of blocks) {
@@ -53,15 +53,15 @@ function buildIndex(): SearchDoc[] {
   return docs;
 }
 
-/** Numarul total de documente indexate (pentru afisaj/teste). */
+/** The total number of indexed documents (for display/tests). */
 export function indexSize(): number {
   if (!INDEX) INDEX = buildIndex();
   return INDEX.length;
 }
 
 /**
- * Cauta `query` in index. Scor: potrivire pe titlu >> potrivire pe corp.
- * Toti termenii trebuie sa apara undeva (titlu sau corp), altfel rezultatul cade.
+ * Search `query` in the index. Scoring: a title match >> a body match.
+ * Every term must appear somewhere (title or body), otherwise the result drops out.
  */
 export function search(query: string, limit = 10): SearchResult[] {
   const q = query.trim().toLowerCase();

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Exemplu: aceeasi aplicatie ca desktop/mobile/web-shell, de data asta ca serviciu HTTP - roadmap etapa 3, 'Servicii platforma'.",
+  "description": "Example: the same app as desktop/mobile/web-shell, this time as an HTTP service - roadmap stage 3, 'Platform services'.",
   "dependencies": {
     "raptorjs": "workspace:*",
     "@raptor/host": "workspace:*"

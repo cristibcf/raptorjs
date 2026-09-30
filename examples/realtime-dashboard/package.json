@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "MVP end-to-end: server signals + RaptorWire delta ops + client reactiv + DOM fine-grained.",
+  "description": "End-to-end MVP: server signals + RaptorWire delta ops + reactive client + fine-grained DOM.",
   "dependencies": {
     "raptorjs": "workspace:*",
     "@raptor/wire": "workspace:*"

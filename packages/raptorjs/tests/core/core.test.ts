@@ -10,7 +10,7 @@ import {
   onCleanup,
 } from "../../src/core/index.ts";
 
-test("state: read si write", () => {
+test("state: read and write", () => {
   const count = state(0);
   assert.equal(count(), 0);
   count.set(5);
@@ -19,7 +19,7 @@ test("state: read si write", () => {
   assert.equal(count(), 6);
 });
 
-test("derived: calcul memoizat, recalcul doar cand se schimba sursa", () => {
+test("derived: memoized computation, recomputes only when the source changes", () => {
   const a = state(2);
   let computes = 0;
   const double = derived(() => {
@@ -27,14 +27,14 @@ test("derived: calcul memoizat, recalcul doar cand se schimba sursa", () => {
     return a() * 2;
   });
   assert.equal(double(), 4);
-  assert.equal(double(), 4); // memoizat, fara recalcul
+  assert.equal(double(), 4); // memoized, no recompute
   assert.equal(computes, 1);
   a.set(3);
   assert.equal(double(), 6);
   assert.equal(computes, 2);
 });
 
-test("effect: ruleaza initial si la fiecare schimbare a dependentei", () => {
+test("effect: runs initially and on every dependency change", () => {
   const a = state(1);
   const seen: number[] = [];
   const dispose = effect(() => seen.push(a()));
@@ -43,10 +43,10 @@ test("effect: ruleaza initial si la fiecare schimbare a dependentei", () => {
   assert.deepEqual(seen, [1, 2, 3]);
   dispose();
   a.set(4);
-  assert.deepEqual(seen, [1, 2, 3]); // dupa dispose nu mai ruleaza
+  assert.deepEqual(seen, [1, 2, 3]); // after dispose it no longer runs
 });
 
-test("batch: effects ruleaza o singura data pentru scrieri multiple", () => {
+test("batch: effects run only once for multiple writes", () => {
   const a = state(0);
   const b = state(0);
   let runs = 0;
@@ -60,10 +60,10 @@ test("batch: effects ruleaza o singura data pentru scrieri multiple", () => {
     a.set(1);
     b.set(2);
   });
-  assert.equal(runs, 2); // un singur re-run pentru ambele scrieri
+  assert.equal(runs, 2); // a single re-run for both writes
 });
 
-test("glitch-free: nod diamant se evalueaza o singura data", () => {
+test("glitch-free: a diamond node is evaluated only once", () => {
   // a -> b, a -> c, (b,c) -> d
   const a = state(1);
   const b = derived(() => a() + 1);
@@ -77,10 +77,10 @@ test("glitch-free: nod diamant se evalueaza o singura data", () => {
   assert.equal(dComputes, 1);
   a.set(2);
   assert.equal(d(), 15); // (3) + (12)
-  assert.equal(dComputes, 2); // exact o recalculare, fara glitch
+  assert.equal(dComputes, 2); // exactly one recompute, no glitch
 });
 
-test("derived nu propaga daca valoarea nu se schimba", () => {
+test("derived does not propagate if the value does not change", () => {
   const a = state(4);
   const parity = derived(() => a() % 2);
   let runs = 0;
@@ -89,13 +89,13 @@ test("derived nu propaga daca valoarea nu se schimba", () => {
     runs++;
   });
   assert.equal(runs, 1);
-  a.set(6); // ramane par -> parity nu se schimba
+  a.set(6); // stays even -> parity does not change
   assert.equal(runs, 1);
-  a.set(7); // devine impar -> parity se schimba
+  a.set(7); // becomes odd -> parity changes
   assert.equal(runs, 2);
 });
 
-test("untracked: citire fara dependenta", () => {
+test("untracked: read without a dependency", () => {
   const a = state(1);
   const b = state(10);
   let runs = 0;
@@ -105,13 +105,13 @@ test("untracked: citire fara dependenta", () => {
     runs++;
   });
   assert.equal(runs, 1);
-  b.set(20); // nu declanseaza effect
+  b.set(20); // does not trigger the effect
   assert.equal(runs, 1);
   a.set(2);
   assert.equal(runs, 2);
 });
 
-test("createRoot: dispose curata effects si cleanup-uri", () => {
+test("createRoot: dispose cleans up effects and cleanups", () => {
   const a = state(0);
   let runs = 0;
   let cleaned = 0;
@@ -129,10 +129,10 @@ test("createRoot: dispose curata effects si cleanup-uri", () => {
   dispose();
   assert.equal(cleaned, 1);
   a.set(2);
-  assert.equal(runs, 2); // effect distrus
+  assert.equal(runs, 2); // effect destroyed
 });
 
-test("effect nested: cleanup la re-run", () => {
+test("nested effect: cleanup on re-run", () => {
   const a = state(0);
   const inner: number[] = [];
   let disposals = 0;
@@ -144,48 +144,48 @@ test("effect nested: cleanup la re-run", () => {
   assert.deepEqual(inner, [0]);
   a.set(1);
   assert.deepEqual(inner, [0, 1]);
-  assert.equal(disposals, 1); // cleanup rulat inainte de re-run
+  assert.equal(disposals, 1); // cleanup ran before the re-run
 });
 
-test("dependente dinamice: se re-leaga corect", () => {
+test("dynamic dependencies: they re-link correctly", () => {
   const cond = state(true);
   const a = state("A");
   const b = state("B");
   const out: string[] = [];
   effect(() => out.push(cond() ? a() : b()));
   assert.deepEqual(out, ["A"]);
-  b.set("B2"); // b nu e dependenta cat timp cond=true
-  assert.deepEqual(out, ["A"]); // fara re-run
+  b.set("B2"); // b is not a dependency while cond=true
+  assert.deepEqual(out, ["A"]); // no re-run
   cond.set(false);
   assert.deepEqual(out, ["A", "B2"]);
-  a.set("A2"); // a nu mai e dependenta -> fara re-run
+  a.set("A2"); // a is no longer a dependency -> no re-run
   assert.deepEqual(out, ["A", "B2"]);
   b.set("B3");
   assert.deepEqual(out, ["A", "B2", "B3"]);
 });
 
-test("reconciliere surse: setul creste si scade fara abonamente reziduale", () => {
+test("source reconciliation: the set grows and shrinks without residual subscriptions", () => {
   const useBoth = state(false);
   const a = state(1);
   const b = state(10);
   const runs: number[] = [];
-  // Cand useBoth=false depinde doar de {useBoth, a}; cand true, de {useBoth, a, b}.
+  // When useBoth=false it depends only on {useBoth, a}; when true, on {useBoth, a, b}.
   const sum = derived(() => (useBoth() ? a() + b() : a()));
   effect(() => runs.push(sum()));
   assert.deepEqual(runs, [1]);
 
-  b.set(20); // b nu e inca dependenta -> fara re-run
+  b.set(20); // b is not a dependency yet -> no re-run
   assert.deepEqual(runs, [1]);
 
-  useBoth.set(true); // acum b intra in set
+  useBoth.set(true); // now b enters the set
   assert.deepEqual(runs, [1, 21]);
 
-  b.set(30); // b e dependenta -> re-run
+  b.set(30); // b is a dependency -> re-run
   assert.deepEqual(runs, [1, 21, 31]);
 
-  useBoth.set(false); // b iese din set (setul scade)
+  useBoth.set(false); // b leaves the set (the set shrinks)
   assert.deepEqual(runs, [1, 21, 31, 1]);
 
-  b.set(99); // b nu mai e dependenta -> niciun abonament rezidual
+  b.set(99); // b is no longer a dependency -> no residual subscription
   assert.deepEqual(runs, [1, 21, 31, 1]);
 });

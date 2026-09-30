@@ -1,13 +1,13 @@
 /**
- * Proba de fum a catalogului de componente.
+ * The component catalog smoke test.
  *
- * Construieste demo-ul fiecarei componente documentate pe site si verifica
- * faptic ca randeaza. Paginile de catalog sunt `.tsx`, deci nu pot fi importate
- * direct de Node: le trecem prin RaptorBundle (acelasi bundler pe care il
- * foloseste site-ul) si evaluam codul emis pe mini-dom.
+ * It builds the demo of every component documented on the site and verifies
+ * for real that it renders. The catalog pages are `.tsx`, so they cannot be
+ * imported directly by Node: we run them through RaptorBundle (the same bundler
+ * the site uses) and evaluate the emitted code against the mini-dom.
  *
- * E si un test end-to-end al bundler-ului: daca tree-shaking-ul, rezolvarea de
- * subpath-uri sau transformul JSX se strica, aici se vede imediat.
+ * It is also an end-to-end test of the bundler: if tree-shaking, subpath
+ * resolution or the JSX transform breaks, it shows up here immediately.
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -23,9 +23,9 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ENTRY = join(HERE, "..", "src", "catalog", "smoke.ts");
 
 /**
- * Suprafata de browser de care au nevoie modulele site-ului la incarcare.
- * Minima intentionat: daca o componenta incepe sa ceara ceva nou, vrem sa
- * aflam din acest test, nu dintr-un raport de bug.
+ * The browser surface the site modules need at load time.
+ * Deliberately minimal: if a component starts to require something new, we want
+ * to find out from this test, not from a bug report.
  */
 function installBrowserStubs(): () => void {
   const g = globalThis as any;
@@ -57,12 +57,12 @@ function installBrowserStubs(): () => void {
 }
 
 /**
- * Ruleaza codul emis cu timere instrumentate.
+ * Runs the emitted code with instrumented timers.
  *
- * Demo-urile pot porni intervale (carusel cu autoplay) sau cronometre (toast,
- * tooltip). Daca le-am lasa in viata, `node --test` n-ar mai iesi niciodata -
- * exact capcana in care am cazut cand am scris testele pentru valul 6. Le
- * colectam si le oprim la final.
+ * Demos can start intervals (an autoplay carousel) or timers (toast,
+ * tooltip). If we left them alive, `node --test` would never exit -
+ * exactly the trap we fell into when writing the tests for wave 6. We
+ * collect them and stop them at the end.
  */
 function evaluateWithTimerGuard(code: string, doc: unknown): () => void {
   const handles: Array<{ kind: "t" | "i"; id: any }> = [];
@@ -89,8 +89,8 @@ function evaluateWithTimerGuard(code: string, doc: unknown): () => void {
     code,
   )(doc, globalThis, (globalThis as any).location, (globalThis as any).history, wrapped.setTimeout, wrapped.setInterval);
 
-  // Oprirea se face DUPA ce testul a citit raportul: acesta e o promisiune,
-  // iar unele demo-uri isi aseaza continutul abia dupa ce se scurg task-urile.
+  // Stopping happens AFTER the test has read the report: it is a promise,
+  // and some demos only place their content once the tasks have drained.
   return () => {
     for (const handle of handles) {
       if (handle.kind === "t") clearTimeout(handle.id);
@@ -99,7 +99,7 @@ function evaluateWithTimerGuard(code: string, doc: unknown): () => void {
   };
 }
 
-test("fiecare demo din catalog randează fără să arunce", async () => {
+test("every catalog demo renders without throwing", async () => {
   installMiniDom();
   const doc = (globalThis as any).document;
   const restore = installBrowserStubs();
@@ -107,21 +107,21 @@ test("fiecare demo din catalog randează fără să arunce", async () => {
 
   try {
     const { code, files } = bundleApp(ENTRY);
-    assert.ok(files.length > 20, "bundle-ul probei pare prea mic: " + files.length + " module");
+    assert.ok(files.length > 20, "the smoke bundle looks too small: " + files.length + " modules");
 
     stopTimers = evaluateWithTimerGuard(code, doc);
 
     const report = (await (globalThis as any).__catalogSmoke) as SmokeReport | undefined;
-    assert.ok(report, "proba nu a produs raport — bundle-ul nu s-a evaluat");
+    assert.ok(report, "the smoke test produced no report — the bundle did not evaluate");
 
     const detail = report.failures
       .map((f) => `  ${f.group} / ${f.name}: ${f.reason}`)
       .join("\n");
-    assert.equal(report.failures.length, 0, `demo-uri stricate:\n${detail}`);
+    assert.equal(report.failures.length, 0, `broken demos:\n${detail}`);
 
-    // Prag, nu număr exact: catalogul crește, iar un test care cere „fix 196"
-    // ar pica la fiecare componentă nouă fără să fi găsit vreun bug.
-    assert.ok(report.ok >= 150, "prea puține demo-uri rulate: " + report.ok);
+    // A threshold, not an exact count: the catalog grows, and a test that demanded
+    // "exactly 196" would fail on every new component without finding any bug.
+    assert.ok(report.ok >= 150, "too few demos ran: " + report.ok);
   } finally {
     stopTimers();
     delete (globalThis as any).__catalogSmoke;
@@ -129,7 +129,7 @@ test("fiecare demo din catalog randează fără să arunce", async () => {
   }
 });
 
-test("grupul de grafice produce SVG, nu doar text", async () => {
+test("the charts group produces SVG, not just text", async () => {
   installMiniDom();
   const doc = (globalThis as any).document;
   const restore = installBrowserStubs();
@@ -141,9 +141,9 @@ test("grupul de grafice produce SVG, nu doar text", async () => {
     const report = (await (globalThis as any).__catalogSmoke) as SmokeReport;
 
     const charts = Object.entries(report.svg).find(([title]) => /chart/i.test(title));
-    assert.ok(charts, "niciun grup de grafice în catalog: " + Object.keys(report.svg).join(", "));
-    // 15 tipuri de grafic + `Chart primitives`, care e intenționat text.
-    assert.ok(charts[1] >= 12, "prea puține grafice cu SVG: " + charts[1]);
+    assert.ok(charts, "no charts group in the catalog: " + Object.keys(report.svg).join(", "));
+    // 15 chart types + `Chart primitives`, which is intentionally text.
+    assert.ok(charts[1] >= 12, "too few charts with SVG: " + charts[1]);
   } finally {
     stopTimers();
     delete (globalThis as any).__catalogSmoke;
@@ -151,30 +151,30 @@ test("grupul de grafice produce SVG, nu doar text", async () => {
   }
 });
 
-test("bundle-ul probei trece prin tree-shaking fără să piardă module necesare", () => {
+test("the smoke bundle passes tree-shaking without losing needed modules", () => {
   const shaken = bundleApp(ENTRY);
   const whole = bundleApp(ENTRY, { treeshake: false });
 
-  assert.ok(shaken.files.length <= whole.files.length, "shaking-ul nu poate adăuga module");
-  // Toate modulele păstrate trebuie să existe și în build-ul complet: shaking-ul
-  // doar scoate, nu inventează.
+  assert.ok(shaken.files.length <= whole.files.length, "shaking cannot add modules");
+  // Every kept module must also exist in the full build: shaking
+  // only removes, it does not invent.
   const complete = new Set(whole.files);
   for (const file of shaken.files) {
-    assert.ok(complete.has(file), "modul apărut doar cu shaking: " + file);
+    assert.ok(complete.has(file), "module that appeared only with shaking: " + file);
   }
 });
 
 /**
- * Regresie pentru runda 3 de audit (U6): unsprezece componente abonau
- * computatia care le construia, deci prima interactiune cu ele re-randa toata
- * regiunea parinte - iar regiunea reconstruita pierde focusul, scroll-ul si ce
- * era tastat intr-un input.
+ * Regression for audit round 3 (U6): eleven components subscribed the
+ * computation that built them, so the first interaction with them re-rendered the
+ * whole parent region - and the rebuilt region loses focus, scroll position and
+ * whatever was typed into an input.
  *
- * Site-ul ocolea problema construind fiecare demo in `untracked(...)`. Ocolul a
- * fost scos si reparatia a intrat in biblioteca (`raptorjs/ui` -> `isolate`);
- * testul asta e ce tine reparatia pe loc.
+ * The site worked around it by building each demo in `untracked(...)`. That
+ * workaround was removed and the fix moved into the library (`raptorjs/ui` -> `isolate`);
+ * this test is what keeps the fix in place.
  */
-test("nicio componenta nu re-randa regiunea care o construieste", async () => {
+test("no component re-renders the region that builds it", async () => {
   installMiniDom();
   const doc = (globalThis as any).document;
   const restore = installBrowserStubs();
@@ -189,12 +189,12 @@ test("nicio componenta nu re-randa regiunea care o construieste", async () => {
       checked: number;
       skipped: number;
     };
-    assert.ok(report, "proba nu a produs raport");
-    assert.ok(report.checked > 50, `prea putine componente exercitate: ${report.checked}`);
+    assert.ok(report, "the smoke test produced no report");
+    assert.ok(report.checked > 50, `too few components exercised: ${report.checked}`);
     assert.deepEqual(
       report.leaking,
       [],
-      ["componente care abonează computația apelantului:", ...report.leaking].join(" · "),
+      ["components that subscribe the caller's computation:", ...report.leaking].join(" · "),
     );
   } finally {
     stopTimers();

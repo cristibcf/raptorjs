@@ -1,9 +1,10 @@
 /**
- * Componente compuse: Kanban, Wizard, Menubar, HoverCard, Tour.
+ * Composite components: Kanban, Wizard, Menubar, HoverCard, Tour.
  *
- * Fiecare combina mai multe primitive si componente de baza intr-un flux de
- * sine statator. Stau separat fiindca sunt mari si rar folosite toate deodata -
- * importa-le prin `@raptor/ui/advanced` ca sa nu le tragi cand nu-ti trebuie.
+ * Each one combines several primitives and base components into a
+ * self-contained flow. They live apart because they are large and rarely all
+ * used at once - import them through `@raptor/ui/advanced` so you don't pull
+ * them in when you don't need them.
  */
 import { state, derived, effect, onCleanup, type Accessor, type State } from "raptorjs";
 import { R, For, Show, type Child } from "raptorjs/dom";
@@ -32,13 +33,13 @@ export interface KanbanCard {
 export interface KanbanColumn {
   key: string;
   title: Child;
-  /** Limita WIP; peste ea coloana e marcata. */
+  /** WIP limit; above it the column is flagged. */
   limit?: number;
 }
 
 export interface KanbanProps {
   columns: readonly KanbanColumn[];
-  /** Cartile per coloana. */
+  /** Cards per column. */
   cards: State<Readonly<Record<string, readonly KanbanCard[]>>>;
   onMove?: (card: KanbanCard, from: string, to: string, index: number) => void;
   label?: string;
@@ -47,16 +48,16 @@ export interface KanbanProps {
 
 export interface KanbanHandle {
   el: El;
-  /** Mutare programatica (si pentru tastatura). */
+  /** Programmatic move (also used for the keyboard). */
   move: (cardKey: string, toColumn: string, index?: number) => void;
 }
 
 /**
- * Kanban - coloane cu carti mutabile.
+ * Kanban - columns with movable cards.
  *
- * Mutarea merge si de la tastatura: fiecare carte are un meniu "Mută în…".
- * Drag & drop-ul singur ar face tabla inutilizabila fara mouse, ceea ce e un
- * esec de accesibilitate clasic al acestei componente.
+ * Moving also works from the keyboard: each card has a "Move to…" menu.
+ * Drag & drop alone would make the board unusable without a mouse, which is a
+ * classic accessibility failure of this component.
  */
 export function kanban(props: KanbanProps): KanbanHandle {
   const dragging = state<{ card: KanbanCard; from: string } | null>(null);
@@ -99,7 +100,7 @@ export function kanban(props: KanbanProps): KanbanHandle {
     {
       class: props.class ? "rui-kanban " + props.class : "rui-kanban",
       role: "group",
-      "aria-label": props.label ?? "Tablă Kanban",
+      "aria-label": props.label ?? "Kanban board",
     },
     props.columns.map((column) => {
       const cards = (): readonly KanbanCard[] => props.cards()[column.key] ?? [];
@@ -152,7 +153,7 @@ export function kanban(props: KanbanProps): KanbanHandle {
                   card.badge !== undefined ? R.span({ class: "rui-kanban-badge" }, card.badge) : null,
                   DropdownMenu({
                     trigger: R.span({ "aria-hidden": "true" }, "⋯"),
-                    label: "Mută cardul",
+                    label: "Move card",
                     entries: moveEntries(card, column.key),
                     placement: "bottom-end",
                   }),
@@ -177,9 +178,9 @@ export interface WizardStep {
   key: string;
   title: Child;
   content: Child | (() => Child);
-  /** Grupul de campuri validat inainte de a trece mai departe. */
+  /** The field group validated before moving on. */
   group?: FormGroup;
-  /** Validare proprie; `false` blocheaza avansarea. */
+  /** Custom validation; `false` blocks advancing. */
   canAdvance?: () => boolean;
   optional?: boolean;
 }
@@ -204,11 +205,11 @@ export interface WizardHandle {
 }
 
 /**
- * Wizard - flux multi-pas cu validare intre pasi.
+ * Wizard - multi-step flow with validation between steps.
  *
- * Inapoi se poate mereu; inainte doar daca pasul curent e valid. La blocare,
- * campurile grupului sunt marcate ca atinse, ca erorile sa devina vizibile -
- * altfel butonul pare stricat.
+ * Back always works; forward only if the current step is valid. When blocked,
+ * the group's fields are marked as touched so the errors become visible -
+ * otherwise the button just looks broken.
  */
 export function wizard(props: WizardProps): WizardHandle {
   const id = "rui-wiz-" + ++idSeq;
@@ -241,7 +242,7 @@ export function wizard(props: WizardProps): WizardHandle {
 
   const back = (): void => current.set(Math.max(0, current.peek() - 1));
   const goTo = (index: number): void => {
-    // Sarim doar inapoi: pasii urmatori pot depinde de cei nevalidati.
+    // Only jump backward: later steps may depend on ones not yet validated.
     if (index <= current.peek()) current.set(Math.max(0, index));
   };
 
@@ -249,7 +250,7 @@ export function wizard(props: WizardProps): WizardHandle {
     {
       class: props.class ? "rui-wizard " + props.class : "rui-wizard",
       role: "group",
-      "aria-label": props.label ?? "Asistent",
+      "aria-label": props.label ?? "Wizard",
     },
     R.ol(
       { class: "rui-wizard-steps" },
@@ -275,7 +276,7 @@ export function wizard(props: WizardProps): WizardHandle {
               current() > index ? "✓" : String(index + 1),
             ),
             s.title,
-            s.optional ? R.span({ class: "rui-wizard-optional" }, " (opțional)") : null,
+            s.optional ? R.span({ class: "rui-wizard-optional" }, " (optional)") : null,
           ),
         ),
       ),
@@ -299,14 +300,14 @@ export function wizard(props: WizardProps): WizardHandle {
         variant: "ghost",
         disabled: () => current() === 0,
         onClick: back,
-        children: props.backLabel ?? "Înapoi",
+        children: props.backLabel ?? "Back",
       }),
       Button({
         variant: "primary",
-        // NU dezactivam butonul cand pasul e invalid: apasarea lui e felul in
-        // care utilizatorul afla CE lipseste.
+        // We do NOT disable the button when the step is invalid: pressing it is
+        // how the user finds out WHAT is missing.
         onClick: next,
-        children: () => (current() >= last ? (props.finishLabel ?? "Finalizează") : (props.nextLabel ?? "Continuă")),
+        children: () => (current() >= last ? (props.finishLabel ?? "Finish") : (props.nextLabel ?? "Continue")),
       }),
     ),
   );
@@ -333,19 +334,18 @@ export interface MenubarProps {
 }
 
 /**
- * Menubar - bara de meniuri stil desktop (Fișier, Editare, …).
+ * Menubar - desktop-style menu bar (File, Edit, …).
  *
- * Sagetile stanga/dreapta trec intre meniuri; odata ce unul e deschis, trecerea
- * cu sageata il deschide direct pe urmatorul, fara click - asa se comporta o
- * bara de meniuri nativa.
+ * Left/right arrows move between menus; once one is open, arrowing to the next
+ * opens it directly, without a click - that's how a native menu bar behaves.
  */
 export function Menubar(props: MenubarProps): El {
-  // Constructia nu aboneaza computatia apelantului; vezi `isolate`.
+  // Construction does not subscribe the caller's computation; see `isolate`.
   return isolate(() => MenubarImpl(props));
 }
 
 function MenubarImpl(props: MenubarProps): El {
-  /** Cate un semnal per meniu; unul singur poate fi deschis la un moment dat. */
+  /** One signal per menu; only one can be open at a time. */
   const opens = new Map<string, State<boolean>>();
   for (const menu of props.menus) opens.set(menu.key, state(false));
 
@@ -353,7 +353,7 @@ function MenubarImpl(props: MenubarProps): El {
     for (const [key, signal] of opens) if (key !== except && signal.peek()) signal.set(false);
   };
 
-  // Deschiderea unuia le inchide pe celelalte, ca la o bara de meniuri nativa.
+  // Opening one closes the others, as in a native menu bar.
   for (const [key, signal] of opens) {
     effect(() => {
       if (signal()) closeAll(key);
@@ -371,7 +371,7 @@ function MenubarImpl(props: MenubarProps): El {
     focusedIndex.set(next);
     const menu = props.menus[next]!;
     focus(triggers.get(menu.key));
-    // Daca un meniu era deschis, trecerea il deschide direct pe urmatorul.
+    // If a menu was open, arrowing to the next opens it directly.
     if (at !== -1) opens.get(menu.key)?.set(true);
   };
 
@@ -382,7 +382,7 @@ function MenubarImpl(props: MenubarProps): El {
     {
       class: props.class ? "rui-menubar " + props.class : "rui-menubar",
       role: "menubar",
-      "aria-label": props.label ?? "Meniu principal",
+      "aria-label": props.label ?? "Main menu",
       "on:keydown": (e: any) => {
         if (e.key === "ArrowRight") {
           e.preventDefault?.();
@@ -401,7 +401,7 @@ function MenubarImpl(props: MenubarProps): El {
           class: "rui-menubar-item",
           role: "none",
           ref: (el: El) => {
-            // Trigger-ul e butonul din interiorul DropdownMenu.
+            // The trigger is the button inside the DropdownMenu.
             const button = el?.querySelector?.("button");
             if (button) triggers.set(menu.key, button);
           },
@@ -423,20 +423,20 @@ function MenubarImpl(props: MenubarProps): El {
 export interface HoverCardProps {
   trigger: (props: Record<string, unknown>) => El;
   children: Child;
-  /** Ms pana la deschidere. Implicit 500. */
+  /** Ms until opening. Default 500. */
   openDelay?: number;
-  /** Ms pana la inchidere dupa ce pleaca pointerul. Implicit 200. */
+  /** Ms until closing after the pointer leaves. Default 200. */
   closeDelay?: number;
   placement?: Placement;
   class?: string;
 }
 
 /**
- * HoverCard - card bogat la hover (previzualizare de profil, de link).
+ * HoverCard - rich card on hover (profile preview, link preview).
  *
- * Diferit de `Tooltip`: contine continut interactiv, deci trebuie sa poti
- * ajunge cu mouse-ul in el - de aici intarzierea la inchidere. Se deschide si
- * la focus, cu `role="dialog"`, nu `tooltip`.
+ * Unlike `Tooltip`: it holds interactive content, so you must be able to reach
+ * it with the mouse - hence the close delay. It also opens on focus, with
+ * `role="dialog"`, not `tooltip`.
  */
 export function HoverCard(props: HoverCardProps): El {
   const id = "rui-hc-" + ++idSeq;
@@ -515,7 +515,7 @@ export function HoverCard(props: HoverCardProps): El {
 /* ------------------------------------------------------------------ Tour -- */
 
 export interface TourStep {
-  /** `id`-ul elementului evidentiat. Lipsa lui centreaza pasul pe ecran. */
+  /** The `id` of the highlighted element. Without it the step is centered on screen. */
   target?: string;
   title: Child;
   content: Child;
@@ -539,11 +539,11 @@ export interface TourHandle {
 }
 
 /**
- * Tour - ghidaj pas cu pas peste interfata.
+ * Tour - step-by-step guide over the interface.
  *
- * Evidentierea se face prin `box-shadow` urias pe un dreptunghi transparent, nu
- * printr-un overlay decupat: nu cere SVG, nu blocheaza clickurile pe element si
- * functioneaza peste orice continut.
+ * The highlight is done with a huge `box-shadow` on a transparent rectangle,
+ * not a cut-out overlay: it needs no SVG, doesn't block clicks on the element,
+ * and works over any content.
  */
 export function tour(props: TourProps): TourHandle {
   const index = props.index ?? state(0);
@@ -603,7 +603,7 @@ export function tour(props: TourProps): TourHandle {
     children: Portal({
       children: R.div(
         { class: props.class ? "rui-tour " + props.class : "rui-tour" },
-        // Gaura de lumina peste elementul tintit.
+        // The spotlight hole over the targeted element.
         Show({
           when: () => rect() !== null,
           children: R.div({
@@ -621,7 +621,7 @@ export function tour(props: TourProps): TourHandle {
             class: "rui-tour-pop",
             role: "dialog",
             "aria-modal": "false",
-            "aria-label": "Ghid",
+            "aria-label": "Guide",
             ref: (node: El) => {
               pos.floating(node);
               focusTrap()(node);
@@ -633,19 +633,19 @@ export function tour(props: TourProps): TourHandle {
           R.div(
             { class: "rui-tour-foot" },
             R.span({ class: "rui-tour-counter" }, () => index() + 1 + " / " + props.steps.length),
-            Button({ variant: "ghost", size: "sm", onClick: () => finish(true), children: "Sari peste" }),
+            Button({ variant: "ghost", size: "sm", onClick: () => finish(true), children: "Skip" }),
             Button({
               variant: "secondary",
               size: "sm",
               disabled: () => index() === 0,
               onClick: back,
-              children: "Înapoi",
+              children: "Back",
             }),
             Button({
               variant: "primary",
               size: "sm",
               onClick: next,
-              children: () => (index() >= props.steps.length - 1 ? "Gata" : "Continuă"),
+              children: () => (index() >= props.steps.length - 1 ? "Done" : "Continue"),
             }),
           ),
         ),
@@ -657,7 +657,7 @@ export function tour(props: TourProps): TourHandle {
 }
 
 export function Tour(props: TourProps): Child {
-  // Constructia nu aboneaza computatia apelantului; vezi `isolate`.
+  // Construction does not subscribe the caller's computation; see `isolate`.
   return isolate(() => TourImpl(props));
 }
 

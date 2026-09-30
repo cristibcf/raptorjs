@@ -1,19 +1,19 @@
 /**
- * Starea partajata a listei de todo-uri. Un todo e un obiect "todo:ID"; ordinea
- * lor traieste separat, in colectia "order". Serverul nu trimite niciodata lista
- * intreaga: fiecare mutatie produce operatii (APPEND / PATCH / REMOVE) care
- * pleaca la toti abonatii.
+ * The shared state of the todo list. A todo is a "todo:ID" object; their order
+ * lives separately, in the "order" collection. The server never sends the whole
+ * list: each mutation produces operations (APPEND / PATCH / REMOVE) that go out
+ * to all subscribers.
  *
- * Fisierul asta nu stie nimic despre transport - se foloseste identic peste
- * WebSocket (src/server.ts) sau peste loopback (in teste).
+ * This file knows nothing about the transport - it is used identically over
+ * WebSocket (src/server.ts) or over loopback (in tests).
  */
 import { raptorServer, type RaptorServer } from "@raptor/wire/server";
 
 export const TODO_QUERY = "todos";
 
 /**
- * Ce expune query-ul. "order" e potrivire exacta, "todo:" se termina cu
- * delimitator deci prinde toti copiii - vezi store.matches().
+ * What the query exposes. "order" is an exact match, "todo:" ends with a
+ * delimiter so it catches all children - see store.matches().
  */
 export const TODO_PREFIXES = ["order", "todo:"];
 
@@ -29,11 +29,11 @@ export function buildTodoApp(): RaptorServer {
   app.query(TODO_QUERY, { select: () => TODO_PREFIXES });
 
   app.mutation("add", {
-    // Refuzam textul gol pe server: clientul nu e singura aparare.
+    // Reject empty text on the server: the client is not the only line of defense.
     authorize: ({ input }) => typeof (input as { text?: unknown }).text === "string",
     run: ({ input, store }) => {
       const text = String((input as { text: string }).text).trim();
-      if (!text) throw new Error("text gol");
+      if (!text) throw new Error("empty text");
       const id = ++counter;
       store.setField(`todo:${id}`, "text", text);
       store.setField(`todo:${id}`, "done", false);
@@ -46,8 +46,8 @@ export function buildTodoApp(): RaptorServer {
     run: ({ input, store }) => {
       const { id } = input as { id: number };
       const todo = store.doc.get(`todo:${id}`) as Todo | undefined;
-      if (!todo) throw new Error(`todo inexistent: ${id}`);
-      // PATCH pe un singur camp: pe fir pleaca doar "done", nu tot obiectul.
+      if (!todo) throw new Error(`nonexistent todo: ${id}`);
+      // PATCH on a single field: only "done" goes on the wire, not the whole object.
       store.patch(`todo:${id}`, { done: !todo.done });
       return { id, done: !todo.done };
     },

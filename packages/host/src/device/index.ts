@@ -1,12 +1,12 @@
 /**
- * @raptor/device-host - firmware-ul unei plachete ca host Raptor.
+ * @raptor/device-host - a board's firmware as a Raptor host.
  *
- * A sasea tinta si cea mai indepartata de roadmap: `embedded` nu apare nicaieri
- * in el, iar coloana ei din matricea de capabilitati este in intregime derivata.
- * Rostul ei nu este sa acopere un rand din spec, ci sa incerce modelul acolo
- * unde se rupe: un host care nu are incredere in aplicatie, periferice care se
- * dau pe bucati, somn care chiar opreste ceasul, si o actualizare care poate
- * transforma produsul in caramida daca nu are rollback.
+ * The sixth target and the furthest from the roadmap: `embedded` appears
+ * nowhere in it, and its column in the capability matrix is entirely derived.
+ * Its point is not to cover a row of the spec, but to test the model where it
+ * breaks: a host that does not trust the app, peripherals handed out piece by
+ * piece, sleep that truly stops the clock, and an update that can turn the
+ * product into a brick if it has no rollback.
  */
 export { createDeviceHost } from "./host.ts";
 export type { DeviceHost, DeviceHostOptions } from "./host.ts";

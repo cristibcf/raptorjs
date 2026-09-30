@@ -1,43 +1,43 @@
 /**
- * resizable - redimensionare prin drag pe un maner.
+ * resizable - resizing by dragging a handle.
  *
- * Componenta-teza a bibliotecii. Un split-pane tras cu mouse-ul produce
- * `pointermove` la 60-120Hz. Intr-un framework cu Virtual DOM fiecare eveniment
- * declanseaza un re-render si o reconciliere; aici `size` e un semnal si tot ce
- * se intampla pe frame e **o singura scriere de atribut de stil**. Testul din
- * `tests/primitives.test.ts` verifica exact asta: dupa un drag complet,
+ * A thesis component of the library. A split-pane dragged with the mouse
+ * produces `pointermove` at 60-120Hz. In a Virtual DOM framework each event
+ * triggers a re-render and a reconciliation; here `size` is a signal and all
+ * that happens per frame is **a single style attribute write**. The test in
+ * `tests/primitives.test.ts` checks exactly that: after a full drag,
  * `stats.createElement === 0`.
  *
- * Marimea e tinuta in `size` (semnal) - poti sa o citesti, sa o setezi
- * programatic sau sa o persisti, fara sa intrebi DOM-ul.
+ * The size is held in `size` (a signal) - you can read it, set it
+ * programmatically or persist it, without asking the DOM.
  */
 import { state, onCleanup, type Accessor } from "raptorjs";
 import { onDoc, pointOf, type El } from "./env.ts";
 
 export interface ResizableOptions {
-  /** Axa pe care se redimensioneaza. Implicit `x`. */
+  /** The axis it resizes on. Defaults to `x`. */
   axis?: "x" | "y";
-  /** Marimea initiala in px. */
+  /** Initial size in px. */
   initial?: number;
   min?: number;
   max?: number;
-  /** Cuantizare (ex. 8 => se opreste din 8 in 8 px). */
+  /** Quantization (e.g. 8 => it stops in 8px increments). */
   step?: number;
-  /** Inverseaza directia (maner pe stanga/sus). */
+  /** Invert the direction (handle on the left/top). */
   invert?: boolean;
   onResize?: (size: number) => void;
   onEnd?: (size: number) => void;
 }
 
 export interface Resizable {
-  /** `ref` pentru manerul care se trage. */
+  /** `ref` for the handle that gets dragged. */
   handle: (el: El) => void;
   size: Accessor<number>;
   setSize: (value: number) => void;
   resizing: Accessor<boolean>;
-  /** Stil gata de pus pe panoul redimensionat. */
+  /** Style ready to put on the resized pane. */
   style: Accessor<string>;
-  /** Pas de tastatura, pentru accesibilitate (sageti pe maner). */
+  /** Keyboard step, for accessibility (arrows on the handle). */
   nudge: (delta: number) => void;
 }
 
@@ -130,7 +130,7 @@ export function resizable(options?: ResizableOptions): Resizable {
       }
     };
 
-    // ARIA: un maner de resize e un separator cu valoare.
+    // ARIA: a resize handle is a separator with a value.
     el.setAttribute?.("role", "separator");
     el.setAttribute?.("tabindex", "0");
     el.setAttribute?.("aria-orientation", axis === "x" ? "vertical" : "horizontal");

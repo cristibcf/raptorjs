@@ -1,21 +1,21 @@
 /**
- * Contractul capability broker-ului (spec sectiunea 7).
+ * The capability broker's contract (spec section 7).
  *
- * Fiecare API public are si un test negativ: spec sectiunea 12 cere exact asta,
- * pentru ca un model de securitate se demonstreaza prin ce refuza, nu prin ce
- * permite.
+ * Every public API also has a negative test: spec section 12 requires exactly
+ * that, because a security model is demonstrated by what it denies, not by what
+ * it allows.
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createBroker, createObserver, normalizePath } from "../../src/core/index.ts";
 
-const ROOT = normalizePath("/proiecte/app");
+const ROOT = normalizePath("/projects/app");
 
 function broker(declarations: Record<string, unknown> = {}, extra: Record<string, unknown> = {}) {
   return createBroker({ projectRoot: ROOT, declarations: declarations as never, ...extra });
 }
 
-test("fara declaratie, scrierea si reteaua sunt refuzate", () => {
+test("without a declaration, writes and the network are denied", () => {
   const capabilities = broker();
   assert.equal(capabilities.check("files.write", "./dist/a.js").granted, false);
   assert.equal(capabilities.check("net.connect", "example.com:443").granted, false);
@@ -23,46 +23,46 @@ test("fara declaratie, scrierea si reteaua sunt refuzate", () => {
   assert.equal(capabilities.check("env.read", "PATH").granted, false);
 });
 
-test("citirea implicita se opreste la radacina proiectului", () => {
+test("implicit reading stops at the project root", () => {
   const capabilities = broker();
   assert.equal(capabilities.check("files.read", "./src/main.ts").granted, true);
-  assert.equal(capabilities.check("files.read", `${ROOT}/../alt-proiect/secret`).granted, false);
+  assert.equal(capabilities.check("files.read", `${ROOT}/../other-project/secret`).granted, false);
 });
 
-test("un prefix comun nu inseamna continere", () => {
+test("a common prefix does not mean containment", () => {
   const capabilities = broker({ "files.read": ["./src"] });
   assert.equal(capabilities.check("files.read", "./src/a.ts").granted, true);
-  assert.equal(capabilities.check("files.read", "./src-privat/a.ts").granted, false);
+  assert.equal(capabilities.check("files.read", "./src-private/a.ts").granted, false);
 });
 
-test("traversarea nu scapa din domeniul declarat", () => {
+test("traversal does not escape the declared scope", () => {
   const capabilities = broker({ "files.read": ["./src"] });
   assert.equal(capabilities.check("files.read", "./src/../raptor.runtime.json").granted, false);
   assert.equal(capabilities.check("files.read", "./src/./nested/a.ts").granted, true);
 });
 
-test("regimul strict elimina domeniul implicit de citire", () => {
+test("strict mode removes the implicit read scope", () => {
   const capabilities = broker({}, { strict: true });
   assert.equal(capabilities.check("files.read", "./src/main.ts").granted, false);
   assert.equal(capabilities.strict, true);
 });
 
-test("politica de productie porneste implicit in regim strict", () => {
+test("the production policy starts in strict mode by default", () => {
   const capabilities = broker({}, { policy: "production" });
   assert.equal(capabilities.strict, true);
   assert.equal(capabilities.check("files.read", "./src/main.ts").granted, false);
 });
 
-test("allowlist-ul de retea respecta gazda si portul", () => {
+test("the network allowlist respects host and port", () => {
   const capabilities = broker({ "net.connect": ["api.example.com:443", "*.intern.example.com:*"] });
   assert.equal(capabilities.check("net.connect", "api.example.com:443").granted, true);
   assert.equal(capabilities.check("net.connect", "api.example.com:80").granted, false);
   assert.equal(capabilities.check("net.connect", "a.intern.example.com:8080").granted, true);
   assert.equal(capabilities.check("net.connect", "intern.example.com:8080").granted, false);
-  assert.equal(capabilities.check("net.connect", "rau-api.example.com:443").granted, false);
+  assert.equal(capabilities.check("net.connect", "evil-api.example.com:443").granted, false);
 });
 
-test("variabilele de mediu accepta nume exact sau prefix", () => {
+test("environment variables accept an exact name or a prefix", () => {
   const capabilities = broker({ "env.read": ["DATABASE_URL", "RAPTOR_*"] });
   assert.equal(capabilities.check("env.read", "DATABASE_URL").granted, true);
   assert.equal(capabilities.check("env.read", "DATABASE_URL_BACKUP").granted, false);
@@ -70,19 +70,19 @@ test("variabilele de mediu accepta nume exact sau prefix", () => {
   assert.equal(capabilities.check("env.read", "PATH").granted, false);
 });
 
-test("ceasul si aleatoriul sunt permise implicit, dar adnotate", () => {
+test("the clock and randomness are allowed by default, but annotated", () => {
   const capabilities = broker();
   const decision = capabilities.check("clock.real");
   assert.equal(decision.granted, true);
   assert.equal(decision.annotated, true);
 });
 
-test("ceasul poate fi dezactivat explicit", () => {
+test("the clock can be disabled explicitly", () => {
   const capabilities = broker({ "clock.real": false });
   assert.equal(capabilities.check("clock.real").granted, false);
 });
 
-test("revocarea are efect imediat", () => {
+test("revocation takes effect immediately", () => {
   const capabilities = broker({ "files.read": ["./src"] });
   assert.equal(capabilities.check("files.read", "./src/a.ts").granted, true);
   capabilities.revoke("files.read");
@@ -90,35 +90,35 @@ test("revocarea are efect imediat", () => {
   assert.throws(() => capabilities.require("files.read", "./src/a.ts"), (error: { code?: string }) => error.code === "raptor:capability/revoked");
 });
 
-test("delegarea transmite doar subsetul cerut", () => {
+test("delegation passes only the requested subset", () => {
   const capabilities = broker({ "files.read": ["./src"], "files.write": ["./dist"], "clock.real": true });
   const child = capabilities.delegate(["files.read"]);
   assert.equal(child.check("files.read", "./src/a.ts").granted, true);
   assert.equal(child.check("files.write", "./dist/a.js").granted, false);
-  assert.equal(child.check("clock.real").granted, false, "ambientalele nu se mostenesc fara cerere explicita");
+  assert.equal(child.check("clock.real").granted, false, "ambient capabilities are not inherited without an explicit request");
 });
 
-test("delegarea nu poate reinvia o capability revocata", () => {
+test("delegation cannot revive a revoked capability", () => {
   const capabilities = broker({ "files.write": ["./dist"] });
   capabilities.revoke("files.write");
   const child = capabilities.delegate(["files.write"]);
   assert.equal(child.check("files.write", "./dist/a.js").granted, false);
 });
 
-test("require arunca o eroare cu tinta si motivul", () => {
+test("require throws an error carrying the target and the reason", () => {
   const capabilities = broker({ "files.read": ["./src"] });
   assert.throws(
-    () => capabilities.require("files.read", "./secrete/a.txt"),
+    () => capabilities.require("files.read", "./secrets/a.txt"),
     (error: { code?: string; capability?: string; target?: string; message?: string }) => {
       assert.equal(error.code, "raptor:capability/denied");
       assert.equal(error.capability, "files.read");
-      assert.ok(error.target?.endsWith("/secrete/a.txt"));
+      assert.ok(error.target?.endsWith("/secrets/a.txt"));
       return true;
     },
   );
 });
 
-test("fiecare decizie ajunge in diagnostic si in telemetrie", () => {
+test("every decision reaches the diagnostics and the telemetry", () => {
   const observer = createObserver({ now: () => 0 });
   const capabilities = createBroker({ projectRoot: ROOT, declarations: { "files.read": ["./src"] }, observer });
 

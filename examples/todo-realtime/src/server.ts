@@ -1,9 +1,9 @@
 /**
- * Un singur proces serveste si pagina, si RaptorWire: HTTP pentru index.html +
- * bundle, WebSocket pe /raptor pentru starea partajata. Un port, o comanda.
+ * A single process serves both the page and RaptorWire: HTTP for index.html +
+ * bundle, WebSocket on /raptor for the shared state. One port, one command.
  *
  *   node examples/todo-realtime/src/server.ts
- *   (sau: pnpm dev:todo)
+ *   (or: pnpm dev:todo)
  */
 import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
@@ -18,12 +18,12 @@ const root = join(here, "..");
 const entry = join(here, "main.tsx");
 
 export interface TodoServer {
-  /** Portul chiar ascultat (util cand pornesti pe 0). */
+  /** The port actually listened on (useful when you start on 0). */
   port: number;
   close(): Promise<void>;
 }
 
-/** Porneste HTTP + RaptorWire pe acelasi port. `port: 0` alege unul liber. */
+/** Starts HTTP + RaptorWire on the same port. `port: 0` picks a free one. */
 export function startTodoServer(port = Number(process.env.PORT ?? 5190)): Promise<TodoServer> {
   const app = buildTodoApp();
 
@@ -31,7 +31,7 @@ export function startTodoServer(port = Number(process.env.PORT ?? 5190)): Promis
     const url = (req.url ?? "/").split("?")[0];
 
     if (url === "/bundle.js") {
-      // Rebundle la fiecare cerere: exemplul e mic, iar un refresh ia ultimul cod.
+      // Rebundle on every request: the example is small, and a refresh grabs the latest code.
       const { code } = bundleApp(entry, { sourceMap: true });
       res.writeHead(200, { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-store" });
       res.end(code);
@@ -58,7 +58,7 @@ export function startTodoServer(port = Number(process.env.PORT ?? 5190)): Promis
         port: bound,
         close: () =>
           new Promise<void>((done) => {
-            // Intai socket-urile upgradate: serverul HTTP nu le mai stie.
+            // Upgraded sockets first: the HTTP server no longer knows about them.
             wire.close();
             http.close(() => done());
           }),
@@ -71,5 +71,5 @@ if (import.meta.main) {
   const server = await startTodoServer();
   console.log(`todo realtime  →  http://localhost:${server.port}`);
   console.log(`  wire         →  ws://localhost:${server.port}/raptor`);
-  console.log(`  Deschide doua ferestre pe acelasi URL ca sa vezi sincronizarea.`);
+  console.log(`  Open two windows on the same URL to see them sync.`);
 }

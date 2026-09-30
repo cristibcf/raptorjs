@@ -1,14 +1,14 @@
 /**
- * Telemetry core (spec sectiunea 5): loguri, span-uri si metrici structurate din
- * prima zi. Nu exista "print ad-hoc" in host - fiecare eveniment trece prin
- * acest recorder, ca `raptor-runtime trace` sa poata emite un flux compatibil
- * OpenTelemetry fara sa instrumenteze retroactiv codul.
+ * Telemetry core (spec section 5): structured logs, spans and metrics from day
+ * one. There is no "ad-hoc print" in the host - every event goes through this
+ * recorder, so that `raptor-runtime trace` can emit an OpenTelemetry-compatible
+ * stream without instrumenting the code retroactively.
  */
 
 export type Severity = "debug" | "info" | "warn" | "error";
 
 export interface RuntimeEvent {
-  /** Milisecunde de la pornirea recorder-ului; monoton, deci reproductibil in teste. */
+  /** Milliseconds since the recorder started; monotonic, hence reproducible in tests. */
   readonly at: number;
   readonly kind: "log" | "span" | "metric" | "capability";
   readonly name: string;
@@ -31,13 +31,13 @@ export interface Observer {
   metric(name: string, value: number, attributes?: Record<string, unknown>): void;
   record(event: RuntimeEvent): void;
   events(): readonly RuntimeEvent[];
-  /** Flux de linii JSON, o linie per eveniment (formatul citit de `trace`). */
+  /** A stream of JSON lines, one line per event (the format read by `trace`). */
   toJsonLines(): string;
   child(scope: string): Observer;
 }
 
 export interface ObserverOptions {
-  /** Injectabil pentru teste deterministe. */
+  /** Injectable for deterministic tests. */
   readonly now?: () => number;
   readonly sink?: (event: RuntimeEvent) => void;
   readonly minSeverity?: Severity;
@@ -151,7 +151,7 @@ export function createObserver(options: ObserverOptions = {}): Observer {
   return new Recorder(options, "");
 }
 
-/** Observer inert, pentru cai in care telemetria nu este ceruta. */
+/** Inert observer, for paths where telemetry is not required. */
 export function silentObserver(): Observer {
   return createObserver({ minSeverity: "error", now: () => 0 });
 }

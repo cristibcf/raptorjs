@@ -1,11 +1,11 @@
 /**
- * Back-end-urile de WebView ale adaptorului desktop (roadmap sectiunea 6).
+ * The WebView back-ends of the desktop adapter (roadmap section 6).
  *
- * "Nucleu comun in Rust si back-end-uri de WebView pentru Windows, macOS si
- * Linux" inseamna ca nu impachetam un browser: folosim WebView-ul sistemului.
- * Consecinta trebuie sa fie vizibila in contract, nu ascunsa in documentatie -
- * de aici `minimumOs` si `runtimeDependency`: pe Windows, WebView2 poate lipsi
- * de pe masina si instalatorul trebuie sa stie asta.
+ * "A common core in Rust and WebView back-ends for Windows, macOS and Linux"
+ * means we do not bundle a browser: we use the system's WebView. The
+ * consequence must be visible in the contract, not hidden in documentation -
+ * hence `minimumOs` and `runtimeDependency`: on Windows, WebView2 may be missing
+ * from the machine and the installer must know it.
  */
 
 export interface DesktopBackend {
@@ -13,7 +13,7 @@ export interface DesktopBackend {
   readonly webview: string;
   readonly architectures: readonly string[];
   readonly minimumOs: string;
-  /** Componenta care trebuie sa existe pe masina tinta, sau `null`. */
+  /** The component that must exist on the target machine, or `null`. */
   readonly runtimeDependency: string | null;
   readonly notes: string;
 }
@@ -25,7 +25,7 @@ export const DESKTOP_BACKENDS: readonly DesktopBackend[] = [
     architectures: ["x64", "arm64"],
     minimumOs: "Windows 10 1809",
     runtimeDependency: "Microsoft Edge WebView2 Runtime",
-    notes: "instalatorul verifica runtime-ul WebView2 si il aduce daca lipseste",
+    notes: "the installer checks the WebView2 runtime and brings it in if it is missing",
   },
   {
     platform: "macos",
@@ -33,7 +33,7 @@ export const DESKTOP_BACKENDS: readonly DesktopBackend[] = [
     architectures: ["arm64", "x64"],
     minimumOs: "macOS 11",
     runtimeDependency: null,
-    notes: "WKWebView face parte din sistem; aplicatia cere notarizare",
+    notes: "WKWebView is part of the system; the app requires notarization",
   },
   {
     platform: "linux",
@@ -41,7 +41,7 @@ export const DESKTOP_BACKENDS: readonly DesktopBackend[] = [
     architectures: ["x64", "arm64"],
     minimumOs: "glibc 2.31",
     runtimeDependency: "libwebkit2gtk-4.1",
-    notes: "AppImage poarta dependenta; pachetul .deb o declara",
+    notes: "AppImage carries the dependency; the .deb package declares it",
   },
 ];
 

@@ -1,30 +1,30 @@
 /**
- * Nucleul reactiv Raptor - graf fine-grained, glitch-free, pull-based pentru
- * memo-uri (lazy) si push/eager pentru effects.
+ * The Raptor reactive core - a fine-grained, glitch-free, pull-based graph for
+ * memos (lazy) and push/eager for effects.
  *
- * Algoritmul foloseste trei stari per nod (CLEAN / CHECK / DIRTY) si propaga
- * "staleness" in aval cand un semnal se schimba. Memo-urile recalculeaza doar
- * la citire (updateIfNecessary), iar effects sunt programate intr-o coada
- * flush-uita la finalul unui batch. Vezi whitepaper sectiunile 6.3 si 7.
+ * The algorithm uses three states per node (CLEAN / CHECK / DIRTY) and
+ * propagates "staleness" downstream when a signal changes. Memos recompute only
+ * on read (updateIfNecessary), while effects are scheduled into a queue that is
+ * flushed at the end of a batch. See whitepaper sections 6.3 and 7.
  */
 
-// --- Stari nod -------------------------------------------------------------
+// --- Node states -----------------------------------------------------------
 const CLEAN = 0;
 const CHECK = 1;
 const DIRTY = 2;
 
 export type Cleanup = () => void;
 
-/** Un "owner" detine computatii copil si cleanup-uri (sectiunea 10). */
+/** An "owner" holds child computations and cleanups (section 10). */
 export interface Owner {
   owned: Node<any>[] | null;
   cleanups: Cleanup[] | null;
 }
 
-/** Nod reactiv unic folosit pentru signal, memo si effect. */
+/** A single reactive node used for signal, memo and effect. */
 export class Node<T> implements Owner {
   value: T | undefined;
-  /** null pentru un signal-sursa; setat pentru memo/effect. */
+  /** null for a source signal; set for memo/effect. */
   fn: (() => T) | null;
   state: number;
   sources: Node<any>[] | null = null;
@@ -36,17 +36,17 @@ export class Node<T> implements Owner {
   cleanups: Cleanup[] | null = null;
   owner: Owner | null;
   disposed = false;
-  /** Buffer de dependente colectate in rularea curenta (null cand nu ruleaza). */
+  /** Buffer of dependencies collected in the current run (null when not running). */
   collect: Node<any>[] | null = null;
   /**
-   * Buffer de colectare reutilizat intre rulari. Nu se micsoreaza niciodata:
-   * `collectCount` spune cate intrari sunt valide, restul raman ca rezerva.
-   * Un `length = 0` ar parea echivalent, dar face V8 sa elibereze backing
-   * store-ul si sa realoce la urmatorul push - masurat ~25% mai lent decat
-   * varianta cu contor, si chiar mai lent decat un array nou per rulare.
+   * Collection buffer reused across runs. It never shrinks: `collectCount`
+   * says how many entries are valid, the rest stay as reserve. A `length = 0`
+   * would look equivalent, but it makes V8 release the backing store and
+   * reallocate on the next push - measured ~25% slower than the counter
+   * variant, and even slower than a fresh array per run.
    */
   scratch: Node<any>[] = [];
-  /** Cate intrari din `scratch` sunt valide in rularea curenta. */
+  /** How many entries in `scratch` are valid in the current run. */
   collectCount = 0;
 
   constructor(
@@ -65,7 +65,7 @@ export class Node<T> implements Owner {
   }
 }
 
-// --- Context global de executie -------------------------------------------
+// --- Global execution context ---------------------------------------------
 let currentObserver: Node<any> | null = null;
 let currentOwner: Owner | null = null;
 let batchDepth = 0;
@@ -74,12 +74,13 @@ let flushScheduled = false;
 
 export const defaultEquals = <T>(a: T, b: T): boolean => a === b;
 
-// --- Legare dependente -----------------------------------------------------
-// Colectam dependentele in buffer-ul persistent al observatorului (dedup O(n) pe
-// dep-set-uri mici) si abonam efectiv abia la reconciliere (`reconcileSources`).
-// Astfel, cand setul de dependente nu se schimba intre rulari — cazul comun
-// pentru lanturi statice — NU atingem deloc listele de observatori (fara churn)
-// si nu alocam nimic: scriem peste intrarile vechi, prin index.
+// --- Dependency linking ----------------------------------------------------
+// We collect dependencies into the observer's persistent buffer (O(n) dedup on
+// small dep-sets) and only actually subscribe at reconciliation
+// (`reconcileSources`). This way, when the dependency set does not change
+// between runs — the common case for static chains — we do NOT touch the
+// observer lists at all (no churn) and allocate nothing: we overwrite the old
+// entries by index.
 function link(observer: Node<any>, source: Node<any>): void {
   if (observer.collect === null) return;
   const buffer = observer.scratch;
@@ -109,7 +110,7 @@ function unlinkSources(node: Node<any>): void {
   sources.length = 0;
 }
 
-/** true daca primele `count` surse colectate sunt identice (ca ordine) cu cele curente. */
+/** true if the first `count` collected sources are identical (in order) to the current ones. */
 function sameSources(old: Node<any>[] | null, next: Node<any>[], count: number): boolean {
   if (old === null) return count === 0;
   if (old.length !== count) return false;
@@ -118,16 +119,17 @@ function sameSources(old: Node<any>[] | null, next: Node<any>[], count: number):
 }
 
 /**
- * Aplica dependentele colectate. Daca sunt identice cu cele existente, nu face
- * nimic (fast path). Altfel dezaboneaza vechile surse si le aboneaza pe cele noi.
+ * Apply the collected dependencies. If they are identical to the existing ones,
+ * do nothing (fast path). Otherwise unsubscribe the old sources and subscribe
+ * the new ones.
  */
 function reconcileSources(node: Node<any>, collected: Node<any>[], count: number): void {
   if (sameSources(node.sources, collected, count)) return;
   unlinkSources(node);
   if (count > 0) {
-    // Copiem doar cand dependentele chiar s-au schimbat (rar): `collected` este
-    // buffer-ul persistent al nodului si urmatoarea rulare l-ar rescrie sub
-    // picioarele listei de surse.
+    // Copy only when the dependencies really did change (rare): `collected` is
+    // the node's persistent buffer and the next run would rewrite it out from
+    // under the sources list.
     const sources = collected.slice(0, count);
     node.sources = sources;
     for (let i = 0; i < count; i++) subscribe(node, sources[i]!);
@@ -136,7 +138,7 @@ function reconcileSources(node: Node<any>, collected: Node<any>[], count: number
   }
 }
 
-// --- Citire / scriere ------------------------------------------------------
+// --- Read / write ----------------------------------------------------------
 export function readNode<T>(node: Node<T>): T {
   if (currentObserver !== null) {
     link(currentObserver, node as Node<any>);
@@ -149,7 +151,7 @@ export function readNode<T>(node: Node<T>): T {
 
 export function peekNode<T>(node: Node<T>): T {
   if (node.fn !== null) {
-    // Evaluare fara tracking pentru a returna o valoare corecta.
+    // Untracked evaluation so we return a correct value.
     const prev = currentObserver;
     currentObserver = null;
     try {
@@ -163,7 +165,7 @@ export function peekNode<T>(node: Node<T>): T {
 
 export function writeNode<T>(node: Node<T>, next: T): void {
   if (node.fn !== null) {
-    throw new Error("[raptor] nu se poate scrie direct intr-un derived/effect");
+    throw new Error("[raptor] cannot write directly into a derived/effect");
   }
   if (node.equals(node.value as T, next)) return;
   node.value = next;
@@ -176,13 +178,13 @@ export function writeNode<T>(node: Node<T>, next: T): void {
   if (batchDepth === 0) flushEffects();
 }
 
-// --- Propagarea starii -----------------------------------------------------
+// --- State propagation ------------------------------------------------------
 function markStale(node: Node<any>, nextState: number): void {
   if (node.state >= nextState) return;
   const wasClean = node.state === CLEAN;
   node.state = nextState;
   if (node.isEffect && wasClean) {
-    // Coada e drenata de apelant (writeNode/batch/createEffectNode).
+    // The queue is drained by the caller (writeNode/batch/createEffectNode).
     effectQueue.push(node);
   }
   const observers = node.observers;
@@ -222,9 +224,9 @@ function update(node: Node<any>): void {
   node.collectCount = 0;
   currentObserver = node;
   currentOwner = node;
-  // Citit in `finally`, ca reconcilierea sa vada cate surse au apucat sa fie
-  // colectate chiar si daca `fn` a aruncat, fara sa tinem starea de colectare
-  // deschisa dupa iesire.
+  // Read in `finally`, so reconciliation sees how many sources managed to be
+  // collected even if `fn` threw, without keeping the collection state open
+  // after exit.
   let collectedCount = 0;
   try {
     node.value = node.fn!();
@@ -235,10 +237,10 @@ function update(node: Node<any>): void {
     currentObserver = prevObserver;
     currentOwner = prevOwner;
   }
-  // Abonare/dezabonare doar daca setul de dependente s-a schimbat.
+  // Subscribe/unsubscribe only if the dependency set changed.
   reconcileSources(node, collected, collectedCount);
 
-  // Daca valoarea memo-ului s-a schimbat, observatorii devin DIRTY (nu doar CHECK).
+  // If the memo's value changed, its observers become DIRTY (not just CHECK).
   if (!node.isEffect && !node.equals(oldValue as never, node.value as never)) {
     const observers = node.observers;
     if (observers) {
@@ -249,12 +251,12 @@ function update(node: Node<any>): void {
   }
 }
 
-// --- Scheduler effects -----------------------------------------------------
+// --- Effect scheduler -------------------------------------------------------
 export function flushEffects(): void {
   if (flushScheduled) return;
   flushScheduled = true;
   try {
-    // Coada poate creste in timpul rularii; procesam pana se goleste.
+    // The queue can grow during the run; we process until it empties.
     for (let i = 0; i < effectQueue.length; i++) {
       const effect = effectQueue[i]!;
       if (!effect.disposed && effect.state !== CLEAN) {
@@ -289,7 +291,7 @@ export function untracked<T>(fn: () => T): T {
   }
 }
 
-// --- Ownership / cleanup ---------------------------------------------------
+// --- Ownership / cleanup ----------------------------------------------------
 export function getOwner(): Owner | null {
   return currentOwner;
 }
@@ -314,7 +316,7 @@ export function onCleanup(fn: Cleanup): void {
   }
 }
 
-/** Adauga o computatie noua la owner-ul curent pentru dispose in cascada. */
+/** Add a new computation to the current owner for cascading dispose. */
 export function adopt(node: Node<any>): void {
   const owner = currentOwner;
   if (owner) {
@@ -349,8 +351,8 @@ export function disposeNode(node: Node<any>): void {
 }
 
 /**
- * Creeaza un scope-radacina detinut, izolat de tracking. Intoarce rezultatul
- * lui fn si un dispose care distruge tot ce a fost creat inauntru.
+ * Create an owned root scope, isolated from tracking. Returns the result of fn
+ * and a dispose that destroys everything created inside.
  */
 export function createRoot<T>(fn: (dispose: Cleanup) => T): T {
   const root: Owner = { owned: null, cleanups: null };
@@ -367,7 +369,7 @@ export function createRoot<T>(fn: (dispose: Cleanup) => T): T {
   }
 }
 
-// --- Factory-uri de noduri -------------------------------------------------
+// --- Node factories ---------------------------------------------------------
 export function createSignalNode<T>(value: T, equals: (a: T, b: T) => boolean): Node<T> {
   return new Node<T>(value, null, false, equals, currentOwner);
 }

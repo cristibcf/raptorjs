@@ -1,10 +1,10 @@
 /**
  * @raptor/mobile - Raptor Mobile Adapter.
  *
- * Roadmap sectiunea 8 il aseaza dupa desktop, si nu din intamplare: modelul de
- * capabilitati se dovedeste intai acolo unde feedback-ul e rapid, si abia apoi
- * se extinde spre telefoane, unde granitele sunt mai stranse - fara ferestre,
- * fara subprocese, cu navigarea la adaptor si actualizarile la magazin.
+ * Roadmap section 8 places it after desktop, and not by chance: the capability
+ * model is proven first where feedback is fast, and only then extended to
+ * phones, where the boundaries are tighter - no windows, no subprocesses, with
+ * navigation at the adapter and updates at the store.
  */
 export { MOBILE_BACKENDS, MOBILE_PLATFORMS, mobileBackend } from "./backends.ts";
 export type { MobileBackend } from "./backends.ts";

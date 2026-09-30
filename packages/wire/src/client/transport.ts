@@ -1,8 +1,7 @@
 /**
- * Transport - un canal duplex de mesaje binare. RaptorWire nu e legat de un
- * transport anume (whitepaper 17); acest MVP livreaza un loopback in-memory
- * folosit de teste si demo-uri, plus un contor de octeti pentru "measure
- * everything" (P8).
+ * Transport - a duplex channel of binary messages. RaptorWire is not tied to a
+ * specific transport (whitepaper 17); this MVP ships an in-memory loopback used
+ * by tests and demos, plus a byte counter for "measure everything" (P8).
  */
 
 export interface Transport {
@@ -12,9 +11,9 @@ export interface Transport {
 }
 
 export interface LoopbackStats {
-  /** octeti trimisi client -> server */
+  /** bytes sent client -> server */
   clientToServerBytes: number;
-  /** octeti trimisi server -> client */
+  /** bytes sent server -> client */
   serverToClientBytes: number;
   clientToServerMessages: number;
   serverToClientMessages: number;
@@ -29,7 +28,7 @@ class LoopbackEnd implements Transport {
   send(data: Uint8Array): void {
     if (this.closed) return;
     this.onSend(data.length);
-    // Copie + livrare asincrona pentru a imita ordonarea unei retele reale.
+    // Copy + async delivery to mimic the ordering of a real network.
     const copy = data.slice();
     queueMicrotask(() => {
       if (!this.peer.closed) this.peer.handler?.(copy);
@@ -52,7 +51,7 @@ export interface Loopback {
   stats: LoopbackStats;
 }
 
-/** Creeaza o pereche de transporturi conectate in-memory. */
+/** Create a pair of in-memory connected transports. */
 export function createLoopback(): Loopback {
   const client = new LoopbackEnd();
   const server = new LoopbackEnd();
@@ -77,7 +76,7 @@ export function createLoopback(): Loopback {
   return { client, server, stats };
 }
 
-/** Asteapta drenarea cozii de microtask-uri (livrarea loopback). */
+/** Wait for the microtask queue to drain (loopback delivery). */
 export function flushLoopback(): Promise<void> {
   return new Promise((resolve) => queueMicrotask(() => queueMicrotask(() => resolve())));
 }

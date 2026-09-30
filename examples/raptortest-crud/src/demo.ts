@@ -1,6 +1,6 @@
 /**
- * Demo RaptorTest: descopera autonom bug-uri intr-un cart CRUD, fara scenarii
- * scrise manual. Ruleaza ciclul observe -> infer -> explore -> verify -> replay.
+ * RaptorTest demo: autonomously discovers bugs in a CRUD cart, with no manually
+ * written scenarios. Runs the observe -> infer -> explore -> verify -> replay cycle.
  *
  *   node examples/raptortest-crud/src/demo.ts
  */
@@ -18,31 +18,31 @@ const rt = new RaptorTest({
 
 console.log("=== RaptorTest - autonomous behavioral testing ===\n");
 
-// 1. Descoperire autonoma de secvente (BFS ghidat de coverage).
+// 1. Autonomous discovery of sequences (coverage-guided BFS).
 const sequences = rt.discover();
-console.log(`Secvente de actiuni descoperite autonom: ${sequences.length}`);
-console.log(`Stari UI: ${rt.coverage.count("uiStates")}, tranzitii: ${rt.coverage.count("transitions")}, API: ${rt.coverage.count("apiInteractions")}\n`);
+console.log(`Action sequences discovered autonomously: ${sequences.length}`);
+console.log(`UI states: ${rt.coverage.count("uiStates")}, transitions: ${rt.coverage.count("transitions")}, API: ${rt.coverage.count("apiInteractions")}\n`);
 
-// 2. Explorare + chaos + oracle -> capsule.
+// 2. Explore + chaos + oracle -> capsules.
 const findings = rt.explore();
-console.log(`Defecte gasite: ${findings.length}\n`);
+console.log(`Defects found: ${findings.length}\n`);
 
 for (const finding of findings) {
   const c = finding.capsule;
   console.log(`BUG ${c.id}  [oracle: ${c.failedOracle}]`);
   console.log(`  schedule       : ${finding.scheduleLabel}`);
-  console.log(`  reproducere min: ${JSON.stringify(c.actionLog)}`);
-  console.log(`  detaliu        : ${c.detail}`);
+  console.log(`  min repro      : ${JSON.stringify(c.actionLog)}`);
+  console.log(`  detail         : ${c.detail}`);
 
-  // 3. Replay determinist al capsulei.
+  // 3. Deterministic replay of the capsule.
   const replay = rt.replay(c);
-  console.log(`  replay reprodus: ${replay.reproduced ? "DA" : "NU"} (UI cart.count=${replay.ui.facts["cart.count"]}, server=${app.twin.db.read("cart", 1)?.count})\n`);
+  console.log(`  replay reproduced: ${replay.reproduced ? "YES" : "NO"} (UI cart.count=${replay.ui.facts["cart.count"]}, server=${app.twin.db.read("cart", 1)?.count})\n`);
 }
 
-// 4. Un artefact executabil (.raptorcap) pentru primul bug.
+// 4. An executable artifact (.raptorcap) for the first bug.
 if (findings.length > 0) {
-  console.log("--- capsula .raptorcap (extras) ---");
+  console.log("--- .raptorcap capsule (excerpt) ---");
   console.log(serializeCapsule(findings[0]!.capsule).split("\n").slice(0, 12).join("\n"));
 }
 
-console.log("\nCoverage final:", JSON.stringify(rt.coverage.report()));
+console.log("\nFinal coverage:", JSON.stringify(rt.coverage.report()));

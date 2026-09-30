@@ -1,9 +1,9 @@
 /**
- * VisuallyHidden - continut ascuns vizual dar citit de screen reader.
+ * VisuallyHidden - content hidden visually but read by screen readers.
  *
- * Nu folosim `display:none` sau `visibility:hidden` (le-ar scoate din arborele
- * de accesibilitate) ci tehnica clip-rect standard, definita in `@raptor/ui/styles`
- * sub clasa `.rui-sr-only`.
+ * We don't use `display:none` or `visibility:hidden` (those would remove it from
+ * the accessibility tree); instead the standard clip-rect technique, defined in
+ * `@raptor/ui/styles` under the `.rui-sr-only` class.
  */
 import { R, type Child } from "raptorjs/dom";
 import { type El } from "./env.ts";
@@ -12,7 +12,7 @@ export function VisuallyHidden(...children: Child[]): El {
   return R.span({ class: "rui-sr-only" }, children);
 }
 
-/** Varianta care devine vizibila la focus (pentru "skip to content"). */
+/** Variant that becomes visible on focus (for "skip to content"). */
 export function VisuallyHiddenFocusable(...children: Child[]): El {
   return R.span({ class: "rui-sr-only rui-sr-focusable" }, children);
 }

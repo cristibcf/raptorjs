@@ -9,19 +9,19 @@ import { state } from "raptorjs";
 installMiniDom();
 const doc = (globalThis as unknown as { document: any }).document;
 
-test("R.tag construieste elemente reale, cu si fara props", () => {
+test("R.tag builds real elements, with and without props", () => {
   const el = R.div({ class: "box" }, R.span("hello"), " world") as MiniElement;
   assert.equal(el.tagName.toLowerCase(), "div");
   assert.equal(el.getAttribute("class"), "box");
   assert.equal(el.textContent, "hello world");
 
-  // Fara props: primul argument e deja copil.
-  const bare = R.p("doar text") as MiniElement;
-  assert.equal(bare.textContent, "doar text");
+  // Without props: the first argument is already a child.
+  const bare = R.p("just text") as MiniElement;
+  assert.equal(bare.textContent, "just text");
   assert.equal(bare.getAttribute("class"), null);
 });
 
-test("R leaga fine-grained: accessor-ul ca child actualizeaza doar text-node-ul", () => {
+test("R binds fine-grained: an accessor as child updates only the text-node", () => {
   resetStats();
   const root = doc.createElement("div") as MiniElement;
   const count = state(0);
@@ -38,7 +38,7 @@ test("R leaga fine-grained: accessor-ul ca child actualizeaza doar text-node-ul"
   assert.equal(stats.textUpdate, textUpdatesAtStart + 1);
 });
 
-test("R leaga props reactive si evenimente", () => {
+test("R binds reactive props and events", () => {
   const root = doc.createElement("div") as MiniElement;
   const n = state(0);
 
@@ -57,7 +57,7 @@ test("R leaga props reactive si evenimente", () => {
   assert.equal(btn.getAttribute("class"), "sbtn c1");
 });
 
-test("R(Component, props, ...children) apeleaza componenta", () => {
+test("R(Component, props, ...children) calls the component", () => {
   function Card(props: { title: string; children?: unknown }) {
     return R.section(R.h2(props.title), props.children);
   }
@@ -66,7 +66,7 @@ test("R(Component, props, ...children) apeleaza componenta", () => {
   assert.equal(el.textContent, "Tbody");
 });
 
-test("R accepta Block-uri (For / Show) ca si copii", () => {
+test("R accepts Blocks (For / Show) as children", () => {
   const root = doc.createElement("div") as MiniElement;
   const items = state([1, 2, 3]);
   const on = state(true);
@@ -75,7 +75,7 @@ test("R accepta Block-uri (For / Show) ca si copii", () => {
     () =>
       R.div(
         R.ul(For({ each: () => items(), children: (i: number) => R.li(String(i)) })),
-        Show({ when: () => on(), children: () => R.span("vizibil") }),
+        Show({ when: () => on(), children: () => R.span("visible") }),
       ),
     root,
   );
@@ -88,7 +88,7 @@ test("R accepta Block-uri (For / Show) ca si copii", () => {
       .join(",");
 
   assert.equal(liText(), "1,2,3");
-  assert.equal(root.querySelector("span")!.textContent, "vizibil");
+  assert.equal(root.querySelector("span")!.textContent, "visible");
 
   items.set([1, 2]);
   assert.equal(liText(), "1,2");
@@ -96,7 +96,7 @@ test("R accepta Block-uri (For / Show) ca si copii", () => {
   assert.equal(root.querySelector("span"), null);
 });
 
-test("acelasi builder e reutilizat per tag", () => {
+test("the same builder is reused per tag", () => {
   assert.equal(R.div, R.div);
   assert.notEqual(R.div, R.span);
 });

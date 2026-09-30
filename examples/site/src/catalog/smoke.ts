@@ -1,16 +1,16 @@
 /**
- * Proba de fum a catalogului: construieste demo-ul FIECAREI componente
- * documentate si raporteaza ce crapa.
+ * The catalog smoke test: it builds the demo of EVERY documented component
+ * and reports what breaks.
  *
- * Nu e cod de aplicatie — nimic nu-l importa, deci nu ajunge in bundle-ul
- * site-ului. E punctul de intrare pe care `tests/catalog.test.ts` il da
- * bundler-ului, fiindca paginile de catalog sunt `.tsx` si au nevoie de
- * transformul JSX ca sa poata fi rulate in Node.
+ * It is not application code — nothing imports it, so it never reaches the
+ * site's bundle. It is the entry point that `tests/catalog.test.ts` hands to
+ * the bundler, because the catalog pages are `.tsx` and need the JSX transform
+ * to be runnable in Node.
  *
- * Rostul: cele ~200 de demo-uri sunt singurul loc in care componentele sunt
- * chemate cu props realiste. Un test care le construieste pe toate prinde
- * instant orice regresie — o componenta care arunca, un grafic care produce
- * `NaN`, un obiect ajuns stringificat in text.
+ * The point: the ~200 demos are the only place where the components are called
+ * with realistic props. A test that builds them all instantly catches any
+ * regression — a component that throws, a chart that produces `NaN`, an object
+ * that ends up stringified in the text.
  */
 import { mountChild } from "raptorjs/dom";
 import { CATALOG } from "./index.ts";
@@ -24,22 +24,22 @@ export interface DemoFailure {
 export interface SmokeReport {
   ok: number;
   failures: DemoFailure[];
-  /** Cate demo-uri au produs SVG, pe grup (pentru grafice). */
+  /** How many demos produced SVG, per group (for charts). */
   svg: Record<string, number>;
 }
 
 /**
- * Sabloane care inseamna sigur o randare gresita.
+ * Patterns that definitely mean a broken render.
  *
- * Lista e scurta INTENTIONAT. Am incercat intai sa semnalez si `null` sau
- * `undefined` randate ca text si am primit patru fals pozitive: demo-urile de
- * `Select`, `Combobox`, `TreeSelect` si `Cascader` afiseaza dinadins
- * `value = null` ca sa arate starea initiala. Un test care tipa la continut
- * corect e mai rau decat unul care tace la o problema rara.
+ * The list is short ON PURPOSE. I first tried to also flag `null` or
+ * `undefined` rendered as text and got four false positives: the `Select`,
+ * `Combobox`, `TreeSelect` and `Cascader` demos deliberately show
+ * `value = null` to illustrate the initial state. A test that screams at
+ * correct content is worse than one that stays quiet about a rare problem.
  */
 const SUSPECT = [
-  { pattern: "NaN", reason: "output cu NaN (aritmetica pe valori lipsa)" },
-  { pattern: "[object Object]", reason: "obiect stringificat in text" },
+  { pattern: "NaN", reason: "output with NaN (arithmetic on missing values)" },
+  { pattern: "[object Object]", reason: "object stringified in text" },
 ];
 
 interface Mounted {
@@ -53,10 +53,10 @@ export async function runCatalogSmoke(): Promise<SmokeReport> {
   const failures: DemoFailure[] = [];
   const mounted: Mounted[] = [];
 
-  // Pasul 1: construim tot. Montam in containere reale in loc sa cerem
-  // `toHTML` pe valoarea intoarsa: un demo poate intoarce un `Block`
-  // (ErrorBoundary, Portal), un array sau un accesor — toate sunt `Child`
-  // valizi, dar niciunul nu e element.
+  // Step 1: build everything. We mount into real containers instead of calling
+  // `toHTML` on the returned value: a demo can return a `Block`
+  // (ErrorBoundary, Portal), an array or an accessor — all valid `Child`s,
+  // but none of them an element.
   for (const group of CATALOG) {
     for (const item of group.items) {
       try {
@@ -73,21 +73,21 @@ export async function runCatalogSmoke(): Promise<SmokeReport> {
     }
   }
 
-  // Pasul 2: lasam microtask-urile sa se scurga. `ErrorBoundary` isi publica
-  // fallback-ul intr-un `queueMicrotask`, deci la prima randare sincrona e gol
-  // pe bune — nu e un bug, e felul in care prinde eroarea fara sa invalideze
-  // regiunea in timpul evaluarii ei.
+  // Step 2: let the microtasks drain. `ErrorBoundary` publishes its
+  // fallback in a `queueMicrotask`, so on the first synchronous render it is
+  // genuinely empty — that is not a bug, it is how it catches the error without
+  // invalidating the region while it is being evaluated.
   await Promise.resolve();
   await Promise.resolve();
 
-  // Pasul 3: inspectam.
+  // Step 3: inspect.
   const svg: Record<string, number> = {};
   let ok = 0;
 
   for (const entry of mounted) {
     const html = entry.host.toHTML();
     if (html.length < 12) {
-      failures.push({ group: entry.group, name: entry.name, reason: "output gol" });
+      failures.push({ group: entry.group, name: entry.name, reason: "empty output" });
       continue;
     }
     const suspect = SUSPECT.find((s) => html.includes(s.pattern));
@@ -102,6 +102,6 @@ export async function runCatalogSmoke(): Promise<SmokeReport> {
   return { ok, failures, svg };
 }
 
-// Rulat ca punct de intrare al bundle-ului: lasam promisiunea unde o poate
-// astepta testul, dupa ce evalueaza codul emis.
+// Run as the bundle's entry point: we leave the promise where the test can
+// await it, after it evaluates the emitted code.
 (globalThis as Record<string, unknown>).__catalogSmoke = runCatalogSmoke();

@@ -1,8 +1,8 @@
 /**
- * CLI RaptorRun (whitepaper RaptorEngine 5: `raptor run` / `raptor preview`).
+ * RaptorRun CLI (whitepaper RaptorEngine 5: `raptor run` / `raptor preview`).
  *
- * `ssr`/`info` sunt pure si testabile (intorc { code, out }); `serve` (blocking)
- * traieste in bin.ts. RaptorRun consuma un build RaptorEngine si il ruleaza.
+ * `ssr`/`info` are pure and testable (return { code, out }); `serve` (blocking)
+ * lives in bin.ts. RaptorRun consumes a RaptorEngine build and runs it.
  */
 import { readFileSync } from "node:fs";
 import { buildModule } from "@raptor/engine";
@@ -23,14 +23,14 @@ export function runRunCli(argv: string[], readFile: (p: string) => string = defa
       code: 0,
       out: [
         "raptor-run - RaptorRun (whitepaper RaptorEngine 19-21)",
-        "  raptor-run ssr   <file.raptor> [path]   randeaza SSR pentru o cale",
-        "  raptor-run info  <file.raptor>          sumar runtime (routes, server signals)",
-        "  raptor-run serve <file.raptor> [--port N]   porneste server-ul Node",
+        "  raptor-run ssr   <file.raptor> [path]   render SSR for a path",
+        "  raptor-run info  <file.raptor>          runtime summary (routes, server signals)",
+        "  raptor-run serve <file.raptor> [--port N]   start the Node server",
       ].join("\n"),
     };
   }
 
-  if (!file) return { code: 1, out: `eroare: ${command} cere <file.raptor>` };
+  if (!file) return { code: 1, out: `error: ${command} requires <file.raptor>` };
 
   try {
     const result = buildModule(readFile(file), file);
@@ -39,7 +39,7 @@ export function runRunCli(argv: string[], readFile: (p: string) => string = defa
     if (command === "ssr") {
       const path = argv[2] ?? "/";
       const ssr = runtime.ssr(path);
-      if (!ssr) return { code: 1, out: `404: niciun route pentru '${path}'` };
+      if (!ssr) return { code: 1, out: `404: no route for '${path}'` };
       return { code: 0, out: renderDocument(ssr, ssr.resume.component) };
     }
 
@@ -50,17 +50,17 @@ export function runRunCli(argv: string[], readFile: (p: string) => string = defa
         code: 0,
         out: [
           `RaptorRun - ${file} (build ${result.manifest.engineVersion})`,
-          `  componente: ${result.ir.components.map((c) => c.name).join(", ")}`,
-          `  server signals: ${producers.join(", ") || "(niciunul)"}`,
-          `  RAS addresses: ${addresses.join(", ") || "(niciuna)"}`,
+          `  components: ${result.ir.components.map((c) => c.name).join(", ")}`,
+          `  server signals: ${producers.join(", ") || "(none)"}`,
+          `  RAS addresses: ${addresses.join(", ") || "(none)"}`,
           `  chunks: ${result.chunks.map((c) => c.name).join(", ")}`,
         ].join("\n"),
       };
     }
 
-    return { code: 1, out: `comanda necunoscuta '${command}' (ssr|info|serve)` };
+    return { code: 1, out: `unknown command '${command}' (ssr|info|serve)` };
   } catch (err) {
-    return { code: 1, out: `eroare: ${(err as Error).message}` };
+    return { code: 1, out: `error: ${(err as Error).message}` };
   }
 }
 

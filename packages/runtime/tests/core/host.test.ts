@@ -14,7 +14,7 @@ interface Fixture {
 
 let counter = 0;
 
-/** Un proiect real pe disc: host-ul nu are mod "in memorie", deci nici testele. */
+/** A real project on disk: the host has no "in-memory" mode, so neither do the tests. */
 function project(entrySource: string, manifestPatch: Record<string, unknown> = {}): Fixture {
   const root = normalizePath(mkdtempSync(join(tmpdir(), "raptor-host-")));
   const entry = "./src/main" + ++counter + ".ts";
@@ -25,10 +25,10 @@ function project(entrySource: string, manifestPatch: Record<string, unknown> = {
   return { root, manifest: requireManifest(source), dispose: () => rmSync(root, { recursive: true, force: true }) };
 }
 
-test("start evalueaza punctul de intrare si apeleaza export default cu contextul de host", async () => {
+test("start evaluates the entry point and calls export default with the host context", async () => {
   const fixture = project(
     [
-      'export const marker = "incarcat";',
+      'export const marker = "loaded";',
       "export default function main(context) {",
       "  globalThis.__raptorTestMain = { name: context.manifest.name, args: [...context.args] };",
       "}",
@@ -37,7 +37,7 @@ test("start evalueaza punctul de intrare si apeleaza export default cu contextul
   try {
     const host = createRuntime({ projectRoot: fixture.root, manifest: fixture.manifest, args: ["--port", "8080"] });
     const started = await host.start();
-    assert.equal(started.namespace["marker"], "incarcat");
+    assert.equal(started.namespace["marker"], "loaded");
     assert.ok(started.startupMs >= 0 && started.evaluationMs >= 0);
     assert.deepEqual((globalThis as Record<string, unknown>)["__raptorTestMain"], {
       name: "fixture",
@@ -50,7 +50,7 @@ test("start evalueaza punctul de intrare si apeleaza export default cu contextul
   }
 });
 
-test("modulele raptor: sunt importabile din codul aplicatiei", async () => {
+test("raptor: modules are importable from the application's code", async () => {
   const fixture = project(
     [
       'import observe from "raptor:observe";',
@@ -65,15 +65,15 @@ test("modulele raptor: sunt importabile din codul aplicatiei", async () => {
     const host = createRuntime({ projectRoot: fixture.root, manifest: fixture.manifest });
     await host.start();
     const logged = host.events().find((event) => event.name === "app.ready");
-    assert.ok(logged, "log-ul aplicatiei ajunge in observer-ul host-ului");
-    assert.ok(Number(logged.attributes["bytes"]) > 0, "metodele destructurate isi pastreaza contextul");
+    assert.ok(logged, "the application's log reaches the host's observer");
+    assert.ok(Number(logged.attributes["bytes"]) > 0, "destructured methods keep their context");
     await host.shutdown("test");
   } finally {
     fixture.dispose();
   }
 });
 
-test("un modul de host inexistent este refuzat cu cod stabil, nu cautat pe disc", async () => {
+test("a nonexistent host module is denied with a stable code, not searched on disk", async () => {
   const fixture = project(['import "raptor:teleport";', "export default () => undefined;"].join("\n"));
   try {
     const host = createRuntime({ projectRoot: fixture.root, manifest: fixture.manifest });
@@ -89,7 +89,7 @@ test("un modul de host inexistent este refuzat cu cod stabil, nu cautat pe disc"
   }
 });
 
-test("un punct de intrare din afara radacinii proiectului este refuzat", async () => {
+test("an entry point outside the project root is denied", async () => {
   const fixture = project("export default () => undefined;", { entry: "../escape.ts" });
   try {
     const host = createRuntime({ projectRoot: fixture.root, manifest: fixture.manifest });
@@ -99,15 +99,15 @@ test("un punct de intrare din afara radacinii proiectului este refuzat", async (
   }
 });
 
-test("o eroare a aplicatiei este tradusa in eroare Raptor, cu originea pastrata", async () => {
-  const fixture = project('throw new TypeError("sursa stricata");');
+test("an application error is translated into a Raptor error, with the origin preserved", async () => {
+  const fixture = project('throw new TypeError("broken source");');
   try {
     const host = createRuntime({ projectRoot: fixture.root, manifest: fixture.manifest });
     await assert.rejects(host.start(), (error: unknown) => {
       const raptor = error as { code: string; message: string; detail: Record<string, unknown> };
       assert.equal(raptor.code, "raptor:engine/evaluation");
       assert.equal(raptor.detail["origin"], "TypeError");
-      assert.match(raptor.message, /sursa stricata/);
+      assert.match(raptor.message, /broken source/);
       return true;
     });
     await host.shutdown("test");
@@ -116,7 +116,7 @@ test("o eroare a aplicatiei este tradusa in eroare Raptor, cu originea pastrata"
   }
 });
 
-test("runtime-ul nu poate fi pornit de doua ori", async () => {
+test("the runtime cannot be started twice", async () => {
   const fixture = project("export default () => undefined;");
   try {
     const host = createRuntime({ projectRoot: fixture.root, manifest: fixture.manifest });
@@ -128,7 +128,7 @@ test("runtime-ul nu poate fi pornit de doua ori", async () => {
   }
 });
 
-test("shutdown dreneaza task-urile aplicatiei si este idempotent", async () => {
+test("shutdown drains the application's tasks and is idempotent", async () => {
   const fixture = project(
     [
       'import tasks from "raptor:tasks";',
@@ -146,7 +146,7 @@ test("shutdown dreneaza task-urile aplicatiei si este idempotent", async () => {
     await host.start();
     await host.shutdown("test");
     await host.shutdown("test");
-    assert.equal((globalThis as Record<string, unknown>)["__raptorTestLeak"], undefined, "nimic nu supravietuieste opririi");
+    assert.equal((globalThis as Record<string, unknown>)["__raptorTestLeak"], undefined, "nothing survives the shutdown");
     assert.equal(host.tasks.closed, true);
     assert.equal(host.diagnostics().tasks.active, 0);
   } finally {
@@ -155,7 +155,7 @@ test("shutdown dreneaza task-urile aplicatiei si este idempotent", async () => {
   }
 });
 
-test("diagnosticul descrie versiunea, motorul, proiectul, capabilitatile si modulele", async () => {
+test("the diagnostics describe the version, the engine, the project, the capabilities and the modules", async () => {
   const fixture = project(
     [
       'import { readText } from "raptor:files";',
@@ -182,7 +182,7 @@ test("diagnosticul descrie versiunea, motorul, proiectul, capabilitatile si modu
   }
 });
 
-test("politica de productie trece host-ul in regim strict fara flag suplimentar", async () => {
+test("the production policy switches the host into strict mode with no extra flag", async () => {
   const fixture = project("export default () => undefined;", { policy: "production" });
   try {
     const host = createRuntime({ projectRoot: fixture.root, manifest: fixture.manifest });
@@ -194,7 +194,7 @@ test("politica de productie trece host-ul in regim strict fara flag suplimentar"
   }
 });
 
-test("loadProject urca pana la manifest si raporteaza lipsa lui cu cod stabil", async () => {
+test("loadProject walks up to the manifest and reports its absence with a stable code", async () => {
   const fixture = project("export default () => undefined;");
   try {
     const deep = join(fixture.root, "src", "adanc", "mai-adanc");

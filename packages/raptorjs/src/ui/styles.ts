@@ -1,9 +1,9 @@
 /**
- * Stiluri optionale pentru @raptor/ui.
+ * Optional styles for @raptor/ui.
  *
- * Nu se injecteaza singure: componentele pun doar clase, iar tu decizi daca
- * folosesti CSS-ul asta, il suprascrii sau il ignori complet. Culorile si
- * spatierile sunt custom properties, deci temarea nu cere fork.
+ * They do not inject themselves: components only set classes, and you decide
+ * whether to use this CSS, override it, or ignore it entirely. Colors and
+ * spacings are custom properties, so theming does not require a fork.
  */
 export const RUI_CSS = `
 .rui-table {
@@ -60,7 +60,7 @@ export const RUI_CSS = `
 .rui-fab-bottom-center { left: 50%; bottom: 22px; transform: translateX(-50%); }
 .rui-fab-icon { font-size: 20px; }
 
-/* Inputuri T3 */
+/* Inputs T3 */
 .rui-phone { display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border: 1px solid var(--rui-border, #d7dae0); border-radius: 8px; background: #ffffff; }
 .rui-phone-prefix { color: var(--rui-fg-muted, #5b6270); }
 .rui-phone-input { border: 0; padding: 8px 0; font: inherit; outline: none; background: none; }
@@ -110,7 +110,7 @@ export const RUI_CSS = `
 .rui-treeselect-row.rui-selected { background: var(--rui-menu-active, rgba(23,69,122,0.10)); font-weight: 600; }
 .rui-treeselect-toggle { width: 14px; font-size: 10px; opacity: 0.6; }
 
-/* Grafice T3 */
+/* Charts T3 */
 .rui-slice { stroke: var(--rui-menu-bg, #ffffff); stroke-width: 1; }
 .rui-pie-center { font-size: 18px; font-weight: 700; fill: currentColor; }
 .rui-gauge-track { stroke: rgba(0,0,0,0.10); }
@@ -126,7 +126,7 @@ export const RUI_CSS = `
 .rui-meter-fill.rui-level-high { background: #b42318; }
 .rui-meter-value { font-size: 13px; color: var(--rui-fg-muted, #5b6270); }
 
-/* Editoare */
+/* Editors */
 .rui-rte { border: 1px solid var(--rui-border, #d7dae0); border-radius: 9px; overflow: hidden; }
 .rui-rte-toolbar { display: flex; gap: 2px; padding: 5px; border-bottom: 1px solid var(--rui-border, #d7dae0); background: rgba(0,0,0,0.02); }
 .rui-rte-button { min-width: 30px; height: 30px; border: 0; border-radius: 6px; background: none; font: inherit; font-weight: 700; cursor: pointer; }
@@ -238,7 +238,7 @@ export const RUI_CSS = `
 .rui-qrcode-svg { display: block; }
 .rui-qrcode-error { color: #b42318; font-size: 13px; }
 
-/* Diverse T3 */
+/* Miscellaneous T3 */
 .rui-kanban { display: flex; gap: 12px; align-items: flex-start; overflow-x: auto; }
 .rui-kanban-col { flex: 0 0 260px; border: 1px solid var(--rui-border, #d7dae0); border-radius: 10px; background: rgba(0,0,0,0.02); }
 .rui-kanban-col.rui-over { border-color: var(--rui-accent, #17457a); }
@@ -327,7 +327,7 @@ export const RUI_CSS = `
 .rui-time-sep { opacity: 0.5; }
 .rui-time-ampm { margin-left: 6px; border: 0; background: rgba(0,0,0,0.06); border-radius: 5px; padding: 2px 6px; font: inherit; font-size: 12px; cursor: pointer; }
 
-/* Navigare */
+/* Navigation */
 .rui-breadcrumbs-list, .rui-pagination-list { display: flex; align-items: center; gap: 4px; list-style: none; margin: 0; padding: 0; flex-wrap: wrap; }
 .rui-breadcrumb { display: flex; align-items: center; gap: 4px; font-size: 14px; }
 .rui-breadcrumb-sep, .rui-breadcrumb-ellipsis { color: var(--rui-fg-muted, #5b6270); }
@@ -428,7 +428,7 @@ export const RUI_CSS = `
 .rui-cmd-label { flex: 1; }
 .rui-cmd-hint { font-size: 12px; color: var(--rui-fg-muted, #8a909c); }
 
-/* Fișiere */
+/* Files */
 .rui-dropzone { padding: 26px; border: 2px dashed var(--rui-border, #d7dae0); border-radius: 10px; text-align: center; cursor: pointer; }
 .rui-dropzone.rui-over { border-color: var(--rui-accent, #17457a); background: var(--rui-menu-active, rgba(23,69,122,0.06)); }
 .rui-dropzone.rui-disabled { opacity: 0.5; cursor: not-allowed; }
@@ -473,7 +473,7 @@ export const RUI_CSS = `
 .rui-notification-actions { margin-top: 8px; display: flex; gap: 8px; }
 .rui-notification-close { border: 0; background: none; cursor: pointer; opacity: 0.5; align-self: flex-start; }
 
-/* Grafice */
+/* Charts */
 .rui-chart { margin: 0; }
 .rui-chart-svg { display: block; max-width: 100%; }
 .rui-grid-line { stroke: var(--rui-border, #d7dae0); stroke-width: 1; }
@@ -680,7 +680,7 @@ export const RUI_CSS = `
 .rui-segment:disabled { opacity: 0.45; cursor: not-allowed; }
 .rui-toggle.rui-pressed, .rui-toggle-group .rui-pressed { background: var(--rui-menu-active, rgba(23,69,122,0.10)); border-color: var(--rui-accent, #17457a); }
 
-/* Diverse */
+/* Miscellaneous */
 .rui-close { border: 0; background: none; cursor: pointer; opacity: 0.55; line-height: 1; }
 .rui-close:hover { opacity: 1; }
 .rui-close-sm { font-size: 11px; }
@@ -720,7 +720,7 @@ export const RUI_CSS = `
 .rui-btn-group > .rui-btn:first-child { border-radius: 8px 0 0 8px; margin-left: 0; }
 .rui-btn-group > .rui-btn:last-child { border-radius: 0 8px 8px 0; }
 
-/* Controale de formular */
+/* Form controls */
 .rui-input { display: flex; align-items: center; gap: 6px; }
 .rui-input-control, .rui-textarea {
   width: 100%; padding: 8px 10px; font: inherit;
@@ -912,8 +912,8 @@ export const RUI_CSS = `
 .rui-grid-td { padding: 0 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rui-grid-empty { padding: 24px; text-align: center; color: var(--rui-fg-muted, #5b6270); }
 
-/* VisuallyHidden: ascuns vizual, dar PREZENT in arborele de accesibilitate.
-   "display:none" l-ar scoate si de acolo, deci nu se foloseste. */
+/* VisuallyHidden: hidden visually, but PRESENT in the accessibility tree.
+   "display:none" would remove it from there too, so it is not used. */
 .rui-sr-only {
   position: absolute;
   width: 1px; height: 1px;
@@ -932,11 +932,11 @@ export const RUI_CSS = `
   white-space: normal;
 }
 
-/* Tranzitii: clasele puse de transitionClass().  */
+/* Transitions: the classes set by transitionClass().  */
 .rui-enter { opacity: 1; }
 .rui-exit { opacity: 0; }
 
-/* Maner de resize. */
+/* Resize handle. */
 .rui-resize-handle {
   flex: 0 0 auto;
   background: transparent;
@@ -947,7 +947,7 @@ export const RUI_CSS = `
 .rui-resize-handle[aria-orientation="horizontal"] { cursor: row-resize; height: 6px; }
 .rui-resize-handle:hover, .rui-resize-handle:focus-visible { background: rgba(23,69,122,0.25); }
 
-/* Element tras / tinta de drop. */
+/* Dragged element / drop target. */
 .rui-dragging { opacity: 0.55; }
 .rui-drop-over { outline: 2px dashed currentColor; outline-offset: 2px; }
 
@@ -994,7 +994,7 @@ export const RUI_CSS = `
 }
 `;
 
-/** Injecteaza CSS-ul o singura data (no-op pe server / in teste). */
+/** Injects the CSS a single time (no-op on the server / in tests). */
 export function installStyles(): void {
   const doc: any = (globalThis as any).document;
   if (!doc || typeof doc.createElement !== "function" || !doc.head) return;

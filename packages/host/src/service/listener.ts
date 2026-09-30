@@ -1,14 +1,14 @@
 /**
- * Socketul de ascultare, ca interfata.
+ * The listening socket, as an interface.
  *
- * Ideea care conteaza aici este ca **aplicatia nu deschide portul**. Il deschide
- * host-ul si ii da aplicatiei un handler. Asa functioneaza si in realitate un
- * serviciu bine asezat: socketul poate veni gata deschis de la supervizor
- * (systemd socket activation, un load balancer, un sidecar), iar procesul care
- * serveste nu trebuie sa aiba dreptul sa lege porturi.
+ * The idea that matters here is that **the app does not open the port**. The
+ * host opens it and gives the app a handler. That is also how a well-placed
+ * service works in reality: the socket can come already open from the
+ * supervisor (systemd socket activation, a load balancer, a sidecar), and the
+ * process that serves need not have the right to bind ports.
  *
- * Consecinta practica pentru teste: acelasi cod de aplicatie merge si peste un
- * listener real de `node:http`, si peste unul in memorie.
+ * The practical consequence for tests: the same app code runs both over a real
+ * `node:http` listener and over an in-memory one.
  */
 
 export type ServeHandler = (request: Request) => Response | Promise<Response>;
@@ -21,16 +21,16 @@ export interface Listener {
 }
 
 export interface ListenerFactory {
-  /** Deschide socketul si leaga handler-ul; `port: 0` alege un port liber. */
+  /** Opens the socket and binds the handler; `port: 0` picks a free port. */
   open(name: string, port: number, handler: ServeHandler): Promise<Listener>;
 }
 
 /**
- * Listener real peste `node:http`.
+ * A real listener over `node:http`.
  *
- * Traducerea din/in `Request`/`Response` este aceeasi pe care o face si
- * `raptor:serve` din runtime: contractul aplicatiei ramane Web-standard, iar
- * tipurile de server ale host-ului nu ies niciodata la suprafata.
+ * The translation to/from `Request`/`Response` is the same one that
+ * `raptor:serve` in the runtime does: the app's contract stays Web-standard,
+ * and the host's server types never surface.
  */
 export function nodeListeners(): ListenerFactory {
   return {
@@ -62,8 +62,8 @@ export function nodeListeners(): ListenerFactory {
           try {
             response = await handler(request);
           } catch (error) {
-            // Un handler care arunca nu are voie sa lase conexiunea agatata.
-            response = new Response(`eroare interna: ${(error as Error).message}`, { status: 500 });
+            // A handler that throws must not leave the connection hanging.
+            response = new Response(`internal error: ${(error as Error).message}`, { status: 500 });
           }
 
           outgoing.statusCode = response.status;
@@ -91,7 +91,7 @@ export function nodeListeners(): ListenerFactory {
         close: () =>
           new Promise<void>((resolve) => {
             server.close(() => resolve());
-            // Conexiunile keep-alive ar tine serverul deschis la nesfarsit.
+            // Keep-alive connections would hold the server open forever.
             server.closeIdleConnections();
           }),
       };

@@ -1,12 +1,12 @@
 /**
- * Select - dropdown cu o singura valoare, pe pattern-ul ARIA listbox.
+ * Select - a single-value dropdown, on the ARIA listbox pattern.
  *
- * Diferenta fata de `Combobox`: aici nu se tasteaza liber. Butonul poarta
- * `role="combobox"` cu `aria-expanded`, lista e un `listbox`, iar focusul
- * ramane pe buton - optiunea evidentiata e semnalata prin `aria-activedescendant`.
+ * The difference from `Combobox`: here you don't type freely. The button carries
+ * `role="combobox"` with `aria-expanded`, the list is a `listbox`, and focus
+ * stays on the button - the highlighted option is signalled via `aria-activedescendant`.
  *
- * Are typeahead: tastand "pi" rapid sari la "Piersică", ca la un `<select>`
- * nativ. Fara asta, o lista de 200 de tari e inutilizabila la tastatura.
+ * It has typeahead: typing "pe" quickly jumps to "Peach", like a native
+ * `<select>`. Without this, a list of 200 countries is unusable by keyboard.
  */
 import { state, derived, onCleanup, type Accessor, type State } from "raptorjs";
 import { R, For, Show, type Child } from "raptorjs/dom";
@@ -25,7 +25,7 @@ export interface SelectProps<T> {
   label: (option: T) => string;
   render?: (option: T) => Child;
   disabled?: (option: T) => boolean;
-  /** Text cand nu e nimic selectat. */
+  /** Text when nothing is selected. */
   placeholder?: Child;
   placement?: Placement;
   onChange?: (option: T) => void;
@@ -44,7 +44,7 @@ export function select<T>(props: SelectProps<T>): SelectHandle {
   const active = state(-1);
   let triggerEl: El = null;
 
-  /** Buffer de typeahead; se goleste dupa o pauza, ca la select-ul nativ. */
+  /** Typeahead buffer; it clears after a pause, like the native select. */
   let typed = "";
   let typedTimer: ReturnType<typeof setTimeout> | null = null;
   const clearTyped = (): void => {
@@ -81,7 +81,7 @@ export function select<T>(props: SelectProps<T>): SelectHandle {
   const show = (): void => {
     if (open.peek()) return;
     open.set(true);
-    // Deschiderea porneste de la valoarea curenta, nu de la primul element.
+    // Opening starts from the current value, not from the first element.
     const current = indexOfValue();
     active.set(current >= 0 ? current : (selectable.peek()[0] ?? -1));
   };
@@ -116,7 +116,7 @@ export function select<T>(props: SelectProps<T>): SelectHandle {
 
     const list = props.options();
     const start = Math.max(0, active.peek());
-    // Cautam de la pozitia curenta in jos, apoi ciclam.
+    // We search from the current position downward, then cycle.
     for (let step = 1; step <= list.length; step++) {
       const i = (start + step) % list.length;
       const option = list[i]!;
@@ -170,7 +170,7 @@ export function select<T>(props: SelectProps<T>): SelectHandle {
         if (open()) hide(false);
         return;
     }
-    // Typeahead: o singura litera imprimabila.
+    // Typeahead: a single printable letter.
     if (typeof e.key === "string" && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
       typeahead(e.key);
     }
@@ -206,7 +206,7 @@ export function select<T>(props: SelectProps<T>): SelectHandle {
     },
     R.span({ class: () => (props.value() === null ? "rui-select-placeholder" : "rui-select-value") }, () => {
       const current = props.value();
-      return current === null ? (props.placeholder ?? "Alege…") : props.label(current);
+      return current === null ? (props.placeholder ?? "Choose…") : props.label(current);
     }),
     R.span({ class: "rui-select-arrow", "aria-hidden": "true" }, "▾")),
     Show({
@@ -256,9 +256,9 @@ export function select<T>(props: SelectProps<T>): SelectHandle {
   return { el, open: () => open() };
 }
 
-/** Varianta componenta. */
+/** Component variant. */
 export function Select<T>(props: SelectProps<T>): El {
-  // Constructia nu aboneaza computatia apelantului; vezi `isolate`.
+  // Construction doesn't subscribe the caller's computation; see `isolate`.
   return isolate(() => SelectImpl<T>(props));
 }
 

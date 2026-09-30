@@ -1,10 +1,10 @@
 /**
- * `raptor-runtime run` (spec sectiunea 4): transpileaza TypeScript in memorie,
- * incarca modulele si aplica permisiunile.
+ * `raptor-runtime run` (spec section 4): transpiles TypeScript in memory, loads
+ * the modules and applies the permissions.
  *
- * Oprirea curata este parte din contract: la SIGINT/SIGTERM se anuleaza task-urile
- * in zbor, se dreneaza fabricul si abia apoi se iese - niciodata `exit` brutal
- * in mijlocul lucrului.
+ * Clean shutdown is part of the contract: on SIGINT/SIGTERM the in-flight tasks
+ * are cancelled, the fabric is drained and only then does it exit - never a
+ * brutal `exit` in the middle of the work.
  */
 import { createObserver, createRuntime, loadProject } from "@raptor/runtime";
 import type { RaptorRuntimeHost, RuntimeEvent } from "@raptor/runtime";
@@ -14,7 +14,7 @@ import type { CommandInput, CommandResult } from "../shared.ts";
 import { fail, formatMs, fromError, ok, table } from "../shared.ts";
 
 export interface RunOptions {
-  /** Daca aplicatia tine procesul ocupat, `run` asteapta semnalele de oprire. */
+  /** If the application keeps the process busy, `run` waits for the shutdown signals. */
   readonly waitForSignals?: boolean;
   readonly onEvent?: (event: RuntimeEvent) => void;
 }
@@ -35,17 +35,17 @@ export async function runCommand(input: CommandInput, options: RunOptions = {}):
     const observer = createObserver(options.onEvent ? { sink: options.onEvent } : {});
     const manifest = mode === project.manifest.policy ? project.manifest : { ...project.manifest, policy: mode };
 
-    // Ce ocoleste brokerul se verifica INAINTE de pornire, cu aceeasi regula pe
-    // care o foloseste `doctor`. Raportul spune si ce NU a putut fi verificat -
-    // un `import()` cu specificator calculat nu apare in graf, deci absenta lui
-    // de acolo nu dovedeste nimic.
+    // What bypasses the broker is checked BEFORE startup, with the same rule
+    // that `doctor` uses. The report also says what could NOT be verified - an
+    // `import()` with a computed specifier does not appear in the graph, so its
+    // absence from there proves nothing.
     const report = await inspectBypasses(project.projectRoot, manifest.entry);
     const severity = bypassSeverity(mode);
 
-    // Tot ce am aflat intra in observer, in ambele politici, deci ajunge si in
-    // jurnal oriunde politica cere unul. Altfel jurnalul ar arata doar accesul
-    // refuzat la poarta, nu si pe cel care ar fi putut trece pe langa ea - iar
-    // cine il citeste ar trage exact concluzia gresita.
+    // Everything we found enters the observer, in both policies, so it also
+    // reaches the log wherever the policy requires one. Otherwise the log would
+    // show only the access denied at the gate, not the one that could have
+    // slipped past it - and whoever reads it would draw exactly the wrong conclusion.
     for (const bypass of report.bypasses) {
       observer.record({
         at: 0,
@@ -56,7 +56,7 @@ export async function runCommand(input: CommandInput, options: RunOptions = {}):
           specifier: bypass.specifier,
           replacement: bypass.replacement,
           granted: true,
-          reason: "import direct de builtin: nu trece prin capability broker",
+          reason: "direct builtin import: does not go through the capability broker",
           policy: mode,
         },
       });
@@ -71,7 +71,7 @@ export async function runCommand(input: CommandInput, options: RunOptions = {}):
           from: item.from,
           what: item.what,
           granted: true,
-          reason: "nu poate fi rezolvat static: un ocol aici nu ar fi vizibil",
+          reason: "cannot be resolved statically: a bypass here would not be visible",
           policy: mode,
         },
       });
@@ -84,12 +84,12 @@ export async function runCommand(input: CommandInput, options: RunOptions = {}):
         ...fail(
           1,
           [
-            `${manifest.name}@${manifest.version} nu a pornit: in politica production nimic nu are voie sa`,
-            "ocoleasca capability broker-ul, si nimic nu are voie sa fie neverificabil.",
+            `${manifest.name}@${manifest.version} did not start: under the production policy nothing may`,
+            "bypass the capability broker, and nothing may be unverifiable.",
             "",
             ...blocking.map((reason) => `  ${reason}`),
             "",
-            "Ruleaza cu --policy development cat timp portezi, sau inlocuieste importurile cu modulele raptor:.",
+            "Run with --policy development while porting, or replace the imports with the raptor: modules.",
           ].join("\n"),
           {
             bypasses: report.bypasses.map((bypass) => ({ ...bypass })),
@@ -120,21 +120,21 @@ export async function runCommand(input: CommandInput, options: RunOptions = {}):
 
     const denied = diagnostics.capabilities.usage.filter((usage) => !usage.granted);
     const out = [
-      `${manifest.name}@${manifest.version} a rulat (politica ${mode}${undeclared.strict ? ", strict" : ""})`,
+      `${manifest.name}@${manifest.version} ran (policy ${mode}${undeclared.strict ? ", strict" : ""})`,
       table([
-        ["pornire", formatMs(started.startupMs)],
-        ["evaluare", formatMs(started.evaluationMs)],
-        ["task-uri", `${diagnostics.tasks.completed} terminate, ${diagnostics.tasks.failed} esuate, ${diagnostics.tasks.cancelled} anulate`],
-        ["module", String(diagnostics.modules.length)],
-        ["capabilitati refuzate", String(denied.length)],
-        // Numarul de refuzuri induce in eroare singur: un import direct de
-        // builtin ajunge la sistem fara sa fie numarat nicaieri. Daca exista
-        // unul, se vede langa refuzuri, nu doar in `doctor`.
+        ["startup", formatMs(started.startupMs)],
+        ["evaluation", formatMs(started.evaluationMs)],
+        ["tasks", `${diagnostics.tasks.completed} completed, ${diagnostics.tasks.failed} failed, ${diagnostics.tasks.cancelled} cancelled`],
+        ["modules", String(diagnostics.modules.length)],
+        ["denied capabilities", String(denied.length)],
+        // The number of denials is misleading on its own: a direct builtin
+        // import reaches the system without being counted anywhere. If there is
+        // one, it shows next to the denials, not just in `doctor`.
         ...(report.bypasses.length > 0
-          ? ([["ocolesc brokerul", report.bypasses.map((b) => b.specifier).join(", ")]] as const)
+          ? ([["bypass the broker", report.bypasses.map((b) => b.specifier).join(", ")]] as const)
           : []),
         ...(report.unverifiable.length > 0
-          ? ([["neverificabil", report.unverifiable.map((u) => u.what).join(", ")]] as const)
+          ? ([["unverifiable", report.unverifiable.map((u) => u.what).join(", ")]] as const)
           : []),
         ...(auditPath ? ([["audit", auditPath]] as const) : []),
       ]),
@@ -162,13 +162,13 @@ export async function runCommand(input: CommandInput, options: RunOptions = {}):
 }
 
 /**
- * Asteapta fie un semnal de oprire, fie epuizarea lucrului aplicatiei.
+ * Waits for either a shutdown signal or the exhaustion of the application's work.
  *
- * O aplicatie care deschide un server trebuie sa ramana in viata pana la
- * SIGINT/SIGTERM; una care isi termina treaba trebuie sa iasa singura. `beforeExit`
- * distinge exact intre cele doua cazuri: se emite doar cand nu mai exista lucru
- * programat. In ambele situatii oprirea trece prin `shutdown`, deci task-urile
- * in zbor sunt anulate si drenate inainte de iesire.
+ * An application that opens a server must stay alive until SIGINT/SIGTERM; one
+ * that finishes its work must exit on its own. `beforeExit` distinguishes
+ * exactly between the two cases: it is emitted only when there is no more
+ * scheduled work. In both situations shutdown goes through `shutdown`, so the
+ * in-flight tasks are cancelled and drained before exit.
  */
 async function waitForShutdown(host: RaptorRuntimeHost): Promise<void> {
   await new Promise<void>((resolve) => {
@@ -187,7 +187,7 @@ async function waitForShutdown(host: RaptorRuntimeHost): Promise<void> {
     process.on("SIGINT", onInt);
     process.on("SIGTERM", onTerm);
     process.on("beforeExit", onIdle);
-    // Aplicatia isi poate cere singura oprirea; atunci nu mai asteptam semnale.
+    // The application can request its own shutdown; then we no longer wait for signals.
     void host.whenStopped().then(() => {
       detach();
       resolve();

@@ -1,11 +1,11 @@
 /**
- * Semantic Application Graph (whitepaper RaptorEngine sectiunea 8).
+ * Semantic Application Graph (RaptorEngine whitepaper section 8).
  *
- * Leaga intr-o singura vedere: Module -> Component -> Signal -> Derived -> DOM
- * Binding, plus ServerSignal -> Schema -> RAS Address. Pe acest graf raspundem
- * intrebarile pe care un module graph normal nu le poate: daca un signal se
- * schimba, ce bindings se regenereaza? daca un derived nu ajunge niciodata la
- * DOM, poate fi eliminat? (baza pentru DSE si Dependency Fusion, 14).
+ * Links into a single view: Module -> Component -> Signal -> Derived -> DOM
+ * Binding, plus ServerSignal -> Schema -> RAS Address. On this graph we answer
+ * the questions a normal module graph cannot: if a signal changes, which
+ * bindings regenerate? if a derived never reaches the DOM, can it be
+ * eliminated? (the basis for DSE and Dependency Fusion, 14).
  */
 import type {
   IRModule,
@@ -31,15 +31,15 @@ export const GraphNodeKind = {
 export type GraphNodeKindValue = (typeof GraphNodeKind)[keyof typeof GraphNodeKind];
 
 export const EdgeType = {
-  /** Date curg de la producator la consumator (signal -> derived -> binding). */
+  /** Data flows from producer to consumer (signal -> derived -> binding). */
   Flow: "flow",
-  /** Un handler scrie un signal (event -> signal). */
+  /** A handler writes a signal (event -> signal). */
   Write: "write",
-  /** Structura DOM (element -> child, component -> root). */
+  /** DOM structure (element -> child, component -> root). */
   Renders: "renders",
-  /** Legatura wire (serverSignal -> schema / address). */
+  /** Wire link (serverSignal -> schema / address). */
   Wire: "wire",
-  /** Apartenenta (component -> signal/derived/...). */
+  /** Ownership (component -> signal/derived/...). */
   Contains: "contains",
 } as const;
 
@@ -50,7 +50,7 @@ export interface GraphNode {
   kind: GraphNodeKindValue;
   label: string;
   component: string;
-  /** Semnalizeaza noduri observabile (sinks pentru liveness): text/attr/effect. */
+  /** Marks observable nodes (sinks for liveness): text/attr/effect. */
   sink: boolean;
 }
 
@@ -85,19 +85,19 @@ export class SemanticGraph {
     }
   }
 
-  /** Consumatorii directi (flow) ai unui nod. */
+  /** The direct (flow) consumers of a node. */
   consumers(id: string): string[] {
     return this.outFlow.get(id) ?? [];
   }
 
-  /** Producatorii directi (flow) ai unui nod. */
+  /** The direct (flow) producers of a node. */
   producers(id: string): string[] {
     return this.inFlow.get(id) ?? [];
   }
 
   /**
-   * Reachability inversa din sinks: multimea nodurilor care ajung la un output
-   * observabil. Un nod reactiv care nu e in aceasta multime e "dead" (DSE 14.1).
+   * Reverse reachability from sinks: the set of nodes that reach an observable
+   * output. A reactive node not in this set is "dead" (DSE 14.1).
    */
   liveNodes(): Set<string> {
     const live = new Set<string>();
@@ -116,10 +116,10 @@ export class SemanticGraph {
         queue.push(other);
       };
       for (const producer of this.producers(id)) reach(producer);
-      // Si tintele scrise: codul emis pentru un handler viu le NUMESTE, deci
-      // stergerea lor ar lasa o referinta moarta in fisierul generat. Un semnal
-      // scris si necitit poate fi inutil, dar asta nu e treaba lui DSE sa
-      // decida taindu-l pe jumatate.
+      // And the written targets: the code emitted for a live handler NAMES them,
+      // so deleting them would leave a dead reference in the generated file. A
+      // signal that is written but never read may be useless, but it is not DSE's
+      // job to decide that by cutting it in half.
       for (const edge of this.edges) {
         if (edge.type === EdgeType.Write && edge.from === id) reach(edge.to);
       }
@@ -127,7 +127,7 @@ export class SemanticGraph {
     return live;
   }
 
-  /** Nodurile reactive fara drum spre un sink (candidati DSE). */
+  /** Reactive nodes with no path to a sink (DSE candidates). */
   deadReactive(): string[] {
     const live = this.liveNodes();
     const dead: string[] = [];
@@ -159,7 +159,7 @@ function walkElement(
   graph.addEdge(parentId, el.id, EdgeType.Renders);
 
   for (const attr of el.attrs) {
-    if (!attr.expr) continue; // atribut static, fara nod reactiv
+    if (!attr.expr) continue; // static attribute, no reactive node
     graph.addNode({
       id: attr.id,
       kind: GraphNodeKind.Attr,
@@ -180,14 +180,14 @@ function walkElement(
       kind: GraphNodeKind.Event,
       label: `on:${ev.event}`,
       component: comp.name,
-      // Un handler ESTE un output observabil: ruleaza cand utilizatorul apasa.
-      // Cat timp nu era sink, nimic din el nu tinea nimic in viata - iar DSE
-      // stergea un derived citit doar in handler, lasand in codul emis o
-      // referinta catre un nume care nu mai exista. Runda 3 de audit, U4/U5.
+      // A handler IS an observable output: it runs when the user clicks.
+      // As long as it was not a sink, nothing in it kept anything alive - and DSE
+      // deleted a derived read only inside the handler, leaving in the emitted
+      // code a reference to a name that no longer exists. Audit round 3, U4/U5.
       sink: true,
     });
     graph.addEdge(el.id, ev.id, EdgeType.Renders);
-    // Ce CITESTE handler-ul il tine in viata, exact ca un binding din DOM.
+    // What the handler READS keeps it alive, exactly like a DOM binding.
     for (const r of ev.reads) {
       const p = producerOf(r);
       if (p) graph.addEdge(p, ev.id, EdgeType.Flow);
@@ -218,11 +218,11 @@ function walkElement(
         if (p) graph.addEdge(p, child.id, EdgeType.Flow);
       }
     }
-    // Text static nu creeaza nod reactiv.
+    // Static text does not create a reactive node.
   }
 }
 
-/** Construieste graful semantic dintr-un modul IR. */
+/** Builds the semantic graph from an IR module. */
 export function buildGraph(module: IRModule): SemanticGraph {
   const graph = new SemanticGraph();
 
@@ -235,7 +235,7 @@ export function buildGraph(module: IRModule): SemanticGraph {
       sink: false,
     });
 
-    // Map nume reactiv -> id nod producator, pentru rezolvarea edge-urilor.
+    // Map reactive name -> producer node id, for resolving edges.
     const producerId = new Map<string, string>();
     for (const s of comp.signals) producerId.set(s.name, s.id);
     for (const d of comp.deriveds) producerId.set(d.name, d.id);
@@ -262,7 +262,7 @@ export function buildGraph(module: IRModule): SemanticGraph {
         sink: false,
       });
       graph.addEdge(comp.id, ss.id, EdgeType.Contains);
-      // Lant wire: schema + address.
+      // Wire chain: schema + address.
       if (ss.schema) {
         const schemaId = `${ss.id}#schema`;
         graph.addNode({
@@ -306,7 +306,7 @@ export function buildGraph(module: IRModule): SemanticGraph {
         kind: GraphNodeKind.Effect,
         label: "effect",
         component: comp.name,
-        sink: true, // effect-urile sunt outputs observabile
+        sink: true, // effects are observable outputs
       });
       graph.addEdge(comp.id, ef.id, EdgeType.Contains);
       for (const r of ef.reads) {

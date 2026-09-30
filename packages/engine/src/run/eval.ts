@@ -1,10 +1,11 @@
 /**
- * Evaluator de expresii pentru SSR (whitepaper RaptorEngine 9, 19.1).
+ * Expression evaluator for SSR (whitepaper RaptorEngine 9, 19.1).
  *
- * Acelasi Raptor IR care alimenteaza codegen-ul browser este evaluat server-side
- * ca sa producem HTML in SSR - dovada concreta ca "acelasi graf" traverseaza si
- * clientul, si serverul (35). Interpret mic peste AST-ul din @raptor/compiler;
- * suporta exact ce produce DSL-ul (.raptor), nu JS arbitrar.
+ * The same Raptor IR that feeds the browser codegen is evaluated server-side to
+ * produce HTML in SSR - concrete proof that "the same graph" traverses both the
+ * client and the server (35). A small interpreter over the AST from
+ * @raptor/compiler; supports exactly what the DSL (.raptor) produces, not
+ * arbitrary JS.
  */
 import type { Expr } from "@raptor/engine/compiler";
 
@@ -47,7 +48,7 @@ function applyBinary(op: string, l: any, r: any): unknown {
   }
 }
 
-/** Evalueaza o expresie IR intr-un mediu de valori (nume reactiv -> valoare). */
+/** Evaluates an IR expression in an environment of values (reactive name -> value). */
 export function evalExpr(e: Expr, env: Env): unknown {
   switch (e.kind) {
     case "Num":
@@ -89,7 +90,7 @@ export function evalExpr(e: Expr, env: Env): unknown {
     }
     case "Cond":
       return evalExpr(e.test, env) ? evalExpr(e.consequent, env) : evalExpr(e.alternate, env);
-    // Mutatii/arrow nu au sens ca valoare in SSR.
+    // Mutations/arrow have no meaning as a value in SSR.
     case "Assign":
     case "Update":
     case "Arrow":

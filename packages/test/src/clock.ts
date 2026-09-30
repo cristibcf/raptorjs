@@ -1,8 +1,8 @@
 /**
- * VirtualClock - scheduler discret de evenimente pentru timp virtual controlat
- * (whitepaper §14 "Temporal testing"). Determinist: aceleasi callback-uri la
- * aceleasi timpuri produc aceeasi ordine, indiferent de wall-clock. Permite
- * freeze/advance, reordonare de raspunsuri si reproducere identica in replay.
+ * VirtualClock - a discrete event scheduler for controlled virtual time
+ * (whitepaper §14 "Temporal testing"). Deterministic: the same callbacks at the
+ * same times produce the same order, regardless of the wall clock. Supports
+ * freeze/advance, response reordering and identical reproduction in replay.
  */
 
 interface ScheduledEvent {
@@ -16,7 +16,7 @@ export class VirtualClock {
   private queue: ScheduledEvent[] = [];
   private seq = 0;
 
-  /** Programeaza `fn` la `now + delay`. Ordinea la timp egal = ordinea inserarii. */
+  /** Schedule `fn` at `now + delay`. Order at equal times = insertion order. */
   at(delay: number, fn: () => void): void {
     this.schedule(this.now + Math.max(0, delay), fn);
   }
@@ -36,19 +36,19 @@ export class VirtualClock {
     return this.queue.splice(bestIndex, 1)[0];
   }
 
-  /** Ruleaza toate evenimentele pana cand coada e goala (sistemul se stabilizeaza). */
+  /** Run all events until the queue is empty (the system stabilizes). */
   runUntilIdle(maxSteps = 100_000): void {
     let steps = 0;
     let event = this.popEarliest();
     while (event) {
-      if (++steps > maxSteps) throw new Error("[raptor-test] runUntilIdle: bucla infinita suspectata");
+      if (++steps > maxSteps) throw new Error("[raptor-test] runUntilIdle: suspected infinite loop");
       this.now = event.at;
       event.fn();
       event = this.popEarliest();
     }
   }
 
-  /** Avanseaza timpul cu `ms`, ruland evenimentele scadente in ordine. */
+  /** Advance time by `ms`, running the due events in order. */
   advance(ms: number): void {
     const target = this.now + ms;
     while (this.queue.length > 0) {

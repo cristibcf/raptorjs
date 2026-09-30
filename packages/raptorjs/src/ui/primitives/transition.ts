@@ -1,12 +1,12 @@
 /**
- * Transition - monteaza/demonteaza continut cu faze de enter/exit.
+ * Transition - mounts/unmounts content with enter/exit phases.
  *
- * Diferenta fata de `Show`: la inchidere nodul NU dispare imediat, ci primeste
- * clasa de exit si e scos dupa `duration`. Fara asta orice animatie de iesire
- * e imposibila - nodul nu mai exista cand ar trebui sa se animeze.
+ * The difference from `Show`: on close the node does NOT disappear immediately,
+ * but gets the exit class and is removed after `duration`. Without this any exit
+ * animation is impossible - the node no longer exists when it should animate.
  *
- * Daca `duration` e 0 se comporta exact ca `Show` (fara timere, deci sigur in
- * teste si pe server).
+ * If `duration` is 0 it behaves exactly like `Show` (no timers, so safe in tests
+ * and on the server).
  */
 import { state, effect, onCleanup, type Accessor } from "raptorjs";
 import { Show, type Block, type Child } from "raptorjs/dom";
@@ -16,9 +16,9 @@ export interface TransitionProps {
   when: Accessor<unknown>;
   children: Child;
   fallback?: Child;
-  /** Prefix de clase: `<name>-enter` / `<name>-exit`. Implicit `rui`. */
+  /** Class prefix: `<name>-enter` / `<name>-exit`. Defaults to `rui`. */
   name?: string;
-  /** Milisecunde cat ramane montat dupa inchidere. Implicit 0. */
+  /** Milliseconds it stays mounted after close. Defaults to 0. */
   duration?: number;
 }
 
@@ -63,7 +63,7 @@ function TransitionImpl(props: TransitionProps): Block {
   return Show({ when: () => visible(), children: props.children, fallback: props.fallback });
 }
 
-/** Clasa de stare pentru un element aflat in tranzitie. */
+/** State class for an element in transition. */
 export function transitionClass(base: string, open: Accessor<unknown>, name = "rui"): Accessor<string> {
   return () => `${base} ${name}-${open() ? "enter" : "exit"}`;
 }

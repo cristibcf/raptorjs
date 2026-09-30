@@ -1,7 +1,7 @@
 /**
- * Operatii state-aware si batch-uri versionate (whitepaper 13, 14, 31.3).
- * Fiecare operatie tinteste un "handle" (id de obiect/colectie/signal, de
- * regula session-local dupa snapshot - vezi sectiunea 31.3).
+ * State-aware operations and versioned batches (whitepaper 13, 14, 31.3).
+ * Each operation targets a "handle" (an object/collection/signal id, usually
+ * session-local after a snapshot - see section 31.3).
  */
 import { Writer, Reader } from "@raptor/wire/codec";
 import { OpKindToCode, CodeToOpKind, type OpKind } from "./opcodes.ts";
@@ -68,7 +68,7 @@ export type Operation =
   | ClearOp
   | ReplaceOp;
 
-/** Corpul unei operatii FARA handle (folosit si de codarea pe adresa - RAS). */
+/** The body of an operation WITHOUT the handle (also used by address encoding - RAS). */
 export function writeOpBody(w: Writer, op: Operation): void {
   switch (op.kind) {
     case "set":
@@ -110,7 +110,7 @@ export function writeOpBody(w: Writer, op: Operation): void {
   }
 }
 
-/** Reconstruieste o operatie dintr-un kind + handle deja cunoscute + corp. */
+/** Reconstruct an operation from an already-known kind + handle + body. */
 export function readOpBody(r: Reader, kind: OpKind, handle: string): Operation {
   switch (kind) {
     case "set":
@@ -136,7 +136,7 @@ export function readOpBody(r: Reader, kind: OpKind, handle: string): Operation {
     case "replace":
       return { kind, handle, value: readValue(r) };
     default:
-      throw new RangeError(`[wire] kind necunoscut: ${kind as string}`);
+      throw new RangeError(`[wire] unknown kind: ${kind as string}`);
   }
 }
 
@@ -149,17 +149,17 @@ export function encodeOp(w: Writer, op: Operation): void {
 export function decodeOp(r: Reader): Operation {
   const code = r.u8();
   const kind = CodeToOpKind[code];
-  if (!kind) throw new RangeError(`[wire] opcode necunoscut: ${code}`);
+  if (!kind) throw new RangeError(`[wire] unknown opcode: ${code}`);
   const handle = r.string();
   return readOpBody(r, kind, handle);
 }
 
-/** Batch de operatii cu versionare + id de tranzactie (idempotenta, sectiunea 14). */
+/** A batch of operations with versioning + transaction id (idempotency, section 14). */
 export interface OpsBatch {
   transactionId?: number;
   baseVersion: number;
   resultVersion: number;
-  /** Tranzactie de retea: clientul aplica tot si face UN singur DOM commit (v0.2, 16.1). */
+  /** Network transaction: the client applies everything and does ONE DOM commit (v0.2, 16.1). */
   atomic?: boolean;
   ops: Operation[];
 }

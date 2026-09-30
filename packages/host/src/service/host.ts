@@ -1,19 +1,20 @@
 /**
- * Host-ul de serviciu: supervizorul de proces, vazut prin aceeasi punte.
+ * The service host: the process supervisor, seen through the same bridge.
  *
- * Pe desktop host-ul da ferestre, pe mobil da ecrane, in browser da istoric si
- * stocare. Pe server da **socketi, configuratie si un semnal de oprire** - si
- * asta acopera exact randul "Servicii platforma" din etapa 3 a roadmap-ului.
+ * On desktop the host gives windows, on mobile it gives screens, in the browser
+ * it gives history and storage. On server it gives **sockets, configuration and
+ * a shutdown signal** - and that covers exactly the "Platform services" row of
+ * roadmap stage 3.
  *
- * Trei lucruri sunt deliberate:
+ * Three things are deliberate:
  *
- *  1. **Aplicatia nu deschide porturi.** Cere un listener dupa nume, iar portul
- *     vine din manifest. Un serviciu care isi alege singur portul nu poate fi
- *     asezat intr-un supervizor care i-l da gata deschis.
- *  2. **Oprirea este drenare, nu taiere.** `background` inseamna "nu mai primesc
- *     cereri noi, le termin pe cele in zbor". Abia dupa aceea vine `stopped`.
- *  3. **Sanatatea o declara aplicatia.** Host-ul nu ghiceste daca procesul e gata
- *     sa primeasca trafic; aplicatia spune, iar supervizorul citeste.
+ *  1. **The app does not open ports.** It requests a listener by name, and the
+ *     port comes from the manifest. A service that chooses its own port cannot
+ *     be placed in a supervisor that hands it one already open.
+ *  2. **Shutdown is draining, not cutting.** `background` means "I no longer
+ *     take new requests, I finish the in-flight ones". Only then comes `stopped`.
+ *  3. **Health is declared by the app.** The host does not guess whether the
+ *     process is ready to take traffic; the app says so, and the supervisor reads it.
  */
 import { HostError, createLifecycle, serveHost } from "@raptor/host";
 import type { AuditEntry, HostManifest, HostServer, HostTransport, LifecycleMachine, MethodHandler } from "@raptor/host";
@@ -26,11 +27,11 @@ export interface ServiceHostOptions {
   readonly transport: HostTransport;
   readonly listeners: ListenerFactory;
   /**
-   * Porturile pe care host-ul are voie sa le deschida, dupa nume. Vin din
-   * configuratia de deployment, nu din codul aplicatiei.
+   * The ports the host is allowed to open, by name. They come from the
+   * deployment configuration, not from the app's code.
    */
   readonly ports?: Readonly<Record<string, number>>;
-  /** Configuratia si secretele aduse de supervizor. */
+  /** The configuration and secrets brought in by the supervisor. */
   readonly config?: Readonly<Record<string, string>>;
   readonly storage?: Map<string, string>;
   readonly now?: () => number;
@@ -42,9 +43,9 @@ export interface ServiceHost {
   readonly lifecycle: LifecycleMachine;
   readonly health: Health;
   readonly listeners: readonly Listener[];
-  /** Adresa unui listener deschis, pentru teste si pentru loguri. */
+  /** The address of an open listener, for tests and for logs. */
   urlOf(name: string): string | null;
-  /** Semnalul de oprire al supervizorului (SIGTERM): dreneaza, apoi opreste. */
+  /** The supervisor's shutdown signal (SIGTERM): drains, then stops. */
   requestDrain(reason?: string): Promise<void>;
   close(): Promise<void>;
 }
@@ -52,18 +53,18 @@ export interface ServiceHost {
 function requireString(params: Readonly<Record<string, unknown>>, key: string): string {
   const value = params[key];
   if (typeof value !== "string" || value.length === 0) {
-    throw new HostError("raptor:host/protocol", `parametrul '${key}' lipseste sau nu este sir`, { key });
+    throw new HostError("raptor:host/protocol", `the '${key}' parameter is missing or is not a string`, { key });
   }
   return value;
 }
 
-/** Aceeasi politica de chei ca pe celelalte host-uri: spatiu plat, fara cai. */
+/** The same key policy as on the other hosts: a flat space, no paths. */
 function requireKey(params: Readonly<Record<string, unknown>>): string {
   const key = requireString(params, "key");
   if (key.includes("/") || key.includes("\\") || key.includes("..") || key.startsWith(".")) {
-    throw new HostError("raptor:host/capability-unavailable", `cheie de stocare invalida: ${key}`, {
+    throw new HostError("raptor:host/capability-unavailable", `invalid storage key: ${key}`, {
       key,
-      policy: "limitata la directorul de date al serviciului",
+      policy: "limited to the service's data directory",
     });
   }
   return key;
@@ -72,7 +73,7 @@ function requireKey(params: Readonly<Record<string, unknown>>): string {
 export function createServiceHost(options: ServiceHostOptions): ServiceHost {
   const manifest = options.manifest;
   if (manifest.target !== "server") {
-    throw new HostError("raptor:host/manifest-invalid", "createServiceHost cere un manifest cu target 'server'", {
+    throw new HostError("raptor:host/manifest-invalid", "createServiceHost requires a manifest with target 'server'", {
       target: manifest.target,
     });
   }
@@ -88,15 +89,15 @@ export function createServiceHost(options: ServiceHostOptions): ServiceHost {
   let draining: Promise<void> | null = null;
 
   /**
-   * Fiecare cerere trece pe aici. In afara de a numara lucrul in zbor - de care
-   * depinde drenarea - opreste traficul nou din clipa in care serviciul nu se mai
-   * declara gata: un proces care se inchide nu trebuie sa accepte cereri pe care
-   * nu le va termina.
+   * Every request passes through here. Besides counting the in-flight work -
+   * which draining depends on - it stops new traffic the moment the service no
+   * longer declares itself ready: a process that is shutting down must not
+   * accept requests it will not finish.
    */
   const guard = (handler: ServeHandler): ServeHandler => {
     return async (request: Request): Promise<Response> => {
       if (health === "draining") {
-        return new Response("serviciul se opreste", {
+        return new Response("the service is shutting down", {
           status: 503,
           headers: { "retry-after": "1", connection: "close" },
         });
@@ -111,11 +112,11 @@ export function createServiceHost(options: ServiceHostOptions): ServiceHost {
   };
 
   /**
-   * Cererea ajunge la aplicatie ca eveniment cu raspuns.
+   * The request reaches the app as an event with a response.
    *
-   * Puntea transporta numai JSON, deci `Request`/`Response` se serializeaza aici.
-   * In host-ul nativ, acelasi lucru se va intampla peste canalul lui - iar codul
-   * aplicatiei nu vede diferenta.
+   * The bridge carries only JSON, so `Request`/`Response` are serialized here.
+   * In the native host, the same thing will happen over its own channel - and
+   * the app's code sees no difference.
    */
   const pendingRequests = new Map<number, (response: Response) => void>();
   let requestId = 0;
@@ -128,7 +129,7 @@ export function createServiceHost(options: ServiceHostOptions): ServiceHost {
       pendingRequests.set(id, resolve);
       const timer = setTimeout(() => {
         if (!pendingRequests.delete(id)) return;
-        resolve(new Response("aplicatia nu a raspuns la timp", { status: 504 }));
+        resolve(new Response("the app did not respond in time", { status: 504 }));
       }, 10_000);
       if (typeof (timer as { unref?: () => void }).unref === "function") {
         (timer as { unref: () => void }).unref();
@@ -151,28 +152,28 @@ export function createServiceHost(options: ServiceHostOptions): ServiceHost {
   const methods: Record<string, MethodHandler> = {
     "lifecycle.state": () => lifecycle.state,
     "lifecycle.requestStop": () => {
-      void host.requestDrain("aplicatia a cerut oprirea");
+      void host.requestDrain("the app requested a stop");
       return { state: lifecycle.state };
     },
 
     "health.set": (params) => {
       const next = requireString(params, "state");
       if (next !== "starting" && next !== "ready" && next !== "unhealthy") {
-        throw new HostError("raptor:host/protocol", `stare de sanatate necunoscuta: ${next}`, {
+        throw new HostError("raptor:host/protocol", `unknown health state: ${next}`, {
           state: next,
           known: ["starting", "ready", "unhealthy"],
         });
       }
-      // `draining` apartine host-ului: aplicatia nu se poate declara singura in
-      // drenare, fiindca drenarea o porneste semnalul supervizorului.
+      // `draining` belongs to the host: the app cannot declare itself draining,
+      // because draining is started by the supervisor's signal.
       if (health !== "draining") health = next;
       server.emit("health.changed", { health });
 
-      // Pentru un serviciu, "foreground" inseamna "primeste trafic". Momentul in
-      // care se declara gata este exact momentul in care intra in el.
+      // For a service, "foreground" means "takes traffic". The moment it
+      // declares itself ready is exactly the moment it enters it.
       if (health === "ready") {
-        lifecycle.settle("ready", "serviciu gata");
-        lifecycle.settle("foreground", "serviciu gata");
+        lifecycle.settle("ready", "service ready");
+        lifecycle.settle("foreground", "service ready");
       }
       return { health };
     },
@@ -181,17 +182,17 @@ export function createServiceHost(options: ServiceHostOptions): ServiceHost {
       const name = requireString(params, "name");
       const port = ports[name];
       if (port === undefined) {
-        throw new HostError("raptor:host/capability-undeclared", `portul '${name}' nu este alocat acestui serviciu`, {
+        throw new HostError("raptor:host/capability-undeclared", `port '${name}' is not allocated to this service`, {
           name,
           allocated: Object.keys(ports).sort(),
         });
       }
       if (open.has(name)) {
-        throw new HostError("raptor:host/protocol", `listenerul '${name}' este deja deschis`, { name });
+        throw new HostError("raptor:host/protocol", `listener '${name}' is already open`, { name });
       }
 
-      // Handlerul aplicatiei nu este chemat direct: intre socket si el sta
-      // `guard`, care tine socoteala cererilor si respecta drenarea.
+      // The app's handler is not called directly: between the socket and it
+      // sits `guard`, which keeps count of the requests and honors draining.
       const handler: ServeHandler = (request: Request): Promise<Response> => callApplication(name, request);
       const listener = await options.listeners.open(name, port, guard(handler));
       open.set(name, { listener, handler });
@@ -202,7 +203,7 @@ export function createServiceHost(options: ServiceHostOptions): ServiceHost {
     "serve.stop": async (params) => {
       const name = requireString(params, "name");
       const entry = open.get(name);
-      if (!entry) throw new HostError("raptor:host/protocol", `listenerul '${name}' nu este deschis`, { name });
+      if (!entry) throw new HostError("raptor:host/protocol", `listener '${name}' is not open`, { name });
       await entry.listener.close();
       open.delete(name);
       return { name, closed: true };
@@ -218,15 +219,15 @@ export function createServiceHost(options: ServiceHostOptions): ServiceHost {
       health,
     }),
 
-    /** Raspunsul aplicatiei la o cerere primita ca `serve.request`. */
+    /** The app's response to a request received as `serve.request`. */
     "serve.respond": (params) => {
       const id = params["id"];
       if (typeof id !== "number") {
-        throw new HostError("raptor:host/protocol", "serve.respond cere un id numeric", {});
+        throw new HostError("raptor:host/protocol", "serve.respond requires a numeric id", {});
       }
       const resolve = pendingRequests.get(id);
-      // Un raspuns intarziat (dupa ce cererea a expirat) nu este o eroare a
-      // aplicatiei: spunem doar ca nu mai avea cui fi livrat.
+      // A delayed response (after the request timed out) is not an app error:
+      // we just say there was no longer anyone to deliver it to.
       if (!resolve) return { delivered: false };
       pendingRequests.delete(id);
 
@@ -257,7 +258,7 @@ export function createServiceHost(options: ServiceHostOptions): ServiceHost {
 
     "update.check": () => ({ available: false, version: manifest.version, managedBy: "deployment" }),
     "update.apply": () => {
-      throw new HostError("raptor:host/unimplemented", "un serviciu se actualizeaza prin redeployment", {});
+      throw new HostError("raptor:host/unimplemented", "a service updates through redeployment", {});
     },
   };
 
@@ -294,13 +295,13 @@ export function createServiceHost(options: ServiceHostOptions): ServiceHost {
       draining = (async (): Promise<void> => {
         health = "draining";
         server.emit("health.changed", { health });
-        // Drenarea poate veni si inainte ca serviciul sa fi ajuns sa serveasca
-        // (un supervizor care se razgandeste in timpul pornirii): atunci nu
-        // exista trafic de drenat si singura tranzitie legala este oprirea.
+        // Draining can also come before the service ever started serving (a
+        // supervisor that changes its mind during startup): then there is no
+        // traffic to drain and the only legal transition is the stop.
         if (lifecycle.state === "foreground") lifecycle.settle("background", reason);
 
-        // Socketii se inchid intai: ce a intrat deja se termina, ce vine dupa
-        // primeste 503 de la `guard` sau gaseste portul inchis.
+        // The sockets close first: what already came in finishes, what comes
+        // after gets a 503 from `guard` or finds the port closed.
         await Promise.all([...open.values()].map((entry) => entry.listener.close()));
         open.clear();
 

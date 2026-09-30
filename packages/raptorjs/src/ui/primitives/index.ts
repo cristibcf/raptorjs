@@ -1,12 +1,12 @@
 /**
- * Primitive headless - comportament fara markup si fara CSS.
+ * Headless primitives - behavior with no markup and no CSS.
  *
- * Se atașeaza prin `ref` (`R.div({ ref: clickOutside(close) })`) sau intorc
- * semnale (`const wide = mediaQuery("(min-width: 768px)")`). Toate se curata
- * singure la dispose: niciun listener global nu supravietuieste componentei.
+ * They attach via `ref` (`R.div({ ref: clickOutside(close) })`) or return
+ * signals (`const wide = mediaQuery("(min-width: 768px)")`). They all clean up
+ * after themselves on dispose: no global listener outlives the component.
  *
- * Sunt fundatia pentru restul bibliotecii - `Dialog` are nevoie de `Portal` +
- * `focusTrap`, `Popover` de `clickOutside`, `DataGrid` de `virtualizer`.
+ * They are the foundation for the rest of the library - `Dialog` needs `Portal` +
+ * `focusTrap`, `Popover` needs `clickOutside`, `DataGrid` needs `virtualizer`.
  */
 export { Portal, type PortalProps } from "./portal.ts";
 export { VisuallyHidden, VisuallyHiddenFocusable } from "./visually-hidden.ts";

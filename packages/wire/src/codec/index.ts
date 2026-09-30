@@ -1,21 +1,21 @@
 /**
- * @raptor/wire-codec - primitive de codec pentru RaptorWire.
+ * @raptor/wire-codec - codec primitives for RaptorWire.
  *
- * Encoding-uri (whitepaper sectiunea 12):
+ * Encodings (whitepaper section 12):
  *  - unsigned int  -> varint (LEB128)
  *  - signed int    -> zig-zag + varint
  *  - float64       -> IEEE fixed width (little-endian)
  *  - string        -> UTF-8 length-prefixed
  *  - bytes         -> length-prefixed raw
  *
- * Fara base64, fara nume de campuri repetate: acelea sunt in schema.
+ * No base64, no repeated field names: those live in the schema.
  */
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 const MAX_SAFE = Number.MAX_SAFE_INTEGER;
 
-/** Scriitor binar cu buffer care creste automat. */
+/** Binary writer with an auto-growing buffer. */
 export class Writer {
   private buffer: Uint8Array;
   private view: DataView;
@@ -47,10 +47,10 @@ export class Writer {
     return this.u8(value ? 1 : 0);
   }
 
-  /** varint LEB128 pentru intregi non-negativi (pana la 2^53-1). */
+  /** LEB128 varint for non-negative integers (up to 2^53-1). */
   varint(value: number): this {
     if (value < 0 || !Number.isInteger(value) || value > MAX_SAFE) {
-      throw new RangeError(`[codec] varint invalid: ${value}`);
+      throw new RangeError(`[codec] invalid varint: ${value}`);
     }
     let v = value;
     this.ensure(8);
@@ -62,7 +62,7 @@ export class Writer {
     return this;
   }
 
-  /** intreg cu semn via zig-zag + varint. */
+  /** signed integer via zig-zag + varint. */
   zigzag(value: number): this {
     const encoded = value >= 0 ? value * 2 : -value * 2 - 1;
     return this.varint(encoded);
@@ -87,7 +87,7 @@ export class Writer {
     return this.bytes(textEncoder.encode(value));
   }
 
-  /** Snapshot al octetilor scrisi (copie). */
+  /** Snapshot of the written bytes (a copy). */
   finish(): Uint8Array {
     return this.buffer.slice(0, this.offset);
   }
@@ -97,7 +97,7 @@ export class Writer {
   }
 }
 
-/** Cititor binar pereche pentru Writer. */
+/** Binary reader paired with Writer. */
 export class Reader {
   private readonly data: Uint8Array;
   private view: DataView;
@@ -118,7 +118,7 @@ export class Reader {
 
   private check(n: number): void {
     if (this.offset + n > this.data.length) {
-      throw new RangeError("[codec] citire dincolo de sfarsitul buffer-ului");
+      throw new RangeError("[codec] read past the end of the buffer");
     }
   }
 
@@ -141,7 +141,7 @@ export class Reader {
       if ((byte & 0x80) === 0) return result;
       shift *= 128;
     }
-    throw new RangeError("[codec] varint prea lung");
+    throw new RangeError("[codec] varint too long");
   }
 
   zigzag(): number {

@@ -1,9 +1,9 @@
 /**
- * Erorile granitei native (`raptor:host/*`).
+ * The native boundary errors (`raptor:host/*`).
  *
- * Spatiul de coduri este separat de cel al runtime-ului: un refuz al host-ului
- * nativ nu trebuie confundat cu un refuz al capability broker-ului din runtime.
- * Amandoua sunt stabile si verificabile din teste, fara sa depinda de text.
+ * The code space is separate from the runtime's: a native host denial must not
+ * be confused with a denial from the runtime's capability broker. Both are
+ * stable and testable, without depending on text.
  */
 
 export const HOST_ERROR_CODES = [
@@ -19,7 +19,7 @@ export const HOST_ERROR_CODES = [
 
 export type HostErrorCode = (typeof HOST_ERROR_CODES)[number];
 
-/** Codurile care traverseaza puntea sunt date, deci se valideaza la intrare. */
+/** The codes that cross the bridge are data, so they are validated on the way in. */
 export function isHostErrorCode(value: unknown): value is HostErrorCode {
   return typeof value === "string" && (HOST_ERROR_CODES as readonly string[]).includes(value);
 }

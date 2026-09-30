@@ -1,7 +1,7 @@
 /**
- * Helperi interni pentru primitive. Toate primitivele trebuie sa functioneze
- * si acolo unde DOM-ul e partial (mini-dom in teste, SSR pe server): nu
- * presupunem niciodata ca exista `window`, `matchMedia` sau `focus()`.
+ * Internal helpers for the primitives. Every primitive must also work where the
+ * DOM is partial (mini-dom in tests, SSR on the server): we never assume that
+ * `window`, `matchMedia` or `focus()` exist.
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -11,7 +11,7 @@ export function doc(): any | null {
   return (globalThis as any).document ?? null;
 }
 
-/** Ataseaza un listener pe document si il scoate la cleanup. Intoarce un unbind. */
+/** Attaches a listener on the document and removes it on cleanup. Returns an unbind. */
 export function onDoc(type: string, handler: (e: any) => void): () => void {
   const d = doc();
   if (!d || typeof d.addEventListener !== "function") return () => {};
@@ -19,7 +19,7 @@ export function onDoc(type: string, handler: (e: any) => void): () => void {
   return () => d.removeEventListener(type, handler);
 }
 
-/** `focus()` lipseste pe DOM-ul headless; nu esuam pentru atat. */
+/** `focus()` is missing on the headless DOM; we don't fail over that. */
 export function focus(el: El): void {
   if (el && typeof el.focus === "function") el.focus();
 }
@@ -34,9 +34,9 @@ const FOCUSABLE = [
 ].join(",");
 
 /**
- * Elementele focusabile dintr-un container, in ordinea documentului.
- * Pe mini-dom (fara `querySelectorAll` pe selectori CSS) cade pe un walk
- * manual care recunoaste aceleasi cazuri.
+ * The focusable elements within a container, in document order.
+ * On mini-dom (no `querySelectorAll` for CSS selectors) it falls back to a
+ * manual walk that recognizes the same cases.
  */
 export function focusable(root: El): El[] {
   if (!root) return [];
@@ -47,7 +47,7 @@ export function focusable(root: El): El[] {
         return Array.from(found as ArrayLike<El>);
       }
     } catch {
-      /* selector CSS nesuportat (mini-dom) -> walk manual */
+      /* unsupported CSS selector (mini-dom) -> manual walk */
     }
   }
   const out: El[] = [];
@@ -71,7 +71,7 @@ function isFocusable(el: El): boolean {
   return tag === "button" || tag === "input" || tag === "select" || tag === "textarea";
 }
 
-/** Coordonatele unui pointer/mouse event, indiferent de forma lui. */
+/** The coordinates of a pointer/mouse event, whatever its shape. */
 export function pointOf(e: any): { x: number; y: number } {
   return { x: Number(e?.clientX ?? 0), y: Number(e?.clientY ?? 0) };
 }

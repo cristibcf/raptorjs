@@ -7,8 +7,8 @@ import type { Board, DeviceHost, DeviceHostOptions } from "../../src/device/inde
 
 const BASE = {
   target: "embedded",
-  bundleId: "com.exemplu.placheta",
-  displayName: "Exemplu Placheta",
+  bundleId: "com.example.board",
+  displayName: "Example Board",
   version: "1.0.0",
   entry: "./src/app.ts",
   capabilities: ["hw.gpio", "hw.bus", "power.sleep"] as string[],
@@ -25,14 +25,14 @@ interface Fake extends Board {
   readonly writes: Array<{ pin: number; value: boolean }>;
   readonly resets: string[];
   readonly sleeps: number[];
-  /** Termina somnul in curs; disponibil doar cu `blockSleep`. */
+  /** Finishes the ongoing sleep; available only with `blockSleep`. */
   finishSleep(): void;
 }
 
 /**
- * `blockSleep` face somnul sa tina pana cand testul il termina explicit - fara
- * el, placheta s-ar trezi in aceeasi microtask si nu s-ar putea observa deloc
- * ce se intampla *in timpul* somnului.
+ * `blockSleep` makes the sleep last until the test finishes it explicitly -
+ * without it, the board would wake in the same microtask and it would be
+ * impossible to observe what happens *during* the sleep at all.
  */
 function fakeBoard(options: { blockSleep?: boolean } = {}): Fake {
   const writes: Array<{ pin: number; value: boolean }> = [];
@@ -78,17 +78,17 @@ function connect(manifest: HostManifest, options: Partial<DeviceHostOptions> = {
   const channel = createMemoryChannel();
   const board = (options.board as Fake | undefined) ?? fakeBoard();
   const host = createDeviceHost({
-    // Ceas inghetat: singura sursa de timp ramane `host.tick(ms)`.
+    // Frozen clock: the only source of time is `host.tick(ms)`.
     //
-    // Fara asta, `now()` este `Date.now() + offset`, deci milisecundele reale
-    // scurse intre doua linii de test intra in socoteala watchdog-ului. Testul
-    // "watchdog-ul nu curge in somn" cerea exact 1000 ms ramasi dupa trezire si
-    // primea 999 ori de cate ori masina era ocupata - o picare care nu are nimic
-    // de-a face cu ce verifica testul.
+    // Without this, `now()` is `Date.now() + offset`, so the real milliseconds
+    // elapsed between two test lines count toward the watchdog. The test
+    // "the watchdog does not run during sleep" required exactly 1000 ms left
+    // after the wake and got 999 whenever the machine was busy - a failure that
+    // has nothing to do with what the test checks.
     now: () => 0,
     pins: [
       { pin: 2, direction: "out", label: "led" },
-      { pin: 5, direction: "in", label: "buton" },
+      { pin: 5, direction: "in", label: "button" },
     ],
     buses: [{ bus: "i2c0", addresses: [0x48] }],
     watchdogMs: 1000,
@@ -106,7 +106,7 @@ function connect(manifest: HostManifest, options: Partial<DeviceHostOptions> = {
   return { app, host, board, dispose: () => { host.close(); app.dispose("test"); } };
 }
 
-test("adaptorul refuza un manifest care nu este de embedded", () => {
+test("the adapter rejects a manifest that is not for embedded", () => {
   const cli = requireHostManifest(JSON.stringify({ ...BASE, target: "cli", capabilities: [] }));
   assert.throws(
     () => createDeviceHost({ manifest: cli, transport: createMemoryChannel().host, board: fakeBoard() }),
@@ -114,18 +114,18 @@ test("adaptorul refuza un manifest care nu este de embedded", () => {
   );
 });
 
-test("o placheta nu are ferestre, procese, terminal sau notificari", async () => {
+test("a board has no windows, processes, terminal or notifications", async () => {
   const link = connect(manifestWith());
   try {
     for (const method of ["window.open", "process.spawn", "cli.prompt", "notify.show", "config.get"]) {
-      assert.equal(link.app.allows(method), false, `${method} nu are ce cauta pe o placheta`);
+      assert.equal(link.app.allows(method), false, `${method} has no place on a board`);
     }
   } finally {
     link.dispose();
   }
 });
 
-test("un pin nedeclarat nu poate fi atins, in nicio directie", async () => {
+test("an undeclared pin cannot be touched, in any direction", async () => {
   const link = connect(manifestWith());
   try {
     await assert.rejects(link.app.call("hw.gpio.write", { pin: 13, value: true }), (error: unknown) => {
@@ -134,23 +134,23 @@ test("un pin nedeclarat nu poate fi atins, in nicio directie", async () => {
       assert.deepEqual(hostError.detail["declared"], [2, 5]);
       return true;
     });
-    await assert.rejects(link.app.call("hw.gpio.read", { pin: 13 }), /nu este in harta de hardware/);
-    assert.deepEqual(link.board.writes, [], "nimic nu a ajuns la hardware");
+    await assert.rejects(link.app.call("hw.gpio.read", { pin: 13 }), /is not in the hardware map/);
+    assert.deepEqual(link.board.writes, [], "nothing reached the hardware");
   } finally {
     link.dispose();
   }
 });
 
-test("directia pinului este respectata: o intrare nu poate fi scrisa", async () => {
+test("the pin direction is honored: an input cannot be written", async () => {
   const link = connect(manifestWith());
   try {
     await assert.rejects(link.app.call("hw.gpio.write", { pin: 5, value: true }), (error: unknown) => {
       const hostError = error as { code: string; detail: Record<string, unknown> };
       assert.equal(hostError.code, "raptor:host/capability-unavailable");
-      assert.equal(hostError.detail["label"], "buton");
+      assert.equal(hostError.detail["label"], "button");
       return true;
     });
-    await assert.rejects(link.app.call("hw.gpio.read", { pin: 2 }), /declarat ca 'out'/);
+    await assert.rejects(link.app.call("hw.gpio.read", { pin: 2 }), /declared as 'out'/);
     assert.deepEqual(link.board.writes, []);
 
     await link.app.call("hw.gpio.write", { pin: 2, value: true });
@@ -161,7 +161,7 @@ test("directia pinului este respectata: o intrare nu poate fi scrisa", async () 
   }
 });
 
-test("fara capabilitatea hw.gpio, pinii nu exista deloc", async () => {
+test("without the hw.gpio capability, the pins do not exist at all", async () => {
   const link = connect(manifestWith({ capabilities: ["hw.bus"] }));
   try {
     assert.equal(link.app.allows("hw.gpio.write"), false);
@@ -174,7 +174,7 @@ test("fara capabilitatea hw.gpio, pinii nu exista deloc", async () => {
   }
 });
 
-test("pe magistrala se atinge doar adresa declarata", async () => {
+test("on the bus, only the declared address can be touched", async () => {
   const link = connect(manifestWith());
   try {
     const answer = (await link.app.call("hw.bus.transfer", {
@@ -187,26 +187,26 @@ test("pe magistrala se atinge doar adresa declarata", async () => {
 
     await assert.rejects(
       link.app.call("hw.bus.transfer", { bus: "i2c0", address: 0x50, readLength: 1 }),
-      /adresa 0x50 nu este declarata/,
+      /address 0x50 is not declared/,
     );
-    await assert.rejects(link.app.call("hw.bus.transfer", { bus: "spi0", address: 0x48 }), /nu este declarata/);
+    await assert.rejects(link.app.call("hw.bus.transfer", { bus: "spi0", address: 0x48 }), /is not declared/);
   } finally {
     link.dispose();
   }
 });
 
-test("watchdog-ul reseteaza placheta cand aplicatia nu mai da semne de viata", async () => {
+test("the watchdog resets the board when the app stops showing signs of life", async () => {
   const link = connect(manifestWith(), { watchdogMs: 1000 });
   try {
     await link.app.call("watchdog.pet");
     assert.equal(link.host.watchdogRemainingMs, 1000);
 
     link.host.tick(600);
-    assert.equal(link.host.watchdogRemainingMs, 400, "fereastra se consuma");
+    assert.equal(link.host.watchdogRemainingMs, 400, "the window is consumed");
     assert.deepEqual(link.board.resets, []);
 
     link.host.tick(500);
-    assert.deepEqual(link.board.resets, ["watchdog"], "placheta chiar a fost resetata");
+    assert.deepEqual(link.board.resets, ["watchdog"], "the board really was reset");
     assert.equal(link.host.lifecycle.state, "stopped");
     assert.equal(link.host.watchdogRemainingMs, null);
   } finally {
@@ -214,7 +214,7 @@ test("watchdog-ul reseteaza placheta cand aplicatia nu mai da semne de viata", a
   }
 });
 
-test("o aplicatie care da semne de viata nu este resetata", async () => {
+test("an app that shows signs of life is not reset", async () => {
   const link = connect(manifestWith(), { watchdogMs: 1000 });
   try {
     for (let step = 0; step < 5; step += 1) {
@@ -222,13 +222,13 @@ test("o aplicatie care da semne de viata nu este resetata", async () => {
       await link.app.call("watchdog.pet");
     }
     assert.deepEqual(link.board.resets, []);
-    assert.equal(link.host.lifecycle.state, "launching", "nimeni nu a cerut altceva");
+    assert.equal(link.host.lifecycle.state, "launching", "no one asked for anything else");
   } finally {
     link.dispose();
   }
 });
 
-test("watchdog-ul avertizeaza inainte sa reseteze", async () => {
+test("the watchdog warns before it resets", async () => {
   const link = connect(manifestWith(), { watchdogMs: 1000 });
   try {
     const warnings: number[] = [];
@@ -238,40 +238,40 @@ test("watchdog-ul avertizeaza inainte sa reseteze", async () => {
     link.host.tick(800);
     await new Promise((resolve) => setTimeout(resolve, 5));
 
-    assert.deepEqual(warnings, [200], "ultimul sfert de fereastra produce un avertisment");
-    assert.deepEqual(link.board.resets, [], "avertismentul nu este inca un reset");
+    assert.deepEqual(warnings, [200], "the last quarter of the window produces a warning");
+    assert.deepEqual(link.board.resets, [], "the warning is not yet a reset");
   } finally {
     link.dispose();
   }
 });
 
-test("watchdog-ul nu curge in somn", async () => {
+test("the watchdog does not run during sleep", async () => {
   const link = connect(manifestWith(), { watchdogMs: 1000, board: fakeBoard({ blockSleep: true }) });
   try {
     await link.app.call("watchdog.pet");
     const sleeping = link.app.call("power.sleep", { durationMs: 5000 });
-    // Apelul este asincron: asteptam sa ajunga la host inainte sa avansam ceasul,
-    // altfel am masura o placheta care inca nu a adormit.
+    // The call is asynchronous: we wait for it to reach the host before advancing
+    // the clock, otherwise we would be measuring a board that has not slept yet.
     await new Promise((resolve) => setTimeout(resolve, 5));
-    assert.deepEqual(link.board.sleeps, [5000], "placheta chiar doarme acum");
+    assert.deepEqual(link.board.sleeps, [5000], "the board really is asleep now");
 
-    // Patru secunde peste o fereastra de una singura: daca watchdog-ul ar curge
-    // in somn, orice placheta care economiseste bateria s-ar reseta singura.
+    // Four seconds past a one-second window: if the watchdog ran during sleep,
+    // any board that saves battery would reset itself.
     link.host.tick(4000);
-    assert.deepEqual(link.board.resets, [], "o placheta adormita nu este resetata de watchdog");
+    assert.deepEqual(link.board.resets, [], "a sleeping board is not reset by the watchdog");
 
     link.board.finishSleep();
     await sleeping;
-    assert.equal(link.host.lifecycle.state, "foreground", "dupa trezire, revine la lucru");
+    assert.equal(link.host.lifecycle.state, "foreground", "after the wake, it goes back to work");
 
-    // Fereastra incepe din nou de la trezire, nu din clipa ultimului `pet`.
+    // The window starts again from the wake, not from the moment of the last `pet`.
     assert.equal(link.host.watchdogRemainingMs, 1000);
   } finally {
     link.dispose();
   }
 });
 
-test("somnul poate fi cerut de oricate ori, din orice stare de lucru", async () => {
+test("sleep can be requested any number of times, from any working state", async () => {
   const link = connect(manifestWith());
   try {
     for (let round = 0; round < 3; round += 1) {
@@ -284,7 +284,7 @@ test("somnul poate fi cerut de oricate ori, din orice stare de lucru", async () 
   }
 });
 
-test("fara capabilitatea power.sleep, aplicatia nu poate adormi placheta", async () => {
+test("without the power.sleep capability, the app cannot put the board to sleep", async () => {
   const link = connect(manifestWith({ capabilities: ["hw.gpio"] }));
   try {
     assert.equal(link.app.allows("power.sleep"), false);
@@ -297,8 +297,8 @@ test("fara capabilitatea power.sleep, aplicatia nu poate adormi placheta", async
   }
 });
 
-test("watchdog-ul nu cere capabilitate, pentru ca nu poate fi refuzat", async () => {
-  // Manifest gol: nicio capabilitate. Semnele de viata trebuie sa mearga oricum.
+test("the watchdog requires no capability, because it cannot be denied", async () => {
+  // Empty manifest: no capabilities. The signs of life must work anyway.
   const link = connect(manifestWith({ capabilities: [] }), { watchdogMs: 1000 });
   try {
     assert.equal(link.app.allows("watchdog.pet"), true);
@@ -308,17 +308,17 @@ test("watchdog-ul nu cere capabilitate, pentru ca nu poate fi refuzat", async ()
   }
 });
 
-test("scrierile in NVS se numara, iar una identica nu ajunge la flash", async () => {
+test("NVS writes are counted, and an identical one does not reach the flash", async () => {
   const link = connect(manifestWith());
   try {
-    await link.app.call("storage.set", { key: "citiri", value: "[1]" });
-    assert.deepEqual(await link.app.call("storage.set", { key: "citiri", value: "[1]" }), {
-      key: "citiri",
+    await link.app.call("storage.set", { key: "readings", value: "[1]" });
+    assert.deepEqual(await link.app.call("storage.set", { key: "readings", value: "[1]" }), {
+      key: "readings",
       written: false,
       nvsWrites: 1,
     });
-    assert.deepEqual(await link.app.call("storage.set", { key: "citiri", value: "[1,2]" }), {
-      key: "citiri",
+    assert.deepEqual(await link.app.call("storage.set", { key: "readings", value: "[1,2]" }), {
+      key: "readings",
       written: true,
       nvsWrites: 2,
     });
@@ -331,7 +331,7 @@ test("scrierile in NVS se numara, iar una identica nu ajunge la flash", async ()
   }
 });
 
-test("firmware-ul nou porneste neconfirmat, ca un rollback sa fie posibil", async () => {
+test("new firmware starts unconfirmed, so a rollback is possible", async () => {
   const link = connect(manifestWith(), { availableFirmware: { version: "1.1.0", bytes: 240_000 } });
   try {
     const check = (await link.app.call("update.check")) as { available: boolean; version: string };
@@ -339,30 +339,30 @@ test("firmware-ul nou porneste neconfirmat, ca un rollback sa fie posibil", asyn
     assert.equal(check.version, "1.1.0");
 
     const applied = (await link.app.call("update.apply")) as { confirmed: boolean };
-    assert.equal(applied.confirmed, false, "aplicat, dar neconfirmat");
+    assert.equal(applied.confirmed, false, "applied, but unconfirmed");
     assert.deepEqual(link.host.firmware, { version: "1.1.0", confirmed: false });
-    assert.deepEqual(link.board.resets, ["firmware nou, in asteptarea confirmarii"]);
+    assert.deepEqual(link.board.resets, ["new firmware, awaiting confirmation"]);
   } finally {
     link.dispose();
   }
 
   const fara = connect(manifestWith());
   try {
-    await assert.rejects(fara.app.call("update.apply"), /nicio imagine/);
-    await assert.rejects(fara.app.call("update.confirm"), /in asteptarea confirmarii/);
+    await assert.rejects(fara.app.call("update.apply"), /no firmware image/);
+    await assert.rejects(fara.app.call("update.confirm"), /awaiting confirmation/);
   } finally {
     fara.dispose();
   }
 });
 
-test("dupa reset, un apel intarziat primeste un refuz limpede", async () => {
+test("after a reset, a delayed call gets a clear denial", async () => {
   const link = connect(manifestWith(), { watchdogMs: 500 });
   try {
     await link.app.call("watchdog.pet");
     link.host.tick(600);
     assert.deepEqual(link.board.resets, ["watchdog"]);
 
-    // Un al doilea reset nu se mai inregistreaza: placheta deja a repornit.
+    // A second reset is not recorded: the board has already rebooted.
     link.host.tick(600);
     assert.deepEqual(link.board.resets, ["watchdog"]);
 
@@ -372,9 +372,9 @@ test("dupa reset, un apel intarziat primeste un refuz limpede", async () => {
       assert.equal(hostError.detail["reason"], "watchdog");
       return true;
     });
-    await assert.rejects(link.app.call("power.sleep", { durationMs: 10 }), /a repornit/);
+    await assert.rejects(link.app.call("power.sleep", { durationMs: 10 }), /rebooted/);
 
-    // Diagnosticele raman citibile: altfel nu s-ar putea afla de ce a repornit.
+    // The diagnostics stay readable: otherwise there would be no way to find out why it rebooted.
     const info = (await link.app.call("device.info")) as { chip: string };
     assert.equal(info.chip, "sim32");
   } finally {

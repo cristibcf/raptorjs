@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Exemplu chat: APPEND mesaje, PATCH status, REMOVE, broadcast la mai multi clienti.",
+  "description": "Chat example: APPEND messages, PATCH status, REMOVE, broadcast to multiple clients.",
   "dependencies": {
     "raptorjs": "workspace:*",
     "@raptor/wire": "workspace:*"

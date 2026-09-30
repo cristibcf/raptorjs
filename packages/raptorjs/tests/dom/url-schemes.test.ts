@@ -1,12 +1,13 @@
 /**
- * Regresie pentru runda 3 de audit (U7): un `href` venit din date ajungea
- * neatins in DOM, deci `javascript:...` era un link care executa cod.
+ * Regression for audit round 3 (U7): an `href` coming from data reached the DOM
+ * untouched, so `javascript:...` was a link that executed code.
  *
- * Conteaza aici mai mult decat intr-un framework obisnuit: teza RaptorWire e ca
- * starea vine de pe fir si se aplica local, deci un element de navigatie trimis
- * de server este exact cazul asteptat, nu unul exotic. Gasit prin `@raptor/ui`
- * (`Link`, `Breadcrumbs`, `SidebarNav` iau `href` din props), dar reparat in
- * runtime-ul DOM: si o aplicatie care scrie JSX direct are aceeasi gaura.
+ * This matters here more than in an ordinary framework: the RaptorWire thesis is
+ * that state comes off the wire and is applied locally, so a navigation element
+ * sent by the server is exactly the expected case, not an exotic one. Found via
+ * `@raptor/ui` (`Link`, `Breadcrumbs`, `SidebarNav` take `href` from props), but
+ * fixed in the DOM runtime: an application that writes JSX directly has the same
+ * hole too.
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -17,7 +18,7 @@ import { state } from "raptorjs";
 installMiniDom();
 const doc = (globalThis as unknown as { document: any }).document;
 
-/** Aceleasi forme pe care le accepta si browserul cand rezolva o adresa. */
+/** The same forms the browser also accepts when it resolves an address. */
 const PERICULOASE = [
   "javascript:alert(1)",
   " javascript:alert(1)",
@@ -30,7 +31,7 @@ const PERICULOASE = [
 
 const CURATE = ["https://exemplu.ro/x", "/relativ", "#ancora", "mailto:a@b.ro", "data:image/png;base64,AA"];
 
-test("o schema executabila nu ajunge intr-un atribut de adresa", () => {
+test("an executable scheme never reaches an address attribute", () => {
   const realWarn = console.warn;
   const avertismente: string[] = [];
   console.warn = (...args: unknown[]) => void avertismente.push(args.map(String).join(" "));
@@ -39,15 +40,15 @@ test("o schema executabila nu ajunge intr-un atribut de adresa", () => {
     for (const href of PERICULOASE) {
       const a = doc.createElement("a");
       applyProps(a, { href });
-      assert.equal(a.getAttribute("href"), null, `a trecut: ${JSON.stringify(href)}`);
+      assert.equal(a.getAttribute("href"), null, `got through: ${JSON.stringify(href)}`);
     }
-    assert.equal(avertismente.length, PERICULOASE.length, "fiecare refuz e si spus, nu doar facut");
+    assert.equal(avertismente.length, PERICULOASE.length, "every rejection is also reported, not just done");
   } finally {
     console.warn = realWarn;
   }
 });
 
-test("filtrul acopera toate atributele care incarca o adresa", () => {
+test("the filter covers all attributes that load an address", () => {
   const realWarn = console.warn;
   console.warn = () => {};
   try {
@@ -61,7 +62,7 @@ test("filtrul acopera toate atributele care incarca o adresa", () => {
   }
 });
 
-test("adresele obisnuite raman neatinse", () => {
+test("ordinary addresses are left untouched", () => {
   for (const href of CURATE) {
     const a = doc.createElement("a");
     applyProps(a, { href });
@@ -69,7 +70,7 @@ test("adresele obisnuite raman neatinse", () => {
   }
 });
 
-test("filtrul se aplica si la actualizarea unui binding, nu doar la montare", () => {
+test("the filter applies on a binding update too, not just at mount", () => {
   const realWarn = console.warn;
   console.warn = () => {};
   try {
@@ -78,12 +79,12 @@ test("filtrul se aplica si la actualizarea unui binding, nu doar la montare", ()
     applyProps(a, { href: () => adresa() });
     assert.equal(a.getAttribute("href"), "https://exemplu.ro/ok");
 
-    // Cazul real: adresa se schimba pentru ca a venit o operatie de pe fir.
+    // The real case: the address changes because an operation arrived off the wire.
     adresa.set("javascript:alert(1)");
-    assert.equal(a.getAttribute("href"), null, "o valoare periculoasa sosita mai tarziu e la fel de periculoasa");
+    assert.equal(a.getAttribute("href"), null, "a dangerous value arriving later is just as dangerous");
 
     adresa.set("/inapoi-la-normal");
-    assert.equal(a.getAttribute("href"), "/inapoi-la-normal", "si se poate reveni");
+    assert.equal(a.getAttribute("href"), "/inapoi-la-normal", "and it can revert");
   } finally {
     console.warn = realWarn;
   }

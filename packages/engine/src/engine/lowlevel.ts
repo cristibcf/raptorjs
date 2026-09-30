@@ -1,14 +1,14 @@
 /**
- * Adapter pentru engine-ul low-level (whitepaper RaptorEngine 2, 37).
+ * Adapter for the low-level engine (RaptorEngine whitepaper 2, 37).
  *
- * "Progressive ownership": bundling/minify raman primitive schimbabile in
- * spatele acestei interfete. RaptorEngine DETINE semantica; engine-ul low-level
- * (Rolldown pentru bundling, Oxc pentru parse/transform/minify) e o dependenta
- * OPTIONALA, detectata dinamic la runtime - NU o dependenta de workspace (ca sa
- * pastram invariantul zero-dep). Daca lipseste, fallback la engine-ul naiv.
+ * "Progressive ownership": bundling/minify remain swappable primitives behind
+ * this interface. RaptorEngine OWNS the semantics; the low-level engine
+ * (Rolldown for bundling, Oxc for parse/transform/minify) is an OPTIONAL
+ * dependency, detected dynamically at runtime - NOT a workspace dependency (to
+ * preserve the zero-dep invariant). If it is missing, fall back to the naive engine.
  *
- * Criteriile de inlocuire completa a Rolldown/Oxc sunt in §37: doar cand
- * masuratori demonstreaza ca aduc un avantaj real.
+ * The criteria for fully replacing Rolldown/Oxc are in §37: only when
+ * measurements prove they bring a real advantage.
  */
 
 export interface LowLevelModule {
@@ -25,17 +25,17 @@ export interface LowLevelBundle {
 export interface LowLevelEngine {
   readonly name: string;
   readonly version: string;
-  /** Bundle sincron (engine naiv). */
+  /** Synchronous bundle (naive engine). */
   bundle(modules: LowLevelModule[]): LowLevelBundle;
-  /** Bundle asincron (Rolldown/Oxc). Preferat de buildModuleAsync cand exista. */
+  /** Async bundle (Rolldown/Oxc). Preferred by buildModuleAsync when available. */
   bundleAsync?(modules: LowLevelModule[]): Promise<LowLevelBundle>;
-  /** Versiunile toolchain-ului pentru build manifest (21.2). */
+  /** The toolchain versions for the build manifest (21.2). */
   describe?(): Record<string, string>;
 }
 
 /**
- * Engine naiv v0.1: concateneaza modulele intr-un singur bundle. Suficient ca
- * seam demonstrabil si ca fallback zero-dep cand Rolldown/Oxc lipsesc.
+ * Naive engine v0.1: concatenates the modules into a single bundle. Enough as a
+ * demonstrable seam and as a zero-dep fallback when Rolldown/Oxc are missing.
  */
 export const NaiveEngine: LowLevelEngine = {
   name: "naive",
@@ -50,20 +50,20 @@ export const NaiveEngine: LowLevelEngine = {
 };
 
 /**
- * Import dinamic care NU e analizat de tsc (specifier ascuns intr-o variabila),
- * ca sa nu cerem tipurile/pachetul Rolldown la typecheck. Intoarce null daca
- * pachetul nu e instalat.
+ * A dynamic import that is NOT analyzed by tsc (specifier hidden in a variable),
+ * so we do not require the Rolldown types/package at typecheck time. Returns
+ * null if the package is not installed.
  *
- * Rezolvare in doi pasi: intai din locatia engine-ului, apoi din directorul de
- * lucru al proiectului (ca un plugin de bundler adevarat - Rolldown/Oxc traiesc
- * in node_modules-ul aplicatiei, nu al tool-ului).
+ * Two-step resolution: first from the engine's location, then from the
+ * project's working directory (like a real bundler plugin - Rolldown/Oxc live
+ * in the application's node_modules, not the tool's).
  */
 async function optionalImport(spec: string): Promise<unknown> {
-  const dynamic = spec; // rupe analiza statica a specifier-ului
+  const dynamic = spec; // breaks static analysis of the specifier
   try {
     return await import(dynamic);
   } catch {
-    /* incearca rezolvarea din cwd */
+    /* try resolving from cwd */
   }
   try {
     const { createRequire } = await import("node:module");
@@ -76,7 +76,7 @@ async function optionalImport(spec: string): Promise<unknown> {
   }
 }
 
-/** Externii: dependentele runtime raman externe (nu le bundluim in v0.1). */
+/** Externals: runtime dependencies stay external (we do not bundle them in v0.1). */
 const RAPTOR_EXTERNALS = ["raptorjs", "raptorjs/dom"];
 
 export interface RolldownOptions {
@@ -86,15 +86,14 @@ export interface RolldownOptions {
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 /**
- * Construieste un LowLevelEngine bazat pe Rolldown (bundling) + Oxc (minify).
- * Arunca daca Rolldown nu e instalat - folositi loadLowLevelEngine pentru
- * fallback automat.
+ * Builds a LowLevelEngine based on Rolldown (bundling) + Oxc (minify). Throws
+ * if Rolldown is not installed - use loadLowLevelEngine for automatic fallback.
  */
 export async function createRolldownEngine(options: RolldownOptions = {}): Promise<LowLevelEngine> {
   const rd = (await optionalImport("rolldown")) as any;
   if (!rd || typeof rd.rolldown !== "function") {
     throw new Error(
-      "[raptor:engine] Rolldown negasit. Instaleaza-l pentru build-ul de productie: `npm i -D rolldown` (optional; §37).",
+      "[raptor:engine] Rolldown not found. Install it for the production build: `npm i -D rolldown` (optional; §37).",
     );
   }
   const oxc = (await optionalImport("oxc-minify")) as any;
@@ -104,11 +103,11 @@ export async function createRolldownEngine(options: RolldownOptions = {}): Promi
     name: "rolldown",
     version,
     bundle(): LowLevelBundle {
-      throw new Error("[raptor:engine] engine-ul rolldown e asincron; foloseste buildModuleAsync");
+      throw new Error("[raptor:engine] the rolldown engine is async; use buildModuleAsync");
     },
     async bundleAsync(modules: LowLevelModule[]): Promise<LowLevelBundle> {
-      // Module virtuale: fiecare input devine un modul in-memory; entry-ul le
-      // re-exporta pentru ca Rolldown sa faca tree-shaking + bundling real.
+      // Virtual modules: each input becomes an in-memory module; the entry
+      // re-exports them so Rolldown does real tree-shaking + bundling.
       const entryId = "\0raptor:entry";
       const virtual = new Map<string, string>();
       const reexports: string[] = [];
@@ -140,7 +139,7 @@ export async function createRolldownEngine(options: RolldownOptions = {}): Promi
 
       let code = String(output[0]?.code ?? "");
       let minified = minify;
-      // Minify explicit prin Oxc daca Rolldown nu a minificat dar Oxc exista.
+      // Explicit minify via Oxc if Rolldown did not minify but Oxc is present.
       if (!minify && oxc && typeof oxc.minify === "function") {
         const res = oxc.minify("bundle.js", code);
         if (res && typeof res.code === "string") {
@@ -164,7 +163,7 @@ export type EngineName = "naive" | "rolldown" | "auto";
 
 export interface LoadEngineOptions {
   minify?: boolean;
-  /** true (default pentru 'auto'): fallback la naiv daca Rolldown lipseste. */
+  /** true (default for 'auto'): fall back to naive if Rolldown is missing. */
   fallback?: boolean;
 }
 
@@ -181,10 +180,10 @@ function fallbackEngine(reason: unknown): LowLevelEngine {
 }
 
 /**
- * Rezolva un engine low-level dupa nume, cu detectie + fallback:
- *   'naive'    -> engine naiv (zero-dep).
- *   'rolldown' -> Rolldown/Oxc; fallback la naiv doar daca options.fallback.
- *   'auto'     -> Rolldown daca e instalat, altfel naiv.
+ * Resolves a low-level engine by name, with detection + fallback:
+ *   'naive'    -> naive engine (zero-dep).
+ *   'rolldown' -> Rolldown/Oxc; fall back to naive only if options.fallback.
+ *   'auto'     -> Rolldown if installed, otherwise naive.
  */
 export async function loadLowLevelEngine(
   name: EngineName,
@@ -200,7 +199,7 @@ export async function loadLowLevelEngine(
   }
 }
 
-/** Raporteaza ce toolchain low-level e disponibil (pentru diagnostics/inspect). */
+/** Reports which low-level toolchain is available (for diagnostics/inspect). */
 export async function detectToolchain(): Promise<{ rolldown: string | null; oxc: string | null }> {
   const rd = (await optionalImport("rolldown")) as any;
   const oxc = (await optionalImport("oxc-minify")) as any;

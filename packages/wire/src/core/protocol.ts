@@ -1,7 +1,7 @@
 /**
- * Protocolul de mesaje RaptorWire: envelope de frame (tip + payload) plus un
- * set de mesaje pentru handshake, subscription, snapshot, ops, ack si mutatii
- * (whitepaper 14 si 31.2). Un singur codec impartit de server si client.
+ * The RaptorWire message protocol: a frame envelope (type + payload) plus a
+ * set of messages for handshake, subscription, snapshot, ops, ack and mutations
+ * (whitepaper 14 and 31.2). A single codec shared by server and client.
  */
 import { Writer, Reader } from "@raptor/wire/codec";
 import { FrameType, OpKindToCode, CodeToOpKind } from "./opcodes.ts";
@@ -28,7 +28,7 @@ export interface QueryMsg {
   queryId: number;
   name: string;
   args: WireValue;
-  /** Reluare incrementala: ultima versiune cunoscuta de client (v0.2, 14.3). */
+  /** Incremental replay: the last version known to the client (v0.2, 14.3). */
   sinceVersion?: number;
 }
 export interface SnapshotMsg {
@@ -183,15 +183,15 @@ export function decodeMessage(bytes: Uint8Array): Message {
     case FrameType.ERROR:
       return { type: "error", code: r.varint(), message: r.string() };
     default:
-      throw new RangeError(`[wire] tip de frame necunoscut: ${type}`);
+      throw new RangeError(`[wire] unknown frame type: ${type}`);
   }
 }
 
 /**
- * Codare OPS pe Reactive Address Space (v0.2, 5.2/5.3): fiecare operatie
- * refera o adresa compacta in loc de handle string. Numele handle-ului e trimis
- * o singura data, cand adresa e introdusa (dictionar per frame). Dupa negociere,
- * frame-urile de update nu mai contin nume de field.
+ * OPS encoding over the Reactive Address Space (v0.2, 5.2/5.3): each operation
+ * refers to a compact address instead of a string handle. The handle name is
+ * sent only once, when the address is introduced (per-frame dictionary). After
+ * negotiation, update frames no longer contain field names.
  */
 export function encodeOpsFrame(book: AddressBook, msg: OpsMsg): Uint8Array {
   const w = new Writer();
@@ -245,9 +245,9 @@ export function decodeOpsFrame(book: AddressBook, bytes: Uint8Array): OpsMsg {
     const code = r.u8();
     const address = r.varint();
     const handle = book.handleOf(address);
-    if (handle === undefined) throw new RangeError(`[wire] adresa necunoscuta: ${address}`);
+    if (handle === undefined) throw new RangeError(`[wire] unknown address: ${address}`);
     const kind = CodeToOpKind[code];
-    if (!kind) throw new RangeError(`[wire] opcode necunoscut: ${code}`);
+    if (!kind) throw new RangeError(`[wire] unknown opcode: ${code}`);
     ops.push(readOpBody(r, kind, handle));
   }
 
@@ -258,7 +258,7 @@ export function decodeOpsFrame(book: AddressBook, bytes: Uint8Array): OpsMsg {
   return { type: "ops", queryId, sequence, batch };
 }
 
-/** Tipul primului octet al unui frame, pentru rutare (OPS vs restul). */
+/** The type of a frame's first byte, for routing (OPS vs the rest). */
 export function peekFrameType(bytes: Uint8Array): number {
   return bytes.length > 0 ? (bytes[0] as number) : -1;
 }

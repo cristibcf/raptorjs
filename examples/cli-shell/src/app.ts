@@ -1,14 +1,15 @@
 /**
- * Aceeasi aplicatie, a cincea oara: ca unealta de linie de comanda.
+ * The same application, a fifth time: as a command-line tool.
  *
- * Nu importa `process` si nu scrie direct la iesire. Argumentele, fluxurile,
- * latimea terminalului si intrebarile vin toate prin `bridge` - deci unealta
- * poate fi rulata in teste fara terminal, iar comportamentul ei este acelasi.
+ * It does not import `process` and does not write directly to the output. The
+ * arguments, the streams, the terminal width and the questions all come through
+ * `bridge` - so the tool can be run in tests without a terminal, and its behavior
+ * is the same.
  *
- * Partea care merita privita este `clear`: o comanda distructiva care cere
- * confirmare. Fara terminal interactiv (CI, pipe, cron), confirmarea nu poate
- * avea loc, iar unealta **refuza si spune cum sa fie rulata**, in loc sa
- * presupuna "da" sau sa crape cu o stiva.
+ * The part worth looking at is `clear`: a destructive command that asks for
+ * confirmation. Without an interactive terminal (CI, pipe, cron), the confirmation
+ * cannot happen, and the tool **refuses and says how to run it**, instead of
+ * assuming "yes" or crashing with a stack trace.
  */
 import { state } from "raptorjs";
 import type { HostBridge } from "@raptor/host";
@@ -19,20 +20,20 @@ export interface Note {
 
 export interface Cli {
   readonly notes: () => readonly Note[];
-  /** Ruleaza o singura invocare si intoarce codul de iesire. */
+  /** Runs a single invocation and returns the exit code. */
   run(): Promise<number>;
 }
 
 const NOTES_KEY = "notes";
 
 const USAGE = [
-  "raptor-notes - note, din linia de comanda",
+  "raptor-notes - notes, from the command line",
   "",
-  "  raptor-notes list             arata notele",
-  "  raptor-notes add <text>       adauga o nota",
-  "  raptor-notes clear [--yes]    sterge toate notele (cere confirmare)",
+  "  raptor-notes list             show the notes",
+  "  raptor-notes add <text>       add a note",
+  "  raptor-notes clear [--yes]    delete all notes (asks for confirmation)",
   "",
-  "  --help                        acest text",
+  "  --help                        this text",
 ].join("\n");
 
 export function createCli(bridge: HostBridge): Cli {
@@ -68,11 +69,11 @@ export function createCli(bridge: HostBridge): Cli {
 
       if (command === "list") {
         if (notes().length === 0) {
-          await write("nicio nota");
+          await write("no notes");
           return 0;
         }
         for (const [index, note] of notes().entries()) {
-          // Latimea vine de la host, deci iesirea se aseaza si in terminale mici.
+          // The width comes from the host, so the output lays out even in small terminals.
           const prefix = `${index + 1}. `;
           const room = Math.max(10, tty.columns - prefix.length);
           const text = note.text.length > room ? `${note.text.slice(0, room - 1)}…` : note.text;
@@ -84,36 +85,36 @@ export function createCli(bridge: HostBridge): Cli {
       if (command === "add") {
         const text = args.slice(args.indexOf("add") + 1).filter((arg) => !arg.startsWith("-")).join(" ").trim();
         if (!text) {
-          await write("add cere un text", "err");
+          await write("add requires a text", "err");
           return 2;
         }
         await save([...notes(), { text }]);
-        await write(`adaugat (${notes().length} note)`);
+        await write(`added (${notes().length} notes)`);
         return 0;
       }
 
       if (command === "clear") {
         if (notes().length === 0) {
-          await write("nimic de sters");
+          await write("nothing to delete");
           return 0;
         }
 
         let confirmed = args.includes("--yes");
         if (!confirmed) {
           if (!bridge.allows("cli.confirm")) {
-            await write("stergerea cere confirmare, iar unealta nu are voie sa intrebe; ruleaza cu --yes", "err");
+            await write("deleting requires confirmation, and the tool is not allowed to ask; run with --yes", "err");
             return 3;
           }
           try {
             const answer = await bridge.call<{ confirmed: boolean }>("cli.confirm", {
-              question: `Sterg ${notes().length} note?`,
+              question: `Delete ${notes().length} notes?`,
             });
             confirmed = answer.confirmed;
           } catch (error) {
-            // Refuzul host-ului (terminal neinteractiv) nu este o avarie: este
-            // exact raspunsul de care are nevoie cineva care ruleaza din CI.
+            // The host's refusal (non-interactive terminal) is not a failure: it is
+            // exactly the answer someone running from CI needs.
             if ((error as { code?: string }).code === "raptor:host/capability-unavailable") {
-              await write("fara terminal interactiv nu pot cere confirmare; ruleaza cu --yes", "err");
+              await write("without an interactive terminal I cannot ask for confirmation; run with --yes", "err");
               return 3;
             }
             throw error;
@@ -121,15 +122,15 @@ export function createCli(bridge: HostBridge): Cli {
         }
 
         if (!confirmed) {
-          await write("anulat");
+          await write("cancelled");
           return 0;
         }
         await save([]);
-        await write("sters");
+        await write("deleted");
         return 0;
       }
 
-      await write(`comanda necunoscuta: ${command}\n\n${USAGE}`, "err");
+      await write(`unknown command: ${command}\n\n${USAGE}`, "err");
       return 2;
     },
   };

@@ -1,16 +1,16 @@
-# RaptorRuntime — host nativ
+# RaptorRuntime — native host
 
-Binarul `raptor-runtime`, scris în Rust. Aici se atinge criteriul §3 etapa 1 din
-roadmap: **pornește fără Node.js instalat**.
+The `raptor-runtime` binary, written in Rust. This is where §3 stage 1 of the
+roadmap is met: **it starts without Node.js installed**.
 
-## Ce rulează acum
+## What runs now
 
-| Comandă | Fără motor (implicit) | Cu `--features quickjs` |
+| Command | Without engine (default) | With `--features quickjs` |
 |---|---|---|
-| `doctor` | nativ | nativ |
-| `init`, `pack`, `explain` | nativ | nativ |
-| `run` | cod 3: „nu în acest milestone" | **execută modulul** |
-| `test`, `trace` | cod 3 | cod 3 |
+| `doctor` | native | native |
+| `init`, `pack`, `explain` | native | native |
+| `run` | exit 3: "not in this milestone" | **executes the module** |
+| `test`, `trace` | exit 3 | exit 3 |
 
 ## Build
 
@@ -18,26 +18,26 @@ roadmap: **pornește fără Node.js instalat**.
 cargo build --release --features full
 ```
 
-| Feature | Ce adaugă | Binar |
+| Feature | What it adds | Binary |
 |---|---|---|
-| (implicit) | `doctor`, `init`, `pack`, `explain`, HTTP — **zero dependențe** | 964 KB |
-| `quickjs` | evaluare de module JavaScript | 2.1 MB |
-| `typescript` | eliminarea tipurilor, prin oxc | — |
-| `full` | ambele — runtime-ul care poate lua locul lui `node` | 4.4 MB |
+| (default) | `doctor`, `init`, `pack`, `explain`, HTTP — **zero dependencies** | 964 KB |
+| `quickjs` | evaluation of JavaScript modules | 2.1 MB |
+| `typescript` | type stripping, via oxc | — |
+| `full` | both — the runtime that can take the place of `node` | 4.4 MB |
 
-Build-ul implicit nu are **nicio** dependență externă (`cargo tree` arată doar cele
-două crate-uri locale): cerința §12 de revizuire de licență și vulnerabilități
-pentru fiecare dependență nativă se trece în modul cel mai ieftin. Motorul și
-stripper-ul sunt singurele excepții, și sunt opt-in.
+The default build has **no** external dependency (`cargo tree` shows only the
+two local crates): the §12 requirement of a license and vulnerability review
+for every native dependency is passed in the cheapest way. The engine and the
+stripper are the only exceptions, and they are opt-in.
 
-## Verificare: chiar rulează fără Node?
+## Verification: does it really run without Node?
 
 ```bash
 cargo build --release --features quickjs
 ./target/release/raptor-runtime run --cwd ../../examples/native-hello
 ```
 
-Într-un mediu fără Node instalat (verificat în WSL Ubuntu, `which node` gol):
+In an environment with no Node installed (verified in WSL Ubuntu, `which node` empty):
 
 ```
 aplicatia a rulat in 13.7ms
@@ -46,8 +46,8 @@ aplicatia a rulat in 13.7ms
   exporturi  default, izolat, motorChiarRuleaza, rezultat, runtime
 ```
 
-`--json` arată exporturile citite din modul — dovada că a fost **evaluat**, nu
-doar parsat:
+`--json` shows the exports read from the module — proof that it was **evaluated**, not
+just parsed:
 
 ```json
 {
@@ -57,37 +57,37 @@ doar parsat:
 }
 ```
 
-## De ce QuickJS înaintea lui V8
+## Why QuickJS before V8
 
-Spec-ul §13 cere V8 „printr-un adaptor îngust", și acela rămâne ținta. Dar
-adaptorul (`engine.rs`) există tocmai ca motorul să poată fi schimbat fără să
-atingă nimic din aplicații. QuickJS se compilează din sursa C în ~60s și dă un
-binar de 2.1 MB, deci dovedește independența de Node **acum**; V8 intră mai
-târziu prin aceeași ușă.
+Spec §13 requires V8 "through a narrow adapter", and that remains the target. But
+the adapter (`engine.rs`) exists precisely so that the engine can be swapped without
+touching anything in the applications. QuickJS compiles from C source in ~60s and gives a
+2.1 MB binary, so it proves independence from Node **now**; V8 comes in
+later through the same door.
 
-Izolatul trăiește pe **firul lui** și primește comenzi pe un canal. Nu e un
-ocol: `rquickjs::Runtime` nu se poate partaja între fire, iar `EngineAdapter`
-cere `Send + Sync`. Soluția nu e un `unsafe impl` — e arhitectura corectă, un
-izolat chiar aparține unui singur fir.
+The isolate lives on **its own thread** and receives commands over a channel. It's not a
+workaround: `rquickjs::Runtime` cannot be shared between threads, and `EngineAdapter`
+requires `Send + Sync`. The solution is not an `unsafe impl` — it's the correct
+architecture; an isolate really does belong to a single thread.
 
-## Modulele `raptor:` sunt funcții native
+## The `raptor:` modules are native functions
 
-`HostModule` poartă acum constante **și funcții**: fiecare apel din JavaScript
-ajunge înapoi în Rust, trece prin **capability broker** și abia apoi atinge discul
-sau mediul. Aici modelul de securitate încetează să fie o declarație:
+`HostModule` now carries constants **and functions**: every call from JavaScript
+comes back into Rust, goes through the **capability broker** and only then touches the disk
+or the environment. Here the security model stops being a declaration:
 
-| Modul | Stare |
+| Module | State |
 |---|---|
-| `observe` | `log`, `metric` — fără capabilitate (telemetria proprie nu e acces la exterior) |
-| `files` | `readText`, `write`, `exists`, `list` — fiecare prin broker |
-| `process` | `args`, `platform`, `env` (prin `env.read`) |
+| `observe` | `log`, `metric` — no capability (own telemetry is not external access) |
+| `files` | `readText`, `write`, `exists`, `list` — each through the broker |
+| `process` | `args`, `platform`, `env` (through `env.read`) |
 | `kv` | `get`, `set`, `delete`, `keys` |
-| `capabilities` | `check`, `diagnostics` — aplicația întreabă fără să încerce |
-| `net` | `fetch`, `allows` — prin `net.connect`; HTTP/1.1 propriu, fără TLS |
-| `serve` | `listen`, `next`, `respond`, `status`, `close` — server HTTP real |
-| `tasks` | raportează cinstit că nu este implementat |
+| `capabilities` | `check`, `diagnostics` — the app asks without trying |
+| `net` | `fetch`, `allows` — through `net.connect`; own HTTP/1.1, without TLS |
+| `serve` | `listen`, `next`, `respond`, `status`, `close` — real HTTP server |
+| `tasks` | honestly reports that it is not implemented |
 
-Rulat pe `examples/native-hello`, cu `files.read` declarat doar pentru `./src`:
+Run on `examples/native-hello`, with `files.read` declared only for `./src`:
 
 ```json
 {
@@ -99,7 +99,7 @@ Rulat pe `examples/native-hello`, cu `files.read` declarat doar pentru `./src`:
 }
 ```
 
-Urma de audit a brokerului, din aceeași rulare:
+The broker's audit trail, from the same run:
 
 ```
 files.read  src          -> PERMIS
@@ -108,41 +108,42 @@ files.read  package.json -> REFUZAT
 files.write nou.txt      -> REFUZAT
 ```
 
-Fișierul refuzat **există pe disc** — deci dacă refuzul n-ar funcționa, citirea ar
-reuși. Erorile Raptor traversează granița ca excepții JavaScript cu același cod,
-deci aplicația poate deosebi „nu ai voie" de „nu am putut".
+The denied file **exists on disk** — so if the denial didn't work, the read would
+succeed. Raptor errors cross the boundary as JavaScript exceptions with the same code,
+so the app can tell "you're not allowed" from "I couldn't".
 
-## TypeScript rulat nativ
+## TypeScript run natively
 
-`.ts` și `.tsx` trec prin **oxc** — același lanț de unelte folosit deja de
-`integrations/rolldown` pe latura JavaScript — înainte să ajungă la motor.
+`.ts` and `.tsx` go through **oxc** — the same toolchain already used by
+`integrations/rolldown` on the JavaScript side — before reaching the engine.
 Pipeline: parser → semantic → transformer → codegen.
 
-De ce nu un stripper cu expresii regulate: `a < b > c` este o comparație,
-`f<T>(c)` este un apel generic, iar diferența se vede doar cu un parser adevărat.
-Există un test exact pentru cazul ăsta.
+Why not a stripper with regular expressions: `a < b > c` is a comparison,
+`f<T>(c)` is a generic call, and the difference is visible only with a real parser.
+There is an exact test for this case.
 
-Verificat pe un `.ts` real, cu interfețe, alias-uri, generice (`primul<T>`),
-`!` și `as` — într-un mediu fără Node **și fără `tsc`**:
+Verified on a real `.ts`, with interfaces, aliases, generics (`primul<T>`),
+`!` and `as` — in an environment without Node **and without `tsc`**:
 
 ```
 motor    quickjs, cu TypeScript
 aplicatia a rulat in 24.7ms
 ```
 
-Ce **nu** face: nu verifică tipuri și nu coboără sintaxa modernă. Verificarea de
-tipuri rămâne a lui `tsc` la dezvoltare — runtime-ul execută, nu judecă.
+What it does **not** do: it doesn't type-check and it doesn't lower modern
+syntax. Type checking remains `tsc`'s job at development time — the runtime executes, it
+doesn't judge.
 
-O diferență față de Node merită știută: Node acceptă doar **sintaxă erasabilă**
-(fără `enum`, `namespace`, parameter properties). oxc le transformă pe toate, deci
-binarul nativ acceptă un superset. Cod care merge aici poate să nu meargă sub
+One difference from Node is worth knowing: Node accepts only **erasable syntax**
+(no `enum`, `namespace`, parameter properties). oxc transforms all of them, so the
+native binary accepts a superset. Code that works here may not work under
 `node --experimental-strip-types`.
 
-## Un server Raptor, nativ
+## A Raptor server, native
 
-Criteriul §3 etapa 3 — *„Exemplu de server Raptor rulează pe runtime nativ"*.
-[`examples/native-server`](../../examples/native-server) este TypeScript curat,
-rulat de binar, fără Node și fără `tsc`. Cereri `curl` reale:
+§3 stage 3 — *"An example Raptor server runs on the native runtime"*.
+[`examples/native-server`](../../examples/native-server) is clean TypeScript,
+run by the binary, without Node and without `tsc`. Real `curl` requests:
 
 ```
 {"status":"ok","note":0}                    <- 200
@@ -151,43 +152,43 @@ rulat de binar, fără Node și fără `tsc`. Cereri `curl` reale:
 {"eroare":"campul 'text' este obligatoriu"} <- 400
 ```
 
-**Bucla de acceptare aparține aplicației**, și asta e o consecință directă a
-motorului sincron — nu putem ține o funcție JavaScript ca handler și să o chemăm
-din alt fir fără o buclă de evenimente:
+**The accept loop belongs to the application**, and that is a direct consequence of the
+synchronous engine — we cannot hold a JavaScript function as a handler and call it
+from another thread without an event loop:
 
 ```ts
 const server = serve.listen({ port: 8787 });
-const cerere = serve.next({ timeoutMs: 5000 });   // null = nicio cerere
+const cerere = serve.next({ timeoutMs: 5000 });   // null = no request
 if (cerere) serve.respond(cerere.id, { status: 200, body: "salut" });
 ```
 
-Forma `serve({ fetch })` din runtime-ul TypeScript ajunge odată cu bucla de
-evenimente; contractul de acolo nu se schimbă, se adaugă peste acesta.
+The `serve({ fetch })` form from the TypeScript runtime arrives together with the event
+loop; the contract there does not change, it is added on top of this.
 
-Firul de acceptare trăiește lângă izolat, nu în el: o conexiune așteaptă răspunsul
-aplicației și primește 504 dacă acesta nu vine în 30s, în loc să atârne.
+The accept thread lives beside the isolate, not in it: a connection waits for the
+application's response and gets a 504 if it doesn't come within 30s, instead of hanging.
 
-### Limitele stack-ului HTTP
+### Limits of the HTTP stack
 
-Scris peste `std::net`, fără dependențe. Ce **nu** are, și spune explicit:
+Written on top of `std::net`, without dependencies. What it **does not** have, and says so explicitly:
 
-- **TLS.** `https://` trece de verificarea de capabilitate (destinația e corectă)
-  și eșuează apoi limpede. Un client care ar coborî tăcut la `http://` ar fi o
-  gaură de securitate, nu o comoditate.
-- **`transfer-encoding: chunked`** — refuzat, nu tăiat pe tăcute.
-- HTTP/2, keep-alive, corpuri peste 8 MB.
+- **TLS.** `https://` passes the capability check (the destination is correct)
+  and then fails cleanly. A client that silently downgraded to `http://` would be a
+  security hole, not a convenience.
+- **`transfer-encoding: chunked`** — refused, not silently truncated.
+- HTTP/2, keep-alive, bodies over 8 MB.
 
-## Ce lipsește
+## What's missing
 
-1. **Buclă de evenimente și promisiuni** — ar aduce `fetch` asincron și
+1. **Event loop and promises** — would bring asynchronous `fetch` and
    `serve({ fetch })`.
-2. **TLS**, pentru `https`.
-3. **`tasks`** — fabrica de task-uri există nativ, dar nu e încă legată la izolat.
-4. **`test` și `trace`** așteaptă punctele de mai sus.
+2. **TLS**, for `https`.
+3. **`tasks`** — the task fabric exists natively, but is not yet wired to the isolate.
+4. **`test` and `trace`** wait on the points above.
 
-## Notă de mediu (Windows)
+## Environment note (Windows)
 
-Pe această mașină `rustc.exe` este blocat la încărcarea DLL-ului
-(`0xC0E90002`) de Smart App Control + Bitdefender; `cargo.exe` pornește, `rustc`
-nu. Build-ul s-a făcut în **WSL2 Ubuntu**, unde toolchain-ul e curat. Vezi
-secțiunea din `docs/NATIVE-HOSTS.md`.
+On this machine `rustc.exe` is blocked while loading the DLL
+(`0xC0E90002`) by Smart App Control + Bitdefender; `cargo.exe` starts, `rustc`
+doesn't. The build was done in **WSL2 Ubuntu**, where the toolchain is clean. See
+the section in `docs/NATIVE-HOSTS.md`.

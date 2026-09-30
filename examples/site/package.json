@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Site de prezentare + documentatie construit CU stack-ul Raptor (RaptorJS + RaptorWire), compilat cu RaptorBundle.",
+  "description": "Presentation + documentation site built WITH the Raptor stack (RaptorJS + RaptorWire), compiled with RaptorBundle.",
   "dependencies": {
     "raptorjs": "workspace:*",
     "@raptor/wire": "workspace:*"

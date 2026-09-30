@@ -1,11 +1,11 @@
 /**
- * Declaratiile de tip ale spatiului de nume `raptor:` (spec sectiunile 1 si 6).
+ * The type declarations for the `raptor:` namespace (spec sections 1 and 6).
  *
- * Spec-ul cere ca TypeScript sa fie format de sursa de rang intai, nu un pas de
- * compilare separat. Asta inseamna si ca `import { readText } from "raptor:files"`
- * trebuie sa se verifice in editor si in `tsc`, fara declaratii scrise de mana in
- * fiecare proiect. Fisierul de aici este acea punte: tipurile vin din contractele
- * reale ale host-ului, deci nu pot ramane in urma fata de implementare.
+ * The spec requires TypeScript to be a first-class source format, not a separate
+ * compile step. That also means `import { readText } from "raptor:files"` must
+ * type-check in the editor and in `tsc`, with no hand-written declarations in
+ * every project. This file is that bridge: the types come from the host's real
+ * contracts, so they cannot fall behind the implementation.
  */
 
 declare module "raptor:files" {

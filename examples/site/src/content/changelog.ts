@@ -1,7 +1,7 @@
 /**
- * Changelog: date, nu prezentare. Fiecare intrare e un `Release` cu blocuri de
- * continut, randate de aceeasi masinarie ca Learn/Docs. Formatul „Unreleased"
- * intai urmeaza conventia Keep a Changelog.
+ * Changelog: facts, not marketing. Each entry is a `Release` with content
+ * blocks, rendered by the same machinery as Learn/Docs. Putting "Unreleased"
+ * first follows the Keep a Changelog convention.
  */
 import type { Block } from "../lib/ui.tsx";
 

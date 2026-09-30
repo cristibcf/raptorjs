@@ -1,27 +1,27 @@
 /**
- * intersects / infiniteScroll - vizibilitate ca semnal.
+ * intersects / infiniteScroll - visibility as a signal.
  *
- * `IntersectionObserver` nu exista in Node si nici pe mini-dom. Ambele
- * primitive expun de aceea un `trigger()` manual: in browser il apeleaza
- * observatorul, in teste il apelezi tu. Asa logica de incarcare e testabila
- * fara layout real.
+ * `IntersectionObserver` exists neither in Node nor on mini-dom. Both primitives
+ * therefore expose a manual `trigger()`: in the browser the observer calls it,
+ * in tests you call it yourself. That way the loading logic is testable without
+ * real layout.
  */
 import { state, onCleanup, type Accessor } from "raptorjs";
 import { type El } from "./env.ts";
 
 export interface IntersectOptions {
-  /** Cat din element trebuie vazut (0..1). Implicit 0. */
+  /** How much of the element must be seen (0..1). Defaults to 0. */
   threshold?: number;
-  /** Margine in jurul rootului, sintaxa CSS. */
+  /** Margin around the root, CSS syntax. */
   rootMargin?: string;
-  /** Dupa prima intrare in viewport, nu mai observa. Implicit `false`. */
+  /** After the first entry into the viewport, stop observing. Defaults to `false`. */
   once?: boolean;
 }
 
 export interface Intersect {
   ref: (el: El) => void;
   visible: Accessor<boolean>;
-  /** Marcheaza manual vizibilitatea (teste, SSR, control din afara). */
+  /** Manually mark visibility (tests, SSR, control from outside). */
   trigger: (visible: boolean) => void;
 }
 
@@ -57,18 +57,18 @@ export function intersects(options?: IntersectOptions): Intersect {
 }
 
 export interface InfiniteScrollOptions {
-  /** Se apeleaza cand santinela devine vizibila si nu e deja o incarcare in curs. */
+  /** Called when the sentinel becomes visible and a load isn't already in progress. */
   onLoad: () => void | Promise<void>;
-  /** Cat timp intoarce `false`, nu se mai incarca (s-a terminat lista). */
+  /** While this returns `false`, nothing more loads (the list is exhausted). */
   hasMore?: () => boolean;
   rootMargin?: string;
 }
 
 export interface InfiniteScroll {
-  /** `ref` pentru santinela pusa la finalul listei. */
+  /** `ref` for the sentinel placed at the end of the list. */
   ref: (el: El) => void;
   loading: Accessor<boolean>;
-  /** Declanseaza manual o incarcare (teste, buton "load more"). */
+  /** Manually trigger a load (tests, "load more" button). */
   load: () => void;
 }
 
@@ -102,8 +102,8 @@ export function infiniteScroll(options: InfiniteScrollOptions): InfiniteScroll {
   const ref = (el: El): void => {
     if (!el) return;
     sentinel.ref(el);
-    // Observatorul nu exista in teste: expunem `load` si atasam un listener
-    // sintetic pe care testele (sau un buton) il pot declansa.
+    // The observer doesn't exist in tests: we expose `load` and attach a
+    // synthetic listener that tests (or a button) can trigger.
     const onReach = (): void => load();
     el.addEventListener("raptor:reach", onReach);
     onCleanup(() => el.removeEventListener("raptor:reach", onReach));

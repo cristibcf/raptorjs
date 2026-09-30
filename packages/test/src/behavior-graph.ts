@@ -1,8 +1,8 @@
 /**
- * Behavior Graph (whitepaper §7) - reprezentarea centrala a aplicatiei.
- * Nodurile sunt stari observabile (facts); muchiile sunt actiuni cu preconditii,
- * efecte, tranzitii, confidence, risc si coverage. Se construieste observand
- * perform -> efect -> stare noua.
+ * Behavior Graph (whitepaper §7) - the central representation of the
+ * application. Nodes are observable states (facts); edges are actions with
+ * preconditions, effects, transitions, confidence, risk and coverage. It is
+ * built by observing perform -> effect -> new state.
  */
 import { type SemanticNode } from "./types.ts";
 import { stableKey } from "./semantic.ts";
@@ -28,13 +28,13 @@ export interface ActionEdge {
   risk: number;
 }
 
-/** Hash stabil al unei stari din faptele ei (ordine-independent). */
+/** Stable hash of a state from its facts (order-independent). */
 export function stateId(facts: Record<string, unknown>): string {
   const keys = Object.keys(facts).sort();
   return keys.map((k) => `${k}=${JSON.stringify(facts[k])}`).join("&") || "∅";
 }
 
-/** Risc estimat al unei actiuni: mutatiile sunt mai riscante decat citirile. */
+/** Estimated risk of an action: mutations are riskier than reads. */
 function estimateRisk(action: SemanticNode): number {
   const effect = action.actionEffect ?? "";
   if (/^(POST|PUT|PATCH|DELETE)/.test(effect)) return 1;

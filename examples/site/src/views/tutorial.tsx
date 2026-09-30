@@ -1,7 +1,7 @@
 /**
- * Tutorial interactiv: listă de pași + explicație + editor + preview care rulează,
- * la fel ca Playground-ul dar ghidat. Pasul curent vine din rută (`sub()`), deci
- * fiecare pas are un URL propriu. Codul e evaluat cu primitivele `R`.
+ * Interactive tutorial: a list of steps + explanation + editor + a running
+ * preview, like the Playground but guided. The current step comes from the route
+ * (`sub()`), so each step has its own URL. The code is evaluated with the `R` primitives.
  */
 import { R, state, derived, effect, batch, onCleanup, For, Show, render } from "raptorjs/dom";
 import { sub, navigate } from "../lib/route.ts";
@@ -44,7 +44,7 @@ export function TutorialView() {
     }
   }
 
-  // Reincarca editorul + preview cand se schimba pasul din ruta.
+  // Reload the editor + preview when the step in the route changes.
   effect(() => {
     const step = TUTORIAL[idx()]!;
     if (ta) ta.value = step.code;

@@ -1,17 +1,17 @@
 /**
- * Profiler - colectorul de telemetrie (whitepaper RaptorEngine 22).
+ * Profiler - the telemetry collector (whitepaper RaptorEngine 22).
  *
- * Inregistreaza evenimente tehnice pe masura ce un scenariu ruleaza pe runtime
- * si calculeaza metrici derivate. Fan-out-ul derived este STATIC (din graf), nu
- * din runtime - identifica hot reactive nodes indiferent de trafic (22).
+ * Records technical events as a scenario runs on the runtime and computes
+ * derived metrics. The derived fan-out is STATIC (from the graph), not from
+ * runtime - it identifies hot reactive nodes regardless of traffic (22).
  */
 import { GraphNodeKind, type SemanticGraph } from "@raptor/engine/compiler";
 import { emptyProfile, PROFILE_VERSION, type RaptorProfile, type WirePayloadStat } from "./profile.ts";
 
 export interface ProfilerThresholds {
-  /** Update-uri minime ca un signal sa fie considerat "hot". */
+  /** Minimum updates for a signal to be considered "hot". */
   hotSignal: number;
-  /** Vizite minime ca un route sa fie considerat "hot". */
+  /** Minimum visits for a route to be considered "hot". */
   hotRoute: number;
 }
 
@@ -75,7 +75,7 @@ export class Profiler {
     if (size > this.domBursts.maxBatch) this.domBursts.maxBatch = size;
   }
 
-  /** Materializeaza profilul, cu metrici derivate (hot/cold) pe praguri. */
+  /** Materializes the profile, with derived metrics (hot/cold) by thresholds. */
   finish(thresholds: ProfilerThresholds = DEFAULT_THRESHOLDS): RaptorProfile {
     const profile = emptyProfile();
     profile.version = PROFILE_VERSION;

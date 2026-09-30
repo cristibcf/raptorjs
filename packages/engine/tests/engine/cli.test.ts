@@ -16,7 +16,7 @@ component Counter {
 }
 `;
 
-// Cititor de fisiere injectat (fara atingerea disk-ului).
+// Injected file reader (without touching the disk).
 const read = (_p: string): string => SRC;
 
 test("cli: --version", () => {
@@ -25,25 +25,25 @@ test("cli: --version", () => {
   assert.match(r.out, /^raptor 0\.1\.0/);
 });
 
-test("cli: fara argumente afiseaza help", () => {
+test("cli: no arguments shows help", () => {
   const r = runCli([], read);
   assert.equal(r.code, 0);
   assert.match(r.out, /raptor build <file/);
 });
 
-test("cli: build raporteaza optimizari si wire", () => {
+test("cli: build reports optimizations and wire", () => {
   const r = runCli(["build", "Counter.raptor", "--report"], read);
   assert.equal(r.code, 0);
   assert.match(r.out, /✓ build Counter\.raptor/);
-  assert.match(r.out, /eliminate 1/); // dead eliminat
-  assert.match(r.out, /adrese RAS/);
+  assert.match(r.out, /eliminated 1/); // dead eliminated
+  assert.match(r.out, /RAS addresses/);
   assert.match(r.out, /Optimization trace/); // --report
 });
 
-test("cli: build cu profil realtime", () => {
+test("cli: build with realtime profile", () => {
   const r = runCli(["build", "Counter.raptor", "--profile", "realtime"], read);
   assert.equal(r.code, 0);
-  assert.match(r.out, /profil realtime/);
+  assert.match(r.out, /profile realtime/);
 });
 
 test("cli: inspect graph", () => {
@@ -53,7 +53,7 @@ test("cli: inspect graph", () => {
   assert.match(r.out, /\[signal\] Counter\.count/);
 });
 
-test("cli: inspect invalidate arata blast radius", () => {
+test("cli: inspect invalidate shows blast radius", () => {
   const r = runCli(["inspect", "invalidate", "Counter.raptor", "Counter.count"], read);
   assert.equal(r.code, 0);
   assert.match(r.out, /invalidate Counter\.count ->/);
@@ -66,20 +66,20 @@ test("cli: analyze", () => {
   assert.match(r.out, /RAS addresses: BTC\.price=0x18A1/);
 });
 
-test("cli: dev afiseaza update log de load", () => {
+test("cli: dev shows a load update log", () => {
   const r = runCli(["dev", "Counter.raptor"], read);
   assert.equal(r.code, 0);
   assert.match(r.out, /RaptorDev update #1/);
 });
 
-test("cli: comanda necunoscuta -> cod 1", () => {
+test("cli: unknown command -> code 1", () => {
   const r = runCli(["frobnicate"], read);
   assert.equal(r.code, 1);
-  assert.match(r.out, /comanda necunoscuta/);
+  assert.match(r.out, /unknown command/);
 });
 
-test("cli: eroare de parse raportata curat", () => {
+test("cli: parse error reported cleanly", () => {
   const r = runCli(["build", "bad.raptor"], () => "component X { const a = state(0)");
   assert.equal(r.code, 1);
-  assert.match(r.out, /eroare:/);
+  assert.match(r.out, /error:/);
 });

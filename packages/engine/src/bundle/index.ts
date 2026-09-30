@@ -1,11 +1,11 @@
 /**
- * @raptor/bundle - RaptorBundle: bundler TSX/ESM propriu, zero-dep la runtime.
+ * @raptor/bundle - RaptorBundle: an in-house TSX/ESM bundler, zero-dep at runtime.
  *
- * Transforma JSX -> runtime-ul fine-grained @raptor/dom (jsx-runtime), rezolva
- * graful de module (inclusiv exports map catre sursa .ts a pachetelor @raptor/*)
- * si emite un singur bundle browser cu registru de module + require lazy. Fara
- * Vite/esbuild/Rolldown; compilatorul TypeScript e folosit doar ca primitiva de
- * transform la build-time.
+ * Transforms JSX -> the fine-grained @raptor/dom runtime (jsx-runtime), resolves
+ * the module graph (including the exports map to the .ts source of the @raptor/*
+ * packages) and emits a single browser bundle with a module registry + lazy
+ * require. No Vite/esbuild/Rolldown; the TypeScript compiler is used only as a
+ * build-time transform primitive.
  */
 export { transpile, DEFAULT_JSX_IMPORT_SOURCE, type TranspileOptions } from "./transform.ts";
 export { resolveSpecifier } from "./resolve.ts";

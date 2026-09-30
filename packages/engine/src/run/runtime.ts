@@ -1,13 +1,14 @@
 /**
- * RaptorRuntime - runtime server (whitepaper RaptorEngine 19).
+ * RaptorRuntime - server runtime (whitepaper RaptorEngine 19).
  *
- * "Runtime propriu" nu inseamna inlocuirea V8; inseamna platforma de executie
- * server: request lifecycle, SSR/resume, server signals peste RaptorWire,
- * sesiuni si observability (19.1). Cheia: acelasi graf semantic care produce
- * browser output alimenteaza si producerii server + schema wire (9, 15).
+ * "Own runtime" doesn't mean replacing V8; it means the server execution
+ * platform: request lifecycle, SSR/resume, server signals over RaptorWire,
+ * sessions and observability (19.1). The key: the same semantic graph that
+ * produces browser output also feeds the server producers + the wire schema
+ * (9, 15).
  *
- * Nucleul e transport-agnostic. `connect()` ofera un target de memorie
- * (loopback) pentru teste/dev; `node.ts` adauga un target Node HTTP real.
+ * The core is transport-agnostic. `connect()` offers a memory (loopback) target
+ * for tests/dev; `node.ts` adds a real Node HTTP target.
  */
 import { raptorServer, type RaptorServer } from "@raptor/wire/server";
 import type { WireValue } from "@raptor/wire";
@@ -48,14 +49,14 @@ export interface HttpResult {
   body: string;
 }
 
-/** Un capat de canal duplex (aceeasi forma ca ServerConnection/Transport). */
+/** One end of a duplex channel (same shape as ServerConnection/Transport). */
 export interface Channel {
   send(data: Uint8Array): void;
   onMessage(handler: (data: Uint8Array) => void): void;
   close(): void;
 }
 
-/** Pereche in-memory cu livrare asincrona (imita ordonarea retelei). */
+/** In-memory pair with async delivery (mimics network ordering). */
 function memoryChannel(): { server: Channel; client: Channel } {
   let serverHandler: ((d: Uint8Array) => void) | null = null;
   let clientHandler: ((d: Uint8Array) => void) | null = null;
@@ -113,15 +114,15 @@ export class RaptorRuntime {
     this.stopped = false;
     this.metrics = { requests: 0, connections: 0, activeConnections: 0, opsBroadcast: 0 };
 
-    // Seed store cu valorile initiale ale server-signals.
+    // Seed the store with the server-signals' initial values.
     for (const ss of config.serverSignals) this.server.store.setSignal(ss.address, ss.initial);
 
-    // Query auto: un client se aboneaza la "signals" si primeste snapshot +
-    // delta live pentru toate adresele RAS (proiectie a server-signals).
+    // Auto query: a client subscribes to "signals" and receives a snapshot +
+    // live delta for all RAS addresses (a projection of the server-signals).
     this.server.query("signals", { select: () => this.addresses });
   }
 
-  /** Construieste un runtime dintr-un build RaptorEngine (acelasi graf). */
+  /** Builds a runtime from a RaptorEngine build (the same graph). */
   static fromBuild(
     result: BuildResult,
     options: { routes?: RouteDef[]; initial?: Record<string, WireValue> } = {},
@@ -152,31 +153,31 @@ export class RaptorRuntime {
     this.listener?.(e);
   }
 
-  /** Valoarea curenta a unui server signal (din store). */
+  /** The current value of a server signal (from the store). */
   value(address: string): WireValue | undefined {
     return this.server.store.doc.get(address) as WireValue | undefined;
   }
 
-  /** Schema wire declarata pentru o adresa (pentru masurarea payload-ului). */
+  /** The wire schema declared for an address (for measuring the payload). */
   schemaFor(address: string): string | null {
     return this.config.serverSignals.find((s) => s.address === address)?.schema ?? null;
   }
 
-  /** Adresele server-signals cunoscute. */
+  /** The known server-signal addresses. */
   get signalAddresses(): readonly string[] {
     return this.addresses;
   }
 
-  /** Caile rutate cunoscute. */
+  /** The known routed paths. */
   get routePaths(): string[] {
     return this.config.routes.map((r) => r.path);
   }
 
-  /** Actualizeaza un server signal -> broadcast delta catre abonati (15). */
+  /** Updates a server signal -> broadcasts the delta to subscribers (15). */
   produce(address: string, value: WireValue): void {
-    if (this.stopped) throw new Error("[raptor:run] runtime oprit");
+    if (this.stopped) throw new Error("[raptor:run] runtime stopped");
     if (!this.addresses.includes(address)) {
-      throw new Error(`[raptor:run] adresa necunoscuta '${address}'`);
+      throw new Error(`[raptor:run] unknown address '${address}'`);
     }
     this.server.store.setSignal(address, value);
     this.metrics.opsBroadcast++;
@@ -184,36 +185,36 @@ export class RaptorRuntime {
   }
 
   /**
-   * Network transaction (16.1): actualizeaza mai multe server signals atomic,
-   * intr-un singur batch -> clientul face UN singur DOM commit. Un "DOM mutation
-   * burst" (§22) egal cu numarul de update-uri.
+   * Network transaction (16.1): updates several server signals atomically, in a
+   * single batch -> the client makes ONE DOM commit. A "DOM mutation burst"
+   * (§22) equal to the number of updates.
    */
   produceMany(updates: { address: string; value: WireValue }[]): void {
-    if (this.stopped) throw new Error("[raptor:run] runtime oprit");
+    if (this.stopped) throw new Error("[raptor:run] runtime stopped");
     for (const u of updates) {
       if (!this.addresses.includes(u.address)) {
-        throw new Error(`[raptor:run] adresa necunoscuta '${u.address}'`);
+        throw new Error(`[raptor:run] unknown address '${u.address}'`);
       }
     }
     this.server.store.transaction(() => {
       for (const u of updates) this.server.store.setSignal(u.address, u.value);
     });
     this.metrics.opsBroadcast++;
-    this.emit("produceMany", `${updates.length} updates atomic`);
+    this.emit("produceMany", `${updates.length} atomic updates`);
   }
 
-  /** Target de memorie: intoarce un capat de client pentru RaptorClient. */
+  /** Memory target: returns a client end for RaptorClient. */
   connect(): Channel {
-    if (this.stopped) throw new Error("[raptor:run] runtime oprit");
+    if (this.stopped) throw new Error("[raptor:run] runtime stopped");
     const { server, client } = memoryChannel();
     this.server.serve(server);
     this.serverConns.push(server);
     this.metrics.connections++;
     this.metrics.activeConnections++;
-    this.emit("connect", `sesiune #${this.metrics.connections}`);
+    this.emit("connect", `session #${this.metrics.connections}`);
 
     const runtime = this;
-    // Inveleste close-ul clientului ca sa curatam subscription-urile + metricile.
+    // Wrap the client's close so we clean up the subscriptions + metrics.
     return {
       send: (d) => client.send(d),
       onMessage: (h) => client.onMessage(h),
@@ -229,7 +230,7 @@ export class RaptorRuntime {
     };
   }
 
-  /** SSR pentru o cale rutata; null daca nu exista route. */
+  /** SSR for a routed path; null if no route exists. */
   ssr(path: string): SsrResult | null {
     const match = matchRoute(this.config.routes, path);
     if (!match) return null;
@@ -263,12 +264,12 @@ export class RaptorRuntime {
     };
   }
 
-  /** Log de evenimente (observability, 19.1). */
+  /** Event log (observability, 19.1). */
   get log(): readonly RuntimeEvent[] {
     return this.events;
   }
 
-  /** Graceful shutdown: inchide conexiunile si opreste runtime-ul (19.1). */
+  /** Graceful shutdown: closes the connections and stops the runtime (19.1). */
   shutdown(): void {
     if (this.stopped) return;
     this.stopped = true;

@@ -1,9 +1,9 @@
 /**
- * `raptor-runtime init` (spec sectiunea 4): genereaza un manifest minimal, un
- * fisier sursa si un fisier de politici.
+ * `raptor-runtime init` (spec section 4): generates a minimal manifest, a source
+ * file and a policy file.
  *
- * Proiectul rezultat trebuie sa ruleze imediat cu `raptor-runtime run`, fara
- * manager global de pachete si fara configuratie de compilator.
+ * The resulting project must run immediately with `raptor-runtime run`, without
+ * a global package manager and without compiler configuration.
  */
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -17,8 +17,8 @@ import observe from "raptor:observe";
 import { args } from "raptor:process";
 
 /**
- * Punctul de intrare al aplicatiei. Un \`export default\` este apelat de runtime
- * dupa evaluarea modulului si primeste contextul de host.
+ * The application's entry point. An \`export default\` is called by the runtime
+ * after the module is evaluated and receives the host context.
  */
 export default async function main(): Promise<void> {
   const manifest: string = await readText("./${MANIFEST_FILENAME}");
@@ -75,15 +75,15 @@ export async function initCommand(input: CommandInput): Promise<CommandResult> {
 
   const created = written.filter((entry) => entry.status === "created");
   if (created.length === 0) {
-    return fail(1, `proiectul exista deja in ${target}; nu am suprascris nimic`, { target, written });
+    return fail(1, `the project already exists in ${target}; nothing was overwritten`, { target, written });
   }
 
   const out = [
-    `proiect RaptorRuntime creat in ${target}`,
-    table(written.map((entry) => [entry.path, entry.status === "created" ? "creat" : "exista deja (pastrat)"] as const)),
+    `RaptorRuntime project created in ${target}`,
+    table(written.map((entry) => [entry.path, entry.status === "created" ? "created" : "already exists (kept)"] as const)),
     "",
-    "  ruleaza:  raptor-runtime run",
-    "  verifica: raptor-runtime doctor",
+    "  run:   raptor-runtime run",
+    "  check: raptor-runtime doctor",
   ].join("\n");
 
   return ok(out, { target, name, written });

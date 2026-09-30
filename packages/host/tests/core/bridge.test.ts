@@ -10,7 +10,7 @@ interface Pair {
   dispose(): void;
 }
 
-/** Cele doua capete ale granitei, legate prin canalul in memorie. */
+/** The two ends of the boundary, linked through the in-memory channel. */
 function pair(
   target: HostTarget,
   capabilities: readonly string[],
@@ -30,7 +30,7 @@ function pair(
   return { app, host, audit, dispose: () => app.dispose("test") };
 }
 
-test("un apel permis ajunge la adaptor si se intoarce cu rezultatul", async () => {
+test("an allowed call reaches the adapter and comes back with the result", async () => {
   const received: Array<Record<string, unknown>> = [];
   const link = pair("desktop", [], {
     "window.setTitle": (params) => {
@@ -46,7 +46,7 @@ test("un apel permis ajunge la adaptor si se intoarce cu rezultatul", async () =
   }
 });
 
-test("un apel fara capabilitate este oprit in JS, inainte sa atinga transportul", async () => {
+test("a call without a capability is stopped in JS, before it reaches the transport", async () => {
   const link = pair("desktop", [], { "camera.capture": () => ({ bytes: 0 }) });
   try {
     assert.equal(link.app.allows("camera.capture"), false);
@@ -54,15 +54,16 @@ test("un apel fara capabilitate este oprit in JS, inainte sa atinga transportul"
       link.app.call("camera.capture"),
       (error: unknown) => (error as { code: string }).code === "raptor:host/capability-undeclared",
     );
-    assert.deepEqual(link.audit, [], "host-ul nu a vazut niciun apel");
+    assert.deepEqual(link.audit, [], "the host saw no call");
   } finally {
     link.dispose();
   }
 });
 
-test("host-ul refuza singur chiar daca latura JS ar fi ocolita", async () => {
-  // Punte care se crede indreptatita, host care stie ca nu este: granita reala
-  // este la host, iar testul o exercita trimitand cadrul direct pe transport.
+test("the host denies on its own even if the JS side were bypassed", async () => {
+  // A bridge that thinks it is entitled, a host that knows it is not: the real
+  // boundary is at the host, and the test exercises it by sending the frame
+  // directly on the transport.
   const channel = createMemoryChannel();
   const audit: AuditEntry[] = [];
   serveHost({
@@ -84,11 +85,11 @@ test("host-ul refuza singur chiar daca latura JS ar fi ocolita", async () => {
   assert.deepEqual(
     audit.map((entry) => [entry.method, entry.granted]),
     [["camera.capture", false]],
-    "refuzul intra in jurnalul de audit al host-ului",
+    "the denial goes into the host's audit log",
   );
 });
 
-test("o metoda inexistenta este raportata ca necunoscuta, cu lista celor valide", async () => {
+test("a nonexistent method is reported as unknown, with the list of valid ones", async () => {
   const link = pair("desktop", [], {});
   try {
     await assert.rejects(link.app.call("window.teleport"), (error: unknown) => {
@@ -102,7 +103,7 @@ test("o metoda inexistenta este raportata ca necunoscuta, cu lista celor valide"
   }
 });
 
-test("o metoda permisa dar neimplementata de adaptor spune exact asta", async () => {
+test("a method that is allowed but not implemented by the adapter says exactly that", async () => {
   const link = pair("desktop", [], {});
   try {
     await assert.rejects(link.app.call("window.open", { url: "/" }), (error: unknown) => {
@@ -111,30 +112,30 @@ test("o metoda permisa dar neimplementata de adaptor spune exact asta", async ()
       assert.equal(hostError.detail["hostCode"], "raptor:host/unimplemented");
       return true;
     });
-    assert.equal(link.audit[0]?.reason, "neimplementata de acest adaptor");
+    assert.equal(link.audit[0]?.reason, "not implemented by this adapter");
   } finally {
     link.dispose();
   }
 });
 
-test("o eroare a adaptorului ajunge la aplicatie cu codul si mesajul ei", async () => {
+test("an adapter error reaches the app with its code and message", async () => {
   const link = pair("desktop", [], {
     "storage.get": () => {
-      throw new Error("discul este plin");
+      throw new Error("the disk is full");
     },
   });
   try {
-    await assert.rejects(link.app.call("storage.get", { key: "a" }), /discul este plin/);
+    await assert.rejects(link.app.call("storage.get", { key: "a" }), /the disk is full/);
   } finally {
     link.dispose();
   }
 });
 
-test("apelurile concurente nu isi incurca raspunsurile", async () => {
+test("concurrent calls do not mix up their responses", async () => {
   const link = pair("desktop", [], {
     "storage.get": async (params) => {
       const key = String(params["key"]);
-      // Raspunsurile se intorc in ordine inversa fata de cereri.
+      // The responses come back in reverse order from the requests.
       await new Promise((resolve) => setTimeout(resolve, key === "lent" ? 30 : 1));
       return `valoare:${key}`;
     },
@@ -151,25 +152,25 @@ test("apelurile concurente nu isi incurca raspunsurile", async () => {
   }
 });
 
-test("evenimentele host-ului ajung la ascultatorii aplicatiei", async () => {
+test("the host's events reach the app's listeners", async () => {
   const link = pair("mobile", [], {});
   try {
     const seen: Array<Record<string, unknown>> = [];
     link.app.on("lifecycle.changed", (payload) => seen.push(payload));
     link.host.emit("lifecycle.changed", { state: "background" });
-    link.host.emit("deeplink.received", { url: "aplicatie://cale" });
+    link.host.emit("deeplink.received", { url: "app://path" });
 
     await new Promise((resolve) => setTimeout(resolve, 5));
-    assert.deepEqual(seen, [{ state: "background" }], "un ascultator primeste doar evenimentul lui");
+    assert.deepEqual(seen, [{ state: "background" }], "a listener receives only its own event");
   } finally {
     link.dispose();
   }
 });
 
-test("inchiderea puntii respinge apelurile in zbor in loc sa le lase agatate", async () => {
+test("closing the bridge rejects in-flight calls instead of leaving them hanging", async () => {
   const link = pair("desktop", [], { "storage.get": () => new Promise(() => undefined) });
   const inFlight = link.app.call("storage.get", { key: "a" });
-  link.app.dispose("aplicatia se opreste");
+  link.app.dispose("the app is shutting down");
 
   await assert.rejects(inFlight, (error: unknown) => (error as { code: string }).code === "raptor:host/transport-closed");
   await assert.rejects(
@@ -178,7 +179,7 @@ test("inchiderea puntii respinge apelurile in zbor in loc sa le lase agatate", a
   );
 });
 
-test("un host mut face apelul sa expire, nu sa astepte la nesfarsit", async () => {
+test("a mute host makes the call time out, not wait forever", async () => {
   const channel = createMemoryChannel();
   const app = createBridge({ target: "desktop", transport: channel.app, timeoutMs: 20 });
   try {
@@ -193,13 +194,13 @@ test("un host mut face apelul sa expire, nu sa astepte la nesfarsit", async () =
   }
 });
 
-test("un cadru corupt este raportat ca eroare de protocol, nu aruncat in aplicatie", async () => {
+test("a corrupt frame is reported as a protocol error, not thrown into the app", async () => {
   const channel = createMemoryChannel();
   const app = createBridge({ target: "desktop", transport: channel.app, timeoutMs: 50 });
   try {
     const problems: Array<Record<string, unknown>> = [];
     app.on("host.protocolError", (payload) => problems.push(payload));
-    channel.host.send("{ nu e json");
+    channel.host.send("{ not json");
     await new Promise((resolve) => setTimeout(resolve, 5));
     assert.equal(problems.length, 1);
     assert.match(String(problems[0]?.["message"]), /JSON/);
@@ -208,7 +209,7 @@ test("un cadru corupt este raportat ca eroare de protocol, nu aruncat in aplicat
   }
 });
 
-test("metodele de baza nu cer capabilitati pe nicio tinta", async () => {
+test("the core methods require no capabilities on any target", async () => {
   for (const target of ["desktop", "mobile"] as const) {
     const link = pair(target, [], { "lifecycle.state": () => "foreground" });
     try {
@@ -220,7 +221,7 @@ test("metodele de baza nu cer capabilitati pe nicio tinta", async () => {
   }
 });
 
-test("host.describe spune ce implementeaza adaptorul, nu doar ce e permis", async () => {
+test("host.describe says what the adapter implements, not just what is allowed", async () => {
   const link = pair("desktop", ["device.notifications"], {
     "window.open": () => ({ id: "w1" }),
     "storage.get": () => null,
@@ -235,39 +236,39 @@ test("host.describe spune ce implementeaza adaptorul, nu doar ce e permis", asyn
   }
 });
 
-test("supported() combina capabilitatea cu implementarea", async () => {
+test("supported() combines the capability with the implementation", async () => {
   const link = pair("desktop", [], { "window.open": () => ({ id: "w1" }) });
   try {
     const supported = await link.app.supported();
     assert.equal(supported("window.open"), true);
-    assert.equal(supported("window.close"), false, "permisa, dar neimplementata de acest adaptor");
-    assert.equal(link.app.allows("window.close"), true, "capabilitatea singura ar fi spus 'da'");
-    assert.equal(supported("notify.show"), false, "nici implementata, nici permisa");
+    assert.equal(supported("window.close"), false, "allowed, but not implemented by this adapter");
+    assert.equal(link.app.allows("window.close"), true, "the capability alone would have said 'yes'");
+    assert.equal(supported("notify.show"), false, "neither implemented nor allowed");
   } finally {
     link.dispose();
   }
 });
 
-test("un adaptor poate inlocui host.describe cu propriul raspuns", async () => {
+test("an adapter can replace host.describe with its own response", async () => {
   const link = pair("desktop", [], {
-    "host.describe": () => ({ target: "desktop", capabilities: [], implemented: ["doar-ce-vreau-eu"] }),
+    "host.describe": () => ({ target: "desktop", capabilities: [], implemented: ["only-what-i-want"] }),
   });
   try {
-    assert.deepEqual((await link.app.describe()).implemented, ["doar-ce-vreau-eu"]);
+    assert.deepEqual((await link.app.describe()).implemented, ["only-what-i-want"]);
   } finally {
     link.dispose();
   }
 });
 
 /**
- * Regresie pentru auditul din 2026-09-24 (S9).
+ * Regression for the 2026-09-24 audit (S9).
  *
- * `plain()` curata `__proto__` / `constructor` / `prototype` doar la primul
- * nivel. `JSON.parse` le produce ca proprietati proprii, deci obiectul decodat
- * era inofensiv in sine - dar primul consumator care face `Object.assign({}, x)`
- * cu un sub-obiect ramas necuratat ar fi declansat setter-ul de prototip.
+ * `plain()` cleaned `__proto__` / `constructor` / `prototype` only at the first
+ * level. `JSON.parse` produces them as own properties, so the decoded object
+ * was harmless in itself - but the first consumer that does `Object.assign({},
+ * x)` with an uncleaned sub-object would have triggered the prototype setter.
  */
-test("nicio cheie periculoasa nu supravietuieste decodarii, oricat de adanc", () => {
+test("no dangerous key survives decoding, however deep", () => {
   const frame = decodeFrame(
     JSON.stringify({
       kind: "call",
@@ -286,54 +287,54 @@ test("nicio cheie periculoasa nu supravietuieste decodarii, oricat de adanc", ()
   const mai = adanc["mai"] as Record<string, unknown>;
   const lista = params["lista"] as Array<Record<string, unknown>>;
 
-  // Cheile au disparut la fiecare nivel, inclusiv in interiorul unui array.
+  // The keys disappeared at every level, including inside an array.
   assert.deepEqual(Object.keys(params).sort(), ["adanc", "lista"]);
   assert.deepEqual(Object.keys(mai), ["ok"]);
   assert.deepEqual(Object.keys(lista[0]!), ["valoare"]);
 
-  // Iar datele utile au trecut neatinse.
+  // And the useful data passed through untouched.
   assert.equal(mai["ok"], 1);
   assert.equal(lista[0]!["valoare"], 2);
 
-  // Proba care conteaza: copierea oricareia dintre ele nu atinge prototipul.
+  // The proof that matters: copying any of them does not touch the prototype.
   for (const candidate of [params, adanc, mai, lista[0]!]) {
     const copy = Object.assign({}, candidate) as Record<string, unknown>;
-    assert.equal(Object.getPrototypeOf(copy), Object.prototype, "copia si-a pastrat prototipul");
+    assert.equal(Object.getPrototypeOf(copy), Object.prototype, "the copy kept its prototype");
     assert.equal((copy as { poluat?: unknown }).poluat, undefined);
   }
-  assert.equal(({} as { poluat?: unknown }).poluat, undefined, "Object.prototype a ramas curat");
+  assert.equal(({} as { poluat?: unknown }).poluat, undefined, "Object.prototype stayed clean");
 });
 
 /**
- * Regresie pentru runda 2 de audit (R5): `sanitize` era recursiv fara limita.
+ * Regression for audit round 2 (R5): `sanitize` was recursive without a limit.
  *
- * `JSON.parse` din V8 e iterativ si duce zeci de mii de niveluri; curatarea
- * cadea cu `RangeError: Maximum call stack size exceeded` pe la 5000. Era prinsa
- * de `try/catch`-ul apelantilor, deci nu dobora host-ul - dar un cadru refuzat
- * cu "stiva plina" spune ca s-a stricat ceva la noi, cand de fapt limita e o
- * alegere pe care trebuie sa o facem explicit.
+ * V8's `JSON.parse` is iterative and handles tens of thousands of levels; the
+ * cleanup fell over with `RangeError: Maximum call stack size exceeded` around
+ * 5000. It was caught by the callers' `try/catch`, so it did not take down the
+ * host - but a frame rejected with "stack full" says something broke on our
+ * side, when in fact the limit is a choice we must make explicitly.
  */
-test("un cadru imbricat patologic e refuzat cu o limita, nu cu stiva plina", () => {
+test("a pathologically nested frame is rejected with a limit, not a full stack", () => {
   const adanc = (n: number): string =>
     `{"kind":"call","id":1,"method":"storage.set","params":{"x":${'{"n":'.repeat(n)}1${"}".repeat(n)}}}`;
 
   for (const n of [1000, 20000]) {
     const linie = adanc(n);
-    // Premisa: JSON-ul in sine e valid, deci refuzul vine de la noi, deliberat.
-    assert.doesNotThrow(() => JSON.parse(linie), `JSON.parse trebuie sa reuseasca la ${n}`);
+    // Premise: the JSON itself is valid, so the rejection comes from us, deliberately.
+    assert.doesNotThrow(() => JSON.parse(linie), `JSON.parse must succeed at ${n}`);
     assert.throws(
       () => decodeFrame(linie),
       (error: unknown) => {
-        assert.ok(!(error instanceof RangeError), "nu stiva, ci limita noastra");
+        assert.ok(!(error instanceof RangeError), "not the stack, but our limit");
         assert.equal((error as { code?: string }).code, "raptor:host/protocol");
-        assert.match((error as Error).message, /imbricat/);
+        assert.match((error as Error).message, /nested/);
         return true;
       },
-      `adancimea ${n}`,
+      `depth ${n}`,
     );
   }
 
-  // Iar un cadru de adancime rezonabila trece nestingherit.
+  // And a frame of reasonable depth passes unhindered.
   const rezonabil = decodeFrame(adanc(10)) as unknown as { params: Record<string, unknown> };
   assert.ok(rezonabil.params["x"]);
 });

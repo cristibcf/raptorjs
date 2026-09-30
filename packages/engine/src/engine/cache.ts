@@ -1,9 +1,9 @@
 /**
- * Caching semantic si reproducibilitate (whitepaper RaptorEngine 21).
+ * Semantic caching and reproducibility (RaptorEngine whitepaper 21).
  *
- * Cheia de cache nu e doar hash-ul fisierului: include versiunea compilerului,
- * profilul, target-ul si versiunea de compatibilitate a schemei (21.1). Un edit
- * no-op da cache hit; un edit local invalideaza doar intrarile relevante.
+ * The cache key is not just the file hash: it includes the compiler version,
+ * the profile, the target and the schema compatibility version (21.1). A no-op
+ * edit yields a cache hit; a local edit invalidates only the relevant entries.
  */
 import { createHash } from "node:crypto";
 
@@ -17,7 +17,7 @@ export interface CacheKeyInputs {
   target: string;
 }
 
-/** Content hash stabil (sha256 hex) peste toate intrarile care afecteaza output-ul. */
+/** Stable content hash (sha256 hex) over all inputs that affect the output. */
 export function computeCacheKey(inputs: CacheKeyInputs): string {
   const h = createHash("sha256");
   h.update("compiler:" + COMPILER_VERSION);
@@ -34,7 +34,7 @@ export interface CacheStats {
   misses: number;
 }
 
-/** Cache in-memory cu statistici (content-addressed). */
+/** In-memory cache with statistics (content-addressed). */
 export class SemanticCache<T> {
   private readonly store: Map<string, T>;
   readonly stats: CacheStats;
@@ -43,7 +43,7 @@ export class SemanticCache<T> {
     this.stats = { hits: 0, misses: 0 };
   }
 
-  /** Returneaza valoarea din cache sau o calculeaza si o memoreaza. */
+  /** Returns the value from the cache, or computes and memoizes it. */
   getOrCompute(key: string, compute: () => T): { value: T; hit: boolean } {
     const existing = this.store.get(key);
     if (existing !== undefined) {

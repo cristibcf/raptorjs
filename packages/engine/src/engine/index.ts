@@ -1,7 +1,7 @@
 /**
- * @raptor/engine - RaptorEngine: build, dev si runtime orchestration (whitepaper
- * RaptorEngine v0.1). Consuma @raptor/compiler pentru nucleul semantic si adauga
- * optimizer, codegen multi-target, HMR, caching, manifest si CLI.
+ * @raptor/engine - RaptorEngine: build, dev and runtime orchestration
+ * (RaptorEngine whitepaper v0.1). Consumes @raptor/compiler for the semantic
+ * core and adds optimizer, multi-target codegen, HMR, caching, manifest and CLI.
  */
 export {
   defineConfig,

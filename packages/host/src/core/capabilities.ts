@@ -1,12 +1,12 @@
 /**
- * Matricea de capabilitati a host-urilor native (roadmap sectiunea 6).
+ * The capability matrix of the native hosts (roadmap section 6).
  *
- * Tabelul din roadmap este sursa de adevar si este transcris aici ca date, nu
- * ca ramuri `if` imprastiate prin adaptoare: desktop-ul si mobilul citesc
- * aceeasi matrice, deci o diferenta de politica intre ele nu poate aparea din
- * neatentie. Randurile marcate ca venind din proza sectiunii 6 sunt separate
- * explicit de randurile tabelului, ca sa se vada ce este contract si ce este
- * extindere.
+ * The roadmap table is the source of truth and is transcribed here as data, not
+ * as `if` branches scattered through the adapters: desktop and mobile read the
+ * same matrix, so a policy difference between them cannot arise by oversight.
+ * The rows marked as coming from the section 6 prose are kept explicitly
+ * separate from the table rows, so it is visible what is contract and what is
+ * extension.
  */
 import { HostError } from "./errors.ts";
 
@@ -14,23 +14,23 @@ export const HOST_TARGETS = ["desktop", "mobile", "web", "server", "cli", "embed
 export type HostTarget = (typeof HOST_TARGETS)[number];
 
 /**
- * Tintele pe care roadmap-ul le numeste "host nativ" (sectiunea 4).
+ * The targets the roadmap calls "native host" (section 4).
  *
- * `web`, `server`, `cli` si `embedded` nu sunt printre ele, si coloanele lor
- * din matrice sunt *derivate*, nu citite din tabelul sectiunii 6: pe web host-ul
- * este browserul, pe server supervizorul de proces, pe cli terminalul, iar pe
- * embedded firmware-ul plachetei - singurul host care nu are incredere in
- * aplicatie si o reseteaza daca nu mai da semne de viata.
+ * `web`, `server`, `cli` and `embedded` are not among them, and their columns
+ * in the matrix are *derived*, not read from the section 6 table: on web the
+ * host is the browser, on server the process supervisor, on cli the terminal,
+ * and on embedded the board's firmware - the only host that does not trust the
+ * app and resets it if it stops showing signs of life.
  *
- * Distinctia conteaza cand se citeste matricea ca spec: doar doua coloane din
- * ea sunt contract, restul sunt extinderi ale aceluiasi model.
+ * The distinction matters when reading the matrix as a spec: only two of its
+ * columns are contract, the rest are extensions of the same model.
  */
 export const NATIVE_TARGETS: readonly HostTarget[] = ["desktop", "mobile"];
 
 /**
- * `granted`     - disponibila pe tinta, dar tot marginita de politica ei;
- * `optional`    - exista doar daca aplicatia o declara explicit in manifest;
- * `unavailable` - nu exista pe tinta; declararea ei este o eroare de manifest.
+ * `granted`     - available on the target, but still bounded by its policy;
+ * `optional`    - exists only if the app declares it explicitly in the manifest;
+ * `unavailable` - does not exist on the target; declaring it is a manifest error.
  */
 export type Availability = "granted" | "optional" | "unavailable";
 
@@ -39,82 +39,82 @@ export interface HostCapabilityDefinition {
   readonly summary: string;
   readonly desktop: Availability;
   readonly mobile: Availability;
-  /** Derivata din constrangerile platformei web, nu din tabelul sectiunii 6. */
+  /** Derived from the web platform's constraints, not from the section 6 table. */
   readonly web: Availability;
-  /** Derivata din ce ofera un supervizor de proces; vezi `NATIVE_TARGETS`. */
+  /** Derived from what a process supervisor offers; see `NATIVE_TARGETS`. */
   readonly server: Availability;
-  /** Derivata din ce ofera un terminal; vezi `NATIVE_TARGETS`. */
+  /** Derived from what a terminal offers; see `NATIVE_TARGETS`. */
   readonly cli: Availability;
-  /** Derivata din ce ofera firmware-ul unei plachete; vezi `NATIVE_TARGETS`. */
+  /** Derived from what a board's firmware offers; see `NATIVE_TARGETS`. */
   readonly embedded: Availability;
   readonly policy: string;
-  /** Politica unei tinte, cand difera de cea implicita de mai sus. */
+  /** A target's policy, when it differs from the default one above. */
   readonly policies?: Partial<Record<HostTarget, string>>;
   /**
-   * Cine aplica efectiv limita. `runtime` inseamna ca adaptorul doar transporta
-   * declaratia, iar refuzul vine din capability broker-ul RaptorRuntime.
+   * Who actually enforces the limit. `runtime` means the adapter only carries
+   * the declaration, and the denial comes from the RaptorRuntime capability broker.
    */
   readonly enforcedBy: "host" | "runtime";
   /**
-   * `table` = randul apare in tabelul sectiunii 6; `prose` = din textul ei;
-   * `derived` = nu apare in roadmap, exista pentru o tinta ne-nativa.
+   * `table` = the row appears in the section 6 table; `prose` = from its text;
+   * `derived` = does not appear in the roadmap, exists for a non-native target.
    */
   readonly source: "table" | "prose" | "derived";
 }
 
-/** Randurile tabelului din sectiunea 6, plus modulele optionale din proza. */
+/** The rows of the section 6 table, plus the optional modules from the prose. */
 export const HOST_CAPABILITIES: readonly HostCapabilityDefinition[] = [
   {
     id: "app.storage",
-    summary: "Stocare aplicatie",
+    summary: "App storage",
     desktop: "granted",
     mobile: "granted",
     web: "granted",
     server: "granted",
     cli: "granted",
     embedded: "granted",
-    policy: "limitata la directorul aplicatiei",
+    policy: "limited to the app directory",
     policies: {
-      web: "limitata la originea paginii (localStorage)",
-      server: "limitata la directorul de date al serviciului",
-      cli: "limitata la directorul de configuratie al uneltei",
-      embedded: "partitie de NVS; scrierile uzeaza flash-ul, deci sunt numarate",
+      web: "limited to the page origin (localStorage)",
+      server: "limited to the service's data directory",
+      cli: "limited to the tool's configuration directory",
+      embedded: "an NVS partition; writes wear the flash, so they are counted",
     },
     enforcedBy: "host",
     source: "table",
   },
   {
     id: "net.connect",
-    summary: "Retea",
+    summary: "Network",
     desktop: "granted",
     mobile: "granted",
     web: "granted",
     server: "granted",
     cli: "granted",
     embedded: "optional",
-    policy: "allowlist de domenii si timeouts",
+    policy: "domain allowlist and timeouts",
     policies: {
-      web: "allowlist de domenii, peste CORS-ul browserului",
-      embedded: "multe plachete nu au retea deloc; cand exista, se declara explicit",
+      web: "domain allowlist, on top of the browser's CORS",
+      embedded: "many boards have no network at all; when present, it is declared explicitly",
     },
     enforcedBy: "runtime",
     source: "table",
   },
   {
     id: "window.manage",
-    summary: "Ferestre si navigare",
+    summary: "Windows and navigation",
     desktop: "granted",
     mobile: "unavailable",
     web: "optional",
     server: "unavailable",
     cli: "unavailable",
     embedded: "unavailable",
-    policy: "controlata de adaptor",
+    policy: "controlled by the adapter",
     policies: {
-      web: "history API si popup-uri; popup-ul cere gest de utilizator, meniurile nu exista",
-      server: "un serviciu nu are interfata grafica",
-      cli: "o unealta de linie de comanda nu are ferestre",
-      embedded: "o placheta nu are sistem de ferestre",
+      web: "history API and popups; a popup requires a user gesture, menus do not exist",
+      server: "a service has no graphical interface",
+      cli: "a command-line tool has no windows",
+      embedded: "a board has no windowing system",
     },
     enforcedBy: "host",
     source: "table",
@@ -128,178 +128,178 @@ export const HOST_CAPABILITIES: readonly HostCapabilityDefinition[] = [
     server: "unavailable",
     cli: "unavailable",
     embedded: "unavailable",
-    policy: "permisiune explicita de sistem si runtime",
+    policy: "explicit system and runtime permission",
     policies: {
-      web: "getUserMedia; browserul cere permisiune la prima folosire",
-      server: "nu exista pe un server",
-      cli: "nu exista intr-un terminal",
-      embedded: "un senzor de imagine se atinge ca periferic, nu ca modul de sistem",
+      web: "getUserMedia; the browser asks for permission on first use",
+      server: "does not exist on a server",
+      cli: "does not exist in a terminal",
+      embedded: "an image sensor is accessed as a peripheral, not as a system module",
     },
     enforcedBy: "host",
     source: "table",
   },
   {
     id: "device.location",
-    summary: "Locatie",
+    summary: "Location",
     desktop: "optional",
     mobile: "optional",
     web: "optional",
     server: "unavailable",
     cli: "unavailable",
     embedded: "unavailable",
-    policy: "permisiune explicita de sistem si runtime",
+    policy: "explicit system and runtime permission",
     policies: {
-      web: "geolocation; browserul cere permisiune la prima folosire",
-      server: "nu exista pe un server",
-      cli: "nu exista intr-un terminal",
-      embedded: "un modul GPS se atinge ca periferic, pe magistrala",
+      web: "geolocation; the browser asks for permission on first use",
+      server: "does not exist on a server",
+      cli: "does not exist in a terminal",
+      embedded: "a GPS module is accessed as a peripheral, over the bus",
     },
     enforcedBy: "host",
     source: "table",
   },
   {
     id: "process.spawn",
-    summary: "Subprocese",
+    summary: "Subprocesses",
     desktop: "optional",
     mobile: "unavailable",
     web: "unavailable",
     server: "optional",
     cli: "optional",
     embedded: "unavailable",
-    policy: "doar desktop, cu lista explicita",
+    policy: "desktop only, with an explicit list",
     policies: {
-      web: "nu exista in browser, sub nicio forma",
-      server: "workers si unelte, cu lista explicita",
-      cli: "unelte externe, cu lista explicita",
-      embedded: "nu exista procese; firmware-ul este un singur program",
+      web: "does not exist in the browser, in any form",
+      server: "workers and tools, with an explicit list",
+      cli: "external tools, with an explicit list",
+      embedded: "there are no processes; the firmware is a single program",
     },
     enforcedBy: "host",
     source: "table",
   },
   {
     id: "device.notifications",
-    summary: "Notificari",
+    summary: "Notifications",
     desktop: "optional",
     mobile: "optional",
     web: "optional",
     server: "unavailable",
     cli: "unavailable",
     embedded: "unavailable",
-    policy: "modul optional, cu capabilitate proprie",
+    policy: "optional module, with its own capability",
     policies: {
-      web: "Notification API; browserul cere permisiune",
-      server: "notificarile serviciului merg in loguri, nu la un utilizator",
-      cli: "iesirea unei unelte merge in terminal, nu in notificari",
-      embedded: "o placheta semnaleaza prin periferice, nu prin notificari",
+      web: "Notification API; the browser asks for permission",
+      server: "a service's notifications go to logs, not to a user",
+      cli: "a tool's output goes to the terminal, not to notifications",
+      embedded: "a board signals through peripherals, not through notifications",
     },
     enforcedBy: "host",
     source: "prose",
   },
   {
     id: "device.files",
-    summary: "Selector de fisiere al sistemului",
+    summary: "System file picker",
     desktop: "optional",
     mobile: "optional",
     web: "optional",
     server: "unavailable",
     cli: "unavailable",
     embedded: "unavailable",
-    policy: "modul optional; intoarce doar fisierele alese de utilizator",
+    policy: "optional module; returns only the files the user chose",
     policies: {
-      web: "input de fisier ales de utilizator; fara acces la disc",
-      server: "nu exista un utilizator care sa aleaga fisiere",
-      cli: "fisierele vin din argumente, nu dintr-un selector",
-      embedded: "nu exista utilizator si nici sistem de fisiere obisnuit",
+      web: "a user-chosen file input; no disk access",
+      server: "there is no user to choose files",
+      cli: "files come from arguments, not from a picker",
+      embedded: "there is no user and no ordinary file system",
     },
     enforcedBy: "host",
     source: "prose",
   },
   {
     id: "net.listen",
-    summary: "Deschiderea de socketi de ascultare",
+    summary: "Opening listening sockets",
     desktop: "unavailable",
     mobile: "unavailable",
     web: "unavailable",
     server: "optional",
     cli: "optional",
     embedded: "optional",
-    policy: "porturi declarate explicit; socketul il deschide host-ul, nu aplicatia",
+    policy: "explicitly declared ports; the socket is opened by the host, not the app",
     policies: {
-      cli: "o unealta poate servi local (dev server), cu porturi declarate",
-      embedded: "doar daca placheta are retea; tipic o pagina de configurare",
+      cli: "a tool can serve locally (dev server), with declared ports",
+      embedded: "only if the board has a network; typically a configuration page",
     },
     enforcedBy: "host",
     source: "derived",
   },
   {
     id: "service.config",
-    summary: "Configuratie si secrete de la supervizor",
+    summary: "Configuration and secrets from the supervisor",
     desktop: "unavailable",
     mobile: "unavailable",
     web: "unavailable",
     server: "optional",
     cli: "unavailable",
     embedded: "unavailable",
-    policy: "chei declarate; valorile vin de la supervizor, nu din fisierele aplicatiei",
+    policy: "declared keys; the values come from the supervisor, not from the app's files",
     policies: {
-      cli: "o unealta isi citeste configuratia prin capabilitatile de runtime",
-      embedded: "configuratia sta in NVS, adica in stocarea aplicatiei",
+      cli: "a tool reads its configuration through the runtime capabilities",
+      embedded: "the configuration lives in NVS, i.e. in the app storage",
     },
     enforcedBy: "host",
     source: "derived",
   },
   {
     id: "tty.interact",
-    summary: "Citirea de la utilizator (prompt, confirmare)",
+    summary: "Reading from the user (prompt, confirmation)",
     desktop: "unavailable",
     mobile: "unavailable",
     web: "unavailable",
     server: "unavailable",
     cli: "optional",
     embedded: "unavailable",
-    policy: "doar cu terminal interactiv; fara el, orice intrebare este refuzata, nu presupusa",
+    policy: "only with an interactive terminal; without one, any question is denied, not assumed",
     policies: {
-      embedded: "nu exista utilizator la capatul celalalt",
+      embedded: "there is no user at the other end",
     },
     enforcedBy: "host",
     source: "derived",
   },
   {
     id: "hw.gpio",
-    summary: "Pini digitali",
+    summary: "Digital pins",
     desktop: "unavailable",
     mobile: "unavailable",
     web: "unavailable",
     server: "unavailable",
     cli: "unavailable",
     embedded: "optional",
-    policy: "pini declarati explicit, cu directie; un pin nedeclarat nu poate fi nici citit, nici scris",
+    policy: "explicitly declared pins, with direction; an undeclared pin can be neither read nor written",
     enforcedBy: "host",
     source: "derived",
   },
   {
     id: "hw.bus",
-    summary: "Magistrale de periferice (I2C, SPI)",
+    summary: "Peripheral buses (I2C, SPI)",
     desktop: "unavailable",
     mobile: "unavailable",
     web: "unavailable",
     server: "unavailable",
     cli: "unavailable",
     embedded: "optional",
-    policy: "magistrale si adrese declarate explicit; restul magistralei ramane inaccesibil",
+    policy: "explicitly declared buses and addresses; the rest of the bus stays inaccessible",
     enforcedBy: "host",
     source: "derived",
   },
   {
     id: "power.sleep",
-    summary: "Controlul somnului plachetei",
+    summary: "Board sleep control",
     desktop: "unavailable",
     mobile: "unavailable",
     web: "unavailable",
     server: "unavailable",
     cli: "unavailable",
     embedded: "optional",
-    policy: "aplicatia poate cere somn, dar nu poate opri watchdog-ul",
+    policy: "the app can request sleep, but cannot turn off the watchdog",
     enforcedBy: "host",
     source: "derived",
   },
@@ -320,12 +320,12 @@ export function availabilityOn(capability: HostCapabilityDefinition, target: Hos
   return capability.embedded;
 }
 
-/** Politica in vigoare pe tinta data; tintele ne-native au uneori alta. */
+/** The policy in force on the given target; non-native targets sometimes have another. */
 export function policyOn(capability: HostCapabilityDefinition, target: HostTarget): string {
   return capability.policies?.[target] ?? capability.policy;
 }
 
-/** Capabilitatile pe care o tinta le poate oferi, indiferent de aplicatie. */
+/** The capabilities a target can offer, regardless of the app. */
 export function capabilitiesFor(target: HostTarget): readonly HostCapabilityDefinition[] {
   return HOST_CAPABILITIES.filter((capability) => availabilityOn(capability, target) !== "unavailable");
 }
@@ -338,11 +338,11 @@ export interface CapabilityVerdict {
 }
 
 /**
- * Decizia pentru o singura capabilitate, pe o tinta, cu un set declarat.
+ * The decision for a single capability, on a target, with a declared set.
  *
- * Este pura si sincrona: aceeasi functie ruleaza si in JS (ca sa refuze devreme,
- * cu un mesaj bun), si pe latura host-ului (unde este granita reala). Duplicarea
- * verificarii este intentionata - latura JS poate fi oricand ocolita.
+ * It is pure and synchronous: the same function runs both in JS (to deny early,
+ * with a good message) and on the host side (where the real boundary is).
+ * Duplicating the check is intentional - the JS side can always be bypassed.
  */
 export function decideCapability(
   target: HostTarget,
@@ -351,7 +351,7 @@ export function decideCapability(
 ): CapabilityVerdict {
   const definition = BY_ID.get(id);
   if (!definition) {
-    return { id, granted: false, reason: "capabilitate de host necunoscuta", availability: "unknown" };
+    return { id, granted: false, reason: "unknown host capability", availability: "unknown" };
   }
 
   const availability = availabilityOn(definition, target);
@@ -359,7 +359,7 @@ export function decideCapability(
     return {
       id,
       granted: false,
-      reason: `nu exista pe ${target}: ${policyOn(definition, target)}`,
+      reason: `does not exist on ${target}: ${policyOn(definition, target)}`,
       availability,
     };
   }
@@ -367,18 +367,18 @@ export function decideCapability(
     return { id, granted: true, reason: policyOn(definition, target), availability };
   }
   if (declared.includes(id)) {
-    return { id, granted: true, reason: `declarata explicit; ${policyOn(definition, target)}`, availability };
+    return { id, granted: true, reason: `explicitly declared; ${policyOn(definition, target)}`, availability };
   }
-  return { id, granted: false, reason: "modul optional nedeclarat in raptor.host.json", availability };
+  return { id, granted: false, reason: "optional module not declared in raptor.host.json", availability };
 }
 
-/** Varianta care arunca; folosita pe caile in care refuzul opreste apelul. */
+/** The throwing variant; used on paths where a denial stops the call. */
 export function requireCapability(target: HostTarget, id: string, declared: readonly string[]): CapabilityVerdict {
   const verdict = decideCapability(target, id, declared);
   if (verdict.granted) return verdict;
   const code =
     verdict.availability === "optional" ? "raptor:host/capability-undeclared" : "raptor:host/capability-unavailable";
-  throw new HostError(code, `capabilitatea '${id}' nu este disponibila: ${verdict.reason}`, {
+  throw new HostError(code, `capability '${id}' is not available: ${verdict.reason}`, {
     capability: id,
     target,
     declared: [...declared],

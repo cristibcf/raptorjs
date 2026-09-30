@@ -1,6 +1,6 @@
 /**
- * Demo chat: doi clienti conectati la acelasi server. O mutatie de la un client
- * se difuzeaza ca operatii catre ambii (stare partajata, whitepaper 26.2).
+ * Chat demo: two clients connected to the same server. A mutation from one
+ * client is broadcast as operations to both (shared state, whitepaper 26.2).
  *
  *   node examples/chat/src/demo.ts
  */
@@ -32,34 +32,34 @@ async function connectClient(label: string): Promise<RaptorClient> {
 const ana = await connectClient("ana");
 const bob = await connectClient("bob");
 
-console.log("=== RaptorWire chat (stare partajata, 2 clienti) ===\n");
+console.log("=== RaptorWire chat (shared state, 2 clients) ===\n");
 
-// Ana trimite un mesaj -> ambii clienti il vad (APPEND difuzat).
-const sent = await ana.mutate("send", { from: "Ana", text: "Salut Bob!" });
+// Ana sends a message -> both clients see it (broadcast APPEND).
+const sent = await ana.mutate("send", { from: "Ana", text: "Hi Bob!" });
 await flushLoopback();
 const msgId = (sent.value as { id: number }).id;
-console.log("Dupa ce Ana trimite:");
-console.log("  Ecranul lui Bob:\n" + renderChat(bob));
+console.log("After Ana sends:");
+console.log("  Bob's screen:\n" + renderChat(bob));
 
-// Serverul marcheaza livrat apoi citit (PATCH pe status).
+// The server marks delivered then read (PATCH on status).
 await ana.mutate("setStatus", { id: msgId, status: "delivered" });
 await flushLoopback();
 await bob.mutate("setStatus", { id: msgId, status: "read" });
 await flushLoopback();
-console.log("\nDupa delivered + read (PATCH status):");
-console.log("  Ecranul lui Ana:\n" + renderChat(ana));
+console.log("\nAfter delivered + read (PATCH status):");
+console.log("  Ana's screen:\n" + renderChat(ana));
 
-// Bob raspunde.
-await bob.mutate("send", { from: "Bob", text: "Salut Ana!" });
+// Bob replies.
+await bob.mutate("send", { from: "Bob", text: "Hi Ana!" });
 await flushLoopback();
-console.log("\nDupa raspunsul lui Bob:");
-console.log("  Ecranul lui Ana:\n" + renderChat(ana));
+console.log("\nAfter Bob's reply:");
+console.log("  Ana's screen:\n" + renderChat(ana));
 
-// Ana sterge primul mesaj (REMOVE difuzat).
+// Ana deletes the first message (broadcast REMOVE).
 await ana.mutate("deleteMessage", { id: msgId });
 await flushLoopback();
-console.log("\nDupa ce Ana sterge primul mesaj:");
-console.log("  Ecranul lui Bob:\n" + renderChat(bob));
+console.log("\nAfter Ana deletes the first message:");
+console.log("  Bob's screen:\n" + renderChat(bob));
 
 ana.close();
 bob.close();

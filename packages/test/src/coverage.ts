@@ -1,7 +1,7 @@
 /**
- * Behavioral Coverage (whitepaper §19) - coverage multidimensional. Un procent
- * unic ascunde ce tip de comportament ramane neexplorat; urmarim dimensiuni
- * separate ca Explorer-ul sa poata decide urmatorul scenariu.
+ * Behavioral Coverage (whitepaper §19) - multidimensional coverage. A single
+ * percentage hides which kind of behavior remains unexplored; we track separate
+ * dimensions so the Explorer can decide the next scenario.
  */
 
 export type CoverageDimension =
@@ -30,7 +30,7 @@ export class Coverage {
     for (const d of DIMENSIONS) this.covered.set(d, new Set());
   }
 
-  /** Marcheaza un element ca acoperit; intoarce true daca e NOU (coverage gain). */
+  /** Mark an element as covered; return true if it is NEW (coverage gain). */
   mark(dimension: CoverageDimension, key: string): boolean {
     const set = this.covered.get(dimension)!;
     if (set.has(key)) return false;

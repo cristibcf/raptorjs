@@ -8,36 +8,36 @@ function manifest(patch: Record<string, unknown> = {}): HostManifest {
   return requireHostManifest(
     JSON.stringify({
       target: "desktop",
-      bundleId: "com.exemplu.desktop",
-      displayName: "Exemplu",
+      bundleId: "com.example.desktop",
+      displayName: "Example",
       version: "2.1.0",
-      window: { title: "Exemplu" },
+      window: { title: "Example" },
       ...patch,
     }),
   );
 }
 
-test("exista un back-end de WebView pentru fiecare din cele trei platforme", () => {
+test("there is a WebView back-end for each of the three platforms", () => {
   assert.deepEqual(DESKTOP_BACKENDS.map((backend) => backend.platform), ["windows", "macos", "linux"]);
   assert.equal(desktopBackend("windows")?.webview, "WebView2");
-  assert.equal(desktopBackend("macos")?.runtimeDependency, null, "WKWebView vine cu sistemul");
+  assert.equal(desktopBackend("macos")?.runtimeDependency, null, "WKWebView comes with the system");
   assert.equal(desktopBackend("beos"), undefined);
 });
 
-test("planul acopera toate formatele si numeste artefactele determinist", () => {
+test("the plan covers all the formats and names the artifacts deterministically", () => {
   const plan = planDesktopPackages(manifest());
   const expected = DESKTOP_FORMATS.reduce((sum, format) => sum + format.architectures.length, 0);
   assert.equal(plan.artifacts.length, expected);
-  assert.ok(plan.artifacts.every((artifact) => artifact.filename.startsWith("com.exemplu.desktop-2.1.0-")));
-  assert.ok(plan.artifacts.some((artifact) => artifact.filename === "com.exemplu.desktop-2.1.0-windows-x64.msi"));
-  assert.ok(plan.artifacts.some((artifact) => artifact.filename === "com.exemplu.desktop-2.1.0-linux-arm64.AppImage"));
+  assert.ok(plan.artifacts.every((artifact) => artifact.filename.startsWith("com.example.desktop-2.1.0-")));
+  assert.ok(plan.artifacts.some((artifact) => artifact.filename === "com.example.desktop-2.1.0-windows-x64.msi"));
+  assert.ok(plan.artifacts.some((artifact) => artifact.filename === "com.example.desktop-2.1.0-linux-arm64.AppImage"));
 });
 
-test("acelasi manifest produce exact acelasi plan", () => {
+test("the same manifest produces exactly the same plan", () => {
   assert.deepEqual(planDesktopPackages(manifest()), planDesktopPackages(manifest()));
 });
 
-test("planul poate fi restrans la o platforma, iar una inexistenta este eroare", () => {
+test("the plan can be restricted to one platform, and a nonexistent one is an error", () => {
   const doarWindows = planDesktopPackages(manifest(), { platforms: ["windows"] });
   assert.deepEqual([...new Set(doarWindows.artifacts.map((artifact) => artifact.platform))], ["windows"]);
   assert.deepEqual(doarWindows.runners, ["windows-latest"]);
@@ -48,30 +48,30 @@ test("planul poate fi restrans la o platforma, iar una inexistenta este eroare",
   );
 });
 
-test("Windows si macOS nu pot fi publicate nesemnate", () => {
+test("Windows and macOS cannot be published unsigned", () => {
   const plan = planDesktopPackages(manifest());
   const nesemnabile = plan.artifacts.filter((artifact) => artifact.signing !== "required").map((a) => a.platform);
-  assert.deepEqual([...new Set(nesemnabile)], ["linux"], "doar pe Linux semnarea ramane optionala");
+  assert.deepEqual([...new Set(nesemnabile)], ["linux"], "only on Linux does signing stay optional");
   assert.equal(plan.mustSign.length, plan.artifacts.filter((artifact) => artifact.platform !== "linux").length);
 });
 
-test("matricea de runnere este exact ce ii trebuie CI-ului", () => {
+test("the runner matrix is exactly what CI needs", () => {
   assert.deepEqual(planDesktopPackages(manifest()).runners, ["macos-latest", "ubuntu-latest", "windows-latest"]);
 });
 
-test("o versiune care nu este semver este refuzata inainte de build", () => {
+test("a version that is not semver is rejected before the build", () => {
   assert.throws(
-    () => planDesktopPackages(manifest({ version: "ultima" })),
+    () => planDesktopPackages(manifest({ version: "latest" })),
     (error: unknown) => (error as { code: string }).code === "raptor:host/manifest-invalid",
   );
   assert.equal(planDesktopPackages(manifest({ version: "1.0.0-rc.1" })).version, "1.0.0-rc.1");
 });
 
-test("cerintele de runtime ale masinii tinta sunt raportate, nu presupuse", () => {
+test("the target machine's runtime requirements are reported, not assumed", () => {
   const toate = runtimeRequirements(planDesktopPackages(manifest()));
   assert.deepEqual(toate.map((requirement) => requirement.platform), ["windows", "linux"]);
   assert.match(toate[0]!.dependency, /WebView2/);
 
   const doarMac = runtimeRequirements(planDesktopPackages(manifest(), { platforms: ["macos"] }));
-  assert.deepEqual(doarMac, [], "macOS nu cere nimic in plus");
+  assert.deepEqual(doarMac, [], "macOS requires nothing extra");
 });

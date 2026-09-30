@@ -2,9 +2,9 @@
  * MaskedInput, CurrencyInput, PhoneInput, DateInput, Mentions, Rating,
  * ColorPicker, ColorSwatchPicker, TransferList, TreeSelect, Cascader.
  *
- * Controale specializate. Partea de logica (aplicarea unei masti, formatarea
- * monetara, parsarea unui numar de telefon) e exportata separat de componente,
- * ca sa poata fi testata si refolosita fara DOM.
+ * Specialized controls. The logic part (applying a mask, currency formatting,
+ * parsing a phone number) is exported separately from the components, so it can
+ * be tested and reused without the DOM.
  */
 import { state, derived, onCleanup, type Accessor, type State } from "raptorjs";
 import { R, For, Show, type Child } from "raptorjs/dom";
@@ -21,15 +21,15 @@ let idSeq = 0;
 /* ----------------------------------------------------------- MaskedInput -- */
 
 /**
- * Aplica o masca peste text.
+ * Applies a mask over text.
  *
- * Simboluri: `9` = cifra, `A` = litera, `*` = orice caracter alfanumeric.
- * Restul caracterelor din masca sunt literale si se insereaza automat, dar
- * **doar intre caractere tastate**: `applyMask("1234", "9999-99-99")` da
- * `"1234"`, nu `"1234-"`. Altfel cursorul ar ajunge dupa o liniuta pe care
- * utilizatorul nu a scris-o, iar Backspace ar parea ca nu face nimic.
- * Intoarce si pozitia cursorului, altfel acesta sare la finalul campului dupa
- * fiecare tastare - cel mai enervant bug al inputurilor cu masca.
+ * Symbols: `9` = digit, `A` = letter, `*` = any alphanumeric character.
+ * The rest of the mask characters are literals and are inserted automatically,
+ * but **only between typed characters**: `applyMask("1234", "9999-99-99")`
+ * gives `"1234"`, not `"1234-"`. Otherwise the cursor would land after a dash
+ * the user did not type, and Backspace would appear to do nothing.
+ * It also returns the cursor position, otherwise it jumps to the end of the
+ * field after every keystroke - the most annoying bug of masked inputs.
  */
 export function applyMask(
   raw: string,
@@ -51,7 +51,7 @@ export function applyMask(
         token === "9" ? /\d/.test(char) : token === "A" ? /[a-zA-Z]/.test(char) : /[a-zA-Z0-9]/.test(char);
       if (!ok) {
         cursor++;
-        i--; // masca ramane pe acelasi simbol; sarim caracterul invalid
+        i--; // the mask stays on the same symbol; we skip the invalid character
         continue;
       }
       out += char;
@@ -59,7 +59,7 @@ export function applyMask(
       consumed++;
     } else {
       out += token;
-      // Daca utilizatorul a tastat chiar separatorul, il consumam.
+      // If the user typed the separator itself, we consume it.
       if (char === token) cursor++;
     }
     if (consumed <= caret) newCaret = out.length;
@@ -69,11 +69,11 @@ export function applyMask(
 }
 
 /**
- * Scoate separatorii, lasand doar caracterele de date.
+ * Removes the separators, leaving only the data characters.
  *
- * Asteapta un text produs de `applyMask` cu ACEEASI masca: comparatia e
- * pozitionala, fiindca o masca poate contine si cifre literale (`"+40 999..."`)
- * pe care o filtrare oarba le-ar pastra gresit.
+ * It expects text produced by `applyMask` with the SAME mask: the comparison is
+ * positional, because a mask can also contain literal digits (`"+40 999..."`)
+ * that a blind filter would wrongly keep.
  */
 export function unmask(value: string, mask: string): string {
   let out = "";
@@ -86,13 +86,13 @@ export function unmask(value: string, mask: string): string {
 
 export interface MaskedInputProps {
   value: State<string>;
-  /** Ex. `"9999-99-99"`, `"(999) 999-9999"`. */
+  /** E.g. `"9999-99-99"`, `"(999) 999-9999"`. */
   mask: string;
   placeholder?: string;
   disabled?: Accessor<boolean> | boolean;
   id?: string;
   label?: string;
-  /** Primeste valoarea fara separatori. */
+  /** Receives the value without separators. */
   onChange?: (unmasked: string) => void;
   class?: string;
 }
@@ -123,13 +123,13 @@ export function MaskedInput(props: MaskedInputProps): El {
       const result = applyMask(String(target?.value ?? ""), props.mask, caret);
       props.value.set(result.value);
       props.onChange?.(unmask(result.value, props.mask));
-      // Repunem cursorul acolo unde il asteapta utilizatorul.
+      // We put the cursor back where the user expects it.
       if (el && typeof el.setSelectionRange === "function") {
         queueMicrotask(() => {
           try {
             el.setSelectionRange(result.caret, result.caret);
           } catch {
-            /* input-ul poate sa nu suporte selectie (type=number) */
+            /* the input may not support selection (type=number) */
           }
         });
       }
@@ -140,11 +140,11 @@ export function MaskedInput(props: MaskedInputProps): El {
 /* --------------------------------------------------------- CurrencyInput -- */
 
 export interface CurrencyInputProps {
-  /** Valoarea in unitati MINIMALE (bani, cenți) - numar intreg. */
+  /** The value in MINOR units (bani, cents) - an integer. */
   value: State<number>;
   currency?: string;
   locale?: string;
-  /** Zecimale ale monedei. Implicit 2. */
+  /** Decimals of the currency. Default 2. */
   decimals?: number;
   min?: number;
   max?: number;
@@ -155,10 +155,10 @@ export interface CurrencyInputProps {
 }
 
 /**
- * Formateaza o suma tinuta in unitati minimale.
+ * Formats an amount held in minor units.
  *
- * Banii se tin in **intregi**, nu in `float`: `0.1 + 0.2 !== 0.3`, iar o eroare
- * de rotunjire intr-un cos de cumparaturi e un bug real, nu unul cosmetic.
+ * Money is kept in **integers**, not `float`: `0.1 + 0.2 !== 0.3`, and a
+ * rounding error in a shopping cart is a real bug, not a cosmetic one.
  */
 export function formatCurrency(
   minorUnits: number,
@@ -179,7 +179,7 @@ export function formatCurrency(
   }
 }
 
-/** Citeste cifrele dintr-un text si le interpreteaza ca unitati minimale. */
+/** Reads the digits from a text and interprets them as minor units. */
 export function parseCurrency(text: string, decimals = 2): number {
   const digits = text.replace(/\D/g, "");
   if (digits === "") return 0;
@@ -216,8 +216,8 @@ export function CurrencyInput(props: CurrencyInputProps): El {
     "on:focus": () => focused.set(true),
     "on:blur": () => focused.set(false),
     "on:input": (e: any) => {
-      // In timpul tastarii citim cifrele ca unitati minimale: tastand "1234"
-      // obtii 12,34 lei, ca la un terminal de plata.
+      // While typing we read the digits as minor units: typing "1234" gives
+      // you 12.34 lei, like at a payment terminal.
       props.value.set(clamp(parseCurrency(String(e.target?.value ?? ""), decimals)));
     },
   });
@@ -225,7 +225,7 @@ export function CurrencyInput(props: CurrencyInputProps): El {
 
 /* ------------------------------------------------------------ PhoneInput -- */
 
-/** Grupeaza cifrele dupa un sablon simplu (ex. `[3,3,4]` -> `123 456 7890`). */
+/** Groups the digits by a simple pattern (e.g. `[3,3,4]` -> `123 456 7890`). */
 export function groupDigits(digits: string, groups: readonly number[]): string {
   const out: string[] = [];
   let at = 0;
@@ -240,11 +240,11 @@ export function groupDigits(digits: string, groups: readonly number[]): string {
 
 export interface PhoneInputProps {
   value: State<string>;
-  /** Prefix afisat (ex. `"+40"`). Nu face parte din valoare. */
+  /** Displayed prefix (e.g. `"+40"`). It is not part of the value. */
   prefix?: string;
-  /** Gruparea cifrelor. Implicit `[3, 3, 3]`. */
+  /** Grouping of the digits. Default `[3, 3, 3]`. */
   groups?: readonly number[];
-  /** Numar minim de cifre pentru a fi considerat valid. Implicit 9. */
+  /** Minimum number of digits to be considered valid. Default 9. */
   minDigits?: number;
   disabled?: Accessor<boolean> | boolean;
   id?: string;
@@ -282,7 +282,7 @@ export function PhoneInput(props: PhoneInputProps): El {
 
 export interface DateInputProps {
   value: State<string>;
-  /** Formatul asteptat. Implicit `"9999-99-99"` (ISO). */
+  /** The expected format. Default `"9999-99-99"` (ISO). */
   mask?: string;
   disabled?: Accessor<boolean> | boolean;
   id?: string;
@@ -290,14 +290,14 @@ export interface DateInputProps {
   class?: string;
 }
 
-/** Input de data cu masca, fara calendar. Pentru cine stie ce scrie. */
+/** A masked date input, without a calendar. For those who know what they type. */
 export function DateInput(props: DateInputProps): El {
   return MaskedInput({
     value: props.value,
     mask: props.mask ?? "9999-99-99",
     disabled: props.disabled,
     id: props.id,
-    label: props.label ?? "Dată (AAAA-LL-ZZ)",
+    label: props.label ?? "Date (YYYY-MM-DD)",
     class: props.class,
   });
 }
@@ -312,9 +312,9 @@ export interface MentionOption {
 
 export interface MentionsProps {
   value: State<string>;
-  /** Cauta dupa textul de dupa `trigger`. */
+  /** Searches by the text after `trigger`. */
   search: (query: string) => readonly MentionOption[];
-  /** Caracterul care deschide lista. Implicit `@`. */
+  /** The character that opens the list. Default `@`. */
   trigger?: string;
   placeholder?: string;
   rows?: number;
@@ -323,17 +323,17 @@ export interface MentionsProps {
   class?: string;
 }
 
-/** Gaseste tokenul `@...` in care se afla cursorul, daca exista. */
+/** Finds the `@...` token the cursor is in, if any. */
 export function activeMention(
   text: string,
   caret: number,
   trigger = "@",
 ): { query: string; start: number } | null {
-  // Cautam inapoi de la cursor pana la trigger, oprindu-ne la spatiu.
+  // We search backward from the cursor to the trigger, stopping at a space.
   for (let i = caret - 1; i >= 0; i--) {
     const char = text[i]!;
     if (char === trigger) {
-      // Triggerul e valid doar la inceput de cuvant.
+      // The trigger is only valid at the start of a word.
       const before = i > 0 ? text[i - 1]! : " ";
       if (!/\s/.test(before) && i !== 0) return null;
       return { query: text.slice(i + 1, caret), start: i };
@@ -466,7 +466,7 @@ export function Mentions(props: MentionsProps): El {
 export interface RatingProps {
   value: State<number>;
   max?: number;
-  /** Permite jumatati de stea. */
+  /** Allows half stars. */
   half?: boolean;
   readonly?: boolean;
   disabled?: Accessor<boolean> | boolean;
@@ -477,10 +477,11 @@ export interface RatingProps {
 }
 
 /**
- * Rating - stele.
+ * Rating - stars.
  *
- * E un `slider`, nu un grup de radio: valoarea e ordonata si continua, iar
- * sagetile trebuie sa o mute cu un pas. Un radiogroup ar cere Tab intre stele.
+ * It is a `slider`, not a radio group: the value is ordered and continuous, and
+ * the arrows must move it by one step. A radiogroup would require Tab between
+ * the stars.
  */
 export function Rating(props: RatingProps): El {
   const max = props.max ?? 5;
@@ -510,7 +511,7 @@ export function Rating(props: RatingProps): El {
       "aria-valuemin": "0",
       "aria-valuemax": String(max),
       "aria-valuenow": () => String(props.value()),
-      "aria-valuetext": () => props.value() + " din " + max,
+      "aria-valuetext": () => props.value() + " of " + max,
       ...(props.label ? { "aria-label": props.label } : {}),
       "aria-readonly": () => String(off()),
       "on:keydown": (e: any) => {
@@ -552,7 +553,7 @@ export function Rating(props: RatingProps): El {
 
 /* ----------------------------------------------------------- ColorPicker -- */
 
-/** `#rrggbb` -> `{r,g,b}`. Accepta si forma scurta `#rgb`. */
+/** `#rrggbb` -> `{r,g,b}`. Also accepts the short form `#rgb`. */
 export function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
   const clean = hex.trim().replace(/^#/, "");
   const full = clean.length === 3 ? clean.split("").map((c) => c + c).join("") : clean;
@@ -571,8 +572,8 @@ export function rgbToHex(r: number, g: number, b: number): string {
 }
 
 /**
- * Luminanta relativa (WCAG 2.1). Folosita ca sa alegem text alb sau negru peste
- * o culoare - altfel eticheta devine ilizibila pe fundaluri deschise.
+ * Relative luminance (WCAG 2.1). Used to choose white or black text over a
+ * color - otherwise the label becomes illegible on light backgrounds.
  */
 export function relativeLuminance(r: number, g: number, b: number): number {
   const channel = (value: number): number => {
@@ -582,7 +583,7 @@ export function relativeLuminance(r: number, g: number, b: number): number {
   return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
 }
 
-/** Raportul de contrast dintre doua culori hex (1:1 .. 21:1). */
+/** The contrast ratio between two hex colors (1:1 .. 21:1). */
 export function contrastRatio(a: string, b: string): number {
   const ca = hexToRgb(a);
   const cb = hexToRgb(b);
@@ -593,7 +594,7 @@ export function contrastRatio(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-/** Text lizibil peste o culoare de fundal. */
+/** Legible text over a background color. */
 export function readableOn(background: string): "#000000" | "#ffffff" {
   const rgb = hexToRgb(background);
   if (!rgb) return "#000000";
@@ -602,9 +603,9 @@ export function readableOn(background: string): "#000000" | "#ffffff" {
 
 export interface ColorSwatchPickerProps {
   value: State<string>;
-  /** Paleta de culori hex. */
+  /** The palette of hex colors. */
   colors: readonly string[];
-  /** Nume pentru fiecare culoare; fara ele, doar codul hex e citit. */
+  /** Names for each color; without them, only the hex code is read out. */
   names?: Readonly<Record<string, string>>;
   columns?: number;
   label?: string;
@@ -612,7 +613,7 @@ export interface ColorSwatchPickerProps {
   class?: string;
 }
 
-/** Paleta fixa de culori. Fiecare pastila e un radio cu nume. */
+/** A fixed color palette. Each swatch is a named radio. */
 export function ColorSwatchPicker(props: ColorSwatchPickerProps): El {
   return R.div(
     {
@@ -641,9 +642,9 @@ export function ColorSwatchPicker(props: ColorSwatchPickerProps): El {
 
 export interface ColorPickerProps {
   value: State<string>;
-  /** Paleta rapida afisata sub selector. */
+  /** Quick palette shown below the selector. */
   presets?: readonly string[];
-  /** Culoarea pe care va sta textul; arata raportul de contrast. */
+  /** The color the text will sit on; shows the contrast ratio. */
   contrastAgainst?: string;
   label?: string;
   placement?: Placement;
@@ -652,12 +653,12 @@ export interface ColorPickerProps {
 }
 
 /**
- * ColorPicker - selector nativ + hex + presetari.
+ * ColorPicker - native selector + hex + presets.
  *
- * Foloseste `<input type="color">`, care deschide selectorul sistemului: e
- * accesibil, localizat si gratuit. Peste el adauga un camp hex si, optional,
- * raportul de contrast fata de o culoare data - util cand alegi culori de brand
- * si vrei sa stii daca textul ramane lizibil.
+ * It uses `<input type="color">`, which opens the system selector: accessible,
+ * localized and free. On top of it, it adds a hex field and, optionally, the
+ * contrast ratio against a given color - useful when picking brand colors and
+ * you want to know whether the text stays legible.
  */
 export function colorPicker(props: ColorPickerProps): { el: El; open: Accessor<boolean> } {
   const id = "rui-color-" + ++idSeq;
@@ -694,7 +695,7 @@ export function colorPicker(props: ColorPickerProps): { el: El; open: Accessor<b
       class: "rui-color-trigger",
       "aria-haspopup": "dialog",
       "aria-expanded": () => String(open()),
-      "aria-label": (props.label ?? "Culoare") + ": " + props.value.peek(),
+      "aria-label": (props.label ?? "Color") + ": " + props.value.peek(),
       style: () => "background:" + props.value(),
       "on:click": (e: any) => {
         e.stopPropagation?.();
@@ -707,7 +708,7 @@ export function colorPicker(props: ColorPickerProps): { el: El; open: Accessor<b
         {
           class: "rui-color-pop",
           role: "dialog",
-          "aria-label": props.label ?? "Alege culoarea",
+          "aria-label": props.label ?? "Pick a color",
           ref: pos.floating,
           style: () => pos.style(),
         },
@@ -715,14 +716,14 @@ export function colorPicker(props: ColorPickerProps): { el: El; open: Accessor<b
           id,
           type: "color",
           class: "rui-color-native",
-          "aria-label": "Selector de culoare",
+          "aria-label": "Color selector",
           value: () => props.value(),
           "on:input": (e: any) => commit(String(e.target?.value ?? "")),
         }),
         R.input({
           type: "text",
           class: "rui-color-hex rui-tabular",
-          "aria-label": "Cod hexazecimal",
+          "aria-label": "Hex code",
           value: () => text(),
           "on:input": (e: any) => text.set(String(e.target?.value ?? "")),
           "on:blur": () => commit(text.peek()),
@@ -745,7 +746,7 @@ export function colorPicker(props: ColorPickerProps): { el: El; open: Accessor<b
               value: props.value,
               colors: props.presets,
               columns: 8,
-              label: "Culori predefinite",
+              label: "Preset colors",
               onChange: (c) => {
                 text.set(c);
                 props.onChange?.(c);
@@ -760,7 +761,7 @@ export function colorPicker(props: ColorPickerProps): { el: El; open: Accessor<b
 }
 
 export function ColorPicker(props: ColorPickerProps): El {
-  // Constructia nu aboneaza computatia apelantului; vezi `isolate`.
+  // Construction does not subscribe the caller's computation; see `isolate`.
   return isolate(() => ColorPickerImpl(props));
 }
 
@@ -778,7 +779,7 @@ export interface TransferItem {
 
 export interface TransferListProps {
   items: readonly TransferItem[];
-  /** Cheile din lista din dreapta. */
+  /** The keys in the right-hand list. */
   selected: State<readonly string[]>;
   titles?: readonly [Child, Child];
   onChange?: (selected: readonly string[]) => void;
@@ -787,10 +788,10 @@ export interface TransferListProps {
 }
 
 /**
- * TransferList - mutare intre doua liste.
+ * TransferList - moving between two lists.
  *
- * Fiecare panou e un `listbox` multiplu. Butoanele de mutare sunt dezactivate
- * cand nu e nimic bifat - altfel utilizatorul apasa si nu se intampla nimic.
+ * Each panel is a multiple `listbox`. The move buttons are disabled when
+ * nothing is checked - otherwise the user clicks and nothing happens.
  */
 export function TransferList(props: TransferListProps): El {
   const marked = state<ReadonlySet<string>>(new Set());
@@ -869,13 +870,13 @@ export function TransferList(props: TransferListProps): El {
       role: "group",
       ...(props.label ? { "aria-label": props.label } : {}),
     },
-    panel(() => left(), props.titles?.[0] ?? "Disponibile"),
+    panel(() => left(), props.titles?.[0] ?? "Available"),
     R.div(
       { class: "rui-transfer-actions" },
       Button({
         variant: "secondary",
         size: "sm",
-        label: "Mută la dreapta",
+        label: "Move right",
         disabled: () => !canMove(true),
         onClick: () => move(true),
         children: "›",
@@ -883,13 +884,13 @@ export function TransferList(props: TransferListProps): El {
       Button({
         variant: "secondary",
         size: "sm",
-        label: "Mută la stânga",
+        label: "Move left",
         disabled: () => !canMove(false),
         onClick: () => move(false),
         children: "‹",
       }),
     ),
-    panel(() => rightItems(), props.titles?.[1] ?? "Selectate"),
+    panel(() => rightItems(), props.titles?.[1] ?? "Selected"),
   );
 }
 
@@ -902,7 +903,7 @@ export interface OptionNode {
   disabled?: boolean;
 }
 
-/** Cauta calea catre o valoare in arborele de optiuni. */
+/** Finds the path to a value in the option tree. */
 export function findPath(nodes: readonly OptionNode[], value: string): OptionNode[] | null {
   for (const node of nodes) {
     if (node.value === value) return [node];
@@ -917,7 +918,7 @@ export function findPath(nodes: readonly OptionNode[], value: string): OptionNod
 export interface CascaderProps {
   options: readonly OptionNode[];
   value: State<string | null>;
-  /** Permite alegerea unui nod intermediar, nu doar a frunzelor. */
+  /** Allows choosing an intermediate node, not just leaves. */
   anyLevel?: boolean;
   placeholder?: Child;
   separator?: string;
@@ -928,20 +929,20 @@ export interface CascaderProps {
 }
 
 /**
- * Cascader - alegere in cascada, coloana dupa coloana.
+ * Cascader - cascading selection, column by column.
  *
- * Implicit doar frunzele sunt alegibile: un "Romania > Cluj" incomplet e rareori
- * ce vrea utilizatorul. `anyLevel: true` schimba asta.
+ * By default only leaves are selectable: an incomplete "Romania > Cluj" is
+ * rarely what the user wants. `anyLevel: true` changes that.
  */
 export function Cascader(props: CascaderProps): El {
-  // Constructia nu aboneaza computatia apelantului; vezi `isolate`.
+  // Construction does not subscribe the caller's computation; see `isolate`.
   return isolate(() => CascaderImpl(props));
 }
 
 function CascaderImpl(props: CascaderProps): El {
   const id = "rui-casc-" + ++idSeq;
   const open = state(false);
-  /** Calea deschisa in acest moment (nu neaparat si aleasa). */
+  /** The currently open path (not necessarily the chosen one). */
   const path = state<readonly OptionNode[]>([]);
   const pos = positioner({ placement: props.placement ?? "bottom-start", enabled: () => open() });
   const sep = props.separator ?? " / ";
@@ -953,7 +954,7 @@ function CascaderImpl(props: CascaderProps): El {
     return found ? found.map((n) => n.label).join(sep) : value;
   });
 
-  /** Coloanele afisate: radacina, apoi copiii fiecarui nod din cale. */
+  /** The displayed columns: the root, then the children of each node in the path. */
   const columns = derived<Array<readonly OptionNode[]>>(() => {
     const out: Array<readonly OptionNode[]> = [props.options];
     for (const node of path()) {
@@ -1000,7 +1001,7 @@ function CascaderImpl(props: CascaderProps): El {
       },
     },
     R.span({ class: () => (label() === null ? "rui-cascader-placeholder" : "rui-cascader-value") },
-      () => label() ?? props.placeholder ?? "Alege…"),
+      () => label() ?? props.placeholder ?? "Choose…"),
     R.span({ class: "rui-cascader-arrow", "aria-hidden": "true" }, "▾")),
     Show({
       when: () => open(),
@@ -1058,9 +1059,9 @@ export interface TreeSelectProps {
   class?: string;
 }
 
-/** TreeSelect - aceleasi date ca `Cascader`, dar afisate ca arbore vertical. */
+/** TreeSelect - the same data as `Cascader`, but shown as a vertical tree. */
 export function TreeSelect(props: TreeSelectProps): El {
-  // Constructia nu aboneaza computatia apelantului; vezi `isolate`.
+  // Construction does not subscribe the caller's computation; see `isolate`.
   return isolate(() => TreeSelectImpl(props));
 }
 
@@ -1154,7 +1155,7 @@ function TreeSelectImpl(props: TreeSelectProps): El {
         open.set(!open.peek());
       },
     },
-    R.span({}, () => label() ?? props.placeholder ?? "Alege…"),
+    R.span({}, () => label() ?? props.placeholder ?? "Choose…"),
     R.span({ class: "rui-treeselect-arrow", "aria-hidden": "true" }, "▾")),
     Show({
       when: () => open(),

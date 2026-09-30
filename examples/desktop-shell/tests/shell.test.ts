@@ -17,70 +17,70 @@ async function started(options: Parameters<typeof createSession>[0] = {}): Promi
   return session;
 }
 
-test("pornirea cere host-ului o fereastra si un meniu, din aceeasi aplicatie RaptorJS", async () => {
+test("startup asks the host for a window and a menu, from the same RaptorJS app", async () => {
   const session = await started();
   try {
     assert.equal(session.host.windows.length, 1);
     assert.equal(session.host.windows[0]?.title, "Raptor Desktop Shell");
-    assert.equal(session.host.windows[0]?.width, 1024, "dimensiunile vin din raptor.host.json");
+    assert.equal(session.host.windows[0]?.width, 1024, "the dimensions come from raptor.host.json");
     assert.deepEqual(session.host.menu.map((item) => item.id), ["note.new", "app.quit"]);
-    assert.equal(session.shell.lifecycle(), "foreground", "starea host-ului a ajuns in semnal");
+    assert.equal(session.shell.lifecycle(), "foreground", "the host state reached the signal");
   } finally {
     session.close();
   }
 });
 
-test("o nota trece prin stocarea host-ului inainte sa devina stare a aplicatiei", async () => {
+test("a note goes through the host's storage before it becomes app state", async () => {
   const storage = new Map<string, string>();
   const session = await started({ storage });
   try {
-    await session.shell.addNote("prima");
-    assert.deepEqual(session.shell.notes(), ["prima"]);
-    assert.equal(storage.get("notes"), '["prima"]');
+    await session.shell.addNote("first");
+    assert.deepEqual(session.shell.notes(), ["first"]);
+    assert.equal(storage.get("notes"), '["first"]');
     assert.equal(session.host.windows[0]?.title, "Raptor Desktop Shell (1)");
   } finally {
     session.close();
   }
 });
 
-test("notele scrise supravietuiesc repornirii, pentru ca traiesc la host", async () => {
+test("written notes survive a restart, because they live at the host", async () => {
   const storage = new Map<string, string>();
   const first = await started({ storage });
   try {
-    await first.shell.addNote("persistenta");
+    await first.shell.addNote("persistent");
   } finally {
     first.close();
   }
 
   const second = await started({ storage });
   try {
-    assert.deepEqual(second.shell.notes(), ["persistenta"], "a doua pornire citeste ce a scris prima");
+    assert.deepEqual(second.shell.notes(), ["persistent"], "the second startup reads what the first wrote");
   } finally {
     second.close();
   }
 });
 
-test("un modul optional lipsa lasa aplicatia sa functioneze, doar fara acea functie", async () => {
+test("a missing optional module lets the app work, just without that feature", async () => {
   const fara = await started({ capabilities: [] });
   try {
-    assert.equal(await fara.shell.announce("salut"), false, "aplicatia afla ca nu poate, fara sa crape");
+    assert.equal(await fara.shell.announce("hello"), false, "the app learns it cannot, without crashing");
     assert.deepEqual(fara.host.notifications, []);
-    await fara.shell.addNote("merge oricum");
-    assert.deepEqual(fara.shell.notes(), ["merge oricum"]);
+    await fara.shell.addNote("works anyway");
+    assert.deepEqual(fara.shell.notes(), ["works anyway"]);
   } finally {
     fara.close();
   }
 
   const cu = await started({ capabilities: ["device.notifications"] });
   try {
-    assert.equal(await cu.shell.announce("salut"), true);
-    assert.equal(cu.host.notifications[0]?.body, "salut");
+    assert.equal(await cu.shell.announce("hello"), true);
+    assert.equal(cu.host.notifications[0]?.body, "hello");
   } finally {
     cu.close();
   }
 });
 
-test("deep link-urile si comenzile de meniu ajung in aplicatie ca evenimente", async () => {
+test("deep links and menu commands reach the app as events", async () => {
   const session = await started();
   try {
     session.host.deliverDeepLink("raptor-shell://nota/7");
@@ -90,29 +90,29 @@ test("deep link-urile si comenzile de meniu ajung in aplicatie ca evenimente", a
     session.host.invokeMenu("note.new");
     await tick();
     await tick();
-    assert.deepEqual(session.shell.notes(), ["nota 1"], "comanda de meniu a scris prin punte");
+    assert.deepEqual(session.shell.notes(), ["note 1"], "the menu command wrote through the bridge");
   } finally {
     session.close();
   }
 });
 
-test("randarea ramane fine-grained: evenimentele host-ului muta text, nu recreeaza noduri", async () => {
+test("rendering stays fine-grained: host events move text, they do not recreate nodes", async () => {
   const session = await started();
   try {
     const root = doc.createElement("div");
     render(() => session.shell.view(doc as never) as never, root);
     const before = { ...stats };
-    assert.ok(before.createElement > 0, "prima randare chiar construieste ceva");
+    assert.ok(before.createElement > 0, "the first render really does build something");
 
     resetStats();
-    await session.shell.addNote("una");
+    await session.shell.addNote("one");
     session.host.deliverDeepLink("raptor-shell://nota/1");
     session.host.lifecycle.to("background");
     await tick();
 
-    assert.equal(stats.createElement, 0, "niciun element nou dupa trei schimbari de stare");
-    assert.ok(stats.textUpdate > 0, "dar textul legat s-a actualizat");
-    assert.match(root.toHTML(), /stare: background - 1 note/);
+    assert.equal(stats.createElement, 0, "no new elements after three state changes");
+    assert.ok(stats.textUpdate > 0, "but the bound text did update");
+    assert.match(root.toHTML(), /status: background - 1 notes/);
     assert.match(root.toHTML(), /raptor-shell:\/\/nota\/1/);
   } finally {
     resetStats();
@@ -121,7 +121,7 @@ test("randarea ramane fine-grained: evenimentele host-ului muta text, nu recreea
   }
 });
 
-test("aplicatia nu poate atinge ce nu i s-a acordat", async () => {
+test("the app cannot touch what it was not granted", async () => {
   const session = await started({ capabilities: ["device.notifications"] });
   try {
     await assert.rejects(
@@ -130,7 +130,7 @@ test("aplicatia nu poate atinge ce nu i s-a acordat", async () => {
     );
     await assert.rejects(
       session.bridge.call("window.navigate", { id: "w1", url: "https://atacator.example" }),
-      /navigare refuzata/,
+      /navigation denied/,
     );
   } finally {
     session.close();

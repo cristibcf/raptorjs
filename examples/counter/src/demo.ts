@@ -1,11 +1,11 @@
 /**
- * Demo counter headless (ruleaza pe Node): dovedeste modelul fine-grained din
- * whitepaper sectiunea 6 - un click actualizeaza EXACT un text-node, fara
- * re-render de componenta si fara elemente noi.
+ * Headless counter demo (runs on Node): proves the fine-grained model from
+ * whitepaper section 6 - a click updates EXACTLY one text node, with no
+ * component re-render and no new elements.
  *
  *   node examples/counter/src/demo.ts
  *
- * Aceeasi logica, scrisa in TSX, este in src/main.tsx (pentru browser/Vite).
+ * The same logic, written in TSX, is in src/main.tsx (for browser/Vite).
  */
 import { installMiniDom, stats, resetStats, type MiniElement } from "raptorjs/dom/testing";
 import { render, mountChild, applyProps } from "raptorjs/dom";
@@ -13,19 +13,19 @@ import { state, derived } from "raptorjs";
 
 const doc = installMiniDom();
 
-/** Echivalentul "output-ului compilerului" pentru componenta Counter. */
+/** The equivalent of the "compiler output" for the Counter component. */
 function Counter(): MiniElement {
   const count = state(0);
-  const parity = derived(() => (count() % 2 === 0 ? "par" : "impar"));
+  const parity = derived(() => (count() % 2 === 0 ? "even" : "odd"));
 
   const section = doc.createElement("section");
 
   const h2 = doc.createElement("h2");
-  mountChild(h2, () => count(), null); // text-node legat fine-grained
+  mountChild(h2, () => count(), null); // fine-grained bound text node
   section.appendChild(h2);
 
   const p = doc.createElement("p");
-  mountChild(p, () => `Valoare ${parity()}`, null);
+  mountChild(p, () => `Value ${parity()}`, null);
   section.appendChild(p);
 
   const button = doc.createElement("button");
@@ -46,9 +46,9 @@ resetStats();
 const button = root.querySelector("button")!;
 for (let i = 0; i < 3; i++) button.click();
 
-console.log("Dupa 3 click-uri:", root.toHTML());
-console.log("\nMutatii DOM in cele 3 click-uri:");
-console.log(`  elemente noi create : ${stats.createElement}   (asteptat: 0)`);
-console.log(`  text-node-uri noi   : ${stats.createText}   (asteptat: 0)`);
-console.log(`  actualizari de text : ${stats.textUpdate}   (2 binduri x 3 click-uri = 6)`);
-console.log("\n-> Nicio componenta re-executata, niciun nod recreat: doar text mutat exact.");
+console.log("After 3 clicks:", root.toHTML());
+console.log("\nDOM mutations across the 3 clicks:");
+console.log(`  new elements created : ${stats.createElement}   (expected: 0)`);
+console.log(`  new text nodes       : ${stats.createText}   (expected: 0)`);
+console.log(`  text updates         : ${stats.textUpdate}   (2 bindings x 3 clicks = 6)`);
+console.log("\n-> No component re-executed, no node recreated: just text mutated in place.");

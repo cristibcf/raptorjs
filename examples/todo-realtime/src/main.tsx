@@ -1,7 +1,7 @@
 /**
- * Clientul. Nu tine o copie a listei: `client.signal(handle)` ESTE starea, iar
- * fiecare binding din JSX se leaga la exact un semnal. Cand serverul difuzeaza
- * un PATCH pe "todo:3", se actualizeaza randul 3 - nu lista, nu componenta.
+ * The client. It keeps no copy of the list: `client.signal(handle)` IS the state,
+ * and each binding in the JSX binds to exactly one signal. When the server
+ * broadcasts a PATCH on "todo:3", row 3 updates - not the list, not the component.
  */
 import { render, state, For, Show } from "raptorjs/dom";
 import { RaptorClient, connectWebSocket } from "@raptor/wire/client";
@@ -30,7 +30,7 @@ function TodoApp(props: { client: RaptorClient; status: () => Status; reconnect:
       <header>
         <h1>Todo realtime</h1>
         <span class={() => "status " + props.status()}>
-          {() => ({ online: "conectat", offline: "deconectat", connecting: "se conecteaza..." })[props.status()]}
+          {() => ({ online: "connected", offline: "disconnected", connecting: "connecting..." })[props.status()]}
         </span>
       </header>
 
@@ -41,11 +41,11 @@ function TodoApp(props: { client: RaptorClient; status: () => Status; reconnect:
         }}
       >
         <input
-          placeholder="Ce e de facut?"
+          placeholder="What needs doing?"
           value={draft}
           on:input={(e: Event) => draft.set((e.target as HTMLInputElement).value)}
         />
-        <button type="submit">Adauga</button>
+        <button type="submit">Add</button>
       </form>
 
       <ul>
@@ -69,19 +69,19 @@ function TodoApp(props: { client: RaptorClient; status: () => Status; reconnect:
       </ul>
 
       <Show when={() => order().length === 0}>
-        <p class="empty">Nimic aici inca. Scrie ceva mai sus — sau in cealalta fereastra.</p>
+        <p class="empty">Nothing here yet. Type something above — or in the other window.</p>
       </Show>
 
       <footer>
         <Show when={() => props.status() === "online"}>
-          <button on:click={props.drop}>Simuleaza pierderea conexiunii</button>
+          <button on:click={props.drop}>Simulate losing the connection</button>
         </Show>
         <Show when={() => props.status() === "offline"}>
-          <button on:click={props.reconnect}>Reconecteaza (resume)</button>
+          <button on:click={props.reconnect}>Reconnect (resume)</button>
         </Show>
         <p class="hint">
-          Deschide acelasi URL intr-o a doua fereastra. Scrie intr-una si uita-te in cealalta — nimeni nu face
-          polling si nimeni nu re-cere lista.
+          Open the same URL in a second window. Type in one and watch the other — nobody polls
+          and nobody re-requests the list.
         </p>
       </footer>
     </main>
@@ -99,10 +99,10 @@ async function main(): Promise<void> {
   status.set("online");
 
   /**
-   * Reconectare: `resume` pastreaza replica locala si cere serverului doar ce s-a
-   * schimbat de la versiunea curenta. Daca serverul poate acoperi golul din
-   * op-log trimite delta; daca nu, cade inapoi pe snapshot. In ambele cazuri
-   * ecranul converge fara sa clipeasca.
+   * Reconnect: `resume` keeps the local replica and asks the server only for what
+   * has changed since the current version. If the server can cover the gap from
+   * the op-log it sends a delta; if not, it falls back to a snapshot. In both
+   * cases the screen converges without flickering.
    */
   const reconnect = async (): Promise<void> => {
     status.set("connecting");

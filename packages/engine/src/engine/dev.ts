@@ -1,10 +1,10 @@
 /**
- * RaptorDev - engine incremental + Stateful Reactive HMR (whitepaper 10, 11, 12).
+ * RaptorDev - incremental engine + Stateful Reactive HMR (whitepaper 10, 11, 12).
  *
- * Optimizeaza timpul edit -> feedback. Un edit reparseaza doar modulul atins,
- * face graph diff fata de compilarea anterioara si produce un plan de patch care
- * pastreaza starea compatibila. Un edit no-op da cache hit (fara munca). Fiecare
- * update se explica (12: "un build rapid dar opac e greu de depanat").
+ * Optimizes the edit -> feedback time. An edit reparses only the touched module,
+ * does a graph diff against the previous compilation and produces a patch plan
+ * that preserves compatible state. A no-op edit yields a cache hit (no work).
+ * Every update explains itself (12: "a fast but opaque build is hard to debug").
  */
 import { parseModule, diffModules, type IRModule, type GraphDiff } from "@raptor/engine/compiler";
 import { computeCacheKey } from "./cache.ts";
@@ -47,13 +47,13 @@ export class DevEngine {
     return computeCacheKey({ source, profile: this.profile, target: this.target });
   }
 
-  /** Aplica un edit (sau incarcarea initiala) si intoarce planul de update. */
+  /** Applies an edit (or the initial load) and returns the update plan. */
   update(path: string, source: string): DevUpdate {
     this.updateCount++;
     const cacheKey = this.key(source);
     const prev = this.files.get(path);
 
-    // No-op: sursa identica -> cache hit, fara munca (21, 30 no-op budget).
+    // No-op: identical source -> cache hit, no work (21, 30 no-op budget).
     if (prev && prev.cacheKey === cacheKey) {
       return this.emptyUpdate(path, "noop");
     }
@@ -126,21 +126,21 @@ function round(ms: number): number {
   return Math.round(ms * 100) / 100;
 }
 
-/** Formateaza update-ul in stilul overlay-ului RaptorDev (whitepaper sectiunea 12). */
+/** Formats the update in the style of the RaptorDev overlay (whitepaper section 12). */
 export function formatUpdateLog(u: DevUpdate): string {
   if (u.kind === "noop") {
-    return `RaptorDev update #${u.n}\n  changed: ${u.path}\n  no-op: cache hit (fara recompilare)`;
+    return `RaptorDev update #${u.n}\n  changed: ${u.path}\n  no-op: cache hit (no recompilation)`;
   }
   const lines = [
     `RaptorDev update #${u.n}`,
     `  changed: ${u.path}`,
-    `  invalidated: component ${u.changed.join(", ") || "(niciuna)"}`,
+    `  invalidated: component ${u.changed.join(", ") || "(none)"}`,
     `  preserved: ${u.preservedSignals} signals, ${u.preservedWire} wire session`,
     `  regenerated: ${u.regeneratedBindings} DOM bindings, ${u.regeneratedRoutes} routes, ${u.regeneratedSchemas} schemas`,
     `  graph patch: ${u.graphPatchMs} ms`,
   ];
   if (u.kind === "remount") {
-    lines.push(`  fallback: remount (${u.fallbackReason ?? "boundary incompatibil"})`);
+    lines.push(`  fallback: remount (${u.fallbackReason ?? "incompatible boundary"})`);
   }
   return lines.join("\n");
 }

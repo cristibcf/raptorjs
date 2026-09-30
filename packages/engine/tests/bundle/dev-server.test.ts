@@ -1,6 +1,6 @@
 /**
- * Teste pentru dev server-ul RaptorBundle: fallback-ul history pentru rutele SPA
- * (deep-link si refresh pe subpagini) fara sa ascunda asset-urile lipsa.
+ * Tests for the RaptorBundle dev server: the history fallback for SPA routes
+ * (deep-link and refresh on subpages) without hiding missing assets.
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -10,7 +10,7 @@ import { join } from "node:path";
 import type { AddressInfo } from "node:net";
 import { startDevServer } from "../../src/bundle/index.ts";
 
-/** Ridica un dev server pe un port efemer intr-un proiect minimal temporar. */
+/** Spins up a dev server on an ephemeral port in a minimal temporary project. */
 function withServer(run: (base: string) => Promise<void>): Promise<void> {
   const dir = mkdtempSync(join(tmpdir(), "raptor-dev-"));
   writeFileSync(join(dir, "index.html"), `<!doctype html><div id="app"></div><script type="module" src="/src/main.tsx"></script>`);
@@ -33,31 +33,31 @@ function withServer(run: (base: string) => Promise<void>): Promise<void> {
 
 const asDocument = { headers: { accept: "text/html,application/xhtml+xml" } };
 
-test("dev server: o ruta de client primeste index.html, nu 404", async () => {
+test("dev server: a client route gets index.html, not 404", async () => {
   await withServer(async (base) => {
     for (const route of ["/learn", "/learn/state-and-reactivity", "/playground"]) {
       const res = await fetch(base + route, asDocument);
-      assert.equal(res.status, 200, `${route} ar trebui sa serveasca aplicatia`);
+      assert.equal(res.status, 200, `${route} should serve the app`);
       assert.match(res.headers.get("content-type") ?? "", /text\/html/);
-      // A trecut prin rewriteHtml: scriptul sursa a devenit bundle-ul dev.
+      // It went through rewriteHtml: the source script became the dev bundle.
       assert.match(await res.text(), /__raptor_bundle\.js/);
     }
   });
 });
 
-test("dev server: un asset lipsa ramane 404, nu primeste HTML", async () => {
+test("dev server: a missing asset stays 404, does not get HTML", async () => {
   await withServer(async (base) => {
-    // Cerut de browser ca sub-resursa (accept */*).
+    // Requested by the browser as a sub-resource (accept */*).
     const asset = await fetch(base + "/missing.js");
     assert.equal(asset.status, 404);
 
-    // Chiar si tastat in bara de adrese, o cale cu extensie nu e ruta de client.
+    // Even when typed in the address bar, a path with an extension is not a client route.
     const typed = await fetch(base + "/missing.png", asDocument);
     assert.equal(typed.status, 404);
   });
 });
 
-test("dev server: asset-urile reale si radacina sunt neatinse", async () => {
+test("dev server: real assets and the root are untouched", async () => {
   await withServer(async (base) => {
     const svg = await fetch(base + "/logo.svg");
     assert.equal(svg.status, 200);

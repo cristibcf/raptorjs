@@ -7,12 +7,12 @@ import { RaptorDevServer, readFirstSseEvent } from "../../src/run/index.ts";
 import type { DevUpdate } from "@raptor/engine";
 
 /**
- * Asteapta o conditie, nu o durata.
+ * Wait for a condition, not a duration.
  *
- * Un `setTimeout` fix intr-un test de retea e o presupunere despre cat de
- * incarcata e masina, si presupunerea cade exact cand suita ruleaza in
- * paralel - adica in CI. Aici asteptam pana cand lucrul verificat chiar s-a
- * intamplat, cu un plafon care sa nu atarne la infinit daca nu se intampla.
+ * A fixed `setTimeout` in a network test is an assumption about how loaded the
+ * machine is, and the assumption breaks exactly when the suite runs in parallel
+ * - that is, in CI. Here we wait until the thing being checked has actually
+ * happened, with a ceiling so it doesn't hang forever if it never does.
  */
 async function until(conditie: () => boolean, ceAsteptam: string, limitaMs = 4000): Promise<void> {
   const pana = Date.now() + limitaMs;
@@ -39,16 +39,16 @@ test("dev: applyChange - noop / patch / remount + refresh SSR", async () => {
   const events: DevUpdate[] = [];
   server.onHmr((u) => events.push(u));
 
-  // Sursa identica -> no-op, fara broadcast.
+  // Identical source -> no-op, no broadcast.
   assert.equal(server.applyChange("/App.raptor", SRC).kind, "noop");
   assert.equal(events.length, 0);
 
-  // Edit de derived -> patch (state-preserving).
+  // Derived edit -> patch (state-preserving).
   const patched = server.applyChange("/App.raptor", SRC.replace("count * 2", "count * 3"));
   assert.equal(patched.kind, "patch");
   assert.equal(events.length, 1);
 
-  // Edit structural (text static) -> remount + SSR reflecta noul output.
+  // Structural edit (static text) -> remount + SSR reflects the new output.
   const remount = server.applyChange("/App.raptor", SRC.replace("count:", "COUNT:"));
   assert.equal(remount.kind, "remount");
   assert.match(server.render("/")!, /COUNT:/);
@@ -56,7 +56,7 @@ test("dev: applyChange - noop / patch / remount + refresh SSR", async () => {
   await server.close();
 });
 
-test("dev: log-ul de update in stilul §12", async () => {
+test("dev: update log in the §12 style", async () => {
   const logs: string[] = [];
   const server = new RaptorDevServer({
     files: { "/App.raptor": SRC },
@@ -68,7 +68,7 @@ test("dev: log-ul de update in stilul §12", async () => {
   await server.close();
 });
 
-test("dev: HTTP serveste SSR cu scriptul client HMR injectat", async () => {
+test("dev: HTTP serves SSR with the injected HMR client script", async () => {
   const server = new RaptorDevServer({ files: { "/App.raptor": SRC }, entry: "/App.raptor" });
   const port = await server.listen(0);
   try {
@@ -84,15 +84,15 @@ test("dev: HTTP serveste SSR cu scriptul client HMR injectat", async () => {
   }
 });
 
-test("dev: SSE trimite update-ul HMR clientilor conectati", async () => {
+test("dev: SSE sends the HMR update to connected clients", async () => {
   const server = new RaptorDevServer({ files: { "/App.raptor": SRC }, entry: "/App.raptor" });
   const port = await server.listen(0);
   try {
     const event = readFirstSseEvent(`http://127.0.0.1:${port}/@raptor/hmr`);
-    // Asteptam CONDITIA, nu un cronometru: un `setTimeout(60)` trecea pe o
-    // masina libera si pica pe una incarcata, iar difuzarea catre zero clienti
-    // nu se mai putea recupera - testul astepta apoi 4 secunde degeaba.
-    await until(() => server.hmrClientCount > 0, "niciun client SSE inregistrat");
+    // We wait for the CONDITION, not a timer: a `setTimeout(60)` passed on an
+    // idle machine and failed on a loaded one, and a broadcast to zero clients
+    // could no longer be recovered - the test then waited 4 seconds in vain.
+    await until(() => server.hmrClientCount > 0, "no SSE client registered");
     server.applyChange("/App.raptor", SRC.replace("count * 2", "count * 3"));
     const u = (await event) as { kind: string };
     assert.equal(u.kind, "patch");
@@ -101,7 +101,7 @@ test("dev: SSE trimite update-ul HMR clientilor conectati", async () => {
   }
 });
 
-test("dev: fs.watch real declanseaza recompilarea la scrierea fisierului", async () => {
+test("dev: real fs.watch triggers recompilation when the file is written", async () => {
   const dir = mkdtempSync(join(tmpdir(), "raptor-dev-"));
   const file = join(dir, "App.raptor");
   writeFileSync(file, SRC);
@@ -112,9 +112,9 @@ test("dev: fs.watch real declanseaza recompilarea la scrierea fisierului", async
       setTimeout(() => rej(new Error("timeout fs.watch")), 4000);
     });
     server.watch(dir);
-    // `fs.watch` nu spune cand e gata de urmarit, deci rescriem pana cand
-    // evenimentul chiar ajunge. O singura scriere dupa un `setTimeout(60)` se
-    // pierde pe o masina incarcata, si atunci nu mai are cine sa o recupereze.
+    // `fs.watch` doesn't say when it's ready to watch, so we rewrite until the
+    // event actually arrives. A single write after a `setTimeout(60)` gets lost
+    // on a loaded machine, and then there's no one left to recover it.
     const rescrie = setInterval(() => writeFileSync(file, SRC.replace("count * 2", "count * 3")), 50);
     let u: DevUpdate;
     try {

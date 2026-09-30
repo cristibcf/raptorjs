@@ -1,11 +1,11 @@
 /**
- * Runtime DOM Raptor - creeaza noduri reale si le leaga fine-grained de
- * semnale. Acesta este "output-ul conceptual" al compilerului din whitepaper
- * sectiunea 6: fara Virtual DOM, fiecare expresie dinamica devine un effect
- * care atinge exact un text-node / atribut / regiune de lista.
+ * The Raptor DOM runtime - creates real nodes and binds them fine-grained to
+ * signals. This is the "conceptual output" of the compiler from whitepaper
+ * section 6: with no Virtual DOM, every dynamic expression becomes an effect
+ * that touches exactly one text-node / attribute / list region.
  *
- * Tipurile DOM sunt tratate structural (`any`) ca sa functioneze identic in
- * browser si pe mini-dom-ul headless.
+ * DOM types are treated structurally (`any`) so it works identically in the
+ * browser and on the headless mini-dom.
  */
 import { effect, onCleanup, createRoot } from "raptorjs";
 
@@ -13,7 +13,7 @@ import { effect, onCleanup, createRoot } from "raptorjs";
 type El = any;
 type Accessor<T> = () => T;
 
-/** O regiune de continut auto-gestionata (For, Show, Dynamic). */
+/** A self-managed content region (For, Show, Dynamic). */
 export interface Block {
   __raptorBlock: true;
   mount(parent: El, anchor: El | null): void;
@@ -30,7 +30,7 @@ export type Child =
   | ChildAccessor
   | ChildArray;
 
-// Interfetele rup auto-referinta aliasului (altfel TS2456).
+// The interfaces break the alias self-reference (otherwise TS2456).
 interface ChildAccessor {
   (): Child;
 }
@@ -40,7 +40,7 @@ function doc(): any {
   const d = (globalThis as any).document;
   if (!d) {
     throw new Error(
-      "[raptor] nu exista `document`. In Node importa @raptor/dom/testing si apeleaza installMiniDom().",
+      "[raptor] no `document` available. In Node, import @raptor/dom/testing and call installMiniDom().",
     );
   }
   return d;
@@ -58,16 +58,16 @@ export function block(mount: (parent: El, anchor: El | null) => void): Block {
   return { __raptorBlock: true, mount };
 }
 
-// --- Creare element + props ------------------------------------------------
+// --- Element creation + props ----------------------------------------------
 
 export const SVG_NS = "http://www.w3.org/2000/svg";
 
 /**
- * Tag-uri care exista DOAR in SVG. `document.createElement("svg")` produce in
- * browser un element HTML necunoscut, care nu randeaza nimic - trebuie
- * `createElementNS`. Tag-urile ambigue (`a`, `script`, `style`, `title`) NU sunt
- * aici: ele exista si in HTML, iar alegerea corecta ar cere contextul
- * parintelui. Pentru ele foloseste al doilea argument al lui `createElement`.
+ * Tags that exist ONLY in SVG. In the browser `document.createElement("svg")`
+ * produces an unknown HTML element that renders nothing - it needs
+ * `createElementNS`. The ambiguous tags (`a`, `script`, `style`, `title`) are
+ * NOT here: they also exist in HTML, and the correct choice would require the
+ * parent's context. For those, use the second argument of `createElement`.
  */
 const SVG_TAGS = new Set([
   "svg", "g", "path", "rect", "circle", "ellipse", "line", "polyline", "polygon",
@@ -89,12 +89,12 @@ export function createElement(tag: string, namespace?: string): El {
 }
 
 /**
- * Fabrica de instante dintr-un schelet STATIC, prin `cloneNode(true)`
- * (whitepaper sectiunea 6: output-ul compilatorului). `build` ruleaza o singura
- * data ca sa construiasca prototipul; fiecare apel intoarce o clona proaspata,
- * evitand `createElement` per nod la fiecare instanta. Bindarea continutului
- * dinamic se face pe clona (skeletul e static). Pentru randuri repetate (liste)
- * asta reduce semnificativ costul de create.
+ * A factory for instances from a STATIC skeleton, via `cloneNode(true)`
+ * (whitepaper section 6: the compiler's output). `build` runs only once to
+ * construct the prototype; each call returns a fresh clone, avoiding
+ * `createElement` per node on every instance. Binding of dynamic content
+ * happens on the clone (the skeleton is static). For repeated rows (lists) this
+ * significantly reduces the create cost.
  */
 export function template(build: () => El): () => El {
   let proto: El | null = null;
@@ -107,13 +107,13 @@ export function template(build: () => El): () => El {
 const BOOLEAN_ATTRS = new Set(["disabled", "checked", "readonly", "required", "selected", "hidden"]);
 
 /**
- * Controale de formular unde atributul singur nu ajunge. Odata ce utilizatorul a
- * tastat intr-un input (sau a bifat o caseta), elementul devine "dirty" si
- * atributul nu mai schimba ce se vede - un `value` legat reactiv ar inceta sa
- * aiba efect exact dupa prima interactiune.
+ * Form controls where the attribute alone is not enough. Once the user has
+ * typed into an input (or checked a box), the element becomes "dirty" and the
+ * attribute no longer changes what is shown - a reactively bound `value` would
+ * stop having any effect right after the first interaction.
  *
- * Scriem SI proprietatea (ce se vede acum), SI atributul (ce se serializeaza la
- * SSR si ce redevine valoarea implicita la form.reset()).
+ * We write BOTH the property (what is shown now) AND the attribute (what gets
+ * serialized on SSR and what becomes the default value again on form.reset()).
  */
 const FORM_PROPS: Record<string, Set<string>> = {
   value: new Set(["INPUT", "TEXTAREA", "SELECT", "OPTION"]),
@@ -125,7 +125,7 @@ function setFormProperty(el: El, name: string, value: unknown): void {
   const target = el as unknown as Record<string, unknown>;
   if (name === "value") {
     const next = value == null || value === false ? "" : String(value);
-    // Nu scriem daca e deja egal: altfel cursorul sare la capat in timpul tastarii.
+    // Don't write if already equal: otherwise the cursor jumps to the end while typing.
     if (target.value !== next) target.value = next;
     return;
   }
@@ -133,26 +133,27 @@ function setFormProperty(el: El, name: string, value: unknown): void {
 }
 
 /**
- * Atributele care incarca o adresa: acolo o schema `javascript:` executa cod.
+ * The attributes that load an address: there a `javascript:` scheme executes
+ * code.
  *
- * `formaction` si `action` conteaza la fel de mult ca `href`: un buton de
- * trimitere cu `formaction="javascript:..."` ruleaza la click.
+ * `formaction` and `action` matter just as much as `href`: a submit button with
+ * `formaction="javascript:..."` runs on click.
  */
 const URL_ATTRS = new Set(["href", "src", "action", "formaction", "xlink:href", "poster", "data", "srcdoc"]);
 
 /**
- * `true` daca valoarea e o adresa care executa cod in loc sa navigheze.
+ * `true` if the value is an address that executes code instead of navigating.
  *
- * Normalizarea conteaza mai mult decat lista: browserele ignora spatiile albe
- * si caracterele de control dinaintea schemei, deci `"java\\nscript:alert(1)"`
- * si `" javascript:alert(1)"` sunt tot atat de executabile ca forma curata.
- * Verificam dupa ce le scoatem, nu inainte.
+ * Normalization matters more than the list: browsers ignore whitespace and
+ * control characters before the scheme, so `"java\\nscript:alert(1)"` and
+ * `" javascript:alert(1)"` are just as executable as the clean form. We check
+ * after stripping them, not before.
  */
 const EXECUTABLE_SCHEMES = ["javascript:", "vbscript:", "data:text/html"];
 
-/** Spatii si caractere de control pe care parserul de URL-uri le ignora. */
+/** Whitespace and control characters that the URL parser ignores. */
 function isIgnorable(code: number): boolean {
-  if (code <= 0x20) return true; // control + spatiu
+  if (code <= 0x20) return true; // control + space
   return code === 0xa0 || code === 0x180e || code === 0xfeff || (code >= 0x2000 && code <= 0x200d) || code === 0x2028 || code === 0x2029 || code === 0x202f || code === 0x205f || code === 0x3000;
 }
 
@@ -160,7 +161,7 @@ function isExecutableUrl(value: string): boolean {
   let normalized = "";
   for (const ch of value) {
     if (!isIgnorable(ch.codePointAt(0)!)) normalized += ch;
-    // Ne oprim cand am depasit cel mai lung prefix care ne intereseaza.
+    // Stop once we've passed the longest prefix we care about.
     if (normalized.length > 16) break;
   }
   const head = normalized.toLowerCase();
@@ -168,7 +169,7 @@ function isExecutableUrl(value: string): boolean {
 }
 
 function setAttribute(el: El, name: string, value: unknown): void {
-  // tagName e majuscule in DOM-ul real si minuscule in mini-dom-ul de test.
+  // tagName is uppercase in the real DOM and lowercase in the test mini-dom.
   const tag = ((el as unknown as { tagName?: string }).tagName ?? "").toUpperCase();
   if (FORM_PROPS[name]?.has(tag)) setFormProperty(el, name, value);
 
@@ -183,12 +184,13 @@ function setAttribute(el: El, name: string, value: unknown): void {
   }
 
   const text = String(value);
-  // O adresa vine aproape intotdeauna din date, iar datele vin de pe fir: asta
-  // e toata teza RaptorWire. Un `href` luat dintr-un element de navigatie
-  // trimis de server nu are voie sa execute cod. Refuzam, si spunem de ce -
-  // un atribut disparut fara explicatie e mai greu de depanat decat o gaura.
+  // An address almost always comes from data, and data comes off the wire: that
+  // is the whole RaptorWire thesis. An `href` taken from a navigation element
+  // sent by the server must not be allowed to execute code. We reject it, and
+  // say why - an attribute that vanishes without explanation is harder to debug
+  // than a hole.
   if (URL_ATTRS.has(name) && isExecutableUrl(text)) {
-    console.warn(`[raptor] '${name}' cu schema executabila, refuzat: ${text.slice(0, 60)}`);
+    console.warn(`[raptor] '${name}' with executable scheme, rejected: ${text.slice(0, 60)}`);
     el.removeAttribute(name);
     return;
   }
@@ -201,7 +203,7 @@ export function applyProps(el: El, props: Record<string, unknown> | null): void 
     if (key === "children" || key === "key" || key === "ref") continue;
     const value = props[key];
 
-    // Evenimente: `on:click` sau `onClick`.
+    // Events: `on:click` or `onClick`.
     if (key.startsWith("on:") || (key.startsWith("on") && key.length > 2 && key[2] === key[2]?.toUpperCase())) {
       const type = key.startsWith("on:") ? key.slice(3) : key.slice(2).toLowerCase();
       el.addEventListener(type, value as (e: unknown) => void);
@@ -209,7 +211,7 @@ export function applyProps(el: El, props: Record<string, unknown> | null): void 
     }
 
     if (typeof value === "function") {
-      // Binding reactiv fine-grained: doar acest atribut se actualizeaza.
+      // Fine-grained reactive binding: only this attribute updates.
       effect(() => setAttribute(el, key, (value as Accessor<unknown>)()));
     } else {
       setAttribute(el, key, value);
@@ -218,7 +220,7 @@ export function applyProps(el: El, props: Record<string, unknown> | null): void 
   if (typeof props.ref === "function") (props.ref as (el: El) => void)(el);
 }
 
-// --- Montare copii ---------------------------------------------------------
+// --- Mounting children ------------------------------------------------------
 export function mountChild(parent: El, child: Child, anchor: El | null): void {
   if (child == null || child === true || child === false) return;
 
@@ -254,18 +256,18 @@ function insertNode(parent: El, node: El, anchor: El | null): void {
 }
 
 /**
- * Contor de suprimare a stergerilor DOM. Cand un stramos e detasat intr-o
- * singura operatie (ex. `For` scoate un `<tr>` intreg), cleanup-urile de
- * regiune nu mai trebuie sa scoata individual fiecare text-node/anchor de
- * dedesubt — ar fi munca dublata pe noduri deja detasate. `disposeDetached`
- * ridica flag-ul in timp ce ruleaza dispose-ul reactiv.
+ * A counter that suppresses DOM removals. When an ancestor is detached in a
+ * single operation (e.g. `For` removes a whole `<tr>`), the region cleanups no
+ * longer need to individually remove each text-node/anchor beneath it — that
+ * would be duplicated work on already-detached nodes. `disposeDetached` raises
+ * the flag while it runs the reactive dispose.
  */
 let removalSuppressed = 0;
 
 /**
- * Scoate `node` din parinte intr-un singur `removeChild` (detasand tot
- * subarborele), apoi ruleaza `dispose` cu stergerile DOM suprimate. Reduce
- * `clear`/remove de la O(noduri) la O(randuri) operatii DOM. Vezi [[For]].
+ * Removes `node` from its parent in a single `removeChild` (detaching the whole
+ * subtree), then runs `dispose` with DOM removals suppressed. Reduces
+ * `clear`/remove from O(nodes) to O(rows) DOM operations. See [[For]].
  */
 export function disposeDetached(node: El, dispose: () => void): void {
   const parent = node.parentNode;
@@ -279,21 +281,21 @@ export function disposeDetached(node: El, dispose: () => void): void {
 }
 
 /**
- * O regiune dinamica: `() => valoare`. Fast-path pentru text: creeaza DOAR un
- * text-node (fara comment-anchor) si actualizeaza `.data` la schimbare —
- * anchor-ul de comentariu se materializeaza lazy doar daca regiunea devine
- * structurala (array/nod). Asta economiseste un nod + un insert per legatura
- * de text (castig la create in masa).
+ * A dynamic region: `() => value`. Fast-path for text: it creates ONLY a
+ * text-node (no comment-anchor) and updates `.data` on change — the comment
+ * anchor is materialized lazily only if the region becomes structural
+ * (array/node). This saves a node + an insert per text binding (a win on bulk
+ * create).
  */
 function mountDynamic(parent: El, accessor: Accessor<Child>, anchor: El | null): void {
-  let end: El | null = null; // comment-anchor, creat lazy
+  let end: El | null = null; // comment-anchor, created lazily
   let current: El[] = [];
   let textNode: El | null = null;
 
   function ensureEnd(): El {
     if (end === null) {
       end = doc().createComment("");
-      // Il asezam imediat dupa continutul curent (sau la anchor).
+      // Place it right after the current content (or at the anchor).
       const ref = current.length > 0 ? current[current.length - 1]!.nextSibling : anchor;
       insertNode(parent, end, ref);
     }
@@ -302,7 +304,7 @@ function mountDynamic(parent: El, accessor: Accessor<Child>, anchor: El | null):
 
   effect(() => {
     const value = accessor();
-    // Fast-path text: reuseste text-node-ul, muta doar `.data`.
+    // Fast-path text: reuse the text-node, just move `.data`.
     if (typeof value === "string" || typeof value === "number") {
       const str = String(value);
       if (textNode !== null) {
@@ -310,7 +312,7 @@ function mountDynamic(parent: El, accessor: Accessor<Child>, anchor: El | null):
         return;
       }
       if (current.length === 0 && end === null) {
-        // Regiune pur-text: niciun anchor de comentariu.
+        // Pure-text region: no comment anchor.
         textNode = doc().createTextNode(str);
         insertNode(parent, textNode, anchor);
         current = [textNode];
@@ -321,7 +323,7 @@ function mountDynamic(parent: El, accessor: Accessor<Child>, anchor: El | null):
       textNode = text;
       return;
     }
-    // Structural: avem nevoie de anchor de sfarsit.
+    // Structural: we need the end anchor.
     textNode = null;
     const nodes = resolveNodes(value);
     current = replaceRegion(parent, current, nodes, ensureEnd());
@@ -348,13 +350,13 @@ function resolveNodes(value: Child): El[] {
   if (isNode(value)) return [value];
   if (typeof value === "function") return resolveNodes((value as Accessor<Child>)());
   if (isBlock(value)) {
-    // Un `Block` se monteaza singur intr-un parinte; nu poate fi redus la o
-    // lista de noduri. Inainte cadea pe `return []` si disparea TACUT, ceea ce
-    // e cel mai prost mod de a esua. Blocurile se pun direct ca si copii
-    // (`R.div(For({...}))`), nu prin `() => For({...})`.
+    // A `Block` mounts itself into a parent; it cannot be reduced to a list of
+    // nodes. Previously it fell through to `return []` and vanished SILENTLY,
+    // which is the worst way to fail. Blocks go directly as children
+    // (`R.div(For({...}))`), not through `() => For({...})`.
     throw new Error(
-      "[raptor] un Block (For/Show/Portal) nu poate fi intors dintr-o regiune " +
-        "dinamica. Pune-l direct ca si copil in loc de `() => For({...})`.",
+      "[raptor] a Block (For/Show/Portal) cannot be returned from a dynamic " +
+        "region. Put it directly as a child instead of `() => For({...})`.",
     );
   }
   return [];
@@ -371,12 +373,12 @@ export type Component = () => Child;
 
 const mountCallbacks: Array<() => void> = [];
 
-/** Programeaza un callback dupa ce arborele curent a fost montat (sectiunea 10). */
+/** Schedules a callback after the current tree has been mounted (section 10). */
 export function onMount(fn: () => void): void {
   mountCallbacks.push(fn);
 }
 
-/** Monteaza un component intr-un container. Intoarce un dispose determinist. */
+/** Mounts a component into a container. Returns a deterministic dispose. */
 export function render(component: Component, container: El): () => void {
   return createRoot((dispose) => {
     const child = component();

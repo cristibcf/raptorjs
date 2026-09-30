@@ -1,8 +1,8 @@
 /**
- * @raptor/core - API public de reactivitate (whitepaper sectiunea 32.1).
+ * @raptor/core - public reactivity API (whitepaper section 32.1).
  *
- * Primitive: state, derived, effect, batch, untracked + ownership.
- * Semnalele sunt accesori apelabili: `count()` citeste, `count.set(v)` scrie.
+ * Primitives: state, derived, effect, batch, untracked + ownership.
+ * Signals are callable accessors: `count()` reads, `count.set(v)` writes.
  */
 import {
   type Cleanup,
@@ -26,20 +26,20 @@ import {
 export type { Cleanup, Owner };
 
 export interface StateOptions<T> {
-  /** Comparator de egalitate; `false` forteaza notificare mereu. */
+  /** Equality comparator; `false` always forces a notification. */
   equal?: ((a: T, b: T) => boolean) | false;
 }
 
-/** Un semnal mutabil (whitepaper: state<T>). */
+/** A mutable signal (whitepaper: state<T>). */
 export interface State<T> {
   (): T;
   set(value: T): void;
   update(fn: (prev: T) => T): void;
-  /** Citeste fara a inregistra dependenta. */
+  /** Read without registering a dependency. */
   peek(): T;
 }
 
-/** O valoare derivata read-only (whitepaper: derived<T>). */
+/** A read-only derived value (whitepaper: derived<T>). */
 export interface Derived<T> {
   (): T;
   peek(): T;
@@ -53,7 +53,7 @@ function resolveEquals<T>(equal: StateOptions<T>["equal"]): (a: T, b: T) => bool
   return equal ?? (defaultEquals as (a: T, b: T) => boolean);
 }
 
-/** Creeaza un semnal de stare locala mutabila. */
+/** Create a mutable local-state signal. */
 export function state<T>(initial: T, options?: StateOptions<T>): State<T> {
   const node = createSignalNode(initial, resolveEquals(options?.equal));
   const accessor = (() => readNode(node)) as State<T>;
@@ -63,7 +63,7 @@ export function state<T>(initial: T, options?: StateOptions<T>): State<T> {
   return accessor;
 }
 
-/** Creeaza o valoare derivata lazy si memoizata. */
+/** Create a lazy, memoized derived value. */
 export function derived<T>(compute: () => T, options?: StateOptions<T>): Derived<T> {
   const node = createMemoNode(compute, resolveEquals(options?.equal));
   const accessor = (() => readNode(node)) as Derived<T>;
@@ -71,31 +71,31 @@ export function derived<T>(compute: () => T, options?: StateOptions<T>): Derived
   return accessor;
 }
 
-/** Alias idiomatic pentru derived (memo). */
+/** Idiomatic alias for derived (memo). */
 export const memo = derived;
 
-/** Ruleaza un side-effect care se re-executa cand dependentele se schimba. */
+/** Run a side-effect that re-executes when its dependencies change. */
 export function effect(fn: () => void): Dispose {
   const node = createEffectNode(fn);
   return () => disposeNode(node);
 }
 
-/** Grupeaza scrieri: effects ruleaza o singura data la final. */
+/** Group writes: effects run only once at the end. */
 export function batch<T>(fn: () => T): T {
   return batchImpl(fn);
 }
 
-/** Citeste semnale fara a inregistra dependente. */
+/** Read signals without registering dependencies. */
 export function untracked<T>(fn: () => T): T {
   return untrackedImpl(fn);
 }
 
-/** Creeaza un scope-radacina cu dispose manual (util pentru mount). */
+/** Create a root scope with manual dispose (useful for mount). */
 export function createRoot<T>(fn: (dispose: Dispose) => T): T {
   return createRootImpl(fn);
 }
 
-/** Inregistreaza un cleanup pe owner-ul curent. */
+/** Register a cleanup on the current owner. */
 export function onCleanup(fn: Cleanup): void {
   onCleanupImpl(fn);
 }

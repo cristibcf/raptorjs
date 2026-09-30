@@ -40,13 +40,13 @@ function setup(): { result: ReturnType<typeof buildModule>; runtime: RaptorRunti
   return { result, runtime };
 }
 
-test("wireByteSize: payload real dupa schema (money/uint mici)", () => {
+test("wireByteSize: real payload per schema (small money/uint)", () => {
   assert.ok(wireByteSize(60000, "money") > 0);
   assert.ok(wireByteSize(60000, "money") <= 5);
   assert.equal(wireByteSize(5, "uint"), 1);
 });
 
-test("profiler: colecteaza frecvente, payload, bursts si fan-out static", () => {
+test("profiler: collects frequencies, payload, bursts and static fan-out", () => {
   const { result, runtime } = setup();
   const profiler = new Profiler(result.graph);
   const scenario: Scenario = {
@@ -68,14 +68,14 @@ test("profiler: colecteaza frecvente, payload, bursts si fan-out static", () => 
   assert.equal(profile.signalUpdateFrequency["admin.users"], 2);
   assert.equal(profile.routeFrequency["/"], 2);
   assert.equal(profile.routeFrequency["/admin"], 2);
-  // Derived fan-out static: doubled are 2 consumatori (atribut + text).
+  // Static derived fan-out: doubled has 2 consumers (attribute + text).
   assert.equal(profile.derivedFanOut["App.doubled"], 2);
-  // Payload wire real masurat.
+  // Real measured wire payload.
   const btc = profile.wirePayload.find((w) => w.address === "BTC.price");
   assert.ok(btc && btc.samples === 3 && btc.totalBytes > 0);
-  // Bursts DOM: produceMany a dat un batch de 2.
+  // DOM bursts: produceMany produced a batch of 2.
   assert.equal(profile.domBursts.maxBatch, 2);
-  // Hot paths peste prag.
+  // Hot paths above threshold.
   assert.deepEqual(profile.hotSignals, ["BTC.price", "admin.users"]);
   assert.deepEqual(profile.hotRoutes, ["/", "/admin"]);
 });
@@ -95,15 +95,15 @@ test("planner: co-usage -> chunk folding (behavior-guided, 23)", () => {
     components: ["App", "Admin"],
     serverSignals: ["BTC.price", "admin.users"],
   });
-  // "/" si "/admin" co-vizitate de 2 ori -> App+Admin fuzionate intr-un chunk.
+  // "/" and "/admin" co-visited twice -> App+Admin merged into one chunk.
   assert.deepEqual(plan.hints.foldChunks, [["Admin", "App"]]);
   assert.deepEqual(plan.hints.preloadRoutes, ["/", "/admin"]);
 });
 
-test("planner (24): ce nu e in profil e PASTRAT, nu eliminat", () => {
+test("planner (24): whatever is not in the profile is KEPT, not eliminated", () => {
   const { result, runtime } = setup();
   const profiler = new Profiler(result.graph);
-  // Scenariu care viziteaza doar "/" si produce doar BTC.price.
+  // Scenario that visits only "/" and produces only BTC.price.
   runScenario(runtime, profiler, {
     sessions: [[{ visit: "/" }, { produce: { address: "BTC.price", value: 1 } }]],
   });
@@ -113,12 +113,12 @@ test("planner (24): ce nu e in profil e PASTRAT, nu eliminat", () => {
     components: ["App", "Admin"],
     serverSignals: ["BTC.price", "admin.users"],
   });
-  // admin.users si /admin nu au fost vazute -> raman explicit in output.
+  // admin.users and /admin were not seen -> they stay explicitly in output.
   assert.deepEqual(plan.keptDespiteUnseen, ["route:/admin", "signal:admin.users"]);
-  assert.ok(plan.notes.some((n) => n.includes("nu elimin cod nevazut")));
+  assert.ok(plan.notes.some((n) => n.includes("do not eliminate unseen code")));
 });
 
-test("build: aplica planHints (chunk folding + preload) fara a elimina componente", () => {
+test("build: applies planHints (chunk folding + preload) without eliminating components", () => {
   const withHints = buildModule(APP, "app.raptor", {
     planHints: {
       foldChunks: [["App", "Admin"]],
@@ -127,24 +127,24 @@ test("build: aplica planHints (chunk folding + preload) fara a elimina component
       encodingSpecialization: ["BTC.price"],
     },
   });
-  // Un singur chunk foldat cu ambele componente; nimic eliminat (24).
+  // A single folded chunk with both components; nothing eliminated (24).
   assert.equal(withHints.chunks.length, 1);
   assert.deepEqual(withHints.chunks[0]!.components, ["App", "Admin"]);
   assert.equal(withHints.manifest.hintsApplied, true);
   assert.deepEqual(withHints.manifest.preload, ["/"]);
-  // Corectitudine independenta de profil: ambele server signals raman.
+  // Correctness independent of profile: both server signals remain.
   const addresses = withHints.wire.addresses.map((a) => a.logical);
   assert.ok(addresses.includes("BTC.price"));
   assert.ok(addresses.includes("admin.users"));
 });
 
-test("build: fara hints -> comportament default (niciun hint aplicat)", () => {
+test("build: without hints -> default behavior (no hints applied)", () => {
   const plain = buildModule(APP, "app.raptor");
   assert.equal(plain.manifest.hintsApplied, false);
   assert.deepEqual(plain.manifest.preload, []);
 });
 
-test("profile: serializare canonica reproductibila", () => {
+test("profile: reproducible canonical serialization", () => {
   const { result, runtime } = setup();
   const p = new Profiler(result.graph);
   runScenario(runtime, p, { sessions: [[{ produce: { address: "BTC.price", value: 1 } }]] });
@@ -155,7 +155,7 @@ test("profile: serializare canonica reproductibila", () => {
   assert.equal(a, b);
 });
 
-test("cli: collect emite profil, plan aplica hints (in-memory fs)", () => {
+test("cli: collect emits profile, plan applies hints (in-memory fs)", () => {
   const files = new Map<string, string>([["app.raptor", APP]]);
   const io = {
     readFile: (p: string) => {
@@ -168,7 +168,7 @@ test("cli: collect emite profil, plan aplica hints (in-memory fs)", () => {
 
   const collect = runProfileCli(["collect", "app.raptor", "--out", "app.profile"], io);
   assert.equal(collect.code, 0);
-  assert.match(collect.out, /profil scris in app\.profile/);
+  assert.match(collect.out, /profile written to app\.profile/);
   assert.ok(files.has("app.profile"));
 
   const plan = runProfileCli(["plan", "app.raptor", "--profile", "app.profile"], io);

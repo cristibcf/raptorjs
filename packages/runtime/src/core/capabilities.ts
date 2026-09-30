@@ -1,15 +1,15 @@
 /**
- * Capability broker (spec sectiunile 5 si 7): securitatea este o functie de
- * produs, nu un wrapper optional.
+ * Capability broker (spec sections 5 and 7): security is a product feature,
+ * not an optional wrapper.
  *
- * Reguli implementate aici:
- *  - implicit totul este refuzat, cu exceptia `clock.real` / `crypto.random`,
- *    care sunt permise dar adnotate in trace;
- *  - granularitatea este per tinta (cale, gazda:port, variabila, comanda);
- *  - grant-urile sunt revocabile in timpul rularii;
- *  - delegarea catre un worker/izolat copil se face doar explicit, printr-un
- *    subset declarat - nu prin mostenire ambientala;
- *  - fiecare verificare (permisa sau refuzata) intra in diagnostic.
+ * Rules implemented here:
+ *  - everything is denied by default, except `clock.real` / `crypto.random`,
+ *    which are allowed but annotated in the trace;
+ *  - granularity is per target (path, host:port, variable, command);
+ *  - grants are revocable at runtime;
+ *  - delegation to a child worker/isolate happens only explicitly, through a
+ *    declared subset - not through ambient inheritance;
+ *  - every check (allowed or denied) enters the diagnostics.
  */
 import { CapabilityError } from "./errors.ts";
 import type { CapabilityDeclarations, CapabilityKind, PolicyMode } from "./manifest.ts";
@@ -18,7 +18,7 @@ import type { Observer } from "./observe.ts";
 import { silentObserver } from "./observe.ts";
 import { containsPath, normalizePath, realPath, resolvePath } from "./paths.ts";
 
-/** Capabilitati ambientale: boolean, fara tinta. */
+/** Ambient capabilities: boolean, no target. */
 export const AMBIENT_KINDS: readonly CapabilityKind[] = ["clock.real", "crypto.random"];
 
 export interface CapabilityDecision {
@@ -26,16 +26,16 @@ export interface CapabilityDecision {
   readonly capability: CapabilityKind;
   readonly target: string;
   readonly reason: string;
-  /** Regula din manifest care a decis; util in `doctor` si in erori. */
+  /** The manifest rule that decided; useful in `doctor` and in errors. */
   readonly rule: string | null;
-  /** Accesul e permis, dar trebuie marcat in trace (clock/crypto implicite). */
+  /** Access is allowed, but must be marked in the trace (implicit clock/crypto). */
   readonly annotated: boolean;
   /**
-   * Unde ajunge de fapt calea, cand difera de cea ceruta - adica atunci cand
-   * pe drum exista o legatura simbolica. `null` in rest.
+   * Where the path actually lands, when it differs from the one requested - that
+   * is, when there is a symlink along the way. `null` otherwise.
    *
-   * Un jurnal care arata doar `./date/link` si nu si `/etc/shadow` spune
-   * adevarul si totusi induce in eroare pe cine il citeste.
+   * A log that shows only `./data/link` and not `/etc/shadow` tells the truth
+   * and yet misleads whoever reads it.
    */
   readonly resolved: string | null;
 }
@@ -59,13 +59,13 @@ export interface CapabilityDiagnostics {
 export interface CapabilityBroker {
   readonly policy: PolicyMode;
   readonly projectRoot: string;
-  /** `true` daca nu se aplica niciun domeniu implicit. */
+  /** `true` if no implicit scope applies. */
   readonly strict: boolean;
   check(capability: CapabilityKind, target?: string): CapabilityDecision;
-  /** Ca `check`, dar arunca `CapabilityError` daca accesul este refuzat. */
+  /** Like `check`, but throws `CapabilityError` if access is denied. */
   require(capability: CapabilityKind, target?: string): CapabilityDecision;
   revoke(capability: CapabilityKind): void;
-  /** Sub-broker cu un subset explicit; nimic nu se mosteneste implicit. */
+  /** Sub-broker with an explicit subset; nothing is inherited implicitly. */
   delegate(capabilities: readonly CapabilityKind[], label?: string): CapabilityBroker;
   declarations(): CapabilityDeclarations;
   diagnostics(): CapabilityDiagnostics;
@@ -77,13 +77,13 @@ export interface BrokerOptions {
   readonly policy?: PolicyMode;
   readonly observer?: Observer;
   /**
-   * In regim strict nu exista domenii implicite: absolut tot accesul trebuie
-   * declarat in manifest. Politica de productie il activeaza (spec sectiunea 7).
+   * In strict mode there are no implicit scopes: absolutely all access must be
+   * declared in the manifest. The production policy enables it (spec section 7).
    */
   readonly strict?: boolean;
 }
 
-/** Separator care nu poate aparea intr-un nume de capability sau intr-o tinta. */
+/** A separator that cannot appear in a capability name or in a target. */
 const SEPARATOR = String.fromCharCode(0);
 
 function ruleTargets(declarations: CapabilityDeclarations, capability: CapabilityKind): string[] {
@@ -92,12 +92,11 @@ function ruleTargets(declarations: CapabilityDeclarations, capability: Capabilit
 }
 
 /**
- * `./src` se rezolva fata de radacina proiectului; caile absolute raman.
+ * `./src` is resolved relative to the project root; absolute paths stay as is.
  *
- * `target` vine **deja cu legaturile rezolvate** (vezi `check`): altfel l-am
- * rezolva o data pentru fiecare regula din manifest, cu aceleasi apeluri de
- * sistem de fiecare data. Domeniul se rezolva aici, fiindca difera de la o
- * regula la alta.
+ * `target` arrives **already with links resolved** (see `check`): otherwise we
+ * would resolve it once per manifest rule, with the same system calls every
+ * time. The scope is resolved here, because it differs from one rule to another.
  */
 function matchRealPath(rule: string, projectRoot: string, realTarget: string): boolean {
   return containsPath(realPath(resolvePath(projectRoot, rule)), realTarget);
@@ -153,26 +152,26 @@ class Broker implements CapabilityBroker {
   }
 
   /**
-   * `target` este ce a cerut aplicatia (dupa normalizare), `realTarget` este
-   * unde ajunge cu legaturile rezolvate. Deciziile poarta primul - el e ce
-   * recunoaste cine citeste jurnalul - dar se iau pe al doilea.
+   * `target` is what the application requested (after normalization), `realTarget`
+   * is where it lands with links resolved. Decisions carry the former - it is what
+   * whoever reads the log recognizes - but are made on the latter.
    */
   #decide(capability: CapabilityKind, target: string, realTarget: string): CapabilityDecision {
     if (this.#revoked.has(capability)) {
-      return { granted: false, capability, target, reason: "capability revocata in timpul rularii", rule: null, annotated: false, resolved: null };
+      return { granted: false, capability, target, reason: "capability revoked at runtime", rule: null, annotated: false, resolved: null };
     }
 
     if (AMBIENT_KINDS.includes(capability)) {
       const declared = (this.#declarations as Record<string, unknown>)[capability];
       if (declared === false) {
-        return { granted: false, capability, target, reason: "dezactivata explicit in manifest", rule: `${capability}: false`, annotated: false, resolved: null };
+        return { granted: false, capability, target, reason: "explicitly disabled in the manifest", rule: `${capability}: false`, annotated: false, resolved: null };
       }
-      // Implicit permisa, dar marcata in trace (spec sectiunea 7).
+      // Implicitly allowed, but marked in the trace (spec section 7).
       return {
         granted: true,
         capability,
         target,
-        reason: declared === true ? "declarata in manifest" : "implicit permisa, adnotata in trace",
+        reason: declared === true ? "declared in the manifest" : "implicitly allowed, annotated in the trace",
         rule: declared === true ? `${capability}: true` : null,
         annotated: declared !== true,
         resolved: null,
@@ -181,21 +180,21 @@ class Broker implements CapabilityBroker {
 
     const rules = ruleTargets(this.#declarations, capability);
     if (rules.length === 0) {
-      // Spec sectiunea 7: citirea de fisiere este "refuzata in afara proiectului".
-      // Fara declaratie, domeniul implicit este exact radacina proiectului; orice
-      // manifest care declara `files.read` inlocuieste complet acest implicit.
+      // Spec section 7: file reads are "denied outside the project".
+      // Without a declaration, the implicit scope is exactly the project root; any
+      // manifest that declares `files.read` fully replaces this default.
       if (!this.#strict && capability === "files.read" && containsPath(realPath(this.projectRoot), realTarget)) {
         return {
           granted: true,
           capability,
           target,
-          reason: "in radacina proiectului (domeniu implicit)",
-          rule: "(implicit: radacina proiectului)",
+          reason: "inside the project root (implicit scope)",
+          rule: "(implicit: project root)",
           annotated: true,
           resolved: null,
         };
       }
-      return { granted: false, capability, target, reason: "nedeclarata in manifest", rule: null, annotated: false, resolved: null };
+      return { granted: false, capability, target, reason: "not declared in the manifest", rule: null, annotated: false, resolved: null };
     }
 
     for (const rule of rules) {
@@ -206,7 +205,7 @@ class Broker implements CapabilityBroker {
             ? matchHost(rule, target)
             : matchName(rule, target);
       if (hit) {
-        return { granted: true, capability, target, reason: "acoperita de o regula declarata", rule, annotated: false, resolved: null };
+        return { granted: true, capability, target, reason: "covered by a declared rule", rule, annotated: false, resolved: null };
       }
     }
 
@@ -214,7 +213,7 @@ class Broker implements CapabilityBroker {
       granted: false,
       capability,
       target,
-      reason: `in afara domeniului declarat (${rules.join(", ")})`,
+      reason: `outside the declared scope (${rules.join(", ")})`,
       rule: null,
       annotated: false,
       resolved: null,
@@ -224,12 +223,12 @@ class Broker implements CapabilityBroker {
   check(capability: CapabilityKind, target = ""): CapabilityDecision {
     const isPath = capability === "files.read" || capability === "files.write";
     const normalized = isPath ? resolvePath(this.projectRoot, target) : target;
-    // O singura rezolvare pe verificare, oricate reguli ar avea manifestul.
+    // A single resolution per check, however many rules the manifest has.
     const real = isPath ? realPath(normalized) : normalized;
     const decided = this.#decide(capability, normalized, real);
 
-    // Calea reala intra in decizie doar cand difera - altfel am umple
-    // diagnosticul cu repetari ale aceluiasi sir.
+    // The real path enters the decision only when it differs - otherwise we would
+    // fill the diagnostics with repetitions of the same string.
     const decision: CapabilityDecision = real === normalized ? decided : { ...decided, resolved: real };
 
     const key = `${capability}${SEPARATOR}${normalized}`;
@@ -282,15 +281,15 @@ class Broker implements CapabilityBroker {
       if (declared === undefined) continue;
       subset[capability] = Array.isArray(declared) ? [...declared] : declared;
     }
-    // Ambientalele nu se propaga implicit: daca nu sunt cerute, copilul le pierde.
+    // Ambient capabilities do not propagate implicitly: if not requested, the child loses them.
     for (const ambient of AMBIENT_KINDS) {
       if (!capabilities.includes(ambient)) subset[ambient] = false;
     }
     this.#observer.log("info", "capability.delegated", { label, capabilities: [...capabilities] });
-    // Un broker delegat este strict prin constructie, chiar daca parintele nu
-    // este: subsetul cerut ramane singura sursa de acces. Altfel domeniul
-    // implicit (radacina proiectului la citire) ar reaparea in copil si ar
-    // ocoli si lista delegata, si o capability revocata inainte de delegare.
+    // A delegated broker is strict by construction, even if the parent is not:
+    // the requested subset stays the only source of access. Otherwise the implicit
+    // scope (project root on read) would reappear in the child and would bypass
+    // both the delegated list and a capability revoked before delegation.
     return new Broker({
       declarations: subset as CapabilityDeclarations,
       projectRoot: this.projectRoot,

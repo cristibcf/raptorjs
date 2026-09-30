@@ -1,10 +1,10 @@
 /**
- * JSX runtime fine-grained (automatic runtime). Configureaza tsconfig cu:
+ * Fine-grained JSX runtime (automatic runtime). Configure tsconfig with:
  *   "jsx": "react-jsx", "jsxImportSource": "raptorjs/dom"
  *
- * Nu exista Virtual DOM: `jsx` creeaza noduri DOM reale imediat si leaga
- * expresiile reactive prin effects. Componentele sunt simple functii care
- * intorc noduri (whitepaper sectiunea 6.1).
+ * There is no Virtual DOM: `jsx` creates real DOM nodes immediately and binds
+ * reactive expressions through effects. Components are just functions that
+ * return nodes (whitepaper section 6.1).
  */
 import { createElement, applyProps, mountChild, type Child } from "./runtime.ts";
 
@@ -20,10 +20,10 @@ export function jsx(type: any, props: Props): El | Child {
     return (props.children ?? null) as Child;
   }
   if (typeof type === "function") {
-    // Component: functie care intoarce continut.
+    // Component: a function that returns content.
     return type(props);
   }
-  // Element intrinsec.
+  // Intrinsic element.
   const el = createElement(String(type));
   applyProps(el, props);
   if (props.children != null) {
@@ -32,11 +32,11 @@ export function jsx(type: any, props: Props): El | Child {
   return el;
 }
 
-// In runtime fine-grained jsxs === jsx (copiii vin ca array in props.children).
+// In a fine-grained runtime jsxs === jsx (children arrive as an array in props.children).
 export const jsxs = jsx;
 export const jsxDEV = jsx;
 
-// Namespace JSX (doar tipuri => erasabil). Permisiv pentru MVP.
+// JSX namespace (types only => erasable). Permissive for the MVP.
 export namespace JSX {
   export type Element = any;
   export interface IntrinsicElements {

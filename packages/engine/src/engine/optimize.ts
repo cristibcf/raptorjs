@@ -1,16 +1,16 @@
 /**
- * Optimizer semantic RaptorBuild (whitepaper RaptorEngine 13, 14).
+ * RaptorBuild semantic optimizer (RaptorEngine whitepaper 13, 14).
  *
- * Doua pass-uri semantic-aware care un bundler generic nu le poate face fara
- * graful reactiv:
- *   - Dead Signal Elimination (14.1): elimina signals/deriveds fara drum spre
- *     un output observabil (nu doar variabile nefolosite textual).
- *   - Dependency Fusion (14.2): colapseaza un derived cu un singur consumator
- *     in consumatorul lui, reducand closures/subscriptions. Blocata la debug
- *     boundaries (14.2, 24: adaptive strategies, nu adaptive correctness).
+ * Two semantic-aware passes that a generic bundler cannot do without the
+ * reactive graph:
+ *   - Dead Signal Elimination (14.1): eliminates signals/deriveds with no path
+ *     to an observable output (not just textually unused variables).
+ *   - Dependency Fusion (14.2): collapses a derived that has a single consumer
+ *     into that consumer, reducing closures/subscriptions. Blocked at debug
+ *     boundaries (14.2, 24: adaptive strategies, not adaptive correctness).
  *
- * Fiecare decizie produce o intrare de trace (inspect: "ce a fost eliminat/
- * fuzionat si de ce", 27).
+ * Every decision produces a trace entry (inspect: "what was eliminated/fused
+ * and why", 27).
  */
 import {
   buildGraph,
@@ -64,7 +64,7 @@ function runDSE(module: IRModule, trace: OptEntry[]): number {
         pass: "DSE",
         action: "eliminate",
         target: id,
-        detail: "niciun consumator observabil (fara drum spre DOM/effect)",
+        detail: "no observable consumer (no path to DOM/effect)",
       });
       eliminated++;
     }
@@ -154,7 +154,7 @@ function fuseComponent(comp: IRComponent, trace: OptEntry[]): number {
             pass: "Fusion",
             action: "blocked",
             target: d.id,
-            detail: "debug boundary (@debug) - fuziunea ar altera observabilitatea",
+            detail: "debug boundary (@debug) - fusion would alter observability",
           });
           blocked.add(d.id);
         }
@@ -164,17 +164,17 @@ function fuseComponent(comp: IRComponent, trace: OptEntry[]): number {
       if (readers.length !== 1) continue;
       const r = readers[0]!;
 
-      // Un consumator unic nu inseamna o singura FOLOSIRE. `scump + scump` are
-      // un singur consumator, dar inlocuirea ar calcula expresia de doua ori si
-      // ar sterge tocmai memo-ul care o calcula o data: o "optimizare" care
-      // incetineste. Runda 3 de audit, U2.
+      // A single consumer does not mean a single USE. `scump + scump` has a
+      // single consumer, but substitution would compute the expression twice
+      // and delete the very memo that computed it once: an "optimization" that
+      // slows things down. Audit round 3, U2.
       const folosiri = countIdent(r.getExpr(), d.name);
       if (folosiri > 1) {
         trace.push({
           pass: "Fusion",
           action: "blocked",
           target: d.id,
-          detail: `folosit de ${folosiri} ori in ${r.id} - fuziunea ar duplica lucrul`,
+          detail: `used ${folosiri} times in ${r.id} - fusion would duplicate work`,
         });
         blocked.add(d.id);
         continue;
@@ -182,13 +182,13 @@ function fuseComponent(comp: IRComponent, trace: OptEntry[]): number {
 
       const fuzionat = substituteIdent(r.getExpr(), d.name, d.expr);
       if (fuzionat === null) {
-        // Inlocuirea ar captura o variabila legata la locul folosirii, deci ar
-        // schimba intelesul programului. Runda 3 de audit, U1.
+        // Substitution would capture a variable bound at the use site, so it
+        // would change the meaning of the program. Audit round 3, U1.
         trace.push({
           pass: "Fusion",
           action: "blocked",
           target: d.id,
-          detail: `fuziunea in ${r.id} ar captura o variabila legata acolo`,
+          detail: `fusion in ${r.id} would capture a variable bound there`,
         });
         blocked.add(d.id);
         continue;
@@ -201,17 +201,17 @@ function fuseComponent(comp: IRComponent, trace: OptEntry[]): number {
         pass: "Fusion",
         action: "fuse",
         target: d.id,
-        detail: `fuzionat in ${r.id} (consumator unic)`,
+        detail: `fused in ${r.id} (single consumer)`,
       });
       fused++;
       changed = true;
-      break; // reia cu slots proaspete
+      break; // restart with fresh slots
     }
   }
   return fused;
 }
 
-/** Ruleaza pass-urile semantice pe o copie a IR-ului; nu muteaza inputul. */
+/** Runs the semantic passes on a copy of the IR; does not mutate the input. */
 export function optimize(module: IRModule, options: { fusion: boolean } = { fusion: true }): OptimizeResult {
   const clone: IRModule = structuredClone(module);
   const trace: OptEntry[] = [];
@@ -219,8 +219,8 @@ export function optimize(module: IRModule, options: { fusion: boolean } = { fusi
   let fused = 0;
   if (options.fusion) {
     for (const comp of clone.components) fused += fuseComponent(comp, trace);
-    // Fusion poate face noduri moarte (un derived intermediar ramas fara reads) -
-    // ruleaza inca o data DSE pentru a curata.
+    // Fusion can create dead nodes (an intermediate derived left with no reads) -
+    // run DSE once more to clean up.
     runDSE(clone, trace);
   }
   return { module: clone, trace, metrics: { eliminated, fused } };

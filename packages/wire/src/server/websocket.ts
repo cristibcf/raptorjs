@@ -1,9 +1,9 @@
 /**
- * Transport WebSocket pentru RaptorWire (whitepaper 17: protocolul nu e legat de
- * un transport anume). Implementeaza RFC 6455 direct peste socket-ul din
- * node:http - handshake, framing, mask, ping/pong, close - ca sa pastram zero
- * dependinte de runtime. Nu e un server WebSocket de uz general: duce cadre
- * binare intre `RaptorServer.serve()` si un client, atat.
+ * WebSocket transport for RaptorWire (whitepaper 17: the protocol is not tied to
+ * a specific transport). Implements RFC 6455 directly on the node:http socket -
+ * handshake, framing, mask, ping/pong, close - to keep zero runtime
+ * dependencies. It is not a general-purpose WebSocket server: it carries binary
+ * frames between `RaptorServer.serve()` and a client, nothing more.
  */
 import { createHash } from "node:crypto";
 import type { Server as HttpServer, IncomingMessage } from "node:http";
@@ -11,7 +11,7 @@ import type { Socket } from "node:net";
 import type { RaptorServer } from "./server.ts";
 import type { ServerConnection } from "./store.ts";
 
-/** Constanta din RFC 6455 4.2.2: concatenata la cheia clientului pentru accept. */
+/** Constant from RFC 6455 4.2.2: concatenated to the client's key for the accept. */
 const GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
 const OP_CONTINUATION = 0x0;
@@ -20,44 +20,44 @@ const OP_CLOSE = 0x8;
 const OP_PING = 0x9;
 const OP_PONG = 0xa;
 
-/** Peste atat inchidem conexiunea in loc sa alocam: un client cinstit nu trimite. */
+/** Beyond this we close the connection instead of allocating: an honest client won't send it. */
 const MAX_FRAME_BYTES = 16 * 1024 * 1024;
 
-/** Acelasi plafon, dar pe mesajul reasamblat din mai multe cadre fragmentate. */
+/** The same cap, but on the message reassembled from several fragmented frames. */
 const MAX_MESSAGE_BYTES = 16 * 1024 * 1024;
 
 export interface WebSocketOptions {
-  /** Calea pe care se accepta upgrade-ul (implicit "/raptor"). */
+  /** The path on which upgrades are accepted (default "/raptor"). */
   path?: string;
-  /** Interval ping keep-alive, ms (implicit 30000; 0 dezactiveaza). */
+  /** Keep-alive ping interval, ms (default 30000; 0 disables). */
   pingIntervalMs?: number;
   /**
-   * Originile din care browserele pot deschide conexiuni.
+   * The origins from which browsers may open connections.
    *
-   * **Implicit: doar same-origin.** Spre deosebire de `fetch`, un WebSocket NU e
-   * oprit de politica same-origin a browserului: orice pagina pe care o deschide
-   * utilizatorul poate deschide o conexiune catre un server Raptor la care
-   * ajunge, cu cookie-urile lui cu tot (cross-site WebSocket hijacking). Singurul
-   * loc unde se poate opri asta e aici.
+   * **Default: same-origin only.** Unlike `fetch`, a WebSocket is NOT stopped by
+   * the browser's same-origin policy: any page the user opens can open a
+   * connection to a Raptor server it can reach, cookies and all (cross-site
+   * WebSocket hijacking). The only place to stop this is here.
    *
-   * O lista explicita (`["https://app.example.com"]`) e comparata exact,
-   * ignorand registrul literelor. `"any"` dezactiveaza verificarea - scris in
-   * litere, ca sa nu se intample din neatentie.
+   * An explicit list (`["https://app.example.com"]`) is compared exactly,
+   * ignoring letter case. `"any"` disables the check - spelled out in letters,
+   * so it can't happen by accident.
    *
-   * O cerere **fara** antet `Origin` trece: nu vine dintr-un browser, deci nu
-   * poarta autoritatea ambientala a unei sesiuni. Autentificarea ramane treaba
-   * hook-urilor `authorize` per query/mutation.
+   * A request **without** an `Origin` header passes: it does not come from a
+   * browser, so it carries no ambient session authority. Authentication remains
+   * the job of the per-query/mutation `authorize` hooks.
    */
   allowedOrigins?: readonly string[] | "any";
-  /** Plafon de conexiuni simultane (implicit 1024; 0 = fara plafon). */
+  /** Cap on concurrent connections (default 1024; 0 = no cap). */
   maxConnections?: number;
 }
 
 /**
- * `true` daca upgrade-ul e permis din originea cererii.
+ * `true` if the upgrade is allowed from the request's origin.
  *
- * Exportat ca sa poata fi testat fara socket - e o functie pura, si e singura
- * bucata din handshake unde o greseala se vede abia intr-un raport de bug.
+ * Exported so it can be tested without a socket - it is a pure function, and it
+ * is the one piece of the handshake where a mistake only shows up in a bug
+ * report.
  */
 export function originAllowed(
   origin: string | undefined,
@@ -65,7 +65,7 @@ export function originAllowed(
   allowed: readonly string[] | "any" | undefined,
 ): boolean {
   if (allowed === "any") return true;
-  // Fara `Origin`: client care nu e browser (CLI, alt serviciu, un test).
+  // No `Origin`: a non-browser client (CLI, another service, a test).
   if (origin === undefined || origin === "") return true;
 
   if (allowed !== undefined) {
@@ -73,26 +73,26 @@ export function originAllowed(
     return allowed.some((candidate) => candidate.toLowerCase() === wanted);
   }
 
-  // Implicit same-origin: comparam AUTORITATEA, nu sirul. `Origin` poarta
-  // schema (`https://app:8443`), `Host` nu (`app:8443`).
+  // Default same-origin: we compare the AUTHORITY, not the string. `Origin`
+  // carries the scheme (`https://app:8443`), `Host` does not (`app:8443`).
   if (host === undefined) return false;
   let authority: string;
   try {
     authority = new URL(origin).host;
   } catch {
-    // `Origin: null` (sandbox, redirect cross-origin) si orice alta forma pe
-    // care nu o putem citi: refuzam, nu ghicim.
+    // `Origin: null` (sandbox, cross-origin redirect) and any other form we
+    // cannot read: we deny, we don't guess.
     return false;
   }
   return authority.toLowerCase() === host.toLowerCase();
 }
 
-/** Cadru server -> client: nemascat (RFC 6455 5.1), lungime pe 7/16/64 biti. */
+/** Server -> client frame: unmasked (RFC 6455 5.1), 7/16/64-bit length. */
 function encodeFrame(opcode: number, payload: Uint8Array): Buffer {
   const len = payload.length;
   const header = len < 126 ? 2 : len < 65536 ? 4 : 10;
   const frame = Buffer.allocUnsafe(header + len);
-  frame[0] = 0x80 | opcode; // FIN + opcode; nu fragmentam la emisie
+  frame[0] = 0x80 | opcode; // FIN + opcode; we don't fragment on send
   if (len < 126) {
     frame[1] = len;
   } else if (len < 65536) {
@@ -100,7 +100,7 @@ function encodeFrame(opcode: number, payload: Uint8Array): Buffer {
     frame.writeUInt16BE(len, 2);
   } else {
     frame[1] = 127;
-    // Lungimea e un u64; partea inalta e mereu 0 sub MAX_FRAME_BYTES.
+    // The length is a u64; the high part is always 0 under MAX_FRAME_BYTES.
     frame.writeUInt32BE(0, 2);
     frame.writeUInt32BE(len, 6);
   }
@@ -112,21 +112,21 @@ interface ParsedFrame {
   fin: boolean;
   opcode: number;
   payload: Buffer;
-  /** Octetii consumati din buffer. */
+  /** The bytes consumed from the buffer. */
   size: number;
 }
 
 /**
- * Octetii primiti si neconsumati inca, pastrati ca lista de bucati.
+ * Bytes received but not yet consumed, kept as a list of chunks.
  *
- * Varianta evidenta - un singur Buffer si `Buffer.concat` la fiecare eveniment
- * `data` - sta pe hot path-ul RaptorWire si este patratica: un mesaj de 16 MB
- * sosit in bucati TCP de 64 KB inseamna 256 de concatenari, fiecare copiind tot
- * ce s-a acumulat pana atunci, adica ordinul a 2 GB de memcpy pentru 16 MB.
+ * The obvious variant - a single Buffer and `Buffer.concat` on every `data`
+ * event - sits on the RaptorWire hot path and is quadratic: a 16 MB message
+ * arriving in 64 KB TCP chunks means 256 concatenations, each copying
+ * everything accumulated so far, on the order of 2 GB of memcpy for 16 MB.
  *
- * Aici bucatile doar intra in lista (zero copiere) si se materializeaza o
- * singura data, cand chiar exista un cadru complet: fiecare octet e copiat
- * exact o data. Antetul se citeste cu `byteAt`, fara sa uneasca nimic.
+ * Here chunks only enter the list (zero copy) and are materialized just once,
+ * when a complete frame actually exists: each byte is copied exactly once. The
+ * header is read with `byteAt`, without joining anything.
  */
 class FrameBuffer {
   private chunks: Buffer[] = [];
@@ -142,7 +142,7 @@ class FrameBuffer {
     return this.total;
   }
 
-  /** Octetul de la un offset absolut, fara sa uneasca bucatile. */
+  /** The byte at an absolute offset, without joining the chunks. */
   byteAt(index: number): number {
     let rest = index;
     for (let i = 0; i < this.chunks.length; i++) {
@@ -150,13 +150,13 @@ class FrameBuffer {
       if (rest < chunk.length) return chunk[rest]!;
       rest -= chunk.length;
     }
-    throw new RangeError("[ws] offset in afara buffer-ului");
+    throw new RangeError("[ws] offset out of buffer bounds");
   }
 
-  /** Scoate primii `n` octeti ca buffer contiguu. Cel mult o copiere. */
+  /** Take the first `n` bytes as a contiguous buffer. At most one copy. */
   take(n: number): Buffer {
     const first = this.chunks[0]!;
-    // Cazul comun: cadrul a venit intreg intr-o bucata - nicio copiere deloc.
+    // The common case: the frame arrived whole in one chunk - no copy at all.
     if (first.length >= n) {
       const out = first.subarray(0, n);
       if (first.length === n) this.chunks.shift();
@@ -185,9 +185,9 @@ class FrameBuffer {
 }
 
 /**
- * Incearca sa citeasca un cadru complet de la inceputul acumulatorului. Intoarce
- * null cand inca nu au sosit toti octetii - TCP nu garanteaza ca un cadru vine
- * intr-o singura bucata, asa ca octetii raman pe loc si se reincearca.
+ * Try to read a complete frame from the start of the accumulator. Returns null
+ * when not all bytes have arrived yet - TCP does not guarantee a frame arrives
+ * in a single chunk, so the bytes stay put and it retries.
  */
 function readFrame(buf: FrameBuffer): ParsedFrame | null {
   if (buf.size < 2) return null;
@@ -209,17 +209,17 @@ function readFrame(buf: FrameBuffer): ParsedFrame | null {
     for (let i = 2; i < 6; i++) high = high * 256 + buf.byteAt(i);
     let low = 0;
     for (let i = 6; i < 10; i++) low = low * 256 + buf.byteAt(i);
-    if (high !== 0 || low > MAX_FRAME_BYTES) throw new Error("cadru prea mare");
+    if (high !== 0 || low > MAX_FRAME_BYTES) throw new Error("frame too large");
     len = low;
     offset += 8;
   }
-  if (len > MAX_FRAME_BYTES) throw new Error("cadru prea mare");
+  if (len > MAX_FRAME_BYTES) throw new Error("frame too large");
 
-  // Cadrele client -> server trebuie mascate (RFC 6455 5.1).
-  if (!masked) throw new Error("cadru nemascat de la client");
+  // Client -> server frames must be masked (RFC 6455 5.1).
+  if (!masked) throw new Error("unmasked frame from client");
 
   const size = offset + 4 + len;
-  // Cheia optimizarii: cat timp cadrul e incomplet NU copiem nimic, doar asteptam.
+  // The key to the optimization: while the frame is incomplete we copy NOTHING, we just wait.
   if (buf.size < size) return null;
 
   const raw = buf.take(size);
@@ -231,19 +231,19 @@ function readFrame(buf: FrameBuffer): ParsedFrame | null {
 }
 
 export interface WebSocketHandle {
-  /** Cate conexiuni WebSocket sunt deschise acum. */
+  /** How many WebSocket connections are open right now. */
   readonly connectionCount: number;
   /**
-   * Inchide toate conexiunile si nu mai accepta upgrade-uri. Necesar pentru
-   * oprire curata: dupa un upgrade socket-ul nu mai e urmarit de serverul HTTP,
-   * deci `httpServer.close()` singur il lasa deschis si procesul nu iese.
+   * Close all connections and stop accepting upgrades. Needed for a clean
+   * shutdown: after an upgrade the socket is no longer tracked by the HTTP
+   * server, so `httpServer.close()` alone leaves it open and the process won't exit.
    */
   close(): void;
 }
 
 /**
- * Ataseaza `app` la un server HTTP: fiecare upgrade acceptat devine o conexiune
- * RaptorWire servita de `app.serve()`.
+ * Attach `app` to an HTTP server: each accepted upgrade becomes a RaptorWire
+ * connection served by `app.serve()`.
  */
 export function serveOverWebSocket(
   app: RaptorServer,
@@ -263,15 +263,15 @@ export function serveOverWebSocket(
       return;
     }
 
-    // Originea se verifica INAINTE de `101`: dupa upgrade nu mai exista un cod
-    // de stare in care sa incapa un refuz.
+    // The origin is checked BEFORE `101`: after the upgrade there is no longer a
+    // status code in which to fit a rejection.
     if (!originAllowed(req.headers.origin, req.headers.host, options.allowedOrigins)) {
       socket.end("HTTP/1.1 403 Forbidden\r\n\r\n");
       return;
     }
 
     if (maxConnections > 0 && live.size >= maxConnections) {
-      // 503, nu 403: nu e o problema de permisiune, iar clientul poate reincerca.
+      // 503, not 403: it's not a permission problem, and the client can retry.
       socket.end("HTTP/1.1 503 Service Unavailable\r\n\r\n");
       return;
     }
@@ -287,15 +287,16 @@ export function serveOverWebSocket(
     live.add(socket);
 
     let handler: ((data: Uint8Array) => void) | null = null;
-    // Doua stari distincte: `closed` = nu mai scriem pe socket; `torndown` = am
-    // curatat subscriptiile. Tinute separat pentru ca o inchidere curata trece
-    // prin amandoua, iar daca ar imparti un flag a doua etapa s-ar sari.
+    // Two distinct states: `closed` = we no longer write to the socket;
+    // `torndown` = we've cleaned up the subscriptions. Kept separate because a
+    // clean close goes through both, and if they shared a flag the second stage
+    // would be skipped.
     let closed = false;
     let torndown = false;
-    // Octeti primiti dar neconsumati inca (cadru incomplet).
+    // Bytes received but not yet consumed (incomplete frame).
     const buffer = new FrameBuffer();
     if (head && head.length > 0) buffer.push(Buffer.from(head));
-    // Acumulator pentru cadre fragmentate (FIN=0 urmat de continuari).
+    // Accumulator for fragmented frames (FIN=0 followed by continuations).
     let fragments: Buffer[] = [];
     let fragmentBytes = 0;
 
@@ -320,7 +321,7 @@ export function serveOverWebSocket(
       if (torndown) return;
       torndown = true;
       closed = true;
-      // Fara asta subscriptiile mortului primesc broadcast la fiecare mutatie.
+      // Without this the dead connection's subscriptions get a broadcast on every mutation.
       app.store.removeConnection(conn);
       socket.destroy();
     };
@@ -346,10 +347,10 @@ export function serveOverWebSocket(
           if (frame.opcode === OP_BINARY || frame.opcode === OP_CONTINUATION) {
             fragments.push(frame.payload);
             fragmentBytes += frame.payload.length;
-            // Fiecare cadru e marginit de MAX_FRAME_BYTES, dar un mesaj poate
-            // avea oricate cadre: fara o limita pe total, un client care trimite
-            // la nesfarsit fragmente cu FIN=0 consuma toata memoria host-ului.
-            if (fragmentBytes > MAX_MESSAGE_BYTES) throw new Error("mesaj fragmentat prea mare");
+            // Each frame is bounded by MAX_FRAME_BYTES, but a message can have
+            // any number of frames: without a total limit, a client that sends
+            // FIN=0 fragments forever consumes all of the host's memory.
+            if (fragmentBytes > MAX_MESSAGE_BYTES) throw new Error("fragmented message too large");
             if (!frame.fin) continue;
             const message =
               fragments.length === 1 ? fragments[0]! : Buffer.concat(fragments, fragmentBytes);
@@ -358,8 +359,8 @@ export function serveOverWebSocket(
             handler?.(new Uint8Array(message));
             continue;
           }
-          // Text sau opcode rezervat: nu-l folosim, inchidem in loc sa ghicim.
-          throw new Error(`opcode nesuportat: ${frame.opcode}`);
+          // Text or reserved opcode: we don't use it, we close instead of guessing.
+          throw new Error(`unsupported opcode: ${frame.opcode}`);
         }
       } catch {
         teardown();

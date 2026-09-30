@@ -4,8 +4,8 @@
  *   raptor-profile collect <file> [--scenario <json>] [--out <profile>]
  *   raptor-profile plan    <file> --profile <profile>
  *
- * `collect` ruleaza un scenariu si emite artefactul de profil; `plan` arata ce
- * hints ar aplica build-ul (fara sa schimbe corectitudinea, 24).
+ * `collect` runs a scenario and emits the profile artifact; `plan` shows which
+ * hints the build would apply (without changing correctness, 24).
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { buildModule } from "@raptor/engine";
@@ -30,7 +30,7 @@ function flag(argv: string[], name: string): string | undefined {
   return i >= 0 ? argv[i + 1] : undefined;
 }
 
-/** Scenariu implicit: exerseaza fiecare server signal + vizita "/" de 2 ori. */
+/** Default scenario: exercises every server signal + visits "/" twice. */
 function defaultScenario(addresses: readonly string[]): Scenario {
   const produces = addresses.map((address) => ({ produce: { address, value: 100 } }));
   return {
@@ -59,7 +59,7 @@ export function runProfileCli(
       ].join("\n"),
     };
   }
-  if (!file) return { code: 1, out: `eroare: ${command} cere <file.raptor>` };
+  if (!file) return { code: 1, out: `error: ${command} requires <file.raptor>` };
 
   try {
     const result = buildModule(io.readFile(file), file);
@@ -78,13 +78,13 @@ export function runProfileCli(
       if (out) io.writeFile(out, json);
       return {
         code: 0,
-        out: out ? `✓ profil scris in ${out} (${profile.scenarios} sesiuni)\n\n${json}` : json,
+        out: out ? `✓ profile written to ${out} (${profile.scenarios} sessions)\n\n${json}` : json,
       };
     }
 
     if (command === "plan") {
       const profilePath = flag(argv, "profile");
-      if (!profilePath) return { code: 1, out: "eroare: plan cere --profile <profile>" };
+      if (!profilePath) return { code: 1, out: "error: plan requires --profile <profile>" };
       const profile = JSON.parse(io.readFile(profilePath)) as RaptorProfile;
       const routes: RouteDef[] = result.ir.components[0]
         ? [{ path: "/", component: result.ir.components[0].name }]
@@ -98,19 +98,19 @@ export function runProfileCli(
         code: 0,
         out: [
           `RaptorProfile plan - ${file}`,
-          `  foldChunks: ${plan.hints.foldChunks.map((g) => g.join("+")).join(", ") || "(niciunul)"}`,
-          `  preload: ${plan.hints.preloadRoutes.join(", ") || "(niciunul)"}`,
+          `  foldChunks: ${plan.hints.foldChunks.map((g) => g.join("+")).join(", ") || "(none)"}`,
+          `  preload: ${plan.hints.preloadRoutes.join(", ") || "(none)"}`,
           `  batchSizes: ${JSON.stringify(plan.hints.batchSizes)}`,
-          `  encodingSpecialization: ${plan.hints.encodingSpecialization.join(", ") || "(niciunul)"}`,
-          `  pastrate desi nevazute (24): ${plan.keptDespiteUnseen.join(", ") || "(niciunul)"}`,
+          `  encodingSpecialization: ${plan.hints.encodingSpecialization.join(", ") || "(none)"}`,
+          `  kept despite unseen (24): ${plan.keptDespiteUnseen.join(", ") || "(none)"}`,
           "",
           ...plan.notes.map((n) => `  · ${n}`),
         ].join("\n"),
       };
     }
 
-    return { code: 1, out: `comanda necunoscuta '${command}' (collect|plan)` };
+    return { code: 1, out: `unknown command '${command}' (collect|plan)` };
   } catch (err) {
-    return { code: 1, out: `eroare: ${(err as Error).message}` };
+    return { code: 1, out: `error: ${(err as Error).message}` };
   }
 }

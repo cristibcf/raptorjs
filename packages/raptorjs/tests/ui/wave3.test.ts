@@ -18,7 +18,7 @@ function div(): MiniElement {
   return doc.createElement("div") as MiniElement;
 }
 
-/** Curăță body-ul între testele care folosesc Portal. */
+/** Clears the body between tests that use Portal. */
 function clearBody(): void {
   for (const child of doc.body.childNodes.slice()) doc.body.removeChild(child);
 }
@@ -27,22 +27,22 @@ const tick = () => new Promise((r) => setTimeout(r, 0));
 
 /* --------------------------------------------------------------- 29 Button */
 
-test("Button: tip implicit `button`, nu `submit`", () => {
+test("Button: default type `button`, not `submit`", () => {
   const root = div();
-  render(() => Button({ children: "Salvează" }), root);
+  render(() => Button({ children: "Save" }), root);
   const btn = root.querySelector("button")!;
   assert.equal(btn.getAttribute("type"), "button");
-  assert.equal(btn.textContent, "Salvează");
+  assert.equal(btn.textContent, "Save");
 });
 
-test("Button: onClick asincron blochează dubla trimitere", async () => {
+test("Button: async onClick blocks double submit", async () => {
   const root = div();
   let calls = 0;
   let release: (() => void) | null = null;
   render(
     () =>
       Button({
-        children: "Trimite",
+        children: "Submit",
         onClick: () => {
           calls++;
           return new Promise<void>((r) => {
@@ -61,16 +61,16 @@ test("Button: onClick asincron blochează dubla trimitere", async () => {
 
   btn.click();
   btn.click();
-  assert.equal(calls, 1, "clickurile în timpul cererii sunt ignorate");
+  assert.equal(calls, 1, "clicks during the request are ignored");
 
   release!();
   await tick();
   assert.equal(btn.getAttribute("aria-busy"), "false");
   btn.click();
-  assert.equal(calls, 2, "după terminare acceptă din nou");
+  assert.equal(calls, 2, "after finishing it accepts again");
 });
 
-test("Button dezactivat nu rulează onClick", () => {
+test("a disabled Button doesn't run onClick", () => {
   const root = div();
   let calls = 0;
   render(() => Button({ children: "x", disabled: true, onClick: () => void calls++ }), root);
@@ -78,15 +78,15 @@ test("Button dezactivat nu rulează onClick", () => {
   assert.equal(calls, 0);
 });
 
-test("IconButton cere nume accesibil", () => {
+test("IconButton requires an accessible name", () => {
   const root = div();
-  render(() => IconButton({ icon: "✕", label: "Închide" }), root);
-  assert.equal(root.querySelector("button")!.getAttribute("aria-label"), "Închide");
+  render(() => IconButton({ icon: "✕", label: "Close" }), root);
+  assert.equal(root.querySelector("button")!.getAttribute("aria-label"), "Close");
 });
 
 /* ------------------------------------------------- 39/60/64/62 controale --- */
 
-test("Input leagă valoarea de semnal în ambele sensuri", () => {
+test("Input binds the value to the signal in both directions", () => {
   const root = div();
   const value = state("a");
   render(() => Input({ value }), root);
@@ -97,15 +97,15 @@ test("Input leagă valoarea de semnal în ambele sensuri", () => {
   input.dispatch("input", { target: { value: "abc" } });
   assert.equal(value(), "abc");
 
-  value.set("din afară");
-  assert.equal(input.getAttribute("value"), "din afară");
+  value.set("from outside");
+  assert.equal(input.getAttribute("value"), "from outside");
 });
 
-test("Checkbox: `indeterminate` ajunge în aria-checked=mixed", () => {
+test("Checkbox: `indeterminate` becomes aria-checked=mixed", () => {
   const root = div();
   const checked = state(false);
   const partial = state(true);
-  render(() => Checkbox({ checked, indeterminate: () => partial(), label: "Toate" }), root);
+  render(() => Checkbox({ checked, indeterminate: () => partial(), label: "All" }), root);
 
   const box = root.querySelector("input")!;
   assert.equal(box.getAttribute("aria-checked"), "mixed");
@@ -116,10 +116,10 @@ test("Checkbox: `indeterminate` ajunge în aria-checked=mixed", () => {
   assert.equal(box.getAttribute("aria-checked"), "true");
 });
 
-test("Switch are role=switch, nu checkbox", () => {
+test("Switch has role=switch, not checkbox", () => {
   const root = div();
   const on = state(false);
-  render(() => Switch({ checked: on, label: "Notificări" }), root);
+  render(() => Switch({ checked: on, label: "Notifications" }), root);
 
   const sw = root.querySelector("button")!;
   assert.equal(sw.getAttribute("role"), "switch");
@@ -129,23 +129,23 @@ test("Switch are role=switch, nu checkbox", () => {
   assert.equal(on(), true);
   assert.equal(sw.getAttribute("aria-checked"), "true");
 
-  // Săgețile setează direct, nu comută.
+  // The arrows set directly, they don't toggle.
   sw.dispatch("keydown", { key: "ArrowLeft" });
   assert.equal(on(), false);
   sw.dispatch("keydown", { key: "ArrowLeft" });
-  assert.equal(on(), false, "deja off, rămâne off");
+  assert.equal(on(), false, "already off, stays off");
   sw.dispatch("keydown", { key: "ArrowRight" });
   assert.equal(on(), true);
 });
 
-test("RadioGroup: roving tabindex + săgeți", () => {
+test("RadioGroup: roving tabindex + arrows", () => {
   const root = div();
   const value = state("b");
   render(
     () =>
       RadioGroup({
         value,
-        label: "Mărime",
+        label: "Size",
         options: [
           { value: "a", label: "A" },
           { value: "b", label: "B" },
@@ -159,25 +159,25 @@ test("RadioGroup: roving tabindex + săgeți", () => {
   assert.equal(group.getAttribute("role"), "radiogroup");
 
   const radios = root.querySelectorAll("input");
-  // Doar cel selectat e tabbable.
+  // Only the selected one is tabbable.
   assert.deepEqual(radios.map((r) => r.getAttribute("tabindex")), ["-1", "0", "-1"]);
 
   group.dispatch("keydown", { key: "ArrowDown" });
-  assert.equal(value(), "a", "sare peste C (disabled) și ciclează la A");
+  assert.equal(value(), "a", "skips C (disabled) and cycles to A");
   assert.deepEqual(radios.map((r) => r.getAttribute("tabindex")), ["0", "-1", "-1"]);
 
   group.dispatch("keydown", { key: "ArrowUp" });
   assert.equal(value(), "b");
 });
 
-test("Textarea scrie în semnal", () => {
+test("Textarea writes to the signal", () => {
   const root = div();
   const value = state("");
   render(() => Textarea({ value, rows: 4 }), root);
   const ta = root.querySelector("textarea")!;
   assert.equal(ta.getAttribute("rows"), "4");
-  ta.dispatch("input", { target: { value: "text lung" } });
-  assert.equal(value(), "text lung");
+  ta.dispatch("input", { target: { value: "long text" } });
+  assert.equal(value(), "long text");
 });
 
 /* --------------------------------------------------------------- 55 Select */
@@ -198,26 +198,26 @@ function mountSelect(extra: Record<string, unknown> = {}) {
   return { root, value, trigger, options };
 }
 
-test("Select: ARIA de combobox + listbox, închis fără noduri", () => {
-  const { trigger, options } = mountSelect({ ariaLabel: "Literă" });
+test("Select: combobox + listbox ARIA, closed with no nodes", () => {
+  const { trigger, options } = mountSelect({ ariaLabel: "Letter" });
   assert.equal(trigger().getAttribute("role"), "combobox");
   assert.equal(trigger().getAttribute("aria-haspopup"), "listbox");
   assert.equal(trigger().getAttribute("aria-expanded"), "false");
-  assert.equal(options().length, 0, "lista nu există cât e închis");
+  assert.equal(options().length, 0, "the list doesn't exist while closed");
 
   trigger().click();
   assert.equal(trigger().getAttribute("aria-expanded"), "true");
   assert.equal(options().length, 3);
 });
 
-test("Select: deschiderea pornește de la valoarea curentă", () => {
+test("Select: opening starts from the current value", () => {
   const { trigger, value, options } = mountSelect();
   value.set(OPTS[2]!);
   trigger().click();
   assert.ok(options()[2]!.getAttribute("class")!.includes("rui-active"));
 });
 
-test("Select: săgeți + Enter aleg, Escape închide", () => {
+test("Select: arrows + Enter choose, Escape closes", () => {
   const { trigger, value } = mountSelect();
   trigger().dispatch("keydown", { key: "ArrowDown" });
   trigger().dispatch("keydown", { key: "ArrowDown" });
@@ -229,13 +229,13 @@ test("Select: săgeți + Enter aleg, Escape închide", () => {
   assert.equal(trigger().getAttribute("aria-expanded"), "false");
 });
 
-test("Select: typeahead sare la opțiune", () => {
+test("Select: typeahead jumps to an option", () => {
   const { trigger, value } = mountSelect();
   trigger().dispatch("keydown", { key: "g" });
-  assert.equal(value()!.name, "Gamma", "închis: typeahead selectează direct");
+  assert.equal(value()!.name, "Gamma", "closed: typeahead selects directly");
 });
 
-test("Select: opțiunile dezactivate sunt sărite", () => {
+test("Select: disabled options are skipped", () => {
   const { trigger, value } = mountSelect({ disabled: (o: Opt) => o.name === "Beta" });
   trigger().dispatch("keydown", { key: "ArrowDown" });
   trigger().dispatch("keydown", { key: "ArrowDown" });
@@ -245,17 +245,17 @@ test("Select: opțiunile dezactivate sunt sărite", () => {
 
 /* ----------------------------------------------------------------- 88 Form */
 
-test("field: validarea e derivată, eroarea apare după blur", () => {
+test("field: validation is derived, the error appears after blur", () => {
   const f = createRoot(() => field("", { validate: [validators.required(), validators.minLength(3)] }));
 
-  assert.equal(f.error(), "Câmp obligatoriu");
-  assert.equal(f.visibleError(), null, "netins => nu arătăm eroarea");
+  assert.equal(f.error(), "Required field");
+  assert.equal(f.visibleError(), null, "untouched => we don't show the error");
 
   f.touch();
-  assert.equal(f.visibleError(), "Câmp obligatoriu");
+  assert.equal(f.visibleError(), "Required field");
 
   f.value.set("ab");
-  assert.equal(f.visibleError(), "Minim 3 caractere");
+  assert.equal(f.visibleError(), "At least 3 characters");
 
   f.value.set("abc");
   assert.equal(f.error(), null);
@@ -264,36 +264,36 @@ test("field: validarea e derivată, eroarea apare după blur", () => {
 
 test("validators: email, pattern, range, matches", () => {
   createRoot(() => {
-    assert.equal(validators.email()("nu-i email"), "Adresă de email invalidă");
+    assert.equal(validators.email()("not-an-email"), "Invalid email address");
     assert.equal(validators.email()("a@b.co"), null);
-    assert.equal(validators.email()(""), null, "gol e treaba lui `required`");
-    assert.equal(validators.range(1, 10)(11), "Între 1 și 10");
-    assert.equal(validators.pattern(/^\d+$/)("12a"), "Format invalid");
+    assert.equal(validators.email()(""), null, "empty is `required`'s job");
+    assert.equal(validators.range(1, 10)(11), "Between 1 and 10");
+    assert.equal(validators.pattern(/^\d+$/)("12a"), "Invalid format");
 
     const pass = state("secret");
     assert.equal(validators.matches(() => pass())("secret"), null);
-    assert.equal(validators.matches(() => pass())("altceva"), "Valorile nu coincid");
+    assert.equal(validators.matches(() => pass())("something else"), "Values do not match");
   });
 });
 
-test("formGroup agregă validitatea și erorile", () => {
+test("formGroup aggregates validity and errors", () => {
   const g = createRoot(() => {
     const email = field("", { validate: validators.email(), label: "Email" });
-    const name = field("", { validate: validators.required(), label: "Nume" });
+    const name = field("", { validate: validators.required(), label: "Name" });
     const group = formGroup([email, name]);
     return { email, name, group };
   });
 
   assert.equal(g.group.valid(), false);
-  assert.deepEqual(g.group.errors(), ["Nume: Câmp obligatoriu"]);
+  assert.deepEqual(g.group.errors(), ["Name: Required field"]);
 
-  g.name.value.set("Ana");
+  g.name.value.set("Ann");
   assert.equal(g.group.valid(), true);
   assert.deepEqual(g.group.errors(), []);
   assert.equal(g.group.dirty(), true);
 });
 
-test("Form: submit invalid marchează toate câmpurile și nu rulează", () => {
+test("Form: an invalid submit marks all fields and doesn't run", () => {
   const root = div();
   const f = createRoot(() => {
     const email = field("", { validate: validators.required() });
@@ -311,19 +311,19 @@ test("Form: submit invalid marchează toate câmpurile și nu rulează", () => {
   render(() => f.el, root);
 
   root.querySelector("form")!.dispatch("submit");
-  assert.equal(f.count(), 0, "nu a rulat");
-  assert.equal(f.email.touched(), true, "câmpurile au fost marcate");
-  assert.equal(root.querySelector("div")!.textContent.includes("Câmp obligatoriu"), true);
+  assert.equal(f.count(), 0, "it didn't run");
+  assert.equal(f.email.touched(), true, "the fields were marked");
+  assert.equal(root.querySelector("div")!.textContent.includes("Required field"), true);
 
-  f.email.value.set("ceva");
+  f.email.value.set("something");
   root.querySelector("form")!.dispatch("submit");
   assert.equal(f.count(), 1);
 });
 
-test("FormField leagă label, control și eroare prin id-uri", () => {
+test("FormField links label, control and error through ids", () => {
   const root = div();
   const f = createRoot(() => field("", { validate: validators.required() }));
-  render(() => FormField({ field: f, label: "Nume", children: Input({ value: f.value, id: f.id }) }), root);
+  render(() => FormField({ field: f, label: "Name", children: Input({ value: f.value, id: f.id }) }), root);
 
   const label = root.querySelector("label")!;
   const input = root.querySelector("input")!;
@@ -335,12 +335,12 @@ test("FormField leagă label, control și eroare prin id-uri", () => {
   assert.equal(error.getAttribute("aria-live"), "polite");
 });
 
-test("TEZĂ: tastarea într-un câmp nu atinge celelalte 29", () => {
+test("THESIS: typing in one field doesn't touch the other 29", () => {
   const root = div();
   const built = createRoot(() => {
     const fields = [];
     for (let i = 0; i < 30; i++) {
-      fields.push(field<string>("", { validate: [validators.required(), validators.minLength(3)], label: "Câmp " + i }));
+      fields.push(field<string>("", { validate: [validators.required(), validators.minLength(3)], label: "Field " + i }));
     }
     return fields;
   });
@@ -353,37 +353,37 @@ test("TEZĂ: tastarea într-un câmp nu atinge celelalte 29", () => {
   for (const f of built) f.touch();
   resetStats();
 
-  // O tastare într-un singur câmp.
+  // A single keystroke in one field.
   built[7]!.value.set("ab");
 
-  assert.equal(stats.createElement, 0, "zero elemente");
-  assert.equal(stats.createText, 0, "zero text-noduri");
-  // Un singur text de eroare schimbat + aria-invalid/describedby ale acelui câmp.
-  assert.equal(stats.textUpdate, 1, "exact un text-node atins");
+  assert.equal(stats.createElement, 0, "zero elements");
+  assert.equal(stats.createText, 0, "zero text-nodes");
+  // A single error text changed + that field's aria-invalid/describedby.
+  assert.equal(stats.textUpdate, 1, "exactly one text-node touched");
 });
 
 /* -------------------------------------------------------- 110/111 Dialog -- */
 
-test("Dialog: montat în body prin Portal, cu aria-modal", () => {
+test("Dialog: mounted in body via Portal, with aria-modal", () => {
   clearBody();
   const root = div();
   const open = state(false);
-  render(() => R.div(Dialog({ open, title: "Titlu", children: "Corp" })), root);
+  render(() => R.div(Dialog({ open, title: "Title", children: "Body" })), root);
 
-  assert.equal(doc.body.childNodes.length, 0, "închis => niciun nod");
+  assert.equal(doc.body.childNodes.length, 0, "closed => no node");
 
   open.set(true);
   const dialog = (doc.body.querySelectorAll("div") as MiniElement[])
     .find((d: MiniElement) => d.getAttribute("role") === "dialog")!;
   assert.equal(dialog.getAttribute("role"), "dialog");
   assert.equal(dialog.getAttribute("aria-modal"), "true");
-  assert.ok(doc.body.textContent.includes("Corp"));
+  assert.ok(doc.body.textContent.includes("Body"));
 
   open.set(false);
-  assert.equal(doc.body.childNodes.length, 0, "curățat complet");
+  assert.equal(doc.body.childNodes.length, 0, "fully cleaned up");
 });
 
-test("Dialog: Escape închide, scroll lock pus și scos", () => {
+test("Dialog: Escape closes, scroll lock added and removed", () => {
   clearBody();
   const root = div();
   const open = state(false);
@@ -394,10 +394,10 @@ test("Dialog: Escape închide, scroll lock pus și scos", () => {
 
   div().dispatch("keydown", { key: "Escape" });
   assert.equal(open(), false);
-  assert.equal(doc.body.style.overflow, "", "scroll-ul redat");
+  assert.equal(doc.body.style.overflow, "", "scroll restored");
 });
 
-test("Dialog: scroll lock cu contor pentru dialoguri suprapuse", () => {
+test("Dialog: scroll lock with a counter for stacked dialogs", () => {
   clearBody();
   const root = div();
   const a = state(false);
@@ -409,13 +409,13 @@ test("Dialog: scroll lock cu contor pentru dialoguri suprapuse", () => {
   assert.equal(doc.body.style.overflow, "hidden");
 
   b.set(false);
-  assert.equal(doc.body.style.overflow, "hidden", "primul e încă deschis");
+  assert.equal(doc.body.style.overflow, "hidden", "the first is still open");
 
   a.set(false);
   assert.equal(doc.body.style.overflow, "");
 });
 
-test("ConfirmDialog confirmă și anulează", () => {
+test("ConfirmDialog confirms and cancels", () => {
   clearBody();
   const root = div();
   const open = state(true);
@@ -426,7 +426,7 @@ test("ConfirmDialog confirmă și anulează", () => {
       R.div(
         ConfirmDialog({
           open,
-          message: "Ștergi?",
+          message: "Delete?",
           variant: "danger",
           onConfirm: () => void confirmed++,
           onCancel: () => void cancelled++,
@@ -436,14 +436,14 @@ test("ConfirmDialog confirmă și anulează", () => {
   );
 
   const buttons = doc.body.querySelectorAll("button") as MiniElement[];
-  const confirm = buttons.find((b: MiniElement) => b.textContent === "Confirmă")!;
+  const confirm = buttons.find((b: MiniElement) => b.textContent === "Confirm")!;
   confirm.click();
   assert.equal(confirmed, 1);
   assert.equal(open(), false);
 
   open.set(true);
   const cancel = (doc.body.querySelectorAll("button") as MiniElement[])
-    .find((b: MiniElement) => b.textContent === "Anulează")!;
+    .find((b: MiniElement) => b.textContent === "Cancel")!;
   cancel.click();
   assert.equal(cancelled, 1);
   assert.equal(open(), false);
@@ -451,14 +451,14 @@ test("ConfirmDialog confirmă și anulează", () => {
 
 /* ------------------------------------------------------- 113/114 overlay -- */
 
-test("Popover: deschide, aria-expanded, Escape închide", () => {
+test("Popover: opens, aria-expanded, Escape closes", () => {
   clearBody();
   const root = div();
   render(
     () =>
       Popover({
-        trigger: (p) => R.button(p, "deschide"),
-        children: "conținut popover",
+        trigger: (p) => R.button(p, "open"),
+        children: "popover content",
       }),
     root,
   );
@@ -470,21 +470,21 @@ test("Popover: deschide, aria-expanded, Escape închide", () => {
 
   trigger.click();
   assert.equal(trigger.getAttribute("aria-expanded"), "true");
-  assert.ok(doc.body.textContent.includes("conținut popover"));
+  assert.ok(doc.body.textContent.includes("popover content"));
 
   div().dispatch("keydown", { key: "Escape" });
   assert.equal(trigger.getAttribute("aria-expanded"), "false");
   assert.equal(doc.body.childNodes.length, 0);
 });
 
-test("Tooltip: apare la focus, nu doar la hover, și leagă aria-describedby", async () => {
+test("Tooltip: appears on focus, not just on hover, and links aria-describedby", async () => {
   clearBody();
   const root = div();
   render(
     () =>
       Tooltip({
-        trigger: (p) => R.button(p, "ajutor"),
-        content: "explicație",
+        trigger: (p) => R.button(p, "help"),
+        content: "explanation",
         delay: 0,
       }),
     root,
@@ -502,20 +502,20 @@ test("Tooltip: apare la focus, nu doar la hover, și leagă aria-describedby", a
   trigger.dispatch("blur");
   assert.equal(doc.body.childNodes.length, 0);
 
-  // Escape ascunde chiar dacă pointerul e încă deasupra (cerință WCAG).
+  // Escape hides even if the pointer is still over it (WCAG requirement).
   trigger.dispatch("pointerenter");
-  assert.ok(doc.body.textContent.includes("explicație"));
+  assert.ok(doc.body.textContent.includes("explanation"));
   div().dispatch("keydown", { key: "Escape" });
   assert.equal(doc.body.childNodes.length, 0);
 });
 
-test("Tooltip respectă întârzierea", async () => {
+test("Tooltip respects the delay", async () => {
   clearBody();
   const root = div();
   render(() => Tooltip({ trigger: (p) => R.button(p, "x"), content: "tip", delay: 20 }), root);
 
   root.querySelector("button")!.dispatch("pointerenter");
-  assert.equal(doc.body.childNodes.length, 0, "încă nu");
+  assert.equal(doc.body.childNodes.length, 0, "not yet");
 
   await new Promise((r) => setTimeout(r, 40));
   assert.ok(doc.body.textContent.includes("tip"));
@@ -523,28 +523,28 @@ test("Tooltip respectă întârzierea", async () => {
 
 /* ---------------------------------------------------------- 118/119 Toast */
 
-test("Toaster: push, auto-dismiss, dedupe pe cheie, limită", async () => {
+test("Toaster: push, auto-dismiss, dedupe by key, limit", async () => {
   const t = createRoot(() => createToaster({ duration: 20, max: 2 }));
 
-  t.info("unu");
-  t.success("doi");
+  t.info("one");
+  t.success("two");
   assert.equal(t.toasts().length, 2);
 
-  t.error("trei");
-  assert.equal(t.toasts().length, 2, "limita 2");
-  assert.equal(t.toasts()[0]!.message, "doi", "cel mai vechi a ieșit");
+  t.error("three");
+  assert.equal(t.toasts().length, 2, "limit 2");
+  assert.equal(t.toasts()[0]!.message, "two", "the oldest was pushed out");
 
-  t.push({ message: "salvat", key: "save" });
-  t.push({ message: "salvat din nou", key: "save" });
+  t.push({ message: "saved", key: "save" });
+  t.push({ message: "saved again", key: "save" });
   const saves = t.toasts().filter((x) => x.key === "save");
-  assert.equal(saves.length, 1, "dedupe pe cheie");
-  assert.equal(saves[0]!.message, "salvat din nou");
+  assert.equal(saves.length, 1, "dedupe by key");
+  assert.equal(saves[0]!.message, "saved again");
 
   await new Promise((r) => setTimeout(r, 50));
-  assert.equal(t.toasts().length, 0, "au expirat");
+  assert.equal(t.toasts().length, 0, "they expired");
 });
 
-test("Toaster: durata 0 rămâne până la dismiss manual", async () => {
+test("Toaster: duration 0 stays until manual dismiss", async () => {
   const t = createRoot(() => createToaster({ duration: 10 }));
   const id = t.push({ message: "persistent", duration: 0 });
 
@@ -555,20 +555,20 @@ test("Toaster: durata 0 rămâne până la dismiss manual", async () => {
   assert.equal(t.toasts().length, 0);
 });
 
-test("Toaster: pauza la hover oprește cronometrul", async () => {
+test("Toaster: pause on hover stops the timer", async () => {
   const t = createRoot(() => createToaster({ duration: 30 }));
-  t.info("citește-mă");
+  t.info("read me");
 
   t.pause();
   await new Promise((r) => setTimeout(r, 50));
-  assert.equal(t.toasts().length, 1, "cât e pauză nu dispare");
+  assert.equal(t.toasts().length, 1, "while paused it doesn't disappear");
 
   t.resume();
   await new Promise((r) => setTimeout(r, 50));
   assert.equal(t.toasts().length, 0);
 });
 
-test("Toaster randează în body cu aria-live", () => {
+test("Toaster renders in the body with aria-live", () => {
   clearBody();
   const root = div();
   const t = createRoot(() => createToaster());
@@ -579,9 +579,9 @@ test("Toaster randează în body cu aria-live", () => {
   assert.equal(region.getAttribute("aria-live"), "polite");
   assert.equal(region.getAttribute("role"), "region");
 
-  t.error("a picat");
-  assert.ok(doc.body.textContent.includes("a picat"));
-  // Erorile sunt `alert`, restul `status`.
+  t.error("it failed");
+  assert.ok(doc.body.textContent.includes("it failed"));
+  // Errors are `alert`, the rest `status`.
   const item = (doc.body.querySelectorAll("div") as MiniElement[])
     .find((d: MiniElement) => d.getAttribute("role") === "alert")!;
   assert.ok(item);
@@ -593,11 +593,11 @@ function mountTabs(extra: Record<string, unknown> = {}) {
   const root = div();
   const handle = createRoot(() =>
     tabs({
-      label: "Secțiuni",
+      label: "Sections",
       tabs: [
-        { key: "a", label: "A", content: "conținut A" },
-        { key: "b", label: "B", content: "conținut B" },
-        { key: "c", label: "C", content: "conținut C", disabled: true },
+        { key: "a", label: "A", content: "content A" },
+        { key: "b", label: "B", content: "content B" },
+        { key: "c", label: "C", content: "content C", disabled: true },
       ],
       ...extra,
     }),
@@ -608,10 +608,10 @@ function mountTabs(extra: Record<string, unknown> = {}) {
   return { root, handle, tabButtons, panels };
 }
 
-test("Tabs: ARIA tablist/tab/tabpanel legate prin id-uri", () => {
+test("Tabs: ARIA tablist/tab/tabpanel linked through ids", () => {
   const { root, tabButtons, panels } = mountTabs();
   const list = root.querySelectorAll("div").find((d) => d.getAttribute("role") === "tablist")!;
-  assert.equal(list.getAttribute("aria-label"), "Secțiuni");
+  assert.equal(list.getAttribute("aria-label"), "Sections");
 
   const first = tabButtons()[0]!;
   assert.equal(first.getAttribute("role"), "tab");
@@ -620,11 +620,11 @@ test("Tabs: ARIA tablist/tab/tabpanel legate prin id-uri", () => {
   assert.equal(panels()[0]!.getAttribute("aria-labelledby"), first.getAttribute("id"));
 });
 
-test("Tabs: panourile inactive rămân în DOM, doar ascunse", () => {
+test("Tabs: inactive panels stay in the DOM, just hidden", () => {
   const { panels } = mountTabs();
-  assert.equal(panels().length, 3, "toate panourile există");
-  assert.equal(panels()[0]!.getAttribute("hidden"), null, "tabul activ nu e ascuns");
-  assert.equal(panels()[1]!.getAttribute("hidden"), "", "cel inactiv e ascuns, dar prezent");
+  assert.equal(panels().length, 3, "all panels exist");
+  assert.equal(panels()[0]!.getAttribute("hidden"), null, "the active tab isn't hidden");
+  assert.equal(panels()[1]!.getAttribute("hidden"), "", "the inactive one is hidden, but present");
 });
 
 test("Tabs: roving tabindex", () => {
@@ -632,19 +632,19 @@ test("Tabs: roving tabindex", () => {
   assert.deepEqual(tabButtons().map((b) => b.getAttribute("tabindex")), ["0", "-1", "-1"]);
 });
 
-test("Tabs: activare manuală mută focusul fără să schimbe panoul", () => {
+test("Tabs: manual activation moves focus without changing the panel", () => {
   const { root, handle, tabButtons } = mountTabs();
   const list = root.querySelectorAll("div").find((d) => d.getAttribute("role") === "tablist")!;
 
   list.dispatch("keydown", { key: "ArrowRight" });
-  assert.equal(handle.active(), "a", "panoul NU s-a schimbat încă");
+  assert.equal(handle.active(), "a", "the panel did NOT change yet");
   assert.deepEqual(tabButtons().map((b) => b.getAttribute("tabindex")), ["-1", "0", "-1"]);
 
   list.dispatch("keydown", { key: "Enter" });
   assert.equal(handle.active(), "b");
 });
 
-test("Tabs: activare automată schimbă panoul la săgeată și sare peste disabled", () => {
+test("Tabs: automatic activation changes the panel on arrow and skips disabled", () => {
   const { root, handle } = mountTabs({ activation: "automatic" });
   const list = root.querySelectorAll("div").find((d) => d.getAttribute("role") === "tablist")!;
 
@@ -652,30 +652,30 @@ test("Tabs: activare automată schimbă panoul la săgeată și sare peste disab
   assert.equal(handle.active(), "b");
 
   list.dispatch("keydown", { key: "ArrowRight" });
-  assert.equal(handle.active(), "a", "sare peste C (disabled) și ciclează");
+  assert.equal(handle.active(), "a", "skips C (disabled) and cycles");
 });
 
-test("Tabs: click selectează, tabul dezactivat nu", () => {
+test("Tabs: click selects, a disabled tab doesn't", () => {
   const { handle, tabButtons } = mountTabs();
   tabButtons()[1]!.click();
   assert.equal(handle.active(), "b");
   tabButtons()[2]!.click();
-  assert.equal(handle.active(), "b", "C e dezactivat");
+  assert.equal(handle.active(), "b", "C is disabled");
 });
 
-test("TEZĂ: schimbarea tabului nu recreează panourile", () => {
+test("THESIS: switching tabs doesn't recreate the panels", () => {
   const { handle, panels } = mountTabs();
   const before = panels().map((p) => p.id);
 
   resetStats();
   handle.select("b");
 
-  assert.equal(stats.createElement, 0, "zero elemente");
-  assert.equal(stats.createText, 0, "zero text-noduri");
-  assert.deepEqual(panels().map((p) => p.id), before, "aceleași noduri");
+  assert.equal(stats.createElement, 0, "zero elements");
+  assert.equal(stats.createText, 0, "zero text-nodes");
+  assert.deepEqual(panels().map((p) => p.id), before, "the same nodes");
 });
 
-test("Tabs lazy: panoul se construiește la prima activare și rămâne montat", () => {
+test("Tabs lazy: the panel is built on first activation and stays mounted", () => {
   let builds = 0;
   const root = div();
   const handle = createRoot(() =>
@@ -688,7 +688,7 @@ test("Tabs lazy: panoul se construiește la prima activare și rămâne montat",
           label: "B",
           content: () => {
             builds++;
-            return "scump";
+            return "expensive";
           },
         },
       ],
@@ -696,10 +696,10 @@ test("Tabs lazy: panoul se construiește la prima activare și rămâne montat",
   );
   render(() => handle.el, root);
 
-  assert.equal(builds, 0, "panoul scump nu s-a construit");
+  assert.equal(builds, 0, "the expensive panel wasn't built");
   handle.select("b");
   assert.equal(builds, 1);
   handle.select("a");
   handle.select("b");
-  assert.equal(builds, 1, "rămâne montat, nu se reconstruiește");
+  assert.equal(builds, 1, "stays mounted, isn't rebuilt");
 });

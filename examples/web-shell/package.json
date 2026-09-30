@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Exemplu: aceeasi aplicatie RaptorJS ca desktop-shell si mobile-shell, cu browserul pe post de host (roadmap sectiunea 4: pentru tinta web, host-ul este browserul).",
+  "description": "Example: the same RaptorJS app as desktop-shell and mobile-shell, with the browser as host (roadmap section 4: for the web target, the host is the browser).",
   "dependencies": {
     "raptorjs": "workspace:*",
     "@raptor/host": "workspace:*"

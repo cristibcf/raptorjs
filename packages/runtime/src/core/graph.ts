@@ -1,11 +1,11 @@
 /**
- * Graful de module static (spec sectiunea 5, componenta "Module graph").
+ * The static module graph (spec section 5, the "Module graph" component).
  *
- * `pack` are nevoie sa stie ce fisiere intra in unitatea livrabila fara sa
- * execute aplicatia - altfel ambalarea ar depinde de efectele secundare ale
- * codului. Scanerul de aici rezolva doar ce poate rezolva cu certitudine:
- * specificatori literali, statici. Importurile dinamice cu expresie sunt
- * raportate explicit ca nerezolvate, nu ghicite.
+ * `pack` needs to know which files go into the deliverable unit without running
+ * the application - otherwise packaging would depend on the code's side effects.
+ * The scanner here resolves only what it can resolve with certainty: literal,
+ * static specifiers. Dynamic imports with an expression are reported explicitly
+ * as unresolved, not guessed.
  */
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
@@ -14,7 +14,7 @@ import { RaptorError } from "./errors.ts";
 import { containsPath, normalizePath, relativeToRoot, resolvePath } from "./paths.ts";
 
 export interface StaticModule {
-  /** Cale relativa la radacina proiectului, cu `/` - stabila intre platforme. */
+  /** Path relative to the project root, with `/` - stable across platforms. */
   readonly path: string;
   readonly absolutePath: string;
   readonly integrity: string;
@@ -31,24 +31,24 @@ export interface UnresolvedImport {
 export interface StaticGraph {
   readonly entry: string;
   readonly modules: readonly StaticModule[];
-  /** Module `raptor:` si `node:` cerute de aplicatie. */
+  /** `raptor:` and `node:` modules required by the application. */
   readonly hostImports: readonly string[];
   readonly externalImports: readonly string[];
   readonly unresolved: readonly UnresolvedImport[];
 }
 
 /**
- * Grupul 1 prinde forma `import type` / `export type`, stearsa la incarcare:
- * un astfel de specificator nu este o dependinta de rulare, deci nu are ce cauta
- * nici in graf, nici in lockfile. `import { type A, b }` ramane import de
- * valoare, fiindca `b` chiar este necesar la rulare.
+ * Group 1 catches the `import type` / `export type` form, erased at load time:
+ * such a specifier is not a runtime dependency, so it has no place in the graph
+ * or in the lockfile. `import { type A, b }` stays a value import, because `b`
+ * is actually needed at runtime.
  */
 const STATIC_IMPORT =
   /(?:^|[\s;{}()])(?:import|export)\s+(type\s+)?(?:[\w*{}\n\r\t, $]*?\s*from\s*)?["']([^"']+)["']|import\s*\(\s*["']([^"']+)["']\s*\)/g;
 
 const DYNAMIC_IMPORT = /import\s*\(\s*(?!["'])/g;
 
-/** Extensii incercate cand specificatorul nu are una (compatibil ESM relaxat). */
+/** Extensions tried when the specifier has none (relaxed ESM-compatible). */
 const EXTENSIONS = ["", ".ts", ".js", ".mts", ".mjs", "/index.ts", "/index.js"];
 
 export function scanImports(source: string): { specifiers: string[]; dynamicCount: number } {
@@ -56,7 +56,7 @@ export function scanImports(source: string): { specifiers: string[]; dynamicCoun
   STATIC_IMPORT.lastIndex = 0;
   let match: RegExpExecArray | null;
   while ((match = STATIC_IMPORT.exec(source)) !== null) {
-    if (match[1]) continue; // `import type` / `export type`: sters la incarcare
+    if (match[1]) continue; // `import type` / `export type`: erased at load time
     const specifier = match[2] ?? match[3];
     if (specifier) specifiers.push(specifier);
   }
@@ -78,9 +78,9 @@ async function tryRead(candidate: string): Promise<{ path: string; bytes: Buffer
 }
 
 /**
- * Parcurge graful pornind de la `entry`. Nu paraseste niciodata radacina
- * proiectului: un import relativ care iese din proiect este o eroare de ambalare,
- * nu un fisier inclus tacit.
+ * Walks the graph starting from `entry`. It never leaves the project root: a
+ * relative import that escapes the project is a packaging error, not a silently
+ * included file.
  */
 export async function buildStaticGraph(projectRoot: string, entry: string): Promise<StaticGraph> {
   const root = normalizePath(projectRoot);
@@ -97,7 +97,7 @@ export async function buildStaticGraph(projectRoot: string, entry: string): Prom
 
     const loaded = await tryRead(current);
     if (!loaded) {
-      throw new RaptorError("raptor:module/not-found", `modulul nu exista: ${relativeToRoot(root, current)}`, {
+      throw new RaptorError("raptor:module/not-found", `module does not exist: ${relativeToRoot(root, current)}`, {
         path: current,
       });
     }
@@ -109,8 +109,8 @@ export async function buildStaticGraph(projectRoot: string, entry: string): Prom
     if (dynamicCount > 0) {
       unresolved.push({
         from: here,
-        specifier: "import(<expresie>)",
-        reason: `${dynamicCount} import(uri) dinamice cu specificator calculat; nu pot fi ambalate static`,
+        specifier: "import(<expression>)",
+        reason: `${dynamicCount} dynamic import(s) with a computed specifier; they cannot be packaged statically`,
       });
     }
 
@@ -139,11 +139,11 @@ export async function buildStaticGraph(projectRoot: string, entry: string): Prom
       }
 
       if (!target) {
-        unresolved.push({ from: here, specifier, reason: "fisierul nu a fost gasit" });
+        unresolved.push({ from: here, specifier, reason: "the file was not found" });
         continue;
       }
       if (!containsPath(root, target)) {
-        unresolved.push({ from: here, specifier, reason: "iese din radacina proiectului" });
+        unresolved.push({ from: here, specifier, reason: "escapes the project root" });
         continue;
       }
       resolvedImports.push(relativeToRoot(root, target));

@@ -33,7 +33,7 @@ function mount(props: Parameters<typeof Table<Row>>[0]) {
   return { root, dispose, names };
 }
 
-test("randeaza capul de tabel si randurile in ordinea data", () => {
+test("renders the table head and the rows in the given order", () => {
   const rows = state<readonly Row[]>(ROWS);
   const { root, names } = mount({ rows: () => rows(), columns: COLUMNS });
 
@@ -41,7 +41,7 @@ test("randeaza capul de tabel si randurile in ordinea data", () => {
   assert.deepEqual(names(), ["Charlie", "alice", "Bob"]);
 });
 
-test("click pe header sorteaza, al doilea click inverseaza", () => {
+test("clicking the header sorts, the second click reverses", () => {
   const rows = state<readonly Row[]>(ROWS);
   const { root, names } = mount({ rows: () => rows(), columns: COLUMNS });
   const nameTh = root.querySelectorAll("th")[0]!;
@@ -55,20 +55,20 @@ test("click pe header sorteaza, al doilea click inverseaza", () => {
   assert.equal(nameTh.getAttribute("aria-sort"), "descending");
 });
 
-test("sortarea MUTA randurile, nu le recreeaza (teza fine-grained)", () => {
+test("sorting MOVES the rows, doesn't recreate them (fine-grained thesis)", () => {
   const rows = state<readonly Row[]>(ROWS);
   const { root } = mount({ rows: () => rows(), columns: COLUMNS });
 
   resetStats();
   root.querySelectorAll("th")[0]!.click();
 
-  // Zero elemente si zero text-node-uri noi: doar reordonare prin insert.
+  // Zero new elements and zero new text-nodes: only reordering via insert.
   assert.equal(stats.createElement, 0);
   assert.equal(stats.createText, 0);
-  assert.ok(stats.insert > 0, "randurile trebuie sa fi fost mutate");
+  assert.ok(stats.insert > 0, "the rows must have been moved");
 });
 
-test("coloana fara comparator nu e sortabila", () => {
+test("a column without a comparator is not sortable", () => {
   const rows = state<readonly Row[]>(ROWS);
   const { root, names } = mount({ rows: () => rows(), columns: COLUMNS });
   const noteTh = root.querySelectorAll("th")[2]!;
@@ -79,7 +79,7 @@ test("coloana fara comparator nu e sortabila", () => {
   assert.equal(noteTh.getAttribute("aria-sort"), "none");
 });
 
-test("celula reactiva actualizeaza doar propriul text-node", () => {
+test("a reactive cell updates only its own text-node", () => {
   const qty = state(5);
   const row: Row = { id: 1, name: "x", qty: 0 };
   const rows = state<readonly Row[]>([row]);
@@ -96,17 +96,17 @@ test("celula reactiva actualizeaza doar propriul text-node", () => {
   assert.equal(stats.textUpdate, 1);
 });
 
-test("starea goala apare si dispare fara sa atinga restul tabelului", () => {
+test("the empty state appears and disappears without touching the rest of the table", () => {
   const rows = state<readonly Row[]>([]);
-  const { root } = mount({ rows: () => rows(), columns: COLUMNS, empty: "Nimic aici" });
+  const { root } = mount({ rows: () => rows(), columns: COLUMNS, empty: "Nothing here" });
 
-  assert.equal(root.querySelector("tbody")!.textContent, "Nimic aici");
+  assert.equal(root.querySelector("tbody")!.textContent, "Nothing here");
   rows.set(ROWS);
   assert.equal(root.querySelectorAll("td").length, 9);
-  assert.ok(!root.querySelector("tbody")!.textContent.includes("Nimic aici"));
+  assert.ok(!root.querySelector("tbody")!.textContent.includes("Nothing here"));
 });
 
-test("selectia comuta si se reflecta in aria-selected", () => {
+test("selection toggles and is reflected in aria-selected", () => {
   const rows = state<readonly Row[]>(ROWS);
   const selected = state<ReadonlySet<Row>>(new Set());
   const { root } = mount({ rows: () => rows(), columns: COLUMNS, selected });
@@ -124,7 +124,7 @@ test("selectia comuta si se reflecta in aria-selected", () => {
   assert.equal(selected().size, 1);
 });
 
-test("multiple:false pastreaza un singur rand selectat", () => {
+test("multiple:false keeps a single row selected", () => {
   const rows = state<readonly Row[]>(ROWS);
   const selected = state<ReadonlySet<Row>>(new Set());
   const { root } = mount({ rows: () => rows(), columns: COLUMNS, selected, multiple: false });

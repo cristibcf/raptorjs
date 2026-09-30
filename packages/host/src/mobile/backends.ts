@@ -1,17 +1,17 @@
 /**
- * Back-end-urile mobile (roadmap sectiunea 6).
+ * The mobile back-ends (roadmap section 6).
  *
- * "Bridge minimal pentru Android si iOS, cu WebView si module native strict
- * delimitate." Delimitarea incepe de aici: fiecare platforma isi declara
- * WebView-ul, magazinul de secrete si formatul de distributie, iar adaptorul nu
- * presupune nimic dincolo de ce scrie in tabel.
+ * "A minimal bridge for Android and iOS, with a WebView and strictly bounded
+ * native modules." The bounding starts here: each platform declares its
+ * WebView, its secret store and its distribution format, and the adapter
+ * assumes nothing beyond what the table says.
  */
 
 export interface MobileBackend {
   readonly platform: "android" | "ios";
   readonly webview: string;
   readonly minimumOs: string;
-  /** Unde ajunge stocarea securizata ceruta de sectiunea 6. */
+  /** Where the secure storage required by section 6 ends up. */
   readonly secureStore: string;
   readonly deepLinkMechanism: string;
 }
@@ -22,7 +22,7 @@ export const MOBILE_BACKENDS: readonly MobileBackend[] = [
     webview: "Android System WebView",
     minimumOs: "Android 8.0 (API 26)",
     secureStore: "EncryptedSharedPreferences",
-    deepLinkMechanism: "App Links (intent-filter verificat)",
+    deepLinkMechanism: "App Links (verified intent-filter)",
   },
   {
     platform: "ios",

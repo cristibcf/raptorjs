@@ -1,7 +1,7 @@
 /**
- * Codec de valori tagged pentru RaptorWire. Generic (CBOR-lite) pentru MVP;
- * whitepaper 8.3/31.4 noteaza ca un codec specializat pe schema este o
- * optimizare ulterioara. Numerele intregi merg pe zig-zag, restul pe float64.
+ * Tagged value codec for RaptorWire. Generic (CBOR-lite) for the MVP;
+ * whitepaper 8.3/31.4 notes that a schema-specialized codec is a later
+ * optimization. Integers use zig-zag, everything else uses float64.
  */
 import { Writer, Reader } from "@raptor/wire/codec";
 import { setOwn } from "./safe.ts";
@@ -92,11 +92,11 @@ export function readValue(r: Reader): WireValue {
       const obj: { [key: string]: WireValue } = {};
       for (let i = 0; i < len; i++) {
         const key = r.string();
-        setOwn(obj, key, readValue(r)); // asignare proprie: previne prototype pollution
+        setOwn(obj, key, readValue(r)); // own-property assignment: prevents prototype pollution
       }
       return obj;
     }
     default:
-      throw new RangeError(`[wire] tag de valoare necunoscut: ${tag}`);
+      throw new RangeError(`[wire] unknown value tag: ${tag}`);
   }
 }

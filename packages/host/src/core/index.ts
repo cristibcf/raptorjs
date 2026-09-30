@@ -1,11 +1,11 @@
 /**
- * @raptor/host - contractul comun al host-urilor native.
+ * @raptor/host - the shared contract of the native hosts.
  *
- * Roadmap sectiunea 4 aseaza host-ul nativ ca strat separat: fereastra, WebView,
- * lifecycle, semnare si distributie. Pachetul acesta este contractul acelui
- * strat, nu o implementare de platforma. Adaptoarele (`@raptor/desktop`,
- * `@raptor/mobile`) il concretizeaza, iar binarul nativ il implementeaza de
- * cealalta parte a transportului - fara sa schimbe nimic in aplicatie.
+ * Roadmap section 4 places the native host as a separate layer: window, WebView,
+ * lifecycle, signing and distribution. This package is the contract of that
+ * layer, not a platform implementation. The adapters (`@raptor/desktop`,
+ * `@raptor/mobile`) make it concrete, and the native binary implements it on the
+ * other side of the transport - without changing anything in the app.
  */
 export { HOST_ERROR_CODES, HostError, isHostError, isHostErrorCode } from "./errors.ts";
 export type { HostErrorCode } from "./errors.ts";

@@ -1,12 +1,14 @@
 /**
- * Hyperscript builder `R` - API fara JSX peste aceleasi primitive fine-grained.
+ * Hyperscript builder `R` - a JSX-free API over the same fine-grained
+ * primitives.
  *
- * `R.div({ class: "x" }, () => count())` face exact ce face `jsx("div", ...)`:
- * creeaza nodul DOM real imediat si leaga expresiile reactive prin effects.
- * Nu exista Virtual DOM si nu exista pas de compilare - util acolo unde codul
- * e evaluat la runtime (playground, REPL) sau in proiecte fara build step.
+ * `R.div({ class: "x" }, () => count())` does exactly what `jsx("div", ...)`
+ * does: it creates the real DOM node immediately and binds reactive expressions
+ * through effects. There is no Virtual DOM and no compilation step - useful
+ * where code is evaluated at runtime (playground, REPL) or in projects without
+ * a build step.
  *
- * Componentele se construiesc apeland `R` direct: `R(MyComp, { a: 1 }, child)`.
+ * Components are built by calling `R` directly: `R(MyComp, { a: 1 }, child)`.
  */
 import { createElement, applyProps, mountChild, isBlock, type Child } from "./runtime.ts";
 
@@ -15,9 +17,9 @@ type El = any;
 type Props = Record<string, unknown>;
 
 /**
- * Primul argument e `props` doar daca e un obiect simplu. Nu e euristica:
- * un `Child` (vezi runtime.ts) e nod DOM, string, number, boolean, `Block`,
- * accessor sau array - deci un obiect care nu e niciuna dintre astea e props.
+ * The first argument is `props` only if it is a plain object. This is not a
+ * heuristic: a `Child` (see runtime.ts) is a DOM node, string, number, boolean,
+ * `Block`, accessor or array - so an object that is none of these is props.
  */
 function isProps(value: unknown): value is Props {
   return (
@@ -40,7 +42,7 @@ function build(tag: string, args: unknown[]): El {
   return el;
 }
 
-/** Apelul direct `R(Component, props?, ...children)`. */
+/** The direct call `R(Component, props?, ...children)`. */
 function component(type: (props: any) => El, props?: Props | null, ...children: Child[]): El {
   return type({ ...(props ?? {}), children });
 }
@@ -50,18 +52,18 @@ type Builder = (...args: unknown[]) => El;
 export type Hyperscript = typeof component & {
   readonly [K in keyof HTMLElementTagNameMap]: Builder;
 } & {
-  // SVG separat: altfel `R.svg` / `R.path` cad pe index signature si, cu
-  // `noUncheckedIndexedAccess`, ajung `Builder | undefined`.
+  // SVG kept separate: otherwise `R.svg` / `R.path` fall onto the index
+  // signature and, with `noUncheckedIndexedAccess`, become `Builder | undefined`.
   readonly [K in keyof SVGElementTagNameMap]: Builder;
 } & { readonly [tag: string]: Builder };
 
-// Un builder pe tag, creat o singura data. Proxy-ul face doar lookup in Map.
+// One builder per tag, created once. The proxy only does a Map lookup.
 const builders = new Map<string, Builder>();
 
 export const R: Hyperscript = new Proxy(component, {
   get(target, key) {
-    // Cheile non-string (simboluri) si `then` raman ale functiei-target:
-    // altfel `await R` ar vedea un thenable fals si ar strica apelul.
+    // Non-string keys (symbols) and `then` stay on the target function:
+    // otherwise `await R` would see a fake thenable and break the call.
     if (typeof key !== "string" || key === "then") {
       return (target as any)[key];
     }

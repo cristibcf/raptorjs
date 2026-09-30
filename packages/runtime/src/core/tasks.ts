@@ -1,10 +1,10 @@
 /**
- * Task fabric (spec sectiunea 5): planificare asincrona deterministica, cu
- * anulare, deadline-uri si cote de resurse - fara stare globala mutabila.
+ * Task fabric (spec section 5): deterministic asynchronous scheduling, with
+ * cancellation, deadlines and resource quotas - no mutable global state.
  *
- * `raptor:tasks` expune exact acest obiect. Oprirea curata ceruta de spike
- * (sectiunea 14) se obtine prin `shutdown()`: nu mai accepta lucru nou, anuleaza
- * ce este in zbor si asteapta drenarea.
+ * `raptor:tasks` exposes exactly this object. The clean shutdown the spike
+ * requires (section 14) is obtained through `shutdown()`: it stops accepting new
+ * work, cancels what is in flight and waits for it to drain.
  */
 import { RaptorError } from "./errors.ts";
 import type { Observer } from "./observe.ts";
@@ -12,7 +12,7 @@ import { silentObserver } from "./observe.ts";
 
 export interface TaskContext {
   readonly signal: AbortSignal;
-  /** Milisecunde ramase pana la deadline, sau `null` daca nu exista. */
+  /** Milliseconds remaining until the deadline, or `null` if there is none. */
   readonly remainingMs: number | null;
   throwIfCancelled(): void;
 }
@@ -20,7 +20,7 @@ export interface TaskContext {
 export interface SpawnOptions {
   readonly name?: string;
   readonly deadlineMs?: number;
-  /** Semnal extern (ex: cererea HTTP a fost abandonata de client). */
+  /** External signal (e.g. the HTTP request was abandoned by the client). */
   readonly signal?: AbortSignal;
 }
 
@@ -35,9 +35,9 @@ export interface TaskStats {
 
 export interface TaskFabric {
   spawn<T>(body: (context: TaskContext) => Promise<T> | T, options?: SpawnOptions): Promise<T>;
-  /** Asteapta terminarea lucrului in zbor, fara sa anuleze. */
+  /** Waits for in-flight work to finish, without cancelling. */
   drain(): Promise<void>;
-  /** Anuleaza tot si dreneaza; idempotent. */
+  /** Cancels everything and drains; idempotent. */
   shutdown(reason?: string): Promise<void>;
   readonly closed: boolean;
   stats(): TaskStats;
@@ -99,7 +99,7 @@ class Fabric implements TaskFabric {
   spawn<T>(body: (context: TaskContext) => Promise<T> | T, options: SpawnOptions = {}): Promise<T> {
     if (this.#closed) {
       return Promise.reject(
-        new RaptorError("raptor:task/quota", "task fabric este inchis; nu mai accepta lucru nou", {
+        new RaptorError("raptor:task/quota", "task fabric is closed; it no longer accepts new work", {
           name: options.name ?? "anonymous",
         }),
       );
@@ -110,8 +110,8 @@ class Fabric implements TaskFabric {
 
     const promise = this.#run(name, body, options);
     this.#inFlight.add(promise);
-    // Ramura de urmarire consuma respingerea, ca un task lansat si neasteptat
-    // sa nu produca un "unhandled rejection"; apelantul primeste `promise`.
+    // The tracking branch consumes the rejection, so that a task launched and
+    // not awaited does not produce an "unhandled rejection"; the caller gets `promise`.
     void promise.then(
       () => this.#inFlight.delete(promise),
       () => this.#inFlight.delete(promise),
@@ -141,9 +141,9 @@ class Fabric implements TaskFabric {
     if (deadlineMs !== null && deadlineMs !== undefined) {
       timer = setTimeout(() => {
         deadlineHit = true;
-        controller.abort(new RaptorError("raptor:task/deadline", `task '${name}' a depasit deadline-ul`, { name, deadlineMs }));
+        controller.abort(new RaptorError("raptor:task/deadline", `task '${name}' exceeded its deadline`, { name, deadlineMs }));
       }, deadlineMs);
-      // Un deadline nu trebuie sa tina procesul in viata de unul singur.
+      // A deadline must not keep the process alive on its own.
       if (typeof (timer as { unref?: () => void }).unref === "function") (timer as { unref: () => void }).unref();
     }
 
@@ -157,7 +157,7 @@ class Fabric implements TaskFabric {
         if (!controller.signal.aborted) return;
         const reason = controller.signal.reason;
         if (reason instanceof RaptorError) throw reason;
-        throw new RaptorError("raptor:task/cancelled", `task '${name}' a fost anulat`, { name });
+        throw new RaptorError("raptor:task/cancelled", `task '${name}' was cancelled`, { name });
       },
     };
 
@@ -175,7 +175,7 @@ class Fabric implements TaskFabric {
       if (cancelled && !(error instanceof RaptorError)) {
         throw new RaptorError(
           deadlineHit ? "raptor:task/deadline" : "raptor:task/cancelled",
-          `task '${name}' ${deadlineHit ? "a depasit deadline-ul" : "a fost anulat"}`,
+          `task '${name}' ${deadlineHit ? "exceeded its deadline" : "was cancelled"}`,
           { name, cause: String(error) },
         );
       }
@@ -198,7 +198,7 @@ class Fabric implements TaskFabric {
     if (!this.#closed) {
       this.#closed = true;
       this.#observer.log("info", "tasks.shutdown", { reason, active: this.#active });
-      this.#root.abort(new RaptorError("raptor:task/cancelled", `runtime se opreste: ${reason}`, { reason }));
+      this.#root.abort(new RaptorError("raptor:task/cancelled", `runtime is shutting down: ${reason}`, { reason }));
     }
     await this.drain();
   }

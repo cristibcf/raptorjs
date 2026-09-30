@@ -1,20 +1,20 @@
 /**
- * Layout - primitive de asezare in pagina.
+ * Layout - primitives for placing things on the page.
  *
- * Sunt functii pure care intorc noduri: fara stare, fara effects, fara cost la
- * runtime peste `createElement`. Rostul lor nu e performanta, ci sa nu mai
- * scrii `display:flex;gap:8px` de trei sute de ori si sa nu mai inventezi
- * fiecare dezvoltator alta scara de spatiere.
+ * They are pure functions that return nodes: no state, no effects, no runtime
+ * cost beyond `createElement`. Their point isn't performance, it's so you don't
+ * write `display:flex;gap:8px` three hundred times and so each developer
+ * doesn't invent a different spacing scale.
  *
- * Spatierea e in trepte (`0..8`), nu in pixeli liberi: o scara mica tinuta cu
- * disciplina arata mai bine decat valori alese ad-hoc.
+ * Spacing is in steps (`0..8`), not free pixels: a small scale kept with
+ * discipline looks better than ad-hoc values.
  */
 import { R, type Child } from "raptorjs/dom";
 import { type El } from "./primitives/env.ts";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-/** Treptele scarii de spatiere, in px. */
+/** The steps of the spacing scale, in px. */
 export const SPACE = [0, 2, 4, 8, 12, 16, 24, 32, 48] as const;
 export type Space = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 
@@ -30,7 +30,7 @@ function joinStyle(parts: Array<string | null>): string | undefined {
 
 export interface BoxProps {
   children?: Child;
-  /** Eticheta de tag. Implicit `div`. Foloseste `section`, `aside`, `nav`... */
+  /** Tag name. Default `div`. Use `section`, `aside`, `nav`... */
   as?: string;
   padding?: Space;
   paddingX?: Space;
@@ -38,15 +38,15 @@ export interface BoxProps {
   margin?: Space;
   width?: string;
   height?: string;
-  /** Stil suplimentar, concatenat la final. */
+  /** Extra style, concatenated at the end. */
   style?: string;
   class?: string;
   /**
-   * Atribute puse direct pe element (`id`, `aria-*`, `on:click`).
+   * Attributes put directly on the element (`id`, `aria-*`, `on:click`).
    *
-   * Explicit, nu index signature: cu `[key: string]: unknown`, `Omit<T, K>` ar
-   * sterge toti membrii declarati (`keyof T` devine `string`), si tipurile
-   * derivate ca `StackProps` ar pierde `gap`, `align` etc.
+   * Explicit, not an index signature: with `[key: string]: unknown`,
+   * `Omit<T, K>` would erase all declared members (`keyof T` becomes `string`),
+   * and derived types like `StackProps` would lose `gap`, `align` etc.
    */
   attrs?: Record<string, unknown>;
 }
@@ -89,7 +89,7 @@ export interface FlexProps extends BoxProps {
   align?: AlignItems;
   justify?: JustifyContent;
   wrap?: boolean;
-  /** `flex` pe container (ex. "1" ca sa umple spatiul din parinte). */
+  /** `flex` on the container (e.g. "1" to fill the parent's space). */
   grow?: boolean;
 }
 
@@ -119,29 +119,29 @@ export function Flex(props: FlexProps): El {
 }
 
 export interface StackProps extends Omit<FlexProps, "direction"> {
-  /** `vertical` (implicit) sau `horizontal`. */
+  /** `vertical` (default) or `horizontal`. */
   orientation?: "vertical" | "horizontal";
 }
 
-/** Stivuire cu gap. Cea mai folosita primitiva de layout. */
+/** Stacking with a gap. The most-used layout primitive. */
 export function Stack(props: StackProps): El {
   const { orientation, ...rest } = props;
   return Flex({
     ...rest,
     direction: orientation === "horizontal" ? "row" : "column",
     gap: props.gap ?? 4,
-    // O stiva verticala aliniaza implicit la start, nu intinde copiii.
+    // A vertical stack aligns to start by default, it doesn't stretch children.
     align: props.align ?? (orientation === "horizontal" ? "center" : undefined),
   });
 }
 
-/** Grupare orizontala: acelasi lucru ca `Stack` orizontal, nume idiomatic. */
+/** Horizontal grouping: same as a horizontal `Stack`, idiomatic name. */
 export function Group(props: Omit<StackProps, "orientation">): El {
   return Stack({ ...props, orientation: "horizontal" });
 }
 
 export interface GridProps extends BoxProps {
-  /** Numar de coloane egale, sau un `grid-template-columns` complet. */
+  /** Number of equal columns, or a full `grid-template-columns`. */
   columns?: number | string;
   rows?: number | string;
   gap?: Space;
@@ -177,14 +177,14 @@ export function Grid(props: GridProps): El {
 }
 
 export interface SimpleGridProps extends BoxProps {
-  /** Latimea minima a unei coloane; numarul lor se adapteaza singur. */
+  /** The minimum width of a column; their number adapts on its own. */
   minColumnWidth?: string;
   gap?: Space;
 }
 
 /**
- * Grid care isi alege singur numarul de coloane. Fara media queries: `auto-fill`
- * plus `minmax` rezolva responsive-ul dintr-o singura declaratie.
+ * A grid that picks its own number of columns. No media queries: `auto-fill`
+ * plus `minmax` solves the responsive part in a single declaration.
  */
 export function SimpleGrid(props: SimpleGridProps): El {
   const min = props.minColumnWidth ?? "220px";
@@ -203,9 +203,9 @@ export function SimpleGrid(props: SimpleGridProps): El {
 }
 
 export interface ContainerProps extends BoxProps {
-  /** Latimea maxima. Implicit 1100px. */
+  /** The maximum width. Default 1100px. */
   maxWidth?: string;
-  /** Spatiu lateral pastrat pe ecrane mici. Implicit treapta 5 (16px). */
+  /** Side space kept on small screens. Default step 5 (16px). */
   gutter?: Space;
 }
 
@@ -226,7 +226,7 @@ export function Container(props: ContainerProps): El {
 }
 
 export interface CenterProps extends BoxProps {
-  /** Centreaza si pe verticala, ocupand toata inaltimea disponibila. */
+  /** Also center vertically, taking up all available height. */
   fullHeight?: boolean;
 }
 
@@ -244,7 +244,7 @@ export function Center(props: CenterProps): El {
 }
 
 export interface SpacerProps {
-  /** Marime fixa; fara ea, ocupa tot spatiul liber dintr-un flex. */
+  /** Fixed size; without it, it takes all the free space in a flex. */
   size?: Space;
 }
 
@@ -259,7 +259,7 @@ export function Spacer(props?: SpacerProps): El {
 
 export interface DividerProps {
   orientation?: "horizontal" | "vertical";
-  /** Text in mijlocul liniei (ex. "sau"). Doar pe orizontala. */
+  /** Text in the middle of the line (e.g. "or"). Horizontal only. */
   label?: Child;
   spacing?: Space;
   class?: string;
@@ -294,7 +294,7 @@ export function Divider(props: DividerProps): El {
 
 export interface AspectRatioProps {
   children: Child;
-  /** Raport latime/inaltime. Implicit 16/9. */
+  /** Width/height ratio. Default 16/9. */
   ratio?: number;
   class?: string;
 }
@@ -310,7 +310,7 @@ export function AspectRatio(props: AspectRatioProps): El {
 }
 
 export interface ScrollAreaProps extends BoxProps {
-  /** Axa pe care se deruleaza. Implicit `y`. */
+  /** The axis it scrolls on. Default `y`. */
   axis?: "x" | "y" | "both";
   maxHeight?: string;
 }
@@ -329,8 +329,8 @@ export function ScrollArea(props: ScrollAreaProps): El {
       ...(props.attrs ?? {}),
       class: props.class ? "rui-scroll " + props.class : "rui-scroll",
       style,
-      // Zona derulabila trebuie sa fie focusabila, altfel nu poate fi
-      // parcursa de la tastatura (criteriu WCAG 2.1.1).
+      // A scrollable region must be focusable, otherwise it can't be
+      // traversed from the keyboard (WCAG 2.1.1 criterion).
       tabindex: "0",
     },
     props.children ?? null,

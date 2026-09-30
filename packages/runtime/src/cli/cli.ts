@@ -1,10 +1,10 @@
 /**
- * Dispecerul launcher-ului `raptor-runtime` (spec sectiunea 4).
+ * The `raptor-runtime` launcher dispatcher (spec section 4).
  *
- * `runCli` nu atinge niciodata `process`: primeste argumentele si mediul, si
- * intoarce un `CommandResult`. `main` este singurul loc care scrie la iesire si
- * seteaza codul de proces, deci fiecare comanda poate fi testata in proces, fara
- * sa porneasca un shell.
+ * `runCli` never touches `process`: it receives the arguments and the
+ * environment, and returns a `CommandResult`. `main` is the only place that
+ * writes to output and sets the process code, so every command can be tested
+ * in-process, without starting a shell.
  */
 import { RUNTIME_VERSION } from "@raptor/runtime";
 import type { PolicyMode } from "@raptor/runtime";
@@ -20,25 +20,25 @@ import { fail, fromError, ok } from "./shared.ts";
 
 export interface CliOptions {
   readonly cwd?: string;
-  /** Fara terminal interactiv, politica `prompt` degradeaza la `deny`. */
+  /** Without an interactive terminal, the `prompt` policy degrades to `deny`. */
   readonly interactive?: boolean;
-  /** `run` asteapta semnalele de oprire doar in binar, nu in teste. */
+  /** `run` waits for shutdown signals only in the binary, not in tests. */
   readonly waitForSignals?: boolean;
 }
 
 const USAGE = [
   `RaptorRuntime ${RUNTIME_VERSION}`,
   "",
-  "  raptor-runtime init [director]        creeaza un proiect nou",
-  "  raptor-runtime run [-- args...]       ruleaza proiectul din directorul curent",
-  "  raptor-runtime doctor                 verifica manifest, politici si graf static",
-  "  raptor-runtime test [--filter text]   ruleaza fisierele *.test.ts ale proiectului",
-  "  raptor-runtime pack [--out dir]       ambaleaza o unitate reproductibila cu lockfile",
-  "  raptor-runtime trace [--out fisier]   ruleaza si scrie urmarire compatibila OpenTelemetry",
+  "  raptor-runtime init [directory]       create a new project",
+  "  raptor-runtime run [-- args...]       run the project in the current directory",
+  "  raptor-runtime doctor                 check manifest, policies and static graph",
+  "  raptor-runtime test [--filter text]   run the project's *.test.ts files",
+  "  raptor-runtime pack [--out dir]       package a reproducible unit with a lockfile",
+  "  raptor-runtime trace [--out file]     run and write an OpenTelemetry-compatible trace",
   "",
-  "  --policy development|production       suprascrie politica din manifest",
-  "  --cwd <cale>                          porneste din alt director",
-  "  --json                                iesire structurata pentru automatizare",
+  "  --policy development|production       override the manifest's policy",
+  "  --cwd <path>                          start from another directory",
+  "  --json                                structured output for automation",
   "  --version, --help",
 ].join("\n");
 
@@ -60,7 +60,7 @@ export async function runCli(argv: readonly string[], options: CliOptions = {}):
 
   const policyFlag = flagString(parsed.flags, "policy");
   if (policyFlag !== undefined && policyFrom(policyFlag) === null) {
-    return fail(2, `politica necunoscuta: ${policyFlag} (asteptat development sau production)`, {
+    return fail(2, `unknown policy: ${policyFlag} (expected development or production)`, {
       error: { code: "raptor:cli/bad-flag", flag: "policy", value: policyFlag },
     });
   }
@@ -94,7 +94,7 @@ export async function runCli(argv: readonly string[], options: CliOptions = {}):
       case "trace":
         return await traceCommand(input);
       default:
-        return fail(2, `comanda necunoscuta: ${parsed.command}\n\n${USAGE}`, {
+        return fail(2, `unknown command: ${parsed.command}\n\n${USAGE}`, {
           error: { code: "raptor:cli/unknown-command", command: parsed.command },
         });
     }
@@ -103,7 +103,7 @@ export async function runCli(argv: readonly string[], options: CliOptions = {}):
   }
 }
 
-/** Punctul de intrare al binarului: singurul loc cu efecte pe proces. */
+/** The binary's entry point: the only place with process side effects. */
 export async function main(argv: readonly string[]): Promise<number> {
   const json = argv.includes("--json");
   const result = await runCli(argv, {

@@ -1,9 +1,9 @@
 /**
- * Contextul de host pe care il primeste fiecare modul `raptor:`.
+ * The host context that every `raptor:` module receives.
  *
- * Regula din spec sectiunea 5: "JavaScript nu primeste niciodata handle-uri brute
- * de host". Modulele nu importa `node:fs` direct in suprafata publica - primesc
- * acest context, care leaga fiecare operatie de un broker si de un observer.
+ * The rule from spec section 5: "JavaScript never receives raw host handles".
+ * Modules do not import `node:fs` directly in the public surface - they receive
+ * this context, which ties every operation to a broker and to an observer.
  */
 import type { CapabilityBroker } from "./capabilities.ts";
 import type { RuntimeManifest } from "./manifest.ts";
@@ -16,6 +16,6 @@ export interface HostContext {
   readonly broker: CapabilityBroker;
   readonly observer: Observer;
   readonly tasks: TaskFabric;
-  /** Argumentele aplicatiei, dupa cele ale launcher-ului. */
+  /** The application's arguments, after the launcher's own. */
   readonly args: readonly string[];
 }

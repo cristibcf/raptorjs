@@ -1,13 +1,13 @@
 /**
- * Demo headless: aceeasi aplicatie, host-ul fiind browserul.
+ * Headless demo: the same application, with the browser as the host.
  *
  *   node examples/web-shell/src/demo.ts
  *
- * Bucatile de browser sunt inlocuite cu echivalente de test, ca sa se vada
- * contractul fara sa fie nevoie de un browser. Varianta care chiar ruleaza in
- * pagina este `src/main.tsx` (`pnpm dev:web-shell`).
+ * The browser pieces are replaced with test equivalents, so the contract is
+ * visible without needing a browser. The variant that actually runs in the page
+ * is `src/main.tsx` (`pnpm dev:web-shell`).
  *
- * Rulat dupa `demo:desktop` si `demo:mobile`, arata a treia coloana a matricei.
+ * Run after `demo:desktop` and `demo:mobile`, it shows the third column of the matrix.
  */
 import { createSession } from "./session.ts";
 import type { WebPlatform } from "@raptor/host/web";
@@ -16,8 +16,8 @@ const tick = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 5
 
 const store = new Map<string, string>();
 const pushed: string[] = [];
-// Purtat intr-un obiect: TypeScript nu vede atribuirea din callback-ul de mai
-// jos, deci o variabila simpla s-ar ingusta la `null`.
+// Carried in an object: TypeScript does not see the assignment in the callback
+// below, so a plain variable would narrow to `null`.
 const popstate: { fire: ((path: string) => void) | null } = { fire: null };
 const shown: string[] = [];
 
@@ -54,46 +54,46 @@ const platform: WebPlatform = {
 
 const session = createSession({ platform, capabilities: ["window.manage", "device.notifications"] });
 
-console.log("=== RaptorJS cu browserul pe post de host ===\n");
+console.log("=== RaptorJS with the browser as the host ===\n");
 
 await session.shell.start();
 session.host.lifecycle.to("ready");
 session.host.lifecycle.to("foreground");
 await tick();
 
-console.log("Dupa pornire:", session.shell.summary());
-console.log("  ce poate aplicatia:", JSON.stringify(await session.shell.abilities()));
+console.log("After startup:", session.shell.summary());
+console.log("  what the app can do:", JSON.stringify(await session.shell.abilities()));
 
-await session.shell.addNote("de citit documentatia");
-await session.shell.announce("nota salvata");
+await session.shell.addNote("read the docs");
+await session.shell.announce("note saved");
 await tick();
 
-console.log("\nDupa o nota:", session.shell.summary());
-console.log("  localStorage      :", [...store.entries()].map(([k, v]) => `${k}=${v}`).join(" "));
-console.log("  notificari aratate:", shown.join(", "));
+console.log("\nAfter one note:", session.shell.summary());
+console.log("  localStorage       :", [...store.entries()].map(([k, v]) => `${k}=${v}`).join(" "));
+console.log("  notifications shown:", shown.join(", "));
 
-console.log("\nNavigare ceruta de aplicatie:", await session.shell.goTo("/arhiva"));
+console.log("\nNavigation requested by the app:", await session.shell.goTo("/arhiva"));
 await tick();
 console.log("  history.pushState :", pushed.join(", "));
-console.log("  ruta              :", session.shell.route());
+console.log("  route             :", session.shell.route());
 
-console.log("\nNavigare catre o origine straina:", await session.shell.goTo("https://atacator.example/x"));
-console.log("  motiv:", session.shell.lastError());
+console.log("\nNavigation to a foreign origin:", await session.shell.goTo("https://atacator.example/x"));
+console.log("  reason:", session.shell.lastError());
 
-// Butonul de back al browserului: ruta se schimba de sub aplicatie.
+// The browser's back button: the route changes out from under the app.
 popstate.fire?.("/note");
 await tick();
-console.log("\nDupa butonul de back:", session.shell.summary());
+console.log("\nAfter the back button:", session.shell.summary());
 
 for (const method of ["process.spawn", "camera.capture"]) {
-  console.log(`\n'${method}' pe acest host:`, session.bridge.allows(method) ? "permisa" : "indisponibila");
+  console.log(`\n'${method}' on this host:`, session.bridge.allows(method) ? "allowed" : "unavailable");
 }
 
-console.log("\nActualizari:", JSON.stringify(await session.bridge.call("update.check")));
+console.log("\nUpdates:", JSON.stringify(await session.bridge.call("update.check")));
 
 console.log(
-  "\n-> Aceeasi aplicatie ca in desktop-shell si mobile-shell. Pe web, puntea da",
+  "\n-> The same app as in desktop-shell and mobile-shell. On web, the bridge gives",
 );
-console.log("   portabilitate, nu izolare: granita reala ramane sandbox-ul browserului.");
+console.log("   portability, not isolation: the real boundary stays the browser's sandbox.");
 
 session.close();

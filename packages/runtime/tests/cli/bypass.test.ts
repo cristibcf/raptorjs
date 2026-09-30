@@ -1,11 +1,11 @@
 /**
- * Regresie pentru auditul din 2026-09-24 (S5).
+ * Regression for the 2026-09-24 audit (S5).
  *
- * Pe motorul de bootstrap, `import fs from "node:fs"` ajunge la disc fara sa
- * treaca prin capability broker. Regula era stiuta doar de `doctor`: `run`
- * pornea aplicatia in politica `production` cu manifestul gol, raporta
- * "1 capability refuzata" pentru fisierul cerut prin `raptor:files` si nu spunea
- * nicaieri ca acelasi fisier fusese citit pe cealalta cale.
+ * On the bootstrap engine, `import fs from "node:fs"` reaches the disk without
+ * passing through the capability broker. The rule was known only to `doctor`:
+ * `run` started the application under the `production` policy with an empty
+ * manifest, reported "1 denied capability" for the file requested through
+ * `raptor:files` and said nowhere that the same file had been read the other way.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -20,8 +20,8 @@ interface Project {
 }
 
 /**
- * Un proiect care cere acelasi fisier pe doua cai: prin `raptor:files` (unde e
- * refuzat) si prin `node:fs` (unde nimeni nu se uita).
+ * A project that requests the same file two ways: through `raptor:files` (where
+ * it is denied) and through `node:fs` (where nobody looks).
  */
 function project(policy: "development" | "production", entry: string): Project {
   const root = mkdtempSync(join(tmpdir(), "raptor-bypass-"));
@@ -41,23 +41,23 @@ function project(policy: "development" | "production", entry: string): Project {
 
 const OCOL = `import observe from "raptor:observe";
 const { readFileSync } = await import("node:fs");
-observe.log("info", "am citit pe langa broker", { octeti: readFileSync(import.meta.filename, "utf8").length });
+observe.log("info", "read around the broker", { octeti: readFileSync(import.meta.filename, "utf8").length });
 export const gata = true;
 `;
 
 const CURAT = `import observe from "raptor:observe";
-observe.log("info", "nimic de ocolit", {});
+observe.log("info", "nothing to bypass", {});
 export const gata = true;
 `;
 
-test("S5: in politica production, un import care ocoleste brokerul opreste rularea", async () => {
+test("S5: under the production policy, an import that bypasses the broker stops the run", async () => {
   const app = project("production", OCOL);
   try {
     const result = await runCli(["run", "--cwd", app.root], { cwd: app.root });
-    assert.equal(result.code, 1, `ar fi trebuit sa refuze:\n${result.out}`);
+    assert.equal(result.code, 1, `it should have denied:\n${result.out}`);
     assert.match(result.out, /node:fs/);
-    assert.match(result.out, /ocoleste capability broker-ul/);
-    // Refuzul propune drumul corect, nu doar spune "nu".
+    assert.match(result.out, /bypasses the capability broker/);
+    // The denial proposes the correct path, not just says "no".
     assert.match(result.out, /raptor:files/);
     assert.match(result.out, /--policy development/);
   } finally {
@@ -65,19 +65,19 @@ test("S5: in politica production, un import care ocoleste brokerul opreste rular
   }
 });
 
-test("S5: refuzul din production ajunge si in jurnalul de audit", async () => {
+test("S5: the production denial also reaches the audit log", async () => {
   const app = project("production", OCOL);
   try {
     await runCli(["run", "--cwd", app.root], { cwd: app.root });
     const auditPath = join(app.root, ".raptor", "audit.jsonl");
-    assert.ok(existsSync(auditPath), "politica production cere jurnal de audit");
+    assert.ok(existsSync(auditPath), "the production policy requires an audit log");
 
     const entries = readFileSync(auditPath, "utf8")
       .trim()
       .split("\n")
       .map((line) => JSON.parse(line) as { name: string; attributes: Record<string, unknown> });
     const bypass = entries.find((entry) => entry.name === "bypass");
-    assert.ok(bypass, "jurnalul trebuie sa arate si accesul care a trecut pe langa poarta");
+    assert.ok(bypass, "the log must also show the access that slipped past the gate");
     assert.equal(bypass.attributes["specifier"], "node:fs");
     assert.equal(bypass.attributes["replacement"], "raptor:files");
   } finally {
@@ -85,12 +85,12 @@ test("S5: refuzul din production ajunge si in jurnalul de audit", async () => {
   }
 });
 
-test("S5: in development aplicatia ruleaza, dar ocolul e raportat, nu tacut", async () => {
+test("S5: in development the application runs, but the bypass is reported, not silent", async () => {
   const app = project("development", OCOL);
   try {
     const result = await runCli(["run", "--cwd", app.root], { cwd: app.root });
-    assert.equal(result.code, 0, `development nu blocheaza portarea:\n${result.out}`);
-    assert.match(result.out, /ocolesc brokerul/);
+    assert.equal(result.code, 0, `development does not block porting:\n${result.out}`);
+    assert.match(result.out, /bypass the broker/);
     assert.match(result.out, /node:fs/);
 
     const bypasses = result.data["bypasses"] as Array<{ specifier: string }>;
@@ -100,25 +100,25 @@ test("S5: in development aplicatia ruleaza, dar ocolul e raportat, nu tacut", as
   }
 });
 
-test("S5: o aplicatie fara ocoluri nu primeste nici avertisment, nici randul in tabel", async () => {
+test("S5: an application without bypasses gets neither a warning nor a row in the table", async () => {
   const app = project("production", CURAT);
   try {
     const result = await runCli(["run", "--cwd", app.root], { cwd: app.root });
     assert.equal(result.code, 0, result.out);
-    assert.doesNotMatch(result.out, /ocolesc brokerul/, "nu speriem pe nimeni degeaba");
+    assert.doesNotMatch(result.out, /bypass the broker/, "we do not scare anyone for nothing");
     assert.deepEqual(result.data["bypasses"], []);
   } finally {
     app.dispose();
   }
 });
 
-test("S5: doctor si run folosesc aceeasi regula", async () => {
+test("S5: doctor and run use the same rule", async () => {
   const app = project("production", OCOL);
   try {
     const doctor = await runCli(["doctor", "--cwd", app.root], { cwd: app.root });
-    // In production ocolul e eroare si in `doctor`, nu doar avertisment.
-    assert.match(doctor.out, /node:fs ocoleste capability broker-ul/);
-    assert.equal(doctor.code, 1, "doctor nu poate spune 'ok' la ce run refuza");
+    // In production the bypass is an error in `doctor` too, not just a warning.
+    assert.match(doctor.out, /node:fs bypasses the capability broker/);
+    assert.equal(doctor.code, 1, "doctor cannot say 'ok' to what run denies");
   } finally {
     app.dispose();
   }
@@ -127,59 +127,59 @@ test("S5: doctor si run folosesc aceeasi regula", async () => {
 /* ------------------------------------------------- runda 2 de audit ------- */
 
 const OCOL_CALCULAT = `import observe from "raptor:observe";
-// Specificatorul e CALCULAT, deci graful static nu vede niciun \`node:\`.
+// The specifier is COMPUTED, so the static graph sees no \`node:\`.
 const nume = ["node", "fs"].join(":");
 const fs = await import(nume);
-observe.log("info", "am citit oricum", { octeti: fs.readFileSync(import.meta.filename, "utf8").length });
+observe.log("info", "read anyway", { octeti: fs.readFileSync(import.meta.filename, "utf8").length });
 export const gata = true;
 `;
 
 const IMPORT_LIPSA = `import observe from "raptor:observe";
 import "./nu-exista.ts";
-observe.log("info", "nu ajunge aici", {});
+observe.log("info", "does not reach here", {});
 `;
 
-test("R1: un import() cu specificator calculat opreste rularea in production", async () => {
-  // Prima reparatie se uita doar la `hostImports`, iar un specificator calculat
-  // nu ajunge niciodata acolo. Aplicatia rula in production cu manifestul gol si
-  // raporta "0 capabilitati refuzate" dupa ce citise ce voia.
+test("R1: an import() with a computed specifier stops the run in production", async () => {
+  // The first fix looked only at `hostImports`, and a computed specifier never
+  // reaches there. The application ran in production with an empty manifest and
+  // reported "0 denied capabilities" after reading what it wanted.
   const app = project("production", OCOL_CALCULAT);
   try {
     const result = await runCli(["run", "--cwd", app.root], { cwd: app.root });
-    assert.equal(result.code, 1, `ar fi trebuit sa refuze:\n${result.out}`);
-    assert.match(result.out, /neverificabil|nu pot demonstra/);
+    assert.equal(result.code, 1, `it should have denied:\n${result.out}`);
+    assert.match(result.out, /unverifiable|cannot prove/);
     const unverifiable = result.data["unverifiable"] as Array<{ what: string }>;
-    assert.ok(unverifiable.length > 0, "raportul spune ce nu a putut verifica");
+    assert.ok(unverifiable.length > 0, "the report says what it could not verify");
   } finally {
     app.dispose();
   }
 });
 
-test("R1: in development ruleaza, dar neverificabilul e raportat", async () => {
+test("R1: in development it runs, but the unverifiable is reported", async () => {
   const app = project("development", OCOL_CALCULAT);
   try {
     const result = await runCli(["run", "--cwd", app.root], { cwd: app.root });
     assert.equal(result.code, 0, result.out);
-    assert.match(result.out, /neverificabil/);
+    assert.match(result.out, /unverifiable/);
   } finally {
     app.dispose();
   }
 });
 
-test("R2: daca graful nu poate fi construit, production refuza in loc sa treaca", async () => {
-  // `findBypasses(...).catch(() => [])` spunea "n-am gasit nimic" cand adevarul
-  // era "n-am putut sa ma uit" - adica fail-open exact in regimul strict.
+test("R2: if the graph cannot be built, production denies instead of passing", async () => {
+  // `findBypasses(...).catch(() => [])` said "I found nothing" when the truth
+  // was "I could not look" - that is, fail-open in exactly the strict regime.
   const app = project("production", IMPORT_LIPSA);
   try {
     const result = await runCli(["run", "--cwd", app.root], { cwd: app.root });
-    assert.equal(result.code, 1, `un graf nereconstruibil nu e o dovada de curatenie:\n${result.out}`);
-    assert.match(result.out, /nu-exista\.ts|graful static/);
+    assert.equal(result.code, 1, `an unbuildable graph is not proof of cleanliness:\n${result.out}`);
+    assert.match(result.out, /nu-exista\.ts|static graph/);
   } finally {
     app.dispose();
   }
 });
 
-test("R1/R2: o aplicatie curata nu e afectata de niciuna dintre reguli", async () => {
+test("R1/R2: a clean application is affected by neither rule", async () => {
   const app = project("production", CURAT);
   try {
     const result = await runCli(["run", "--cwd", app.root], { cwd: app.root });

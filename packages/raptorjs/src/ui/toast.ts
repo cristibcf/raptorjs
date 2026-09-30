@@ -1,12 +1,12 @@
 /**
- * Toast / Toaster - notificari temporare, cu coada.
+ * Toast / Toaster - temporary notifications, with a queue.
  *
- * `createToaster()` intoarce un magazin pe care il detii tu; `Toaster` doar il
- * randeaza. Asta inseamna ca poti anunta ceva din afara arborelui de componente
- * (dintr-un handler de retea, dintr-un worker) fara sa cauti un context.
+ * `createToaster()` returns a store you own; `Toaster` only renders it. This
+ * means you can announce something from outside the component tree (from a
+ * network handler, from a worker) without looking up a context.
  *
- * Cronometrele se pun in pauza la hover: altfel un mesaj citit pe jumatate
- * dispare exact cand utilizatorul intinde mana dupa butonul de actiune.
+ * The timers pause on hover: otherwise a half-read message disappears exactly
+ * when the user reaches for the action button.
  */
 import { state, onCleanup, type Accessor } from "raptorjs";
 import { R, For, Show, type Child } from "raptorjs/dom";
@@ -21,11 +21,11 @@ export interface ToastOptions {
   title?: Child;
   message: Child;
   kind?: ToastKind;
-  /** Ms pana la disparitie. `0` = ramane pana la inchidere manuala. */
+  /** Ms until it disappears. `0` = stays until manually closed. */
   duration?: number;
-  /** Buton de actiune (ex. "Anulează"). */
+  /** Action button (e.g. "Cancel"). */
   action?: { label: Child; onClick: () => void };
-  /** Cheie de deduplicare: un al doilea toast cu aceeasi cheie il inlocuieste. */
+  /** Dedup key: a second toast with the same key replaces it. */
   key?: string;
 }
 
@@ -37,24 +37,24 @@ export interface ToastItem extends ToastOptions {
 
 export interface Toaster {
   toasts: Accessor<readonly ToastItem[]>;
-  /** Adauga un toast. Intoarce id-ul, pentru inchidere programatica. */
+  /** Adds a toast. Returns the id, for programmatic dismissal. */
   push: (options: ToastOptions) => number;
   dismiss: (id: number) => void;
   clear: () => void;
-  /** Scurtaturi. */
+  /** Shortcuts. */
   info: (message: Child, options?: Omit<ToastOptions, "message" | "kind">) => number;
   success: (message: Child, options?: Omit<ToastOptions, "message" | "kind">) => number;
   warning: (message: Child, options?: Omit<ToastOptions, "message" | "kind">) => number;
   error: (message: Child, options?: Omit<ToastOptions, "message" | "kind">) => number;
-  /** Pauza/reluare pentru toate cronometrele (folosit de hover). */
+  /** Pause/resume for all timers (used by hover). */
   pause: () => void;
   resume: () => void;
 }
 
 export interface ToasterOptions {
-  /** Durata implicita in ms. Implicit 4000. */
+  /** Default duration in ms. Default 4000. */
   duration?: number;
-  /** Cate se afiseaza simultan; cele vechi ies primele. Implicit 5. */
+  /** How many are shown at once; the old ones leave first. Default 5. */
   max?: number;
 }
 
@@ -63,7 +63,7 @@ export function createToaster(options?: ToasterOptions): Toaster {
   const max = options?.max ?? 5;
   const toasts = state<readonly ToastItem[]>([]);
 
-  /** Cronometru per toast, cu timpul ramas pastrat la pauza. */
+  /** A timer per toast, with the remaining time preserved on pause. */
   interface Timer {
     handle: ReturnType<typeof setTimeout> | null;
     remaining: number;
@@ -98,7 +98,7 @@ export function createToaster(options?: ToasterOptions): Toaster {
     };
 
     toasts.update((prev) => {
-      // Deduplicare pe cheie: inlocuim in loc sa stivuim acelasi mesaj.
+      // Dedup by key: we replace instead of stacking the same message.
       let next = opts.key ? prev.filter((t) => t.key !== opts.key) : prev.slice();
       if (opts.key) {
         for (const old of prev) {
@@ -110,7 +110,7 @@ export function createToaster(options?: ToasterOptions): Toaster {
         }
       }
       next = [...next, item];
-      // Peste limita: ies cele mai vechi.
+      // Over the limit: the oldest ones leave.
       while (next.length > max) {
         const removed = next.shift();
         if (removed) {
@@ -188,11 +188,11 @@ export function Toaster(props: ToasterProps): Child {
       {
         class: () =>
           "rui-toaster rui-toaster-" + (props.position ?? "bottom-right") + (props.class ? " " + props.class : ""),
-        // `polite`, nu `assertive`: un toast nu trebuie sa intrerupa cititorul
-        // in mijlocul propozitiei. Erorile critice merg in Dialog, nu in toast.
+        // `polite`, not `assertive`: a toast shouldn't interrupt the reader
+        // mid-sentence. Critical errors go in a Dialog, not a toast.
         role: "region",
         "aria-live": "polite",
-        "aria-label": "Notificări",
+        "aria-label": "Notifications",
         "on:pointerenter": () => t.pause(),
         "on:pointerleave": () => t.resume(),
       },
@@ -226,7 +226,7 @@ export function Toaster(props: ToasterProps): Child {
             R.button({
               type: "button",
               class: "rui-toast-close",
-              "aria-label": "Închide notificarea",
+              "aria-label": "Close notification",
               "on:click": () => t.dismiss(item.id),
             }, "✕"),
           ),

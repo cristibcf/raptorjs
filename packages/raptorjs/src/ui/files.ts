@@ -1,9 +1,9 @@
 /**
  * FileInput / Dropzone / FileList.
  *
- * Validarea e aceeasi pentru selectia din dialog si pentru drag & drop - o
- * singura functie, `validateFiles`, exportata si testabila separat. Altfel
- * ajungi cu doua seturi de reguli care diverg.
+ * Validation is the same for selection from the dialog and for drag & drop - a
+ * single function, `validateFiles`, exported and testable separately. Otherwise
+ * you end up with two sets of rules that diverge.
  */
 import { state, type Accessor, type State } from "raptorjs";
 import { R, For, Show, type Child } from "raptorjs/dom";
@@ -13,7 +13,7 @@ import { type El } from "./primitives/env.ts";
 
 let idSeq = 0;
 
-/** Forma minima de fisier pe care o folosim; compatibila cu `File`. */
+/** The minimal file shape we use; compatible with `File`. */
 export interface FileLike {
   name: string;
   size: number;
@@ -27,15 +27,15 @@ export interface FileRejection {
 }
 
 export interface FileConstraints {
-  /** Lista `accept`: extensii (".png") sau tipuri MIME ("image/*"). */
+  /** The `accept` list: extensions (".png") or MIME types ("image/*"). */
   accept?: string;
-  /** Marime maxima, in bytes. */
+  /** Maximum size, in bytes. */
   maxSize?: number;
-  /** Numar maxim de fisiere acceptate in total. */
+  /** Maximum number of files accepted in total. */
   maxFiles?: number;
 }
 
-/** Formateaza o marime in unitati binare (1 KiB = 1024 B). */
+/** Formats a size in binary units (1 KiB = 1024 B). */
 export function formatSize(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes < 0) return "—";
   const units = ["B", "KB", "MB", "GB", "TB"];
@@ -48,7 +48,7 @@ export function formatSize(bytes: number): string {
   return (unit === 0 ? value : Number(value.toFixed(1))) + " " + units[unit];
 }
 
-/** `true` daca fisierul se potriveste cu lista `accept`. */
+/** `true` if the file matches the `accept` list. */
 export function matchesAccept(file: FileLike, accept: string | undefined): boolean {
   if (!accept || accept.trim() === "") return true;
   const name = file.name.toLowerCase();
@@ -58,7 +58,7 @@ export function matchesAccept(file: FileLike, accept: string | undefined): boole
     const rule = raw.trim().toLowerCase();
     if (rule === "") return false;
     if (rule.startsWith(".")) return name.endsWith(rule);
-    // "image/*" acopera orice subtip.
+    // "image/*" covers any subtype.
     if (rule.endsWith("/*")) return type.startsWith(rule.slice(0, -1));
     return type === rule;
   });
@@ -70,8 +70,8 @@ export interface ValidationResult<T extends FileLike> {
 }
 
 /**
- * Aplica toate constrangerile. Regula de numar se aplica DUPA filtrele de tip
- * si marime: altfel un fisier respins ar consuma un loc din limita.
+ * Applies all the constraints. The count rule is applied AFTER the type and
+ * size filters: otherwise a rejected file would consume a slot from the limit.
  */
 export function validateFiles<T extends FileLike>(
   files: readonly T[],
@@ -83,14 +83,14 @@ export function validateFiles<T extends FileLike>(
 
   for (const file of files) {
     if (!matchesAccept(file, constraints.accept)) {
-      rejected.push({ file, reason: "type", message: "Tip de fișier neacceptat" });
+      rejected.push({ file, reason: "type", message: "Unsupported file type" });
       continue;
     }
     if (constraints.maxSize !== undefined && file.size > constraints.maxSize) {
       rejected.push({
         file,
         reason: "size",
-        message: "Prea mare (maxim " + formatSize(constraints.maxSize) + ")",
+        message: "Too large (max " + formatSize(constraints.maxSize) + ")",
       });
       continue;
     }
@@ -101,7 +101,7 @@ export function validateFiles<T extends FileLike>(
       rejected.push({
         file,
         reason: "count",
-        message: "Prea multe fișiere (maxim " + constraints.maxFiles + ")",
+        message: "Too many files (max " + constraints.maxFiles + ")",
       });
       continue;
     }
@@ -155,16 +155,16 @@ export function FileInput(props: FileInputProps): El {
       "on:change": (e: any) => {
         const list: FileLike[] = Array.from(e.target?.files ?? []);
         take(list);
-        // Golim inputul: altfel re-selectarea aceluiasi fisier nu declanseaza
-        // `change` si utilizatorul crede ca nu a mers.
+        // We clear the input: otherwise re-selecting the same file doesn't fire
+        // `change` and the user thinks it didn't work.
         if (e.target) e.target.value = "";
       },
     }),
-    // Eticheta e un `label` real, legat de input: click-ul functioneaza si
-    // fara JavaScript, iar screen readerul anunta controlul corect.
+    // The label is a real `label`, linked to the input: the click works even
+    // without JavaScript, and the screen reader announces the control correctly.
     R.label(
       { class: "rui-file-button rui-btn rui-btn-secondary rui-btn-md", for: id },
-      props.label ?? "Alege fișiere",
+      props.label ?? "Choose files",
     ),
   );
 }
@@ -185,16 +185,16 @@ export interface DropzoneProps extends FileConstraints {
 export interface DropzoneHandle {
   el: El;
   over: Accessor<boolean>;
-  /** Punte de test: livreaza fisiere fara evenimente DOM reale. */
+  /** Test bridge: delivers files without real DOM events. */
   accept: (files: readonly FileLike[]) => void;
 }
 
 /**
- * Dropzone - drag & drop cu validare.
+ * Dropzone - drag & drop with validation.
  *
- * Contorul de `dragenter`/`dragleave` nu e cosmetic: evenimentele se
- * declanseaza si cand cursorul trece peste un COPIL al zonei, asa ca un simplu
- * boolean face zona sa palpaie. Numaram intrarile si iesirile.
+ * The `dragenter`/`dragleave` counter isn't cosmetic: the events also fire when
+ * the cursor passes over a CHILD of the zone, so a plain boolean makes the zone
+ * flicker. We count the enters and leaves.
  */
 export function dropzone(props: DropzoneProps): DropzoneHandle {
   const id = "rui-dz-" + ++idSeq;
@@ -222,7 +222,7 @@ export function dropzone(props: DropzoneProps): DropzoneHandle {
         (props.class ? " " + props.class : ""),
       role: "button",
       tabindex: "0",
-      "aria-label": props.label ?? "Trage fișiere aici sau apasă pentru a alege",
+      "aria-label": props.label ?? "Drag files here or click to choose",
       "aria-describedby": id + "-hint",
       "on:click": () => inputEl?.click?.(),
       "on:keydown": (e: any) => {
@@ -237,7 +237,7 @@ export function dropzone(props: DropzoneProps): DropzoneHandle {
         over.set(true);
       },
       "on:dragover": (e: any) => {
-        // Fara `preventDefault` pe dragover, browserul NU declanseaza `drop`.
+        // Without `preventDefault` on dragover, the browser does NOT fire `drop`.
         e.preventDefault?.();
       },
       "on:dragleave": (e: any) => {
@@ -268,7 +268,7 @@ export function dropzone(props: DropzoneProps): DropzoneHandle {
         if (e.target) e.target.value = "";
       },
     }),
-    R.div({ class: "rui-dropzone-body" }, props.children ?? "Trage fișiere aici"),
+    R.div({ class: "rui-dropzone-body" }, props.children ?? "Drag files here"),
     R.div({ id: id + "-hint", class: "rui-dropzone-hint" }, props.hint ?? null),
     Show({
       when: () => rejections().length > 0,
@@ -293,10 +293,10 @@ export function Dropzone(props: DropzoneProps): El {
 
 export interface FileListProps {
   files: State<readonly FileLike[]>;
-  /** Progres 0..100 per fisier, dupa nume. */
+  /** Progress 0..100 per file, by name. */
   progress?: Accessor<Readonly<Record<string, number>>>;
   onRemove?: (file: FileLike, index: number) => void;
-  /** Ascunde butonul de stergere. */
+  /** Hides the remove button. */
   readonly?: boolean;
   empty?: Child;
   label?: string;
@@ -313,7 +313,7 @@ export function FileList(props: FileListProps): El {
   return R.ul(
     {
       class: props.class ? "rui-filelist " + props.class : "rui-filelist",
-      "aria-label": props.label ?? "Fișiere",
+      "aria-label": props.label ?? "Files",
     },
     For({
       each: () => props.files(),
@@ -332,7 +332,7 @@ export function FileList(props: FileListProps): El {
                     "aria-valuemin": "0",
                     "aria-valuemax": "100",
                     "aria-valuenow": () => String(Math.round(props.progress!()[file.name] ?? 0)),
-                    "aria-label": "Progres pentru " + file.name,
+                    "aria-label": "Progress for " + file.name,
                   },
                   R.span({
                     class: "rui-filelist-bar",
@@ -347,7 +347,7 @@ export function FileList(props: FileListProps): El {
                 {
                   type: "button",
                   class: "rui-filelist-remove",
-                  "aria-label": "Elimină " + file.name,
+                  "aria-label": "Remove " + file.name,
                   "on:click": () => remove(index),
                 },
                 "✕",
@@ -356,7 +356,7 @@ export function FileList(props: FileListProps): El {
     }),
     Show({
       when: () => props.files().length === 0,
-      children: R.li({ class: "rui-filelist-empty" }, props.empty ?? "Niciun fișier"),
+      children: R.li({ class: "rui-filelist-empty" }, props.empty ?? "No files"),
     }),
   );
 }

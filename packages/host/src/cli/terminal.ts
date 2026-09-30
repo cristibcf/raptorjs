@@ -1,31 +1,31 @@
 /**
- * Terminalul, ca interfata.
+ * The terminal, as an interface.
  *
- * Ca si la celelalte adaptoare, bucatile de platforma se injecteaza: aplicatia
- * nu atinge `process.stdout`, iar testele nu au nevoie de un terminal real.
+ * As with the other adapters, the platform pieces are injected: the app does
+ * not touch `process.stdout`, and the tests need no real terminal.
  *
- * Campul care conteaza cel mai mult aici este `interactive`. Un terminal fara
- * el nu poate raspunde la intrebari - iar asta nu este un detaliu de comoditate:
- * o unealta rulata din CI care "presupune da" la o confirmare distructiva este
- * exact felul de comportament pe care contractul trebuie sa il faca imposibil.
+ * The field that matters most here is `interactive`. A terminal without it
+ * cannot answer questions - and that is not a convenience detail: a tool run
+ * from CI that "assumes yes" on a destructive confirmation is exactly the kind
+ * of behavior the contract must make impossible.
  */
 
 export type Stream = "out" | "err";
 
 export interface Terminal {
-  /** Argumentele uneltei, fara cele ale interpretorului. */
+  /** The tool's arguments, without the interpreter's. */
   readonly args: readonly string[];
   write(stream: Stream, text: string): void;
-  /** `false` cand iesirea este redirectata catre un fisier sau un pipe. */
+  /** `false` when the output is redirected to a file or a pipe. */
   readonly isTTY: boolean;
-  /** `false` cand intrarea nu vine de la un om (CI, pipe, cron). */
+  /** `false` when the input does not come from a human (CI, pipe, cron). */
   readonly interactive: boolean;
   readonly columns: number;
-  /** Suport de culoare; `NO_COLOR` si lipsa de TTY il sting. */
+  /** Color support; `NO_COLOR` and the absence of a TTY turn it off. */
   readonly color: boolean;
-  /** Citeste o linie de la utilizator; lipseste daca nu exista intrare. */
+  /** Reads a line from the user; absent if there is no input. */
   ask?(question: string): Promise<string>;
-  /** Ctrl-C. Adaptorul il traduce in eveniment, nu opreste procesul. */
+  /** Ctrl-C. The adapter translates it into an event, it does not stop the process. */
   onInterrupt?(listener: () => void): void;
 }
 
@@ -39,15 +39,15 @@ export interface ProcessLike {
 }
 
 /**
- * Terminalul real, dintr-un `process`.
+ * The real terminal, from a `process`.
  *
- * `args` sare peste primele doua elemente din `argv` (interpretorul si scriptul),
- * ca aplicatia sa primeasca exact ce a scris utilizatorul.
+ * `args` skips the first two elements of `argv` (the interpreter and the
+ * script), so the app receives exactly what the user typed.
  */
 export function terminalFromProcess(proc: ProcessLike): Terminal {
   const isTTY = Boolean(proc.stdout.isTTY);
   const interactive = Boolean(proc.stdin.isTTY && proc.stdout.isTTY);
-  // Conventia `NO_COLOR` este respectata de unelte serioase; o respectam si noi.
+  // The `NO_COLOR` convention is honored by serious tools; we honor it too.
   const color = isTTY && !proc.env["NO_COLOR"];
 
   const terminal: Record<string, unknown> = {

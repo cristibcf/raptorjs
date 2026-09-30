@@ -1,14 +1,14 @@
 /**
- * DataGrid - tabel virtualizat cu coloane redimensionabile.
+ * DataGrid - a virtualized table with resizable columns.
  *
- * Cea mai grea componenta-teza si cea mai convingatoare: cu 50.000 de randuri,
- * in DOM exista ~20. Derularea reutilizeaza nodurile randurilor ramase in
- * fereastra (`For` keyed pe indice, vezi `virtualizer`) si creeaza doar pentru
- * cele intrate. Tragerea unei coloane rescrie un singur atribut de stil.
+ * The heaviest thesis component and the most convincing: with 50,000 rows, ~20
+ * exist in the DOM. Scrolling reuses the nodes of the rows that stay in the
+ * window (`For` keyed on index, see `virtualizer`) and only creates for the ones
+ * that entered. Dragging a column rewrites a single style attribute.
  *
- * Nu foloseste `<table>`: un tabel real nu poate fi virtualizat corect (randurile
- * absolute strica layout-ul de tabel). Foloseste grid cu roluri ARIA de tabel,
- * asa cum fac toate grid-urile virtualizate serioase.
+ * It doesn't use `<table>`: a real table can't be virtualized correctly (the
+ * absolute rows break the table layout). It uses a grid with table ARIA roles,
+ * as all serious virtualized grids do.
  */
 import { state, derived, type Accessor, type State } from "raptorjs";
 import { R, For, Show, type Child } from "raptorjs/dom";
@@ -22,24 +22,24 @@ export interface GridColumn<T> {
   key: string;
   header: Child;
   cell: (row: T, index: number) => Child;
-  /** Latimea initiala in px. Implicit 160. */
+  /** The initial width in px. Defaults to 160. */
   width?: number;
   minWidth?: number;
-  /** Comparator ascendent; absenta lui face coloana nesortabila. */
+  /** Ascending comparator; its absence makes the column unsortable. */
   sort?: (a: T, b: T) => number;
   align?: "left" | "center" | "right";
-  /** Coloana nu poate fi redimensionata. */
+  /** The column cannot be resized. */
   fixed?: boolean;
 }
 
 export interface DataGridProps<T> {
   rows: Accessor<readonly T[]>;
   columns: readonly GridColumn<T>[];
-  /** Inaltimea unui rand in px. Trebuie uniforma. Implicit 32. */
+  /** The height of a row in px. Must be uniform. Defaults to 32. */
   rowHeight?: number;
-  /** Inaltimea zonei derulabile in px. Implicit 400. */
+  /** The height of the scrollable area in px. Defaults to 400. */
   height?: number;
-  /** Randuri randate in plus la fiecare capat. Implicit 4. */
+  /** Extra rows rendered at each end. Defaults to 4. */
   overscan?: number;
   sort?: { key: string; dir: "asc" | "desc" };
   selected?: State<ReadonlySet<T>>;
@@ -50,7 +50,7 @@ export interface DataGridProps<T> {
 
 export interface DataGrid {
   el: El;
-  /** Punte de test: impinge metricile de scroll fara layout real. */
+  /** Test bridge: push the scroll metrics without real layout. */
   setScroll: (offset: number) => void;
   setViewport: (size: number) => void;
   scrollTo: (index: number) => void;
@@ -70,7 +70,7 @@ export function dataGrid<T>(props: DataGridProps<T>): DataGrid {
   const byKey = new Map<string, GridColumn<T>>();
   for (const c of columns) byKey.set(c.key, c);
 
-  /** Cate un `resizable` per coloana; latimea e un semnal. */
+  /** One `resizable` per column; the width is a signal. */
   const widths = new Map<string, Resizable>();
   for (const c of columns) {
     widths.set(
@@ -109,7 +109,7 @@ export function dataGrid<T>(props: DataGridProps<T>): DataGrid {
         ? { key: col.key, dir: prev.dir === "asc" ? "desc" : "asc" }
         : { key: col.key, dir: "asc" },
     );
-    v.setScroll(0); // dupa re-sortare, inapoi la inceput
+    v.setScroll(0); // after re-sorting, back to the start
   };
 
   const isSelected = (row: T): boolean => (selected ? selected().has(row) : false);
@@ -122,7 +122,7 @@ export function dataGrid<T>(props: DataGridProps<T>): DataGrid {
     });
   };
 
-  /** Sablonul de coloane: un singur atribut de stil pentru tot randul. */
+  /** The column template: a single style attribute for the whole row. */
   const template = (): string =>
     "display:grid;grid-template-columns:" + columns.map((c) => widthOf(c.key) + "px").join(" ");
 
@@ -166,7 +166,7 @@ export function dataGrid<T>(props: DataGridProps<T>): DataGrid {
         : R.span({
             class: "rui-grid-col-resize",
             ref: widths.get(col.key)!.handle,
-            "aria-label": "Redimensionează coloana",
+            "aria-label": "Resize column",
           }),
     );
   }
@@ -180,7 +180,7 @@ export function dataGrid<T>(props: DataGridProps<T>): DataGrid {
           return r !== undefined && isSelected(r) ? "rui-grid-row rui-selected" : "rui-grid-row";
         },
         role: "row",
-        "aria-rowindex": String(index + 2), // +1 pentru header, +1 pentru baza 1
+        "aria-rowindex": String(index + 2), // +1 for the header, +1 for 1-based indexing
         style: () => v.itemStyle(index) + ";" + template(),
         ...(selected || props.onRowClick
           ? {
@@ -200,8 +200,8 @@ export function dataGrid<T>(props: DataGridProps<T>): DataGrid {
             role: "gridcell",
             style: col.align ? "text-align:" + col.align : undefined,
           },
-          // Celula se re-evalueaza cand randul de la acest indice se schimba
-          // (sortare, filtrare) - fara sa recreeze nodul.
+          // The cell re-evaluates when the row at this index changes
+          // (sort, filter) - without recreating the node.
           () => {
             const r = item();
             return r === undefined ? null : col.cell(r, index);
@@ -245,7 +245,7 @@ export function dataGrid<T>(props: DataGridProps<T>): DataGrid {
   };
 }
 
-/** Varianta componenta. */
+/** Component variant. */
 export function DataGrid<T>(props: DataGridProps<T>): El {
   return dataGrid(props).el;
 }

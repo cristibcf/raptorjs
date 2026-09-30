@@ -1,10 +1,10 @@
 /**
- * Regresie pentru auditul din 2026-09-24 (S3): dev-server-ul servea fisiere din
- * afara radacinii si asculta pe toate interfetele.
+ * Regression for the 2026-09-24 audit (S3): the dev server was serving files from
+ * outside the root and listening on all interfaces.
  *
- * Cererile se trimit pe socket brut, nu cu `fetch`: clientul HTTP al lui Node
- * normalizeaza `..` din cale inainte sa o puna pe fir, deci un test scris cu
- * `fetch` ar fi trecut si cu bug-ul in loc.
+ * The requests are sent over a raw socket, not with `fetch`: Node's HTTP client
+ * normalizes `..` in the path before putting it on the wire, so a test written
+ * with `fetch` would have passed even with the bug in place.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -20,7 +20,7 @@ interface Raw {
   readonly body: string;
 }
 
-/** O cerere GET cu tinta exact asa cum e scrisa, fara normalizare de client. */
+/** A GET request with the target exactly as written, without client normalization. */
 function raw(port: number, target: string, accept = "*/*"): Promise<Raw> {
   return new Promise((resolve, reject) => {
     const socket = connect(port, "127.0.0.1", () => {
@@ -44,9 +44,9 @@ interface Fixture {
 }
 
 /**
- * `<tmp>/app` este radacina servita. Langa ea, doua capcane:
- * `<tmp>/app-privat` (sora cu prefix comun) si `<tmp>/app/.env` (ascuns
- * INAUNTRUL radacinii - cazul cu adevarat frecvent).
+ * `<tmp>/app` is the served root. Next to it, two traps:
+ * `<tmp>/app-privat` (a sibling with a common prefix) and `<tmp>/app/.env`
+ * (hidden INSIDE the root - the genuinely common case).
  */
 async function fixture(): Promise<Fixture> {
   const base = mkdtempSync(join(tmpdir(), "raptor-dev-"));
@@ -70,31 +70,31 @@ async function fixture(): Promise<Fixture> {
   };
 }
 
-test("S3: nu se poate iesi din radacina catre un director sora cu prefix comun", async () => {
+test("S3: cannot escape the root to a sibling directory with a common prefix", async () => {
   const app = await fixture();
   try {
     const response = await raw(app.port, "/../app-privat/.env");
-    assert.notEqual(response.status, 200, `a servit un fisier din afara radacinii: ${response.body}`);
-    assert.ok(!response.body.includes("SECRET_VECIN"), "continutul vecinului nu are voie sa iasa pe fir");
+    assert.notEqual(response.status, 200, `served a file from outside the root: ${response.body}`);
+    assert.ok(!response.body.includes("SECRET_VECIN"), "the neighbor's content must not go out on the wire");
   } finally {
     await app.dispose();
   }
 });
 
-test("S3: nici codificat procentual", async () => {
+test("S3: not even percent-encoded", async () => {
   const app = await fixture();
   try {
     for (const target of ["/..%2Fapp-privat%2F.env", "/%2e%2e/app-privat/.env", "/..%5Capp-privat%5C.env"]) {
       const response = await raw(app.port, target);
-      assert.notEqual(response.status, 200, `${target} a trecut`);
-      assert.ok(!response.body.includes("SECRET_VECIN"), `${target} a scurs continut`);
+      assert.notEqual(response.status, 200, `${target} got through`);
+      assert.ok(!response.body.includes("SECRET_VECIN"), `${target} leaked content`);
     }
   } finally {
     await app.dispose();
   }
 });
 
-test("S3: fisierele ascunse din radacina nu se servesc", async () => {
+test("S3: hidden files in the root are not served", async () => {
   const app = await fixture();
   try {
     const response = await raw(app.port, "/.env");
@@ -105,7 +105,7 @@ test("S3: fisierele ascunse din radacina nu se servesc", async () => {
   }
 });
 
-test("S3: sursele trec prin bundle, nu se servesc ca fisiere", async () => {
+test("S3: sources go through the bundle, they are not served as files", async () => {
   const app = await fixture();
   try {
     assert.notEqual((await raw(app.port, "/main.ts")).status, 200);
@@ -114,26 +114,26 @@ test("S3: sursele trec prin bundle, nu se servesc ca fisiere", async () => {
   }
 });
 
-test("S3: un asset legitim cu spatiu in nume este servit (calea se decodeaza)", async () => {
+test("S3: a legitimate asset with a space in its name is served (the path is decoded)", async () => {
   const app = await fixture();
   try {
     const response = await raw(app.port, "/logo%20mic.png");
-    assert.equal(response.status, 200, "decodarea caii lipsea: %20 era cautat ca atare");
-    // Corpul vine chunked; ne intereseaza ca a ajuns continutul, nu incadrarea.
+    assert.equal(response.status, 200, "path decoding was missing: %20 was looked up literally");
+    // The body comes chunked; what matters is that the content arrived, not the framing.
     assert.ok(response.body.includes("PNG"), response.body);
   } finally {
     await app.dispose();
   }
 });
 
-test("S3: implicit se asculta doar pe loopback", async () => {
+test("S3: by default it listens only on loopback", async () => {
   const base = mkdtempSync(join(tmpdir(), "raptor-dev-bind-"));
   writeFileSync(join(base, "main.ts"), "export const a = 1;\n");
   const server = startDevServer({ entry: join(base, "main.ts"), root: base, port: 0 });
   try {
     await new Promise<void>((resolve) => server.once("listening", resolve));
     const address = server.address() as AddressInfo;
-    assert.equal(address.address, "127.0.0.1", "un server de dezvoltare nu se expune retelei de la sine");
+    assert.equal(address.address, "127.0.0.1", "a dev server does not expose itself to the network on its own");
   } finally {
     await new Promise<void>((resolve) => server.close(() => resolve()));
     rmSync(base, { recursive: true, force: true });

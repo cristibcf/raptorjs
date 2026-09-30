@@ -1,10 +1,10 @@
 /**
- * Impachetarea desktop: formate de instalator, plan si matrice de CI.
+ * Desktop packaging: installer formats, plan and CI matrix.
  *
- * Semnarea nu este optionala pe Windows si macOS - acolo un binar nesemnat este
- * blocat sau avertizat de sistem, deci il marcam `required` si planul spune
- * explicit ce nu poate fi publicat nesemnat (roadmap sectiunea 7: "CI pentru
- * instalatoare - semnare, smoke tests si distributie sigura").
+ * Signing is not optional on Windows and macOS - there an unsigned binary is
+ * blocked or warned about by the system, so we mark it `required` and the plan
+ * says explicitly what cannot be published unsigned (roadmap section 7: "CI for
+ * installers - signing, smoke tests and safe distribution").
  */
 import { planPackages } from "@raptor/host";
 import type { HostManifest, InstallerFormat, PackagePlan } from "@raptor/host";
@@ -18,7 +18,7 @@ export const DESKTOP_FORMATS: readonly InstallerFormat[] = [
     extension: "msi",
     signing: "required",
     runner: "windows-latest",
-    notes: "instalare per-masina, potrivita distributiei in organizatii",
+    notes: "per-machine install, suited to distribution in organizations",
   },
   {
     id: "nsis",
@@ -27,7 +27,7 @@ export const DESKTOP_FORMATS: readonly InstallerFormat[] = [
     extension: "exe",
     signing: "required",
     runner: "windows-latest",
-    notes: "instalare per-utilizator, cu actualizari in fundal",
+    notes: "per-user install, with background updates",
   },
   {
     id: "dmg",
@@ -36,7 +36,7 @@ export const DESKTOP_FORMATS: readonly InstallerFormat[] = [
     extension: "dmg",
     signing: "required",
     runner: "macos-latest",
-    notes: "cere notarizare Apple inainte de distributie",
+    notes: "requires Apple notarization before distribution",
   },
   {
     id: "deb",
@@ -45,7 +45,7 @@ export const DESKTOP_FORMATS: readonly InstallerFormat[] = [
     extension: "deb",
     signing: "optional",
     runner: "ubuntu-latest",
-    notes: "declara dependenta de WebKitGTK",
+    notes: "declares the WebKitGTK dependency",
   },
   {
     id: "appimage",
@@ -54,12 +54,12 @@ export const DESKTOP_FORMATS: readonly InstallerFormat[] = [
     extension: "AppImage",
     signing: "optional",
     runner: "ubuntu-latest",
-    notes: "poarta dependentele cu el; nu cere instalare",
+    notes: "carries its dependencies with it; requires no installation",
   },
 ];
 
 export interface DesktopPlanOptions {
-  /** Restrange planul la aceste platforme; implicit toate cele trei. */
+  /** Restrict the plan to these platforms; all three by default. */
   readonly platforms?: readonly string[];
 }
 
@@ -79,7 +79,7 @@ export interface RuntimeRequirement {
   readonly minimumOs: string;
 }
 
-/** Ce trebuie sa existe pe masina utilizatorului, dincolo de aplicatia insasi. */
+/** What must exist on the user's machine, beyond the app itself. */
 export function runtimeRequirements(plan: PackagePlan): readonly RuntimeRequirement[] {
   const platforms = new Set(plan.artifacts.map((artifact) => artifact.platform));
   return DESKTOP_BACKENDS.filter((backend) => platforms.has(backend.platform) && backend.runtimeDependency !== null).map(

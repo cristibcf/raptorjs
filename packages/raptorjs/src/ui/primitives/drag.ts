@@ -1,22 +1,22 @@
 /**
- * draggable / droppable / sortable - drag cu pointer events.
+ * draggable / droppable / sortable - drag with pointer events.
  *
- * Folosim pointer events, nu HTML5 drag-and-drop: acela nu merge pe touch, nu
- * se poate stiliza si nu da pozitii utile in timpul miscarii. `pointermove` si
- * `pointerup` se asculta pe **document**, nu pe element - altfel pierzi drag-ul
- * in momentul in care cursorul iese de pe el.
+ * We use pointer events, not HTML5 drag-and-drop: that one doesn't work on
+ * touch, can't be styled and doesn't give useful positions during the move.
+ * `pointermove` and `pointerup` are listened for on the **document**, not on the
+ * element - otherwise you lose the drag the moment the cursor leaves it.
  *
- * Miscarea e locul in care fine-grained se vede: la 120Hz, un drag scrie un
- * singur atribut de stil pe frame, fara reconciliere.
+ * Movement is where fine-grained shows: at 120Hz, a drag writes a single style
+ * attribute per frame, with no reconciliation.
  */
 import { state, onCleanup, type Accessor, type State } from "raptorjs";
 import { onDoc, pointOf, type El } from "./env.ts";
 
 export interface DragEvent {
-  /** Deplasare fata de punctul de start. */
+  /** Offset from the start point. */
   dx: number;
   dy: number;
-  /** Pozitia curenta a pointerului. */
+  /** The pointer's current position. */
   x: number;
   y: number;
   event: any;
@@ -24,7 +24,7 @@ export interface DragEvent {
 
 export interface DraggableOptions {
   axis?: "x" | "y" | "both";
-  /** Prag in pixeli sub care nu consideram ca a inceput drag-ul. Implicit 0. */
+  /** Threshold in pixels below which we don't consider the drag started. Defaults to 0. */
   threshold?: number;
   onStart?: (e: DragEvent) => void;
   onMove?: (e: DragEvent) => void;
@@ -104,7 +104,7 @@ export function draggable(options?: DraggableOptions): Draggable {
         delta.set(ZERO);
         options?.onStart?.({ ...ZERO, ...origin, event: e });
       }
-      // Capturam pointerul ca sa primim move/up chiar daca iese de pe element.
+      // We capture the pointer so we get move/up even if it leaves the element.
       if (typeof el.setPointerCapture === "function" && e.pointerId != null) {
         try {
           el.setPointerCapture(e.pointerId);
@@ -130,7 +130,7 @@ export function draggable(options?: DraggableOptions): Draggable {
 
 export interface DroppableOptions<T = unknown> {
   onDrop: (payload: T, event: any) => void;
-  /** Filtreaza ce se accepta; ce nu trece nu marcheaza zona ca activa. */
+  /** Filters what is accepted; what doesn't pass doesn't mark the zone active. */
   accepts?: (payload: T) => boolean;
   onEnter?: (payload: T) => void;
   onLeave?: () => void;
@@ -142,8 +142,8 @@ export interface Droppable {
 }
 
 /**
- * Canal de transfer intre draggable si droppable. HTML5 dataTransfer nu exista
- * la pointer events, deci payload-ul trece printr-un semnal partajat.
+ * Transfer channel between draggable and droppable. HTML5 dataTransfer doesn't
+ * exist with pointer events, so the payload passes through a shared signal.
  */
 export function dragPayload<T>(): State<T | null> {
   return state<T | null>(null);
@@ -201,17 +201,17 @@ export interface SortableOptions<T> {
 }
 
 export interface Sortable {
-  /** `ref` pentru randul de la indexul dat. */
+  /** `ref` for the row at the given index. */
   item: (index: number) => (el: El) => void;
   dragging: Accessor<number>;
   over: Accessor<number>;
-  /** Mutare programatica (tastatura, butoane sus/jos). */
+  /** Programmatic move (keyboard, up/down buttons). */
   move: (from: number, to: number) => void;
 }
 
 /**
- * Reordonare prin drag. Muta doar indici in semnalul de items - nodurile sunt
- * reasezate de `For` keyed, care le reutilizeaza pe toate.
+ * Reordering by drag. It only moves indices in the items signal - the nodes are
+ * rearranged by keyed `For`, which reuses all of them.
  */
 export function sortable<T>(options: SortableOptions<T>): Sortable {
   const dragging = state(-1);
