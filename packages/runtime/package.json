@@ -1,6 +1,6 @@
 {
   "name": "@raptorstack/runtime",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "RaptorRuntime: host contracts, capability broker and standalone launcher CLI.",
   "author": "cristibcf (https://github.com/cristibcf)",
   "homepage": "https://github.com/cristibcf/raptorjs/tree/main/packages/runtime#readme",

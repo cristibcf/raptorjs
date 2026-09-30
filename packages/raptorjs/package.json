@@ -1,6 +1,6 @@
 {
   "name": "@raptorstack/raptorjs",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "RaptorJS: fine-grained reactivity, DOM runtime and UI components.",
   "author": "cristibcf (https://github.com/cristibcf)",
   "homepage": "https://github.com/cristibcf/raptorjs/tree/main/packages/raptorjs#readme",
