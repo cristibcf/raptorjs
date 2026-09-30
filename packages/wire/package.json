@@ -1,6 +1,6 @@
 {
   "name": "@raptorstack/wire",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "RaptorWire: state-aware binary protocol - codec, core document model, client replica and server SDK.",
   "author": "cristibcf (https://github.com/cristibcf)",
   "homepage": "https://github.com/cristibcf/raptorjs/tree/main/packages/wire#readme",
