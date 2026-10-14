@@ -15,3 +15,11 @@ export { analyzeModule, blankRanges, type ModuleInfo } from "./esm-graph.ts";
 export { startDevServer, type DevServerOptions } from "./dev-server.ts";
 export { rewriteHtml } from "./html.ts";
 export { runBundleCli, type BundleCliResult } from "./cli.ts";
+export {
+  runPrerenderBuild,
+  prerenderFromModule,
+  writePrerendered,
+  type PrerenderFn,
+  type WritePrerenderedOptions,
+  type PrerenderFromModuleOptions,
+} from "./prerender-cli.ts";

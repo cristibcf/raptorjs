@@ -169,7 +169,19 @@ Each phase lands independently with tests; nothing breaks the SPA build.
 | **3A** | Server renderer + `renderToString` (void elems, style flush, escaping, doctype) | — | med |
 | **3B** | Head registry + `Title`/`Meta`/`Link`, server snapshot + client reconcile | 3A | low-med |
 | **3C** | `hydrate()` — client-takeover (replace server markup; true DOM-reuse deferred) | 3A | low |
-| **3D** | Prerender driver + `getStaticPaths` in `raptor-bundle build --prerender`, wiring 3A/3B/3C | 3A,3B,3C,P1 | med |
+| **3D** | ✅ Prerender core (`@raptorstack/raptorjs/dom/prerender`) + `raptor-bundle build --prerender --routes` | 3A,3B,3C,P1 | med |
+
+> **3D note (shipped):** The prerender engine lives in
+> `@raptorstack/raptorjs/dom/prerender` (`prerender(options, emit)` streams one
+> page at a time; `prerenderToArray` for small sites). It enumerates routes
+> (`getStaticPaths`, default = fully-static routes), renders each with its head,
+> and assembles a full document (`#app` container + bundle `<script>` + CSS
+> `<link>`). The `raptor-bundle build --prerender --routes <module>` CLI builds
+> the client bundle, then loads the routes module and resolves prerender **from
+> the app's own context** (so both share one @raptorstack/raptorjs instance) and
+> writes `<outDir>/<path>/index.html`. **Remaining constraint:** the routes module
+> must be Node-loadable as-is (a plain `.ts`, no JSX); a `.tsx` routes module
+> needs a transpiling import loader — the one follow-up for a fully seamless CLI.
 
 Suggested order 3A → 3B → 3C → 3D. 3A and 3B are shippable and useful on their
 own (server rendering + correct head) before the risky hydration work; 3D is the

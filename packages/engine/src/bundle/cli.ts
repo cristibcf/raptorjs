@@ -24,6 +24,7 @@ function flag(args: string[], name: string): string | undefined {
 const USAGE =
   "usage:\n" +
   "  raptor-bundle build <entry.tsx> [--out dist/bundle.js] [--html index.html] [--public public] [--no-treeshake]\n" +
+  "  raptor-bundle build <entry.tsx> --prerender --routes <routes.ts> [--out dist/bundle.js] [--lang en]\n" +
   "  raptor-bundle dev   <entry.tsx> [--port 5173] [--host 127.0.0.1] [--root .] [--html index.html]";
 
 export function runBundleCli(argv: string[]): BundleCliResult {
