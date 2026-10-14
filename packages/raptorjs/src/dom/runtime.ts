@@ -350,14 +350,15 @@ function resolveNodes(value: Child): El[] {
   if (isNode(value)) return [value];
   if (typeof value === "function") return resolveNodes((value as Accessor<Child>)());
   if (isBlock(value)) {
-    // A `Block` mounts itself into a parent; it cannot be reduced to a list of
-    // nodes. Previously it fell through to `return []` and vanished SILENTLY,
-    // which is the worst way to fail. Blocks go directly as children
-    // (`R.div(For({...}))`), not through `() => For({...})`.
-    throw new Error(
-      "[raptor] a Block (For/Show/Portal) cannot be returned from a dynamic " +
-        "region. Put it directly as a child instead of `() => For({...})`.",
-    );
+    // A `Block` (For/Show/Portal) mounts itself into a parent and cannot be
+    // reduced to a flat node list. In a dynamic region we give it a managed
+    // wrapper so the region tracks and removes it as a single node on the next
+    // run. The block's effects are created under THIS region's effect (the
+    // current owner) and disposed by `disposeOwned` when the region re-runs - so
+    // `{cond ? <Show/> : null}` / `() => <For/>` now works instead of throwing.
+    const wrapper = doc().createElement("span");
+    (value as Block).mount(wrapper, null);
+    return [wrapper];
   }
   return [];
 }

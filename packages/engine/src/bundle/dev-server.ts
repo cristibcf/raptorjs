@@ -43,6 +43,7 @@ const MIME: Record<string, string> = {
 };
 
 const BUNDLE_PATH = "/__raptor_bundle.js";
+const BUNDLE_CSS_PATH = "/__raptor_bundle.css";
 const RELOAD_PATH = "/__raptor_reload";
 
 /** Windows compares paths case-insensitively. */
@@ -102,7 +103,13 @@ export function startDevServer(options: DevServerOptions): Server {
       res.end(`<pre>index.html not found at ${htmlPath}</pre>`);
       return;
     }
-    const html = rewriteHtml(readFileSync(htmlPath, "utf8"), BUNDLE_PATH + "?t=" + Date.now(), true);
+    const t = Date.now();
+    const html = rewriteHtml(
+      readFileSync(htmlPath, "utf8"),
+      BUNDLE_PATH + "?t=" + t,
+      true,
+      BUNDLE_CSS_PATH + "?t=" + t,
+    );
     res.writeHead(200, { "content-type": MIME[".html"], "cache-control": "no-store" });
     res.end(html);
   };
@@ -122,6 +129,21 @@ export function startDevServer(options: DevServerOptions): Server {
         const i = clients.indexOf(res);
         if (i >= 0) clients.splice(i, 1);
       });
+      return;
+    }
+
+    if (url === BUNDLE_CSS_PATH) {
+      // Styles collected from `import "./x.css"`. We never 404 here: an empty
+      // stylesheet is valid, so the link injected into index.html always resolves.
+      try {
+        const { css } = bundleApp(entry);
+        res.writeHead(200, { "content-type": MIME[".css"], "cache-control": "no-store" });
+        res.end(css);
+      } catch {
+        // A bundle error is already surfaced through BUNDLE_PATH; keep CSS quiet.
+        res.writeHead(200, { "content-type": MIME[".css"], "cache-control": "no-store" });
+        res.end("");
+      }
       return;
     }
 

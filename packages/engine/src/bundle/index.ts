@@ -8,7 +8,7 @@
  * build-time transform primitive.
  */
 export { transpile, DEFAULT_JSX_IMPORT_SOURCE, type TranspileOptions } from "./transform.ts";
-export { resolveSpecifier } from "./resolve.ts";
+export { resolveSpecifier, classifySpecifier, type Resolution } from "./resolve.ts";
 export { bundleApp, type BundleOptions, type BundleResult } from "./bundle.ts";
 export { treeshake, resetSideEffectsCache, type ShakeResult, type ShakeOptions } from "./treeshake.ts";
 export { analyzeModule, blankRanges, type ModuleInfo } from "./esm-graph.ts";

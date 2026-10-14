@@ -3,7 +3,7 @@
  *   raptor-bundle build <entry.tsx> [--out dist/bundle.js] [--html index.html]
  *   raptor-bundle dev   <entry.tsx> [--port 5173] [--host 127.0.0.1] [--root .] [--html index.html]
  */
-import { writeFileSync, mkdirSync, readFileSync, existsSync } from "node:fs";
+import { writeFileSync, mkdirSync, readFileSync, existsSync, cpSync, statSync } from "node:fs";
 import { dirname, resolve, join, basename } from "node:path";
 import { bundleApp } from "./bundle.ts";
 import { startDevServer } from "./dev-server.ts";
@@ -23,7 +23,7 @@ function flag(args: string[], name: string): string | undefined {
 
 const USAGE =
   "usage:\n" +
-  "  raptor-bundle build <entry.tsx> [--out dist/bundle.js] [--html index.html] [--no-treeshake]\n" +
+  "  raptor-bundle build <entry.tsx> [--out dist/bundle.js] [--html index.html] [--public public] [--no-treeshake]\n" +
   "  raptor-bundle dev   <entry.tsx> [--port 5173] [--host 127.0.0.1] [--root .] [--html index.html]";
 
 export function runBundleCli(argv: string[]): BundleCliResult {
@@ -34,21 +34,45 @@ export function runBundleCli(argv: string[]): BundleCliResult {
     const entry = rest.find((a) => !a.startsWith("-"));
     if (!entry) return { ok: false, message: USAGE };
     const out = resolve(flag(rest, "--out") ?? "dist/bundle.js");
+    const outDir = dirname(out);
     const treeshake = !rest.includes("--no-treeshake");
-    const { code, files, shaken } = bundleApp(resolve(entry), { treeshake });
-    mkdirSync(dirname(out), { recursive: true });
+    const { code, files, shaken, css } = bundleApp(resolve(entry), { treeshake });
+    mkdirSync(outDir, { recursive: true });
     writeFileSync(out, code);
+
+    // Stylesheet: write a sibling .css and remember its href for the HTML link.
+    let cssHref: string | undefined;
+    const notes: string[] = [];
+    if (css.length > 0) {
+      const cssOut = join(outDir, basename(out).replace(/\.[^.]+$/, "") + ".css");
+      writeFileSync(cssOut, css);
+      cssHref = "./" + basename(cssOut);
+      notes.push(`${basename(cssOut)}`);
+    }
 
     let extra = "";
     const htmlArg = flag(rest, "--html");
     if (htmlArg && existsSync(resolve(htmlArg))) {
-      const html = rewriteHtml(readFileSync(resolve(htmlArg), "utf8"), "./" + basename(out), false);
-      const htmlOut = join(dirname(out), "index.html");
+      const html = rewriteHtml(readFileSync(resolve(htmlArg), "utf8"), "./" + basename(out), false, cssHref);
+      const htmlOut = join(outDir, "index.html");
       writeFileSync(htmlOut, html);
       extra = ` + ${htmlOut}`;
     }
+
+    // Static assets: copy the public/ directory verbatim into the output.
+    const root = dirname(htmlArg ? resolve(htmlArg) : resolve(entry));
+    const publicDir = resolve(flag(rest, "--public") ?? join(root, "public"));
+    if (existsSync(publicDir) && statSync(publicDir).isDirectory()) {
+      cpSync(publicDir, outDir, { recursive: true });
+      notes.push(`public/ → ${outDir}`);
+    }
+
     const shakeNote = shaken > 0 ? ` | tree-shaking: ${shaken} re-exports cut` : "";
-    return { ok: true, message: `bundled ${files.length} modules → ${out} (${code.length} B)${extra}${shakeNote}` };
+    const assetNote = notes.length > 0 ? ` | ${notes.join(", ")}` : "";
+    return {
+      ok: true,
+      message: `bundled ${files.length} modules → ${out} (${code.length} B)${extra}${shakeNote}${assetNote}`,
+    };
   }
 
   if (cmd === "dev") {
