@@ -23,6 +23,8 @@ export { For, Show, type ForProps, type ShowProps } from "./control.ts";
 
 export { VirtualFor, type VirtualForProps } from "./virtual.ts";
 
+export { ErrorBoundary, type ErrorBoundaryProps, type ErrorFallback } from "./error.ts";
+
 export {
   Router,
   Link,
@@ -50,6 +52,7 @@ export {
   untracked,
   createRoot,
   onCleanup,
+  onError,
   type State,
   type Derived,
   type Accessor,

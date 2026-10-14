@@ -18,6 +18,7 @@ import {
   untracked as untrackedImpl,
   createRoot as createRootImpl,
   onCleanup as onCleanupImpl,
+  onError as onErrorImpl,
   getOwner as getOwnerImpl,
   runWithOwner as runWithOwnerImpl,
   defaultEquals,
@@ -98,6 +99,11 @@ export function createRoot<T>(fn: (dispose: Dispose) => T): T {
 /** Register a cleanup on the current owner. */
 export function onCleanup(fn: Cleanup): void {
   onCleanupImpl(fn);
+}
+
+/** Register an error handler on the current owner (powers ErrorBoundary). */
+export function onError(fn: (error: unknown) => void): void {
+  onErrorImpl(fn);
 }
 
 export function getOwner(): Owner | null {

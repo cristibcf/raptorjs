@@ -19,6 +19,15 @@ export type Cleanup = () => void;
 export interface Owner {
   owned: Node<any>[] | null;
   cleanups: Cleanup[] | null;
+  /**
+   * The owner active when this one was created. Used ONLY to walk upward for
+   * error handling - never for disposal, which stays strictly top-down through
+   * `owned`. `createRoot` sets it so an ErrorBoundary several scopes up still
+   * catches a throw from a nested computation.
+   */
+  owner?: Owner | null;
+  /** Error handlers registered on this scope via `onError` (section 10). */
+  errorHandlers?: Array<(error: unknown) => void> | null;
 }
 
 /** A single reactive node used for signal, memo and effect. */
@@ -34,6 +43,7 @@ export class Node<T> implements Owner {
   // Owner
   owned: Node<any>[] | null = null;
   cleanups: Cleanup[] | null = null;
+  errorHandlers: Array<(error: unknown) => void> | null = null;
   owner: Owner | null;
   disposed = false;
   /** Buffer of dependencies collected in the current run (null when not running). */
@@ -228,8 +238,13 @@ function update(node: Node<any>): void {
   // collected even if `fn` threw, without keeping the collection state open
   // after exit.
   let collectedCount = 0;
+  let threw = false;
+  let caught: unknown;
   try {
     node.value = node.fn!();
+  } catch (error) {
+    threw = true;
+    caught = error;
   } finally {
     collectedCount = node.collectCount;
     node.collect = prevCollect;
@@ -237,8 +252,17 @@ function update(node: Node<any>): void {
     currentObserver = prevObserver;
     currentOwner = prevOwner;
   }
-  // Subscribe/unsubscribe only if the dependency set changed.
+  // Subscribe/unsubscribe only if the dependency set changed. Done even on a
+  // throw, so whatever deps were collected before it are tracked consistently.
   reconcileSources(node, collected, collectedCount);
+
+  // The computation threw: route the error to the nearest ErrorBoundary (walked
+  // via the owner chain). Handled here, AFTER context is restored, so a handler
+  // that disposes this scope does not run while the node is still "current".
+  if (threw) {
+    if (!handleError(node as Owner, caught)) throw caught;
+    return;
+  }
 
   // If the memo's value changed, its observers become DIRTY (not just CHECK).
   if (!node.isEffect && !node.equals(oldValue as never, node.value as never)) {
@@ -263,8 +287,10 @@ export function flushEffects(): void {
         updateIfNecessary(effect);
       }
     }
-    effectQueue.length = 0;
   } finally {
+    // Cleared in `finally`: an effect that throws past every ErrorBoundary must
+    // not leave the queue dirty, or the leftover effects re-run on the next flush.
+    effectQueue.length = 0;
     flushScheduled = false;
   }
 }
@@ -316,6 +342,38 @@ export function onCleanup(fn: Cleanup): void {
   }
 }
 
+/**
+ * Register an error handler on the current scope. It catches errors thrown by
+ * this scope's computations and by any computation created under it (walked via
+ * the owner chain). ErrorBoundary is built on this.
+ */
+export function onError(handler: (error: unknown) => void): void {
+  const owner = currentOwner;
+  if (owner) {
+    (owner.errorHandlers ?? (owner.errorHandlers = [])).push(handler);
+  }
+}
+
+/**
+ * Walk upward from `start` to the nearest scope with error handlers and run
+ * them. Returns true if the error was handled, false if it reached the top
+ * unhandled (the caller then rethrows, preserving the pre-ErrorBoundary
+ * behaviour of surfacing the error).
+ */
+function handleError(start: Owner | null, error: unknown): boolean {
+  let owner = start;
+  while (owner) {
+    const handlers = owner.errorHandlers;
+    if (handlers && handlers.length > 0) {
+      // Snapshot: a handler may dispose this scope and clear the list mid-loop.
+      for (const h of handlers.slice()) h(error);
+      return true;
+    }
+    owner = owner.owner ?? null;
+  }
+  return false;
+}
+
 /** Add a new computation to the current owner for cascading dispose. */
 export function adopt(node: Node<any>): void {
   const owner = currentOwner;
@@ -355,7 +413,9 @@ export function disposeNode(node: Node<any>): void {
  * and a dispose that destroys everything created inside.
  */
 export function createRoot<T>(fn: (dispose: Cleanup) => T): T {
-  const root: Owner = { owned: null, cleanups: null };
+  // `owner: prevOwner` links the root into the owner chain for error walking
+  // only; disposal stays manual (via the returned `dispose`) and top-down.
+  const root: Owner = { owned: null, cleanups: null, owner: currentOwner, errorHandlers: null };
   const dispose: Cleanup = () => disposeOwned(root);
   const prevOwner = currentOwner;
   const prevObserver = currentObserver;
