@@ -46,7 +46,7 @@ test("ErrorBoundary: an effect that throws on update swaps to the fallback", () 
   render(
     () =>
       ErrorBoundary({
-        fallback: (err) => text("p", `caught: ${(err as Error).message}`),
+        fallback: (err: unknown) => text("p", `caught: ${(err as Error).message}`),
         children: () => {
           const box = h("div");
           mountChild(box, () => {
@@ -102,7 +102,7 @@ test("ErrorBoundary: reset() re-mounts the children", () => {
   render(
     () =>
       ErrorBoundary({
-        fallback: (_err, reset) => {
+        fallback: (_err: unknown, reset: () => void) => {
           resetFn = reset;
           return text("p", "err");
         },
