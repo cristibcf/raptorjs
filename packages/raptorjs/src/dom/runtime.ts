@@ -374,6 +374,28 @@ export type Component = () => Child;
 
 const mountCallbacks: Array<() => void> = [];
 
+/**
+ * Server-render mode. While on, `onMount` callbacks do NOT run: they are
+ * post-mount, browser-side side effects (focus, measurement, subscriptions)
+ * with no place in a build-time string render. Reactive effects still run - that
+ * is how the DOM is built for serialization - so an effect that touches `window`
+ * must guard itself with `isServer()`. The server renderer sets this around a
+ * render; it is off everywhere else, so the client path is unchanged.
+ */
+let serverMode = false;
+
+/** True while rendering on the server (see {@link setServerMode}). */
+export function isServer(): boolean {
+  return serverMode;
+}
+
+/** Toggles server-render mode; returns the previous value (for save/restore). */
+export function setServerMode(on: boolean): boolean {
+  const prev = serverMode;
+  serverMode = on;
+  return prev;
+}
+
 /** Schedules a callback after the current tree has been mounted (section 10). */
 export function onMount(fn: () => void): void {
   mountCallbacks.push(fn);
@@ -384,8 +406,10 @@ export function render(component: Component, container: El): () => void {
   return createRoot((dispose) => {
     const child = component();
     mountChild(container, child, null);
+    // Drain the buffer either way (so a prior render's callbacks never leak),
+    // but only run them on the client - see `serverMode`.
     const pending = mountCallbacks.splice(0);
-    for (const cb of pending) cb();
+    if (!serverMode) for (const cb of pending) cb();
     return () => {
       dispose();
       container.textContent = "";

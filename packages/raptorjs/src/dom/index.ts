@@ -5,6 +5,7 @@
 export {
   render,
   onMount,
+  isServer,
   createElement,
   isSvgTag,
   SVG_NS,
