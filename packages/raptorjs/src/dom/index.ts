@@ -4,6 +4,7 @@
  */
 export {
   render,
+  hydrate,
   onMount,
   isServer,
   createElement,

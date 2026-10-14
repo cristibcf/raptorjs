@@ -401,10 +401,16 @@ export function onMount(fn: () => void): void {
   mountCallbacks.push(fn);
 }
 
-/** Mounts a component into a container. Returns a deterministic dispose. */
-export function render(component: Component, container: El): () => void {
+/**
+ * Builds `component` under a root and mounts it into `container`. `replace`
+ * clears the container's existing children first - but only AFTER the fresh tree
+ * is built, so prerendered markup stays on screen until the swap, which happens
+ * synchronously (one paint).
+ */
+function mountInto(component: Component, container: El, replace: boolean): () => void {
   return createRoot((dispose) => {
     const child = component();
+    if (replace) container.textContent = "";
     mountChild(container, child, null);
     // Drain the buffer either way (so a prior render's callbacks never leak),
     // but only run them on the client - see `serverMode`.
@@ -415,4 +421,22 @@ export function render(component: Component, container: El): () => void {
       container.textContent = "";
     };
   });
+}
+
+/** Mounts a component into a container. Returns a deterministic dispose. */
+export function render(component: Component, container: El): () => void {
+  return mountInto(component, container, false);
+}
+
+/**
+ * Boots a client app over a prerendered (SSG) container. This runtime builds the
+ * DOM bottom-up, so there is no top-down anchor to adopt the server nodes one by
+ * one; `hydrate` therefore takes the pragmatic route - it client-renders and
+ * REPLACES the server markup in a single synchronous swap (the fresh tree is
+ * built first, so the prerendered content stays visible until then). SEO is
+ * served by the static HTML; this makes the page interactive. It does not reuse
+ * the server DOM, so uncontrolled DOM state is not preserved.
+ */
+export function hydrate(component: Component, container: El): () => void {
+  return mountInto(component, container, true);
 }

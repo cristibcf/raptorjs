@@ -76,7 +76,19 @@ in structure (not whitespace).
 
 ### 3.2 Hydration (`hydrate()` in the client runtime)
 
-The invasive piece. A hydration mode added to [runtime.ts](packages/raptorjs/src/dom/runtime.ts)
+> **Decision (3C shipped):** `hydrate()` is implemented as **client-takeover**,
+> not DOM-reuse. The runtime builds the DOM **bottom-up, per element** (`jsx()`
+> and `R` create children before their parent; the compiler emits `createElement`,
+> not a top-down `template()`). True adoption needs reactive effects bound to the
+> *existing* server nodes, which requires claiming nodes top-down as they are
+> built — impossible against bottom-up construction without a compiler/template
+> change. So `hydrate(component, container)` builds the fresh client tree (server
+> markup stays visible), then **replaces** the server markup in one synchronous
+> swap. SEO is served by the static HTML (3A/3B/3D); this makes the page
+> interactive. Cost: a client mount on load and no reuse of uncontrolled DOM
+> state. True DOM-reusing hydration (below) remains a separate, larger project.
+
+The ideal (deferred) design: a hydration mode added to [runtime.ts](packages/raptorjs/src/dom/runtime.ts)
 where node-producing primitives **adopt** instead of **create**, walking the
 server DOM in render order:
 
@@ -156,7 +168,7 @@ Each phase lands independently with tests; nothing breaks the SPA build.
 |-------|-------------|-----------|------|
 | **3A** | Server renderer + `renderToString` (void elems, style flush, escaping, doctype) | — | med |
 | **3B** | Head registry + `Title`/`Meta`/`Link`, server snapshot + client reconcile | 3A | low-med |
-| **3C** | `hydrate()` in the client runtime + mismatch fallback | 3A | **high** |
+| **3C** | `hydrate()` — client-takeover (replace server markup; true DOM-reuse deferred) | 3A | low |
 | **3D** | Prerender driver + `getStaticPaths` in `raptor-bundle build --prerender`, wiring 3A/3B/3C | 3A,3B,3C,P1 | med |
 
 Suggested order 3A → 3B → 3C → 3D. 3A and 3B are shippable and useful on their
