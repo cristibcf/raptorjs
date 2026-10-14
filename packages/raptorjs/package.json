@@ -18,6 +18,7 @@
     "./dom/jsx-runtime": "./src/dom/jsx-runtime.ts",
     "./dom/jsx-dev-runtime": "./src/dom/jsx-runtime.ts",
     "./dom/server": "./src/dom/server.ts",
+    "./dom/head": "./src/dom/head.ts",
     "./dom/testing": "./src/dom/testing/mini-dom.ts",
     "./ui": "./src/ui/index.ts",
     "./ui/styles": "./src/ui/styles.ts",
@@ -92,6 +93,10 @@
       "./dom/server": {
         "types": "./dist/dom/server.d.ts",
         "default": "./dist/dom/server.js"
+      },
+      "./dom/head": {
+        "types": "./dist/dom/head.d.ts",
+        "default": "./dist/dom/head.js"
       },
       "./dom/testing": {
         "types": "./dist/dom/testing/mini-dom.d.ts",

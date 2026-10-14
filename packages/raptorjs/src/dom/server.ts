@@ -19,6 +19,7 @@
  */
 import { MiniDocument, MiniElement, MiniText, MiniComment } from "./testing/mini-dom.ts";
 import { render, setServerMode, type Child, type Component } from "./runtime.ts";
+import { captureHead, renderHeadEntries, type HeadEntry } from "./head.ts";
 
 /** Elements that have no closing tag and no children in HTML. */
 const VOID_ELEMENTS = new Set([
@@ -83,12 +84,12 @@ export function serializeNode(node: unknown): string {
 }
 
 /**
- * Renders `component` to an HTML string (the mounted markup, no document shell).
- * Isolated: a fresh headless document is installed for the duration and the
- * previous `globalThis.document` and server-mode flag are restored afterwards,
- * so this is safe to call from a process that also has a real/other document.
+ * Core render: install a fresh headless document, render into it, serialize,
+ * dispose, restore. `capture` collects head entries (Title/Meta/Link) when set.
+ * Isolated - the previous `globalThis.document` and server-mode flag are
+ * restored - so it is safe to call from a process that has another document.
  */
-export function renderToString(component: Component): string {
+function renderInternal(component: Component, capture: boolean): { html: string; entries: HeadEntry[] } {
   const globals = globalThis as unknown as { document?: unknown };
   const prevDocument = globals.document;
   const prevServer = setServerMode(true);
@@ -96,15 +97,38 @@ export function renderToString(component: Component): string {
   globals.document = doc;
   try {
     const root = doc.createElement("div");
-    const dispose = render(component, root);
+    let entries: HeadEntry[] = [];
+    let dispose: () => void;
+    if (capture) {
+      const captured = captureHead(() => render(component, root));
+      dispose = captured.result;
+      entries = captured.entries;
+    } else {
+      dispose = render(component, root);
+    }
     let html = "";
     for (const child of root.childNodes) html += serializeNode(child);
     dispose();
-    return html;
+    return { html, entries };
   } finally {
     setServerMode(prevServer);
     globals.document = prevDocument;
   }
+}
+
+/** Renders `component` to an HTML string (the mounted markup, no document shell). */
+export function renderToString(component: Component): string {
+  return renderInternal(component, false).html;
+}
+
+/**
+ * Like {@link renderToString}, but also returns the serialized `<head>` markup
+ * collected from Title/Meta/Link (from @raptorstack/raptorjs/dom/head) during the
+ * render - pass it as {@link DocumentShellOptions.head}.
+ */
+export function renderToStringWithHead(component: Component): { html: string; head: string } {
+  const { html, entries } = renderInternal(component, true);
+  return { html, head: renderHeadEntries(entries) };
 }
 
 export interface DocumentShellOptions {
