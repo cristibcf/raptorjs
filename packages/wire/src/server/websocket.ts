@@ -245,8 +245,8 @@ export interface WebSocketHandle {
  * Attach `app` to an HTTP server: each accepted upgrade becomes a RaptorWire
  * connection served by `app.serve()`.
  */
-export function serveOverWebSocket(
-  app: RaptorServer,
+export function serveOverWebSocket<TSession>(
+  app: RaptorServer<TSession>,
   httpServer: HttpServer,
   options: WebSocketOptions = {},
 ): WebSocketHandle {
@@ -301,6 +301,14 @@ export function serveOverWebSocket(
     let fragmentBytes = 0;
 
     const conn: ServerConnection = {
+      // The upgrade request is the only place a cookie or bearer token exists,
+      // and it is gone by the time the first frame arrives: capture it now so
+      // `onConnect` can resolve the caller (v0.2.1).
+      handshake: {
+        url: req.url ?? "/",
+        headers: req.headers,
+        ...(socket.remoteAddress !== undefined ? { remoteAddress: socket.remoteAddress } : {}),
+      },
       send(data) {
         if (closed) return;
         socket.write(encodeFrame(OP_BINARY, data));

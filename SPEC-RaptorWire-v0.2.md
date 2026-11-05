@@ -83,3 +83,20 @@ Address space = **session-scoped, per connection** (whitepaper §5.2: "session-s
 The client is untrusted; format obscurity is not security. The decoder validates lengths and
 stops reading past the buffer (fail-closed for impossible messages). Authorization is done
 per query/mutation on the server, not just at handshake.
+
+### Session establishment (server SDK, no framing change)
+
+A server may establish a session at HELLO, before serving anything, and every
+query/mutation then authorizes against it rather than against client-supplied
+`args` (that is what makes the rule above writable). This uses the existing
+frames only — **the wire format is unchanged**:
+
+- HELLO is answered with WELCOME only once the session is established.
+- A refused session answers `ERROR 401` and the connection is closed; no
+  WELCOME is sent, so a conforming client never believes it is connected.
+- QUERY before the session exists → `ERROR 401`; MUTATION before it exists →
+  `MUTATION_RESULT ok=false`.
+- A second HELLO on an established connection → `ERROR 400`: re-authenticating
+  would hand subscriptions already open to a different identity.
+- Frames are handled in strict arrival order per connection, so a QUERY that
+  races session establishment waits for it instead of slipping past it.

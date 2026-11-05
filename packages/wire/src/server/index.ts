@@ -10,6 +10,11 @@ export {
   type MutationContext,
 } from "./server.ts";
 
-export { ReactiveStore, type ServerConnection, type Subscription } from "./store.ts";
+export {
+  ReactiveStore,
+  type ServerConnection,
+  type ConnectionHandshake,
+  type Subscription,
+} from "./store.ts";
 
 export { serveOverWebSocket, originAllowed, type WebSocketOptions } from "./websocket.ts";

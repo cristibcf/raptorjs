@@ -9,10 +9,30 @@
  */
 import { Document, AddressBook, type Operation, type WireValue, type OpsBatch } from "@raptorstack/wire";
 
+/**
+ * What the transport knew about the connection before RaptorWire took it over
+ * (v0.2.1). `onConnect` needs it: a cookie or an `Authorization` header is the
+ * only place a real deployment keeps the caller's identity, and the protocol
+ * itself deliberately carries no credentials (21 - the client is untrusted).
+ *
+ * Optional on purpose: a loopback or an embedded transport has no handshake,
+ * and a custom one written against 0.2.0 still satisfies the interface.
+ */
+export interface ConnectionHandshake {
+  /** Request target as received, path plus query. */
+  readonly url: string;
+  /** Header names lowercased, exactly as the transport parsed them. */
+  readonly headers: Readonly<Record<string, string | string[] | undefined>>;
+  /** Peer address, when the transport knows one. */
+  readonly remoteAddress?: string;
+}
+
 export interface ServerConnection {
   send(data: Uint8Array): void;
   onMessage(handler: (data: Uint8Array) => void): void;
   close(): void;
+  /** Set by transports that have one; see `ConnectionHandshake`. */
+  readonly handshake?: ConnectionHandshake;
 }
 
 export interface Subscription {
