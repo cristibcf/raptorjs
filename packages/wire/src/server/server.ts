@@ -52,8 +52,31 @@ export interface MutationContext<TSession = undefined> {
 }
 
 export interface MutationDef<TSession = undefined> {
+  /**
+   * Deliberately synchronous. A mutation is authorized against state the
+   * server already holds (the session, the store); making the check awaitable
+   * would open a window between "allowed" and "applied" with nothing holding
+   * it shut, and every async check a consumer actually needs belongs in `run`.
+   */
   authorize?: (ctx: MutationContext<TSession>) => boolean;
-  run: (ctx: MutationContext<TSession>) => WireValue;
+  /**
+   * May return a promise (v0.2.1). Short I/O-bound commands - rename a
+   * conversation, mark a reminder done - were forced into the
+   * enqueue-and-report-deltas pattern, which is right for long work and wrong
+   * here: there was no way to return a validated result or report failure.
+   *
+   * Two mutations arriving in order on one connection cannot interleave: the
+   * second waits for the first (see the handler chain in `serve`). Across
+   * connections they do run concurrently, which is the point.
+   *
+   * Atomicity: a synchronous `run` is still wrapped in one
+   * `store.transaction` and reaches the client as a single atomic frame. An
+   * async `run` is wrapped only up to its first `await` - an open transaction
+   * spanning an await would absorb other connections' writes into this one's
+   * batch - so wrap each group of writes you want delivered together in
+   * `store.transaction(() => ...)` yourself, after the I/O.
+   */
+  run: (ctx: MutationContext<TSession>) => WireValue | Promise<WireValue>;
 }
 
 export interface RaptorServerOptions<TSession = undefined> {
@@ -90,6 +113,15 @@ export interface RaptorServer<TSession = undefined> {
  * when `onConnect` is declared; otherwise a connection starts out `ready`.
  */
 type Phase = "handshake" | "connecting" | "ready" | "closed";
+
+/** A `run` that returned a promise, told apart without assuming `instanceof`. */
+function isThenable(value: WireValue | Promise<WireValue>): value is Promise<WireValue> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as { then?: unknown }).then === "function"
+  );
+}
 
 export function raptorServer<TSession = undefined>(
   options: RaptorServerOptions<TSession> = {},
@@ -253,15 +285,29 @@ export function raptorServer<TSession = undefined>(
               );
               return;
             }
+            const reply = (ok: boolean, value: WireValue): void =>
+              conn.send(encodeMessage({ type: "mutationResult", requestId: msg.requestId, ok, value }));
+
+            let result: WireValue | Promise<WireValue>;
             try {
-              const result = store.transaction(() => def.run(ctx));
-              conn.send(encodeMessage({ type: "mutationResult", requestId: msg.requestId, ok: true, value: result }));
+              // The transaction closes when `run` RETURNS, which for an async
+              // handler is at its first await. That is on purpose: see the
+              // atomicity note on `MutationDef.run`.
+              result = store.transaction(() => def.run(ctx));
             } catch (err) {
-              conn.send(
-                encodeMessage({ type: "mutationResult", requestId: msg.requestId, ok: false, value: String(err) }),
-              );
+              reply(false, String(err));
+              return;
             }
-            return;
+            if (!isThenable(result)) {
+              reply(true, result);
+              return;
+            }
+            // Every exit path answers: a rejected mutation must produce
+            // `ok: false`, never leave the client awaiting a reply forever.
+            return result.then(
+              (value) => reply(true, value),
+              (err: unknown) => reply(false, String(err)),
+            );
           }
           case "ack":
             // MVP: the acknowledged sequence number is ignored (resume later).

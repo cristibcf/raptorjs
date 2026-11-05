@@ -70,6 +70,40 @@ app.mutation("rename", {
 The wire format is unchanged: this is the existing HELLO/WELCOME/ERROR
 vocabulary, used as the spec already described.
 
+## Awaited mutations
+
+`run` may return a promise, so a short I/O-bound command can return a
+validated result or report failure instead of being pushed into
+enqueue-and-report-deltas (which stays the right shape for long work):
+
+```ts
+app.mutation("rename", {
+  run: async ({ input, store, session }) => {
+    const { id, title } = input as { id: string; title: string };
+    const saved = await db.renameConversation(session.userId, id, title); // may throw
+    store.transaction(() => {
+      store.setField(`conv:${id}`, "title", saved.title);
+      store.setField(`conv:${id}`, "updatedAt", saved.updatedAt);
+    });
+    return saved;
+  },
+});
+```
+
+- A rejected `run` answers `MUTATION_RESULT ok: false` with the message; the
+  client never waits forever.
+- Two mutations arriving in order **on one connection** cannot interleave their
+  store writes: frames are handled in strict arrival order, so the second
+  waits for the first. Across connections they run concurrently, as before.
+- A synchronous `run` is still wrapped in one `store.transaction` and arrives
+  as a single atomic frame — unchanged from 0.2.0. An async `run` is wrapped
+  only up to its first `await` (an open transaction spanning an await would
+  absorb other connections' writes into this one's batch), so group the writes
+  you want delivered together in `store.transaction()` yourself, as above.
+- `authorize` stays synchronous on purpose: it decides against state the server
+  already holds, and an awaitable check would open a gap between "allowed" and
+  "applied". Put async checks in `run`.
+
 ## License
 
 MIT
