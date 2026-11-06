@@ -58,6 +58,23 @@ line, and all six packages still have zero runtime dependencies.
     `formatTime`, `groupDigits`) stays where it is in `ui/date` and
     `ui/input-extra`; numbers are interpolated as `String(value)` so an id is
     never silently grouped.
+- **`@raptorstack/raptorjs/dom` — the router grew up.** `beforeEnter` guards
+  (`true` renders, a string redirects, `false` denies into the `fallback`), a
+  `component` that may return a promise plus `lazy()` for dynamic imports,
+  nested `children` with `Outlet()`, `searchParams()` and `hash()` as reactive
+  reads, and opt-in `scrollRestoration`. New exports: `Outlet`, `lazy`,
+  `searchParams`, `hash`, `resolveRoute`, `routePatterns`, and the types
+  `RouteResolution`, `LazyModule`, `GuardResult`. `RouteMatch` gains `chain`,
+  `pattern` and `depthParams`.
+  - *Backwards compatible.* A flat, synchronous route table behaves exactly as
+    in 0.2.0; `matchRoutes` keeps its signature and its purity (it runs no
+    guards, so a prerender is never redirected), and scroll restoration stays
+    off until a `Router` asks for it. Each nesting level is its own dynamic
+    region keyed on its own route and params, so a shell is not rebuilt when
+    you move between its children. Route tables are now compiled once and
+    cached per array instead of on every navigation.
+  - `dom/prerender` enumerates the full nested patterns, so a nested table
+    contributes `/app/inbox` and not just `/app`.
 - **`examples/i18n`** (`pnpm demo:i18n`) — ten registered languages, two of
   them lazy, and the DOM-mutation count across two full language switches
   (0 elements, 0 text nodes, 0 re-inserts, 8 text updates).

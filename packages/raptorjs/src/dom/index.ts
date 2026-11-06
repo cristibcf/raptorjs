@@ -29,15 +29,24 @@ export { ErrorBoundary, type ErrorBoundaryProps, type ErrorFallback } from "./er
 
 export {
   Router,
+  Outlet,
   Link,
+  lazy,
   navigate,
   location,
   pathname,
+  searchParams,
+  hash,
   matchRoutes,
+  resolveRoute,
+  routePatterns,
   type RouteDef,
   type RouteMatch,
+  type RouteResolution,
   type RouterProps,
   type LinkProps,
+  type LazyModule,
+  type GuardResult,
   type Params,
 } from "./router.ts";
 

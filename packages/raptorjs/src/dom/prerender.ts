@@ -11,7 +11,7 @@
  * The engine's `raptor-bundle --prerender` is the CLI around this.
  */
 import { renderToStringWithHead, renderDocument } from "./server.ts";
-import { navigate, Router, type RouteDef } from "./router.ts";
+import { navigate, routePatterns, Router, type RouteDef } from "./router.ts";
 
 export interface PrerenderOptions {
   routes: readonly RouteDef[];
@@ -39,9 +39,13 @@ export interface PrerenderedPage {
   html: string;
 }
 
-/** The fully-static routes (no params, no wildcard) - the default path set. */
+/**
+ * The fully-static routes (no params, no wildcard) - the default path set.
+ * Over the FULL patterns, so a nested table contributes `/app/inbox` rather
+ * than just its top-level `/app`.
+ */
 function staticPaths(routes: readonly RouteDef[]): string[] {
-  return routes.filter((r) => !r.path.includes(":") && !r.path.includes("*")).map((r) => r.path);
+  return routePatterns(routes).filter((p) => !p.includes(":") && !p.includes("*"));
 }
 
 /** Maps a route path to a clean-URL output file (`/about` -> `about/index.html`). */
