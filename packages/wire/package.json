@@ -16,7 +16,8 @@
     ".": "./src/index.ts",
     "./codec": "./src/codec/index.ts",
     "./client": "./src/client/index.ts",
-    "./server": "./src/server/index.ts"
+    "./server": "./src/server/index.ts",
+    "./sse": "./src/sse/index.ts"
   },
   "types": "./src/index.ts",
   "dependencies": {
@@ -53,6 +54,10 @@
       "./server": {
         "types": "./dist/server/index.d.ts",
         "default": "./dist/server/index.js"
+      },
+      "./sse": {
+        "types": "./dist/sse/index.d.ts",
+        "default": "./dist/sse/index.js"
       }
     }
   }

@@ -93,6 +93,22 @@ line, and all six packages still have zero runtime dependencies.
     `error()`, because an async verdict has to be written rather than
     recomputed.
   - New exported types: `SyncValidator`, `AsyncValidator`.
+- **`@raptorstack/wire/sse` — a new subpath: Server-Sent Events, both ends.**
+  `readEventStream(response)` turns a `fetch` body into an async iterable of
+  typed events; `openEventStream(url, init)` does the POST too, which is what
+  `EventSource` cannot (GET only, no headers) and the reason chat streaming
+  ends up hand-parsed in every application. `writeEventStream(sink)` frames
+  events and heartbeats on the server — a `node:http` ServerResponse satisfies
+  the sink structurally. Handles a frame split across chunks, a multi-byte
+  character straddling a chunk boundary, multi-line `data:`, comment
+  heartbeats, `id`/`retry` as stream state, all three line terminators, an
+  opt-in `[DONE]` sentinel, and an abort mid-stream that cancels the body.
+  Exports `EVENT_STREAM_HEADERS`, including the `x-accel-buffering: no` that
+  stops nginx from buffering the whole stream to the end.
+  - *New subpath only; nothing existing changed.* Isomorphic — nothing from
+    `node:` — so it bundles for the browser as-is, and still zero runtime
+    dependencies.
+
 - **`examples/i18n`** (`pnpm demo:i18n`) — ten registered languages, two of
   them lazy, and the DOM-mutation count across two full language switches
   (0 elements, 0 text nodes, 0 re-inserts, 8 text updates).

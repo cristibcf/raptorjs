@@ -19,6 +19,7 @@ npm install @raptorstack/wire
 - `@raptorstack/wire/codec` — varint, zig-zag, float64, length-prefixed string/bytes primitives.
 - `@raptorstack/wire/client` — session, reactive replica (each handle = one signal), loopback + WebSocket transports, reconnect with delta resync.
 - `@raptorstack/wire/server` — authoritative reactive store SDK, `query`/`mutation`/subscription, per-connection sessions, snapshot + delta, op-log, own WebSocket server.
+- `@raptorstack/wire/sse` — Server-Sent Events, both ends: a reader that turns a `fetch` body into an async iterable of typed events, and a writer that frames events and heartbeats. Isomorphic, nothing from `node:`.
 
 ## Usage
 
@@ -103,6 +104,49 @@ app.mutation("rename", {
 - `authorize` stays synchronous on purpose: it decides against state the server
   already holds, and an awaitable check would open a gap between "allowed" and
   "applied". Put async checks in `run`.
+
+## Server-Sent Events
+
+RaptorWire carries state. A token stream from a model is not state — it is a
+one-shot, one-way byte stream with no base to delta against, started by a POST
+with a body, which is exactly where `EventSource` is unusable (GET only, no
+headers). So `@raptorstack/wire/sse` has the frame parser nobody should write
+twice:
+
+```ts
+// Browser
+import { openEventStream } from "@raptorstack/wire/sse";
+
+const events = await openEventStream("/api/chat", {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({ prompt }),
+}, { doneSentinel: "[DONE]" });
+
+for await (const event of events) reply.update((t) => t + JSON.parse(event.data).delta);
+```
+
+```ts
+// Node
+import { writeEventStream } from "@raptorstack/wire/sse";
+
+const stream = writeEventStream(res); // a node:http ServerResponse fits structurally
+for await (const token of model.stream(prompt)) stream.send({ delta: token });
+stream.close("[DONE]");
+```
+
+- A frame split across two chunks, a multi-line `data:` and the comment lines
+  proxies need are all handled; so is a multi-byte character straddling a chunk
+  boundary.
+- `doneSentinel` ends the iteration without yielding the sentinel.
+- Breaking out of the `for await` cancels the body, so an abort mid-stream
+  releases the connection.
+- An event the stream never terminated with a blank line is discarded, as the
+  protocol requires.
+- The writer heartbeats every 15s by default (`heartbeatMs`), splits a payload
+  with newlines into several `data:` lines, and sends
+  `x-accel-buffering: no` — without which nginx buffers the whole stream and
+  delivers it at the end.
 
 ## License
 
