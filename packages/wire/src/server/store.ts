@@ -88,6 +88,26 @@ export class ReactiveStore {
     }
   }
 
+  /**
+   * Drops one subscription of one connection. Returns whether there was one.
+   *
+   * The counterpart of `addSubscription`, and it was missing: closing the
+   * connection used to be the only way to stop a subscription, so an
+   * application that navigates between screens on one socket kept every
+   * subscription it had ever opened, and `broadcast` walked all of them on
+   * every mutation.
+   */
+  removeSubscription(conn: ServerConnection, queryId: number): boolean {
+    for (let i = this.subs.length - 1; i >= 0; i--) {
+      const sub = this.subs[i]!;
+      if (sub.conn === conn && sub.queryId === queryId) {
+        this.subs.splice(i, 1);
+        return true;
+      }
+    }
+    return false;
+  }
+
   /** How many subscriptions are active - useful to check that disconnects really clean up. */
   get subscriptionCount(): number {
     return this.subs.length;

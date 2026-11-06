@@ -42,6 +42,26 @@ line, and all six packages still have zero runtime dependencies.
   group post-I/O writes in `store.transaction()` yourself. `authorize` stays
   synchronous.
   - *Backwards compatible* (a widened return type). *Wire format unchanged.*
+- **`@raptorstack/wire` — a subscription can be dropped.** New `UNSUBSCRIBE`
+  frame (`0x15`, payload `varint(queryId)`), `ReactiveStore.removeSubscription(conn, queryId)`,
+  and on the client `unsubscribe(queryId)`, `unsubscribeAll()` and
+  `subscriptionCount`. `addSubscription` had no counterpart: closing the
+  connection was the only way to stop a subscription, so a long-lived client
+  navigating between screens kept every subscription it had ever opened and
+  `broadcast` walked all of them on every mutation. The per-user projections
+  above make per-screen subscriptions the natural pattern, which made this
+  leak the next thing a consumer would hit.
+  - *Backwards compatible, and this one does change the wire format* — by
+    adding a frame type at a previously unassigned code, so every 0.2.0 frame
+    is byte-identical and neither side has to send or understand the new one. A
+    0.2.0 server receiving an `UNSUBSCRIBE` fails closed with `ERROR 400`
+    (unknown frame type) and the session continues; a 0.2.0 client never sends
+    one. `UNSUBSCRIBE` is gated by `onConnect` like every other query frame,
+    and is idempotent, so teardown code needs no conditions.
+  - The client also stops applying a `SNAPSHOT` or `OPS` frame for a
+    subscription it has dropped, and does not acknowledge it — applying it
+    would move the replica on behalf of a subscription the application let go.
+
 - **`@raptorstack/raptorjs/i18n` — a new subpath: messages.** `locale()` is a
   signal, so `setLocale("ro")` re-binds exactly the text nodes that read `t()`
   — no component re-runs and no element is created, which is the claim

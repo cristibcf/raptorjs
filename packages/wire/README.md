@@ -17,7 +17,7 @@ npm install @raptorstack/wire
 
 - `@raptorstack/wire` — opcodes, versioned `Document`, snapshot, message protocol, Reactive Address Space, adaptive encoding.
 - `@raptorstack/wire/codec` — varint, zig-zag, float64, length-prefixed string/bytes primitives.
-- `@raptorstack/wire/client` — session, reactive replica (each handle = one signal), loopback + WebSocket transports, reconnect with delta resync.
+- `@raptorstack/wire/client` — session, reactive replica (each handle = one signal), subscribe/unsubscribe, loopback + WebSocket transports, reconnect with delta resync.
 - `@raptorstack/wire/server` — authoritative reactive store SDK, `query`/`mutation`/subscription, per-connection sessions, snapshot + delta, op-log, own WebSocket server.
 - `@raptorstack/wire/sse` — Server-Sent Events, both ends: a reader that turns a `fetch` body into an async iterable of typed events, and a writer that frames events and heartbeats. Isomorphic, nothing from `node:`.
 
@@ -70,6 +70,31 @@ app.mutation("rename", {
 
 The wire format is unchanged: this is the existing HELLO/WELCOME/ERROR
 vocabulary, used as the spec already described.
+
+## Dropping a subscription
+
+`subscribe()` returns a `queryId`; `unsubscribe(queryId)` gives it back. Until
+0.2.1 closing the connection was the only way to stop a subscription, so a
+client that navigates between screens on one socket accumulated every
+subscription it had ever opened — and the server broadcast to all of them.
+
+```ts
+const queryId = client.subscribe("inbox", { folder });
+onCleanup(() => client.unsubscribe(queryId)); // or client.unsubscribeAll()
+```
+
+- The server drops it (`ReactiveStore.removeSubscription`) and stops
+  broadcasting; other subscriptions on the same connection are untouched, and
+  `queryId` is per connection so one session cannot drop another's.
+- Idempotent: an id the server no longer holds is ignored rather than refused,
+  so teardown code needs no conditions.
+- The client stops applying frames for a dropped subscription that were already
+  in flight, and does not acknowledge them.
+- `client.subscriptionCount` makes cleanup checkable in a test.
+
+This is the one change in 0.2.1 that touches the wire format — a new frame type
+at a previously unassigned code (`0x15`), so every 0.2.0 frame is
+byte-identical and neither side has to use it.
 
 ## Awaited mutations
 

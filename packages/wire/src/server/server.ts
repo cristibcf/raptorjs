@@ -309,6 +309,18 @@ export function raptorServer<TSession = undefined>(
               (err: unknown) => reply(false, String(err)),
             );
           }
+          case "unsubscribe": {
+            if (phase !== "ready") {
+              conn.send(encodeMessage({ type: "error", code: 401, message: "session not established" }));
+              return;
+            }
+            // Idempotent on purpose: a client that unsubscribes while the
+            // server has already dropped the subscription (a resync, a race
+            // with a close) is not an error, and answering one would make
+            // cleanup code conditional for no reason.
+            store.removeSubscription(conn, msg.queryId);
+            return;
+          }
           case "ack":
             // MVP: the acknowledged sequence number is ignored (resume later).
             return;

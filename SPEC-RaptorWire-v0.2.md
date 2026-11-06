@@ -40,7 +40,7 @@ The body of an operation (`writeOpBody`), after opcode + target:
 
 ## Frame types (§31.2)
 
-`0x01 HELLO · 0x02 WELCOME · 0x03 SCHEMA · 0x10 QUERY · 0x11 SNAPSHOT · 0x12 OPS · 0x13 ACK · 0x14 RESYNC · 0x20 MUTATION · 0x21 MUTATION_RESULT · 0x30 PING · 0x7F ERROR`
+`0x01 HELLO · 0x02 WELCOME · 0x03 SCHEMA · 0x10 QUERY · 0x11 SNAPSHOT · 0x12 OPS · 0x13 ACK · 0x14 RESYNC · 0x15 UNSUBSCRIBE · 0x20 MUTATION · 0x21 MUTATION_RESULT · 0x30 PING · 0x7F ERROR`
 
 Each frame = `u8(frameType)` + payload. Non-OPS messages: `encodeMessage`/`decodeMessage`.
 
@@ -49,6 +49,11 @@ Each frame = `u8(frameType)` + payload. Non-OPS messages: `encodeMessage`/`decod
 - **QUERY** `varint(queryId) string(name) value(args) varint(sinceVersion)` — `sinceVersion>0` requests a delta resync
 - **SNAPSHOT** `varint(queryId) bytes(snapshot)` — snapshot = `varint(version) varint(count) [string(handle) value]×count`
 - **ACK** `varint(queryId) varint(sequence)`
+- **UNSUBSCRIBE** `varint(queryId)` — drops one subscription without closing the session.
+  Idempotent: an id the server no longer holds is ignored, not refused. `queryId` is
+  per connection, so one session cannot drop another's. Added in 0.2.1 at a previously
+  unassigned code, so every 0.2.0 frame is byte-identical; a 0.2.0 server receiving one
+  fails closed with `ERROR 400` (unknown frame type) and the session continues.
 - **MUTATION** `varint(requestId) string(name) value(input)`
 - **MUTATION_RESULT** `varint(requestId) bool(ok) value`
 - **ERROR** `varint(code) string(message)`

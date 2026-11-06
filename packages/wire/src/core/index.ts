@@ -49,6 +49,7 @@ export {
   type SnapshotMsg,
   type OpsMsg,
   type AckMsg,
+  type UnsubscribeMsg,
   type MutationMsg,
   type MutationResultMsg,
   type ErrorMsg,

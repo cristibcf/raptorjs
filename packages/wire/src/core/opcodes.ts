@@ -47,6 +47,7 @@ export const FrameType = {
   OPS: 0x12,
   ACK: 0x13,
   RESYNC: 0x14,
+  UNSUBSCRIBE: 0x15,
   MUTATION: 0x20,
   MUTATION_RESULT: 0x21,
   PING: 0x30,

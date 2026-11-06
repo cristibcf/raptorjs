@@ -47,6 +47,17 @@ export interface AckMsg {
   queryId: number;
   sequence: number;
 }
+/**
+ * Drops a subscription without closing the session (v0.2.1). Until this
+ * existed, the only way to stop a subscription was to close the connection, so
+ * a long-lived client navigating between screens accumulated subscriptions for
+ * every screen it had ever opened - and every mutation then broadcast to all of
+ * them.
+ */
+export interface UnsubscribeMsg {
+  type: "unsubscribe";
+  queryId: number;
+}
 export interface MutationMsg {
   type: "mutation";
   requestId: number;
@@ -72,6 +83,7 @@ export type Message =
   | SnapshotMsg
   | OpsMsg
   | AckMsg
+  | UnsubscribeMsg
   | MutationMsg
   | MutationResultMsg
   | ErrorMsg;
@@ -106,6 +118,9 @@ export function encodeMessage(msg: Message): Uint8Array {
       break;
     case "ack":
       w.u8(FrameType.ACK).varint(msg.queryId).varint(msg.sequence);
+      break;
+    case "unsubscribe":
+      w.u8(FrameType.UNSUBSCRIBE).varint(msg.queryId);
       break;
     case "mutation":
       w.u8(FrameType.MUTATION).varint(msg.requestId).string(msg.name);
@@ -166,6 +181,8 @@ export function decodeMessage(bytes: Uint8Array): Message {
       };
     case FrameType.ACK:
       return { type: "ack", queryId: r.varint(), sequence: r.varint() };
+    case FrameType.UNSUBSCRIBE:
+      return { type: "unsubscribe", queryId: r.varint() };
     case FrameType.MUTATION:
       return {
         type: "mutation",

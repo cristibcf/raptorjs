@@ -120,6 +120,32 @@ export class RaptorClient {
     return queryId;
   }
 
+  /**
+   * Drops a subscription: tells the server to stop broadcasting it and stops
+   * applying whatever is still in flight. Returns whether this client held it.
+   *
+   * The replica keeps the handles it already has - their signals simply stop
+   * updating - because another subscription may be projecting the same handle,
+   * and silently blanking it would be worse than keeping a value that is now
+   * merely stale.
+   */
+  unsubscribe(queryId: number): boolean {
+    if (!this.subscriptions.delete(queryId)) return false;
+    this.lastSeq.delete(queryId);
+    this.send({ type: "unsubscribe", queryId });
+    return true;
+  }
+
+  /** Drops every subscription. What a screen teardown wants. */
+  unsubscribeAll(): void {
+    for (const queryId of [...this.subscriptions.keys()]) this.unsubscribe(queryId);
+  }
+
+  /** How many subscriptions this client holds - cleanup is checkable. */
+  get subscriptionCount(): number {
+    return this.subscriptions.size;
+  }
+
   /** Reactive signal for a handle (created lazily). */
   signal<T extends WireValue = WireValue>(handle: string): Accessor<T | undefined> {
     return this.ensureSignal(handle) as Accessor<T | undefined>;
@@ -186,6 +212,7 @@ export class RaptorClient {
         break;
       }
       case "snapshot": {
+        if (!this.subscriptions.has(msg.queryId)) break; // dropped mid-flight
         this.snapshotsReceived++;
         const snap = Document.decodeSnapshot(msg.snapshot);
         batch(() => {
@@ -199,6 +226,11 @@ export class RaptorClient {
         break;
       }
       case "ops": {
+        // A frame for a subscription we dropped was already in flight when we
+        // dropped it. Applying it would move the replica on behalf of a
+        // subscription the application has let go, and acknowledging it would
+        // tell the server we are still listening.
+        if (!this.subscriptions.has(msg.queryId)) break;
         this.opsFramesReceived++;
         const expected = (this.lastSeq.get(msg.queryId) ?? 0) + 1;
         if (msg.sequence !== expected) {
