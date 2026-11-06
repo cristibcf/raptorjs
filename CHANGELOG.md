@@ -12,6 +12,8 @@ All six packages are versioned in lockstep (`@raptorstack/raptorjs`, `/wire`,
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-06
+
 Six gaps a real application hit against 0.2.0. **Everything here is additive
 and backwards compatible**: an existing consumer upgrades without touching a
 line, and all six packages still have zero runtime dependencies.
@@ -301,6 +303,7 @@ First public alpha on npm.
   spec and TAP reporter output; removed a timer `unref` that left the Node 22
   test runner with a pending promise.
 
+[0.2.1]: https://github.com/cristibcf/raptorjs/releases/tag/v0.2.1
 [0.1.3]: https://github.com/cristibcf/raptorjs/releases/tag/v0.1.3
 [0.1.1]: https://github.com/cristibcf/raptorjs/releases/tag/v0.1.1
 [0.1.0]: https://github.com/cristibcf/raptorjs/releases/tag/v0.1.0
