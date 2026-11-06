@@ -102,6 +102,14 @@ line, and all six packages still have zero runtime dependencies.
     resolve to the same `.ts` sources as before (there is a regression test).
     A consumer who was *relying* on getting Node builds in a bundle now passes
     `--platform node`.
+  - The dependency scan that feeds this check reads `require(...)` from the
+    emitted CommonJS with a regex, which also matched the word `require("tls")`
+    written inside a **comment or a string**, so the new build error could fire
+    on a file that imports nothing of the sort (it bit a project whose comments
+    described this very bug). The emitted source is now scanned with comment and
+    string bodies masked out, while a `require` inside a `${ }` template
+    interpolation — real code — is still seen; the specifier is read back from
+    the untouched text, so a genuine external string is still emitted verbatim.
 
 - **`@raptorstack/raptorjs/ui/primitives` — `hotkeys` can express the keys whose
   name is a separator.** `normalize()` split on `+`, trimmed each part and

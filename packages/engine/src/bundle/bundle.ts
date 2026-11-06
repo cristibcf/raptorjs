@@ -16,11 +16,14 @@ import {
   type ResolveOptions,
 } from "./resolve.ts";
 import { treeshake } from "./treeshake.ts";
-import { blankRanges } from "./esm-graph.ts";
+import { blankRanges, maskCommentsAndStrings } from "./esm-graph.ts";
 
 // TS emits requires with a string literal: `require("spec")`. We rewrite them selectively,
 // only when `spec` resolves to a bundleable file (otherwise we leave it external).
 const REQUIRE_RE = /require\(\s*(['"])(.*?)\1\s*\)/g;
+// Non-global twin, to read the specifier back out of one match (REQUIRE_RE is
+// stateful, so it cannot be re-run inside the scan loop).
+const SPEC_OF_REQUIRE = /require\(\s*(['"])([\s\S]*?)\1\s*\)/;
 
 export interface BundleOptions extends TranspileOptions, ResolveOptions {
   /**
@@ -122,8 +125,13 @@ export function bundleApp(entryFile: string, options: BundleOptions = {}): Bundl
     const source = shake ? blankRanges(raw, shake.pruned.get(abs) ?? []) : raw;
     const emitted = transpile(source, abs, options);
 
-    const rewritten = emitted.replace(REQUIRE_RE, (match, _q, spec) => {
-      const specStr = String(spec);
+    // Scan a MASKED copy of the emitted source so a `require(...)` that is only
+    // mentioned in a comment or inside a string body is not taken for a
+    // dependency - it would otherwise trip the Node-builtin build error below.
+    // The real specifier is read back from the untouched text, and a require
+    // inside a `${ ... }` interpolation is still live code and is still seen.
+    const masked = maskCommentsAndStrings(emitted);
+    const rewriteRequire = (specStr: string, match: string): string => {
       const r = classifySpecifier(specStr, abs, resolveOptions);
       switch (r.kind) {
         case "module":
@@ -172,7 +180,22 @@ export function bundleApp(entryFile: string, options: BundleOptions = {}): Bundl
         case "external":
           return match; // bare external -> left untouched
       }
-    });
+    };
+
+    REQUIRE_RE.lastIndex = 0;
+    let rewritten = "";
+    let last = 0;
+    for (let m: RegExpExecArray | null; (m = REQUIRE_RE.exec(masked)) !== null; ) {
+      const start = m.index;
+      const end = start + m[0].length;
+      // The match came from `masked`, where the string body is blanked; take the
+      // real require (and its specifier) from the original emitted text.
+      const slice = emitted.slice(start, end);
+      const spec = SPEC_OF_REQUIRE.exec(slice);
+      rewritten += emitted.slice(last, start) + rewriteRequire(spec ? spec[2]! : "", slice);
+      last = end;
+    }
+    rewritten += emitted.slice(last);
 
     bodies.set(idFor(abs), rewritten);
     files.push(abs);

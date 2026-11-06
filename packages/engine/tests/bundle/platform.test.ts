@@ -23,6 +23,7 @@ import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { bundleApp, classifySpecifier, resolveSpecifier } from "../../src/bundle/index.ts";
+import { maskCommentsAndStrings } from "../../src/bundle/esm-graph.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, "..", "..", "..", "..");
@@ -272,6 +273,56 @@ test("conditions: the builtin error prints the whole import chain", () => {
         return true;
       },
     );
+  } finally {
+    cleanup();
+  }
+});
+
+/* ----------------------------------- comment/string false-positive (0.2.1) -- */
+
+test("mask: a require() inside a comment or a string is not a dependency", () => {
+  // Line comment, block comment, and a string body: in each, `require("tls")`
+  // is prose or data, not a call. Masking blanks the interior so the dependency
+  // scan cannot see it (the length is preserved, so positions stay valid).
+  const line = maskCommentsAndStrings(`// require("tls")\nexport const x = 1;`);
+  assert.equal(line.length, `// require("tls")\nexport const x = 1;`.length);
+  assert.doesNotMatch(line, /require\(\s*["']/);
+  assert.match(line, /export const x = 1;/, "real code is untouched");
+
+  const block = maskCommentsAndStrings(`/* require("net") */ const y = 2;`);
+  assert.doesNotMatch(block, /require\(\s*["']/);
+  assert.match(block, /const y = 2;/);
+
+  const str = maskCommentsAndStrings(`const s = "require(\\"fs\\")"; const z = 3;`);
+  assert.doesNotMatch(str, /require\(\s*["']/);
+  assert.match(str, /const z = 3;/);
+});
+
+test("mask: a real require, and one inside a template interpolation, survive", () => {
+  // The delimiters of a genuine call stay, so the scan still finds it (only the
+  // specifier's own interior is blanked, which is why the scan reads the spec
+  // back from the original text).
+  assert.match(maskCommentsAndStrings(`const r = require("x");`), /require\(\s*["'] *["']\)/);
+  // Code inside `${ ... }` is live, not a string body: a require there is seen.
+  assert.match(maskCommentsAndStrings('const t = `a${require("y")}b`;'), /require\(\s*["']/);
+});
+
+test("conditions: a builtin named only in a comment does not fail the build", () => {
+  // The exact second-order report: two source files mentioned `require("tls")`
+  // in comments that described the OLD bug. The new loud builtin check read the
+  // comment as a dependency and failed a build that was completely correct.
+  const { dir, cleanup } = fixture({
+    "src/app.ts":
+      `// historical note: this used to emit require("tls") into the browser build\n` +
+      `/* and require("net"), require("http2") too - all gone now */\n` +
+      `export const msg = 'see require("fs") in the docs';\n` +
+      `export const x = 1;\n`,
+  });
+  try {
+    const entry = join(dir, "src", "app.ts");
+    assert.doesNotThrow(() => bundleApp(entry), "comment/string mentions are not dependencies");
+    const { code } = bundleApp(entry);
+    assert.match(code, /see require\("fs"\) in the docs/, "the string literal is preserved verbatim");
   } finally {
     cleanup();
   }

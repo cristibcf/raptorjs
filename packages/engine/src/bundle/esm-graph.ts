@@ -208,3 +208,113 @@ export function blankRanges(source: string, ranges: ReadonlyArray<readonly [numb
   }
   return chars.join("");
 }
+
+/**
+ * Returns a copy of `source` the same length, with the *interiors* of comments
+ * and string/template literals replaced by spaces (newlines kept, so every
+ * position and line number is unchanged). String and template delimiters are
+ * preserved, so a genuine `require("x")` call still matches a scan of the
+ * result - but a `require(...)` that is only mentioned inside a comment or a
+ * string body is erased, and so cannot be mistaken for a dependency. Code inside
+ * a template interpolation (`${ ... }`) is left untouched, so a require there is
+ * still seen.
+ *
+ * This exists because the bundler discovers requires with a regex over the
+ * emitted CommonJS (tsc keeps comments, and we deliberately do not strip them),
+ * and the loud "that is a Node builtin" build error would otherwise fire on the
+ * word `require("tls")` sitting in a comment that merely talks about it.
+ */
+export function maskCommentsAndStrings(source: string): string {
+  const chars = [...source];
+  const n = chars.length;
+  const out = chars.slice();
+  const blank = (i: number): void => {
+    if (out[i] !== "\n" && out[i] !== "\r") out[i] = " ";
+  };
+
+  // A quoted string, from its opening quote. Returns the index past the close.
+  function maskString(i: number): number {
+    const q = chars[i];
+    i++; // keep the opening quote
+    while (i < n && chars[i] !== q) {
+      if (chars[i] === "\\") {
+        blank(i++);
+        if (i < n) blank(i++);
+        continue;
+      }
+      blank(i++);
+    }
+    return i < n ? i + 1 : i; // keep the closing quote
+  }
+
+  // A comment, from the leading `/`. Returns the index past it.
+  function maskComment(i: number): number {
+    if (chars[i + 1] === "/") {
+      while (i < n && chars[i] !== "\n") blank(i++);
+      return i;
+    }
+    blank(i);
+    blank(i + 1);
+    i += 2;
+    while (i < n && !(chars[i] === "*" && chars[i + 1] === "/")) blank(i++);
+    if (i < n) {
+      blank(i);
+      blank(i + 1);
+      i += 2;
+    }
+    return i;
+  }
+
+  // A template literal, from just past the opening backtick. Recurses into
+  // `${ ... }` as code. Returns the index past the closing backtick.
+  function maskTemplate(i: number): number {
+    while (i < n) {
+      if (chars[i] === "\\") {
+        blank(i++);
+        if (i < n) blank(i++);
+        continue;
+      }
+      if (chars[i] === "`") return i + 1; // keep the closing backtick
+      if (chars[i] === "$" && chars[i + 1] === "{") {
+        i = maskCode(i + 2, true); // the interpolation is code, not masked
+        continue;
+      }
+      blank(i++);
+    }
+    return i;
+  }
+
+  // Code, left untouched. When `inInterp`, stops just past the `}` that closes
+  // the interpolation (at brace depth 0); otherwise runs to the end.
+  function maskCode(i: number, inInterp: boolean): number {
+    let depth = 0;
+    while (i < n) {
+      const c = chars[i];
+      const d = chars[i + 1];
+      if (c === "/" && (d === "/" || d === "*")) {
+        i = maskComment(i);
+        continue;
+      }
+      if (c === "'" || c === '"') {
+        i = maskString(i);
+        continue;
+      }
+      if (c === "`") {
+        i = maskTemplate(i + 1);
+        continue;
+      }
+      if (inInterp) {
+        if (c === "{") depth++;
+        else if (c === "}") {
+          if (depth === 0) return i + 1;
+          depth--;
+        }
+      }
+      i++;
+    }
+    return i;
+  }
+
+  maskCode(0, false);
+  return out.join("");
+}
