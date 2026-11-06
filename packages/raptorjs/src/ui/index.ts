@@ -26,7 +26,7 @@ export { DataGrid, dataGrid, type DataGridProps, type GridColumn, type DataGrid 
 export { Button, IconButton, ButtonGroup, type ButtonProps, type IconButtonProps, type ButtonGroupProps, type ButtonVariant, type ButtonSize } from "./button.ts";
 export { Input, Textarea, Checkbox, Switch, RadioGroup, type InputProps, type TextareaProps, type CheckboxProps, type SwitchProps, type RadioGroupProps, type RadioOption } from "./input.ts";
 export { Select, select, type SelectProps, type SelectHandle } from "./select.ts";
-export { Form, FormField, FormSection, Label, ErrorMessage, ValidationSummary, field, formGroup, validators, type FormProps, type FormFieldProps, type FormSectionProps, type LabelProps, type ErrorMessageProps, type ValidationSummaryProps, type Field, type FieldOptions, type FormGroup, type Validator } from "./form.ts";
+export { Form, FormField, FormSection, Label, ErrorMessage, ValidationSummary, field, formGroup, validators, type FormProps, type FormFieldProps, type FormSectionProps, type LabelProps, type ErrorMessageProps, type ValidationSummaryProps, type Field, type FieldOptions, type FormGroup, type Validator, type SyncValidator, type AsyncValidator } from "./form.ts";
 export { Dialog, ConfirmDialog, Popover, Tooltip, type DialogProps, type ConfirmDialogProps, type PopoverProps, type TooltipProps } from "./overlay.ts";
 export { Toaster, createToaster, type ToasterProps, type ToasterOptions, type Toaster as ToasterStore, type ToastItem, type ToastOptions, type ToastKind } from "./toast.ts";
 export { Tabs, tabs, type TabsProps, type Tab, type TabsHandle } from "./tabs.ts";

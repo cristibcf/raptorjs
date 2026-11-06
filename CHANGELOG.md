@@ -75,6 +75,24 @@ line, and all six packages still have zero runtime dependencies.
     cached per array instead of on every navigation.
   - `dom/prerender` enumerates the full nested patterns, so a nested table
     contributes `/app/inbox` and not just `/app`.
+- **`@raptorstack/raptorjs/ui/form` — async validators.** `Validator<T>` may
+  return `Promise<string | null>`. `Field` gains `validating` and `validate()`,
+  `FormGroup` gains `validating` and `validate()`, `FieldOptions` gains
+  `debounceMs` (default 300), and `FormField` puts a `rui-validating` class on
+  the wrapper while a check is in flight. A stale verdict can never overwrite a
+  newer one (sequence numbers on top of the debounce), and a rejecting rule is
+  reported rather than treated as a failure.
+  - *Backwards compatible.* `Form` now calls `group.validate()` instead of
+    reading `group.valid()`, and both `validate()` methods answer
+    **synchronously** when every rule is synchronous — so a form without async
+    rules submits with the exact timing it had in 0.2.0. The built-in
+    `validators.*` are typed as the new, narrow `SyncValidator<T>`, so calling
+    one directly still gives `string | null`. Sync rules still answer on the
+    keystroke; only async ones are debounced. The one behavioural change: a
+    field now validates eagerly at creation instead of on the first read of
+    `error()`, because an async verdict has to be written rather than
+    recomputed.
+  - New exported types: `SyncValidator`, `AsyncValidator`.
 - **`examples/i18n`** (`pnpm demo:i18n`) — ten registered languages, two of
   them lazy, and the DOM-mutation count across two full language switches
   (0 elements, 0 text nodes, 0 re-inserts, 8 text updates).

@@ -91,6 +91,40 @@ Router({ routes, fallback: NotFound(), pending: Spinner(), scrollRestoration: tr
   new navigation and restores the saved offset on back/forward. Off by default,
   because it takes over `history.scrollRestoration` for the whole document.
 
+## Async form validation
+
+A rule may return a promise, so "is this email already registered?" is a field
+like any other:
+
+```ts
+import { field, formGroup, validators } from "@raptorstack/raptorjs/ui/form";
+
+const email = field("", {
+  debounceMs: 300,
+  validate: [
+    validators.required(),
+    validators.email(),
+    async (value) => ((await api.emailTaken(value)) ? "Already registered" : null),
+  ],
+});
+```
+
+- Sync rules answer on the keystroke, as before. The async ones run only once
+  everything before them passed, and are debounced (`debounceMs`, default 300).
+- `field.validating` is `true` while a check is in flight — `FormField` puts a
+  `rui-validating` class on the wrapper for you.
+- A slow answer about an old value cannot overwrite a newer one: verdicts carry
+  a sequence number and a stale one is dropped.
+- `field.validate()` / `group.validate()` force validation now, skipping the
+  debounce, and `Form` waits on the group's verdict rather than submitting past
+  a check that has not answered. Both stay **synchronous** when every rule is,
+  so a form without async rules submits exactly as it did in 0.2.0.
+- A rule that rejects is reported (`console.warn`) and leaves the field valid:
+  a check that could not run is not a verdict, and a network blip should not
+  block a submit.
+- An async rule also runs for the field's initial value, so guard the empty
+  case the way the built-ins do (`validators.email("")` returns `null`).
+
 ## License
 
 MIT
