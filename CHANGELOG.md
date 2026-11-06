@@ -74,6 +74,17 @@ line, and all six packages still have zero runtime dependencies.
     A consumer who was *relying* on getting Node builds in a bundle now passes
     `--platform node`.
 
+- **`@raptorstack/raptorjs/ui/primitives` — `hotkeys` can express the keys whose
+  name is a separator.** `normalize()` split on `+`, trimmed each part and
+  dropped the empty ones, which loses exactly the keys that cannot be written
+  another way: `"alt+ "` compiled to `"alt+"` and `"mod++"` lost its `+`.
+  Neither raised an error — the binding simply never fired. Now `"mod+space"`,
+  `"alt+ "`, `"mod+plus"` and `"alt++"` all work, and a small alias table maps
+  the conventional short names to what `event.key` reports (`esc`, `return`,
+  `del`, `up`/`down`/`left`/`right`, `plus`, `space`/`spacebar`).
+  - *Backwards compatible*: every existing spelling normalizes exactly as
+    before, and a degenerate modifier-only combo still matches nothing.
+
 - **`@raptorstack/raptorjs/dom` — `onMount` now fires for a subtree attached
   after the initial render.** New `flushMountCallbacks()` export for anyone
   writing their own control-flow `Block`; `For`, `Show` and dynamic regions
