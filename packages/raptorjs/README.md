@@ -42,6 +42,7 @@ function Counter() {
 - `@raptorstack/raptorjs/dom` — DOM runtime + `jsx-runtime`, `For`, `Show`, the `R` hyperscript builder.
 - `@raptorstack/raptorjs/dom/testing` — a headless mini-DOM for tests (`installMiniDom()`).
 - `@raptorstack/raptorjs/ui` — component library (`@raptorstack/raptorjs/ui/table`, `/button`, `/chart`, …).
+- `@raptorstack/raptorjs/i18n` — messages: a `locale()` signal, catalogues (eager or lazy), `{name}` interpolation, `Intl.PluralRules` plural selection, `withLocale` for SSR and emails.
 
 ## License
 

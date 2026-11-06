@@ -31,6 +31,7 @@
     "demo:counter": "node examples/counter/src/demo.ts",
     "demo:dashboard": "node examples/realtime-dashboard/src/demo.ts",
     "demo:chat": "node examples/chat/src/demo.ts",
+    "demo:i18n": "node examples/i18n/src/demo.ts",
     "demo:raptortest": "node examples/raptortest-crud/src/demo.ts",
     "demo:engine": "node examples/raptorengine-app/src/demo.ts",
     "demo:run": "node examples/raptorengine-app/src/run-demo.ts",

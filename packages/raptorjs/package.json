@@ -21,6 +21,7 @@
     "./dom/head": "./src/dom/head.ts",
     "./dom/prerender": "./src/dom/prerender.ts",
     "./dom/testing": "./src/dom/testing/mini-dom.ts",
+    "./i18n": "./src/i18n/index.ts",
     "./ui": "./src/ui/index.ts",
     "./ui/styles": "./src/ui/styles.ts",
     "./ui/primitives": "./src/ui/primitives/index.ts",
@@ -106,6 +107,10 @@
       "./dom/testing": {
         "types": "./dist/dom/testing/mini-dom.d.ts",
         "default": "./dist/dom/testing/mini-dom.js"
+      },
+      "./i18n": {
+        "types": "./dist/i18n/index.d.ts",
+        "default": "./dist/i18n/index.js"
       },
       "./ui": {
         "types": "./dist/ui/index.d.ts",

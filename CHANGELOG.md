@@ -10,6 +10,58 @@ All six packages are versioned in lockstep (`@raptorstack/raptorjs`, `/wire`,
 > **Alpha.** Nothing here is production-ready yet. The API can still change
 > between alpha releases.
 
+## [Unreleased]
+
+Six gaps a real application hit against 0.2.0. **Everything here is additive
+and backwards compatible**: an existing consumer upgrades without touching a
+line, and all six packages still have zero runtime dependencies.
+
+### Added
+- **`@raptorstack/wire/server` — per-connection sessions.** `QueryContext` and
+  `MutationContext` now carry `session` and `conn`;
+  `raptorServer<TSession>({ onConnect })` establishes the session once per
+  connection, before anything is served. New
+  `ServerConnection.handshake?: ConnectionHandshake` (`url`, `headers`,
+  `remoteAddress`), filled by `serveOverWebSocket` from the upgrade request, so
+  a cookie or bearer token is still reachable when the first frame arrives.
+  - *Backwards compatible.* `TSession` defaults to `undefined`, so a server
+    that declares no `onConnect` keeps the 0.2.0 context shape, keeps its
+    synchronous timing, and keeps serving a query that arrives before HELLO.
+    Declaring `onConnect` is what turns the gate on.
+  - *Wire format unchanged.* Only the existing HELLO/WELCOME/ERROR vocabulary
+    is used; `SPEC-RaptorWire-v0.2.md` gains a "Session establishment"
+    subsection describing the codes (401 for no session, 400 for a second
+    HELLO) and saying explicitly that framing did not change.
+- **`@raptorstack/wire/server` — awaited mutations.** `MutationDef.run` may
+  return `WireValue | Promise<WireValue>`, so a short I/O-bound command can
+  return a validated result or report failure instead of being pushed into
+  enqueue-and-report-deltas. A rejected `run` answers
+  `MUTATION_RESULT ok: false`. Two mutations arriving in order on one
+  connection cannot interleave their store writes. A synchronous `run` is still
+  one atomic frame; an async `run` is wrapped only up to its first `await`, so
+  group post-I/O writes in `store.transaction()` yourself. `authorize` stays
+  synchronous.
+  - *Backwards compatible* (a widened return type). *Wire format unchanged.*
+- **`@raptorstack/raptorjs/i18n` — a new subpath: messages.** `locale()` is a
+  signal, so `setLocale("ro")` re-binds exactly the text nodes that read `t()`
+  — no component re-runs and no element is created, which is the claim
+  fine-grained reactivity makes against a VDOM. Plural selection is
+  `Intl.PluralRules`, so Romanian gets its three forms and Polish its four.
+  `loadMessages` takes a catalogue or a loader (ten languages registered is not
+  ten bundles loaded), `{name}` interpolation leaves unknown placeholders
+  verbatim, a missing key returns the key and is reported once per locale
+  (`setMissingKeyHandler`), and `withLocale(tag, fn)` renders one request or one
+  email in another language without moving the global signal — no `window`
+  assumption anywhere.
+  - *New subpath only; nothing existing changed.* The formatting half
+    (`formatDate`, `formatCurrency`, `formatDuration`, `formatSize`,
+    `formatTime`, `groupDigits`) stays where it is in `ui/date` and
+    `ui/input-extra`; numbers are interpolated as `String(value)` so an id is
+    never silently grouped.
+- **`examples/i18n`** (`pnpm demo:i18n`) — ten registered languages, two of
+  them lazy, and the DOM-mutation count across two full language switches
+  (0 elements, 0 text nodes, 0 re-inserts, 8 text updates).
+
 ## [0.1.3] - 2026-10-03
 
 Release tooling only — **no library or API changes** since 0.1.1.

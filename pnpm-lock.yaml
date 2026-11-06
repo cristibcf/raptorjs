@@ -61,6 +61,12 @@ importers:
         specifier: workspace:*
         version: link:../../packages/raptorjs
 
+  examples/i18n:
+    dependencies:
+      '@raptorstack/raptorjs':
+        specifier: workspace:*
+        version: link:../../packages/raptorjs
+
   examples/mobile-shell:
     dependencies:
       '@raptorstack/host':
