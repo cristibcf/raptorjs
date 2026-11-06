@@ -42,6 +42,35 @@ line, and all six packages still have zero runtime dependencies.
   group post-I/O writes in `store.transaction()` yourself. `authorize` stays
   synchronous.
   - *Backwards compatible* (a widened return type). *Wire format unchanged.*
+- **`@raptorstack/engine/bundle` — a resolution that was understood is never
+  retried through Node's resolver.** Follow-up to the browser-conditions fix
+  below: when a package's `exports` map named a target that is not on disk, the
+  fallback to `createRequire().resolve()` ran anyway — and that resolver
+  applies the `node` condition, so a browser build quietly got the Node entry
+  point again. The fallback is now reached only when no package was found at
+  all (a self-reference, a pnpm link outside the walked tree); a named target
+  that is missing is a build error, with the file it expected. New
+  `bad-target` resolution kind and `describeBadTarget()`.
+  - The Node-builtin error now also prints the **whole import chain**, because
+    a builtin arrives four or five hops down a dependency and the nearest
+    importer names a symptom rather than a cause:
+    `data.ts -> firebase/firestore -> index.cjs.js -> grpc-ish -> tls`.
+  - `raptor-bundle build` usage states that `--platform` defaults to
+    `browser`.
+  - For the record, since it was reported as the cause: `import` already won
+    over `require` inside a matched condition, because `require` is not in
+    `BROWSER_CONDITIONS` at all. There is now a test pinning that.
+
+- **`@raptorstack/raptorjs/dom` — `popstate` is bound when the location is
+  read, not when a `Router` mounts.** An application navigating from its own
+  components, mounting neither `Router` nor `Link`, got no listener at all:
+  Back moved the address bar and left the view where it was, silently. `location()`,
+  `pathname()`, `searchParams()`, `hash()` and `navigate()` all bind it now, so
+  whether Back works no longer depends on which components an app happens to
+  use. Still bound at most once, and still no import-time effect.
+  - *Backwards compatible*: `Router` binds it as before, by reading
+    `pathname()`.
+
 - **`@raptorstack/engine/bundle` — a browser bundle is no longer resolved like
   Node.** `BundleOptions.platform` (`"browser"` by default, or `"node"`) and
   `raptor-bundle build --platform browser|node`; `classifySpecifier` and

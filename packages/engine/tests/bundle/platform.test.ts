@@ -174,6 +174,109 @@ test("conditions: both spellings of a builtin are caught", () => {
   }
 });
 
+/* ------------------------------------------- the fallback, and the chain -- */
+
+/**
+ * The umbrella `firebase` package: the shape that produced the second report.
+ * Note `require` is listed before `import` inside each condition - the package
+ * author's preference, which is for Node.
+ */
+const UMBRELLA: Record<string, string> = {
+  "node_modules/firebase/package.json": JSON.stringify({
+    name: "firebase",
+    version: "1.0.0",
+    exports: {
+      "./firestore": {
+        node: { require: "./firestore/dist/index.cjs.js", import: "./firestore/dist/index.mjs" },
+        browser: { require: "./firestore/dist/index.cjs.js", import: "./firestore/dist/esm/index.esm.js" },
+        default: "./firestore/dist/esm/index.esm.js",
+      },
+    },
+    main: "./firestore/dist/index.cjs.js",
+  }),
+  // The CJS build is the one that reaches gRPC and therefore `tls`.
+  "node_modules/firebase/firestore/dist/index.cjs.js": `const g = require("grpc-ish");\nexports.db = g;\n`,
+  "node_modules/firebase/firestore/dist/index.mjs": `export const db = 1;\n`,
+  "node_modules/firebase/firestore/dist/esm/index.esm.js": `export const db = 1;\n`,
+  "node_modules/grpc-ish/package.json": JSON.stringify({ name: "grpc-ish", version: "1.0.0", main: "index.js" }),
+  "node_modules/grpc-ish/index.js": `const tls = require("tls");\nexports.tls = tls;\n`,
+  "src/data.ts": `import { db } from "firebase/firestore";\nexport const d = db;\n`,
+};
+
+test("conditions: inside a matched condition, import wins over require", () => {
+  // `require` is not in BROWSER_CONDITIONS at all, so the nested object can
+  // only ever yield `import` - which is what keeps the CJS build, and the gRPC
+  // branch behind it, out of the graph entirely.
+  const { dir, cleanup } = fixture(UMBRELLA);
+  try {
+    const entry = join(dir, "src", "data.ts");
+    assert.ok(resolveSpecifier("firebase/firestore", entry)?.endsWith(join("esm", "index.esm.js")));
+    const { code } = bundleApp(entry);
+    assert.doesNotMatch(code, /require\("tls"\)/, "the CJS chain never entered the graph");
+  } finally {
+    cleanup();
+  }
+});
+
+test("conditions: a named target that is missing is reported, not retried through Node", () => {
+  // The real failure behind the second report. Our walk picks
+  // `browser.import`, that file is not installed, and the fallback to Node's
+  // resolver used to pick `main` - the CJS build - silently undoing the whole
+  // browser-conditions fix. A named target that is absent is now an error.
+  const incomplete = { ...UMBRELLA };
+  delete incomplete["node_modules/firebase/firestore/dist/esm/index.esm.js"];
+  const { dir, cleanup } = fixture(incomplete);
+  try {
+    const entry = join(dir, "src", "data.ts");
+    const r = classifySpecifier("firebase/firestore", entry);
+    assert.equal(r.kind, "bad-target", `got ${r.kind}`);
+    assert.throws(
+      () => bundleApp(entry),
+      (err: Error) => {
+        assert.match(err.message, /index\.esm\.js/, "the target it expected");
+        assert.match(err.message, /does not exist/);
+        return true;
+      },
+    );
+    // And it must NOT have quietly become the CJS build.
+    assert.equal(resolveSpecifier("firebase/firestore", entry), null);
+  } finally {
+    cleanup();
+  }
+});
+
+test("conditions: the fallback still covers a layout the walk does not model", () => {
+  // Only reached when no package was found at all. `@raptorstack/raptorjs` from
+  // inside the raptorjs package itself is a self-reference, which our
+  // node_modules walk does not resolve but Node does.
+  const selfRef = join(repoRoot, "packages", "raptorjs", "src", "ui", "form.ts");
+  assert.ok(resolveSpecifier("@raptorstack/raptorjs", selfRef)?.endsWith("index.ts"));
+});
+
+test("conditions: the builtin error prints the whole import chain", () => {
+  // `platform: "node"` would allow `tls`, so the CJS path is forced with an
+  // explicit condition list that still excludes `node` but puts `require`
+  // ahead of `import` - which is also the clearest demonstration that the
+  // ORDER of this list, not the order of the package's map, is what decides.
+  const { dir, cleanup } = fixture(UMBRELLA);
+  try {
+    const entry = join(dir, "src", "data.ts");
+    assert.throws(
+      () => bundleApp(entry, { conditions: ["browser", "require", "default"] }),
+      (err: Error) => {
+        assert.match(err.message, /"tls" is a Node builtin/);
+        assert.match(err.message, /chain: /, "the chain is printed");
+        // Every hop, in order: the file someone wrote, through the CJS build,
+        // down to the module that actually requires the builtin.
+        assert.match(err.message, /data\.ts.*->.*index\.cjs\.js.*->.*grpc-ish.*->.*tls/s);
+        return true;
+      },
+    );
+  } finally {
+    cleanup();
+  }
+});
+
 /* ------------------------------------------------------------- regression -- */
 
 test("conditions: the @raptorstack packages still resolve to their .ts sources", () => {

@@ -8,7 +8,13 @@
 import { readFileSync } from "node:fs";
 import { relative } from "node:path";
 import { transpile, type TranspileOptions } from "./transform.ts";
-import { classifySpecifier, BROWSER_CONDITIONS, NODE_CONDITIONS, type ResolveOptions } from "./resolve.ts";
+import {
+  classifySpecifier,
+  describeBadTarget,
+  BROWSER_CONDITIONS,
+  NODE_CONDITIONS,
+  type ResolveOptions,
+} from "./resolve.ts";
 import { treeshake } from "./treeshake.ts";
 import { blankRanges } from "./esm-graph.ts";
 
@@ -78,8 +84,32 @@ export function bundleApp(entryFile: string, options: BundleOptions = {}): Bundl
     options.treeshake === false ? null : treeshake(entryFile, { resolveOptions });
 
   const seen = new Set<string>();
+  /**
+   * Who first pulled each module in, and under what specifier. A builtin is
+   * never imported by the file the developer wrote - it arrives four or five
+   * hops down a dependency - so naming only the nearest importer still leaves
+   * the real question open. This is what lets the error print the whole chain.
+   */
+  const importedBy = new Map<string, { importer: string; spec: string }>();
   const queue: string[] = [entryFile];
   idFor(entryFile); // entry becomes ID 0
+
+  /**
+   * The import chain from the entry down to `file`, as one indented block.
+   * Walks `importedBy` backwards, and stops on a cycle rather than looping.
+   */
+  const chainOf = (file: string, leaf: string): string => {
+    const hops: string[] = [leaf];
+    const visited = new Set<string>();
+    let at: string | undefined = file;
+    while (at !== undefined && !visited.has(at)) {
+      visited.add(at);
+      hops.unshift(at);
+      at = importedBy.get(at)?.importer;
+    }
+    if (hops.length < 3) return ""; // the nearest importer already said it all
+    return `  chain: ${hops.join(" -> ")}\n`;
+  };
 
   while (queue.length > 0) {
     const abs = queue.shift()!;
@@ -97,7 +127,10 @@ export function bundleApp(entryFile: string, options: BundleOptions = {}): Bundl
       const r = classifySpecifier(specStr, abs, resolveOptions);
       switch (r.kind) {
         case "module":
-          if (!seen.has(r.path)) queue.push(r.path);
+          if (!seen.has(r.path)) {
+            if (!importedBy.has(r.path)) importedBy.set(r.path, { importer: abs, spec: specStr });
+            queue.push(r.path);
+          }
           return `require(${idFor(r.path)})`;
         case "css":
           // `import "./x.css"` is a side-effect import: collect the file and drop
@@ -120,14 +153,22 @@ export function bundleApp(entryFile: string, options: BundleOptions = {}): Bundl
           // Left external until 0.2.1, which emitted `require("net")` into a
           // browser bundle: the loader does `modules[id].call(...)`, so the
           // page died with "Cannot read properties of undefined (reading
-          // 'call')" - no file, no specifier. Fail the BUILD instead, and name
-          // the importer, which is the thing that was impossible to find.
+          // 'call')" - no file, no specifier. Fail the BUILD instead, and print
+          // the whole chain: the nearest importer alone is typically four hops
+          // from the file anyone wrote, so it names a symptom rather than a
+          // cause.
           throw new Error(
             `[raptor] ${JSON.stringify(r.spec)} is a Node builtin and cannot go into a browser bundle\n` +
               `  imported from ${abs}\n` +
+              chainOf(abs, r.spec) +
               `  this usually means a dependency resolved to its Node build; if the bundle really is ` +
               `for Node, pass platform: "node" (raptor-bundle --platform node)`,
           );
+        case "bad-target":
+          // The exports map named a file that is not there. Reported rather
+          // than retried through Node's resolver, which applies the `node`
+          // condition and would hand a browser build a Node entry point again.
+          throw new Error(`${describeBadTarget(r)}\n  imported from ${abs}\n` + chainOf(abs, specStr));
         case "external":
           return match; // bare external -> left untouched
       }

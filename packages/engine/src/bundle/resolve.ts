@@ -83,7 +83,14 @@ export type Resolution =
    */
   | { kind: "node-builtin"; spec: string }
   /** A relative/absolute import that points at no file: a hard error. */
-  | { kind: "unresolved" };
+  | { kind: "unresolved" }
+  /**
+   * The package was found and its `exports` map named a target, but that target
+   * is not on disk. A hard error, and specifically NOT a reason to retry with
+   * Node's resolver: doing that silently reintroduced the `node` condition for
+   * a browser build, which is the bug this file exists to prevent.
+   */
+  | { kind: "bad-target"; spec: string; packageDir: string; target: string };
 
 function isPathSpecifier(spec: string): boolean {
   return spec.startsWith("./") || spec.startsWith("../") || spec.startsWith("/") || isAbsolute(spec);
@@ -230,15 +237,23 @@ function fileInPackage(packageDir: string, target: string): string | null {
 }
 
 /**
- * Resolves a bare specifier with explicit conditions. Returns the file, or null
- * when the package or the subpath cannot be resolved.
+ * What our own walk concluded about a bare specifier. The three cases have to
+ * stay apart: only `no-package` may fall back to Node's resolver, because that
+ * resolver applies the `node` condition and retrying there after a resolution
+ * we DID understand would quietly undo the whole point of this file.
  */
-function resolveBare(spec: string, importerFile: string, conditions: readonly string[]): string | null {
+type BareResult =
+  | { kind: "file"; path: string }
+  | { kind: "no-package" }
+  | { kind: "bad-target"; packageDir: string; target: string };
+
+/** Resolves a bare specifier with explicit conditions. */
+function resolveBare(spec: string, importerFile: string, conditions: readonly string[]): BareResult {
   const { name, subpath } = splitBare(spec);
   const packageDir = findPackageDir(name, dirname(importerFile));
-  if (packageDir === null) return null;
+  if (packageDir === null) return { kind: "no-package" };
   const manifest = readManifest(packageDir);
-  if (manifest === null) return null;
+  if (manifest === null) return { kind: "no-package" };
 
   let target = resolveExports(manifest["exports"], subpath, conditions);
 
@@ -263,9 +278,18 @@ function resolveBare(spec: string, importerFile: string, conditions: readonly st
 
   if (target === null) {
     // No exports map and no field: a deep path into a package without one.
-    return subpath === "." ? fileInPackage(packageDir, ".") : fileInPackage(packageDir, subpath);
+    // Nothing was *named*, so a miss here is "we do not understand this
+    // layout" - which Node's resolver may well handle.
+    const probed = fileInPackage(packageDir, subpath === "." ? "." : subpath);
+    return probed === null ? { kind: "no-package" } : { kind: "file", path: probed };
   }
-  return fileInPackage(packageDir, target);
+  const resolved = fileInPackage(packageDir, target);
+  // The map named a file and it is not there. Report it: a missing target is
+  // almost always our walk picking a condition the package does not actually
+  // ship, and falling back would hide that behind a Node build.
+  return resolved === null
+    ? { kind: "bad-target", packageDir, target }
+    : { kind: "file", path: resolved };
 }
 
 /**
@@ -292,13 +316,19 @@ export function classifySpecifier(spec: string, importerFile: string, options: R
     return { kind: "external" };
   }
 
-  let resolved = resolveBare(spec, importerFile, conditions);
-  if (resolved === null) {
-    // Last resort: Node's own resolver, for the layouts ours does not model
-    // (a self-reference, a pnpm link outside the walked tree). It applies the
-    // `node` conditions, so a browser build only falls back here when our own
-    // walk found nothing at all - and anything it returns is still checked
-    // below, so a builtin cannot slip in this way.
+  const bare = resolveBare(spec, importerFile, conditions);
+  if (bare.kind === "bad-target") {
+    return { kind: "bad-target", spec, packageDir: bare.packageDir, target: bare.target };
+  }
+  let resolved: string;
+  if (bare.kind === "file") {
+    resolved = bare.path;
+  } else {
+    // Last resort, and ONLY when our walk found no package at all: Node's own
+    // resolver, for the layouts ours does not model (a self-reference, a pnpm
+    // link outside the walked tree). It applies the `node` conditions, which is
+    // why it must never be reached after a resolution we understood - that is
+    // how a browser build silently got a Node entry point again.
     try {
       resolved = createRequire(pathToFileURL(importerFile)).resolve(spec);
     } catch {
@@ -322,4 +352,14 @@ export function classifySpecifier(spec: string, importerFile: string, options: R
 export function resolveSpecifier(spec: string, importerFile: string, options: ResolveOptions = {}): string | null {
   const r = classifySpecifier(spec, importerFile, options);
   return r.kind === "module" ? r.path : null;
+}
+
+/** The message for a `bad-target`, shared by the bundler and the tree-shaker. */
+export function describeBadTarget(r: Extract<Resolution, { kind: "bad-target" }>): string {
+  return (
+    `[raptor] ${JSON.stringify(r.spec)} resolved to ${JSON.stringify(r.target)}, which does not exist\n` +
+    `  in ${r.packageDir}\n` +
+    `  the package's exports map names that file for the conditions asked for, so either the ` +
+    `package is installed incompletely or it needs different conditions`
+  );
 }
