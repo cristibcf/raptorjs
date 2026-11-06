@@ -121,7 +121,18 @@ function readLocation(): string {
 const path = state<string>(readLocation());
 
 let historyBound = false;
-/** Subscribes to `popstate` once, lazily, so the module has no import-time effect. */
+/**
+ * Subscribes to `popstate` once, lazily, so the module has no import-time
+ * effect - but on the first READ of the location, not on mounting a `Router`.
+ *
+ * Until v0.2.1 only `Router` bound it, so an application whose navigation came
+ * from its own components got no listener at all: Back changed the address bar
+ * and left the view where it was, with nothing logged and nothing thrown. That
+ * made "does Back work" a function of which components an app happened to use,
+ * which is not a property anyone could predict from the API. Reading the
+ * location is the thing that implies you care whether it changes, so that is
+ * where the binding belongs.
+ */
 function ensureHistoryBinding(): void {
   if (historyBound) return;
   historyBound = true;
@@ -140,11 +151,13 @@ function ensureHistoryBinding(): void {
 
 /** The full current location (pathname + search + hash) as a reactive read. */
 export function location(): string {
+  ensureHistoryBinding();
   return path();
 }
 
 /** The current pathname only (query and hash stripped), as a reactive read. */
 export function pathname(): string {
+  ensureHistoryBinding();
   return path().split(/[?#]/)[0] || "/";
 }
 
@@ -169,11 +182,13 @@ const searchString = derived<string>(() => {
  * returned object does not navigate; call `navigate` with the new query.
  */
 export function searchParams(): URLSearchParams {
+  ensureHistoryBinding();
   return new URLSearchParams(searchString());
 }
 
 /** The fragment including `#` (`""` when there is none), as a reactive read. */
 export function hash(): string {
+  ensureHistoryBinding();
   const full = path();
   const h = full.indexOf("#");
   return h === -1 ? "" : full.slice(h);
@@ -225,6 +240,9 @@ function enableScrollRestoration(): void {
 
 /** Navigate to `to`, updating the History API when available. */
 export function navigate(to: string, options?: { replace?: boolean }): void {
+  // An app that navigates plainly cares about the location, so this is also a
+  // point at which Back has to start working.
+  ensureHistoryBinding();
   rememberScroll();
   const replace = options?.replace === true;
   if (!replace) activeKey = ++historyKeySeq;
