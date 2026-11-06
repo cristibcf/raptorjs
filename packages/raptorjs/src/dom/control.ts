@@ -5,7 +5,14 @@
  * destroyed when it disappears (whitepaper 8.3 "list specialization").
  */
 import { effect, createRoot } from "@raptorstack/raptorjs";
-import { type Block, type Child, block, mountChild, disposeDetached } from "./runtime.ts";
+import {
+  type Block,
+  type Child,
+  block,
+  mountChild,
+  disposeDetached,
+  flushMountCallbacks,
+} from "./runtime.ts";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type El = any;
@@ -90,12 +97,25 @@ export function For<T>(props: ForProps<T>): Block {
         }
         nextSibling = node;
       }
+      // Rows added by this pass are attached now, so anything they scheduled
+      // can run. A no-op during the initial render, which drains once at the end.
+      flushMountCallbacks();
     });
   });
 }
 
 export interface ShowProps {
   when: Accessor<unknown>;
+  /**
+   * NOTE on `children` / `fallback`: they are a `Child`, so
+   * `children: Panel()` is evaluated by the CALLER, at the enclosing render -
+   * before `Show` exists. The branch is then built detached and never rebuilt,
+   * so mount-time work in it belongs to that render rather than to the reveal.
+   *
+   * Pass an accessor when that matters: `children: () => Panel()` builds the
+   * branch when it is revealed, and its `onMount` runs once the branch is in
+   * the document. There is a test for both shapes in tests/dom/on-mount.test.ts.
+   */
   children: Child;
   fallback?: Child;
 }
@@ -143,6 +163,9 @@ export function Show(props: ShowProps): Block {
         disposeBranch = d;
       });
       if (current) parent.insertBefore(current, end);
+      // The branch is attached now. Without this, `onMount` inside a branch
+      // that `Show` reveals after the initial render never ran at all.
+      flushMountCallbacks();
     });
   });
 }

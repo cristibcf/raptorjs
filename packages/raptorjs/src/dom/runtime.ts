@@ -327,6 +327,8 @@ function mountDynamic(parent: El, accessor: Accessor<Child>, anchor: El | null):
     textNode = null;
     const nodes = resolveNodes(value);
     current = replaceRegion(parent, current, nodes, ensureEnd());
+    // The new content is attached now: anything it scheduled can run.
+    flushMountCallbacks();
   });
 
   onCleanup(() => {
@@ -396,9 +398,47 @@ export function setServerMode(on: boolean): boolean {
   return prev;
 }
 
+/**
+ * How many mounts are in progress. `onMount` means "after this subtree is in
+ * the document", so a callback registered while a tree is still being BUILT
+ * has to wait for the outermost mount to finish - firing it early would hand
+ * it a detached node, which is the thing it exists to avoid.
+ */
+let mountDepth = 0;
+
 /** Schedules a callback after the current tree has been mounted (section 10). */
 export function onMount(fn: () => void): void {
   mountCallbacks.push(fn);
+}
+
+function drainMountCallbacks(): void {
+  // A callback may mount something, which registers more. Keep going until the
+  // queue is empty rather than leaving the new ones for the next `render()`,
+  // where they would run under a different root.
+  while (mountCallbacks.length > 0) {
+    const pending = mountCallbacks.splice(0);
+    // Drain either way (so a prior render's callbacks never leak), but only run
+    // them on the client - see `serverMode`.
+    if (serverMode) continue;
+    for (const cb of pending) cb();
+  }
+}
+
+/**
+ * Runs the `onMount` callbacks of a subtree that has just been attached, and
+ * does nothing while an outer mount is still in progress.
+ *
+ * Control-flow blocks call this after inserting a branch. Until v0.2.1 only
+ * `render()` drained the queue, exactly once, straight after the initial
+ * `mountChild` - so work scheduled by a subtree that `Show` revealed LATER
+ * never ran at all. Worse, it stayed in the queue: it accumulated for the life
+ * of the page and then fired on the next `render()`, under the wrong root. The
+ * symptom that found it was a command palette that opened and then ignored
+ * every keystroke, because focus was never moved into it.
+ */
+export function flushMountCallbacks(): void {
+  if (mountDepth > 0) return;
+  drainMountCallbacks();
 }
 
 /**
@@ -409,13 +449,18 @@ export function onMount(fn: () => void): void {
  */
 function mountInto(component: Component, container: El, replace: boolean): () => void {
   return createRoot((dispose) => {
-    const child = component();
-    if (replace) container.textContent = "";
-    mountChild(container, child, null);
-    // Drain the buffer either way (so a prior render's callbacks never leak),
-    // but only run them on the client - see `serverMode`.
-    const pending = mountCallbacks.splice(0);
-    if (!serverMode) for (const cb of pending) cb();
+    // The whole build is one mount phase, so a nested region that attaches
+    // during it defers to the single drain below instead of firing against a
+    // container this tree has not reached yet.
+    mountDepth++;
+    try {
+      const child = component();
+      if (replace) container.textContent = "";
+      mountChild(container, child, null);
+    } finally {
+      mountDepth--;
+    }
+    drainMountCallbacks();
     return () => {
       dispose();
       container.textContent = "";

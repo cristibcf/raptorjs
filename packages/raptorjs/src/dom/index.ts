@@ -6,6 +6,7 @@ export {
   render,
   hydrate,
   onMount,
+  flushMountCallbacks,
   isServer,
   createElement,
   isSvgTag,

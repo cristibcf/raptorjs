@@ -74,6 +74,30 @@ line, and all six packages still have zero runtime dependencies.
     A consumer who was *relying* on getting Node builds in a bundle now passes
     `--platform node`.
 
+- **`@raptorstack/raptorjs/dom` — `onMount` now fires for a subtree attached
+  after the initial render.** New `flushMountCallbacks()` export for anyone
+  writing their own control-flow `Block`; `For`, `Show` and dynamic regions
+  call it themselves.
+  - **Fixes a bug with a second, quieter half.** The queue was drained exactly
+    once, inside `render()`, straight after the first `mountChild`. Work
+    scheduled by a branch `Show` revealed later therefore never ran — and did
+    not merely get skipped: it stayed in the module-level queue, accumulating
+    for the life of the page, and then fired on the next `render()` under a
+    different root. The symptom that found it was a command palette that opened
+    and then ignored every keystroke, because focus was never moved into it.
+  - A mount-depth counter keeps the contract intact: a nested region that
+    attaches while the initial tree is still being built defers to the single
+    drain at the end, instead of firing against a node the container has not
+    received yet. Draining also loops, so a callback that mounts something does
+    not leave its callbacks for a later render.
+  - *Backwards compatible.* `onMount` keeps its signature and still runs once
+    per mount, after attachment; server mode still drains without running.
+  - Documented rather than changed: `Show({ children: Panel() })` evaluates
+    `Panel()` at the ENCLOSING render, because `children` is a `Child` the
+    caller has already built. Pass `children: () => Panel()` when the branch
+    must be built, and its `onMount` run, on reveal. `ShowProps` now says so,
+    and tests/dom/on-mount.test.ts pins both shapes.
+
 - **`@raptorstack/wire` — a subscription can be dropped.** New `UNSUBSCRIBE`
   frame (`0x15`, payload `varint(queryId)`), `ReactiveStore.removeSubscription(conn, queryId)`,
   and on the client `unsubscribe(queryId)`, `unsubscribeAll()` and
