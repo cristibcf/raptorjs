@@ -25,6 +25,22 @@ test("transpile: JSX -> jsx-runtime + type stripping", () => {
   assert.doesNotMatch(out, /: number/);
 });
 
+test("transpile: a .mjs/.mts module is downlevelled to CommonJS, not left ESM", () => {
+  // TypeScript forces ES-module emit for these extensions on the extension
+  // alone, which would leave bare `export`/`import` inside the bundler's IIFE
+  // and crash the page with "Unexpected token 'export'". Every module here must
+  // be CommonJS - the extension must not decide otherwise.
+  const esm = `export const K = 42;\nexport function greet(n){ return "hi " + n; }\n`;
+  for (const name of ["tslib.es6.mjs", "lib.mts"]) {
+    const out = transpile(esm, name);
+    assert.doesNotMatch(out, /^\s*export\s/m, `${name} still had a top-level export`);
+    assert.match(out, /exports\.K/, `${name} did not become CommonJS`);
+    assert.match(out, /exports\.greet/);
+  }
+  // A real .ts is of course unchanged in behaviour.
+  assert.match(transpile(`export const z = 1;`, "x.ts"), /exports\.z/);
+});
+
 test("resolveSpecifier: bare + subpath .ts, builtin -> null", () => {
   const dom = resolveSpecifier("@raptorstack/raptorjs/dom", counterEntry);
   assert.ok(dom && dom.endsWith("index.ts"));

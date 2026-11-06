@@ -19,10 +19,28 @@ export interface TranspileOptions {
   sourceMap?: boolean;
 }
 
+/**
+ * The name we hand to the compiler for emit. A `.mjs`/`.mts` file is forced to
+ * ES-module output by TypeScript *on its extension alone* (`impliedNodeFormat`),
+ * which overrides our `module: CommonJS` and leaves bare `export`/`import` in
+ * the result - illegal inside the IIFE the bundler packs every module into, so
+ * the page dies at load with "Unexpected token 'export'". Every module in this
+ * bundler must be CommonJS, so we present such a file under a format-neutral
+ * extension (`.js`/`.ts`), where emit follows the `module` option. `.cjs` is
+ * already CommonJS and is left alone. The content is untouched; only the name
+ * tsc sees changes, so a `.mjs` dependency (tslib's `tslib.es6.mjs`, Firebase's
+ * esm builds, …) is downlevelled to `require`/`exports` like any other file.
+ */
+function emitName(fileName: string): string {
+  if (fileName.endsWith(".mts")) return fileName.slice(0, -4) + ".ts";
+  if (fileName.endsWith(".mjs")) return fileName.slice(0, -4) + ".js";
+  return fileName;
+}
+
 /** Transforms a .ts/.tsx source into browser-ready CommonJS (no types, JSX resolved). */
 export function transpile(source: string, fileName: string, options: TranspileOptions = {}): string {
   const out = ts.transpileModule(source, {
-    fileName,
+    fileName: emitName(fileName),
     reportDiagnostics: false,
     compilerOptions: {
       jsx: ts.JsxEmit.ReactJSX,

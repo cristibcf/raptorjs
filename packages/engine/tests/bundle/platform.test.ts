@@ -328,6 +328,40 @@ test("conditions: a builtin named only in a comment does not fail the build", ()
   }
 });
 
+test("conditions: an ESM .mjs dependency is downlevelled, not inlined verbatim", () => {
+  // tslib's real shape: `module` -> an .mjs ESM build, `default` -> CJS. The
+  // browser walk takes the .mjs (correctly - the CJS build is the one we avoid
+  // elsewhere), and that file must be transpiled to CommonJS like every other
+  // module, or its `export`s land at function scope inside the IIFE and the
+  // page dies with "Unexpected token 'export'".
+  const { dir, cleanup } = fixture({
+    "node_modules/tslib-ish/package.json": JSON.stringify({
+      name: "tslib-ish",
+      version: "1.0.0",
+      exports: { ".": { module: "./tslib.es6.mjs", default: "./tslib.js" } },
+      main: "./tslib.js",
+    }),
+    "node_modules/tslib-ish/tslib.es6.mjs":
+      `export function __extends(a, b) { return Object.assign(a, b); }\n` +
+      `export const __assign = Object.assign;\n`,
+    "node_modules/tslib-ish/tslib.js": `exports.__extends = function(){};\n`,
+    "src/app.ts": `import { __extends } from "tslib-ish";\nexport const e = __extends;\n`,
+  });
+  try {
+    const entry = join(dir, "src", "app.ts");
+    // It took the ESM build (module condition), not the CJS one.
+    assert.ok(resolveSpecifier("tslib-ish", entry)?.endsWith(join("tslib.es6.mjs")));
+    const { code } = bundleApp(entry);
+    // Nothing ESM survived into the IIFE.
+    assert.doesNotMatch(code, /^\s*export\s/m, "a top-level export leaked into the bundle");
+    assert.doesNotMatch(code, /^\s*import\s/m, "a top-level import leaked into the bundle");
+    // The dependency really is in the graph, as CommonJS.
+    assert.match(code, /exports\.__extends/, "the .mjs body was downlevelled to CommonJS");
+  } finally {
+    cleanup();
+  }
+});
+
 /* ------------------------------------------------------------- regression -- */
 
 test("conditions: the @raptorstack packages still resolve to their .ts sources", () => {

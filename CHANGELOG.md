@@ -112,6 +112,16 @@ line, and all six packages still have zero runtime dependencies.
     string bodies masked out, while a `require` inside a `${ }` template
     interpolation — real code — is still seen; the specifier is read back from
     the untouched text, so a genuine external string is still emitted verbatim.
+  - Choosing a dependency's ESM build is only useful if it is also converted to
+    the CommonJS the bundler packs. A `.mjs`/`.mts` file was emitted **verbatim**
+    — TypeScript forces ES-module output for those extensions regardless of the
+    `module` option — so its `export`/`import` statements landed at function
+    scope inside the IIFE and the page died at load with "Unexpected token
+    'export'". Such a file is now presented to the compiler under a
+    format-neutral name, so it downlevels to `require`/`exports` like every
+    other module. This is what lets a package resolved through its `module`
+    condition (tslib's `tslib.es6.mjs`, Firebase's `esm2017` builds) actually
+    run in the browser bundle.
 
 - **`@raptorstack/raptorjs/ui/primitives` — `hotkeys` can express the keys whose
   name is a separator.** `normalize()` split on `+`, trimmed each part and
