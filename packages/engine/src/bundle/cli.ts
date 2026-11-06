@@ -23,7 +23,7 @@ function flag(args: string[], name: string): string | undefined {
 
 const USAGE =
   "usage:\n" +
-  "  raptor-bundle build <entry.tsx> [--out dist/bundle.js] [--html index.html] [--public public] [--no-treeshake]\n" +
+  "  raptor-bundle build <entry.tsx> [--out dist/bundle.js] [--html index.html] [--public public] [--no-treeshake] [--platform browser|node]\n" +
   "  raptor-bundle build <entry.tsx> --prerender --routes <routes.ts> [--out dist/bundle.js] [--lang en]\n" +
   "  raptor-bundle dev   <entry.tsx> [--port 5173] [--host 127.0.0.1] [--root .] [--html index.html]";
 
@@ -37,7 +37,15 @@ export function runBundleCli(argv: string[]): BundleCliResult {
     const out = resolve(flag(rest, "--out") ?? "dist/bundle.js");
     const outDir = dirname(out);
     const treeshake = !rest.includes("--no-treeshake");
-    const { code, files, shaken, css } = bundleApp(resolve(entry), { treeshake });
+    // Browser by default, because that is what this command emits. `node` is
+    // for a bundle that really runs on Node, where a builtin is a legitimate
+    // external rather than a page that dies in the loader.
+    const platformArg = flag(rest, "--platform");
+    if (platformArg !== undefined && platformArg !== "browser" && platformArg !== "node") {
+      return { ok: false, message: `--platform must be "browser" or "node" (got ${JSON.stringify(platformArg)})` };
+    }
+    const platform = platformArg === "node" ? "node" : "browser";
+    const { code, files, shaken, css } = bundleApp(resolve(entry), { treeshake, platform });
     mkdirSync(outDir, { recursive: true });
     writeFileSync(out, code);
 

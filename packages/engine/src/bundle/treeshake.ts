@@ -20,7 +20,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { dirname, join, parse as parsePath } from "node:path";
 import { analyzeModule, type ModuleInfo } from "./esm-graph.ts";
-import { resolveSpecifier } from "./resolve.ts";
+import { resolveSpecifier, type ResolveOptions } from "./resolve.ts";
 
 /** Key separator: NUL cannot appear in a path nor in an identifier. */
 const KEY_SEP = String.fromCharCode(0);
@@ -90,11 +90,18 @@ export interface ShakeOptions {
   /** File reading; injectable for tests. */
   read?: (file: string) => string;
   resolve?: (spec: string, importer: string) => string | null;
+  /**
+   * Export conditions for the default resolver (v0.2.1). The shaker must walk
+   * the same graph the bundler packs, so it resolves with the same conditions;
+   * an explicit `resolve` overrides this entirely.
+   */
+  resolveOptions?: ResolveOptions;
 }
 
 export function treeshake(entryFile: string, options: ShakeOptions = {}): ShakeResult {
   const read = options.read ?? ((file: string) => readFileSync(file, "utf8"));
-  const resolve = options.resolve ?? resolveSpecifier;
+  const resolve =
+    options.resolve ?? ((spec: string, importer: string) => resolveSpecifier(spec, importer, options.resolveOptions));
 
   const analyses = new Map<string, Analysis>();
   const analyze = (file: string): Analysis => {

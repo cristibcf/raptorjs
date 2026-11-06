@@ -8,7 +8,7 @@
 import { readFileSync } from "node:fs";
 import { relative } from "node:path";
 import { transpile, type TranspileOptions } from "./transform.ts";
-import { classifySpecifier } from "./resolve.ts";
+import { classifySpecifier, BROWSER_CONDITIONS, NODE_CONDITIONS, type ResolveOptions } from "./resolve.ts";
 import { treeshake } from "./treeshake.ts";
 import { blankRanges } from "./esm-graph.ts";
 
@@ -16,13 +16,24 @@ import { blankRanges } from "./esm-graph.ts";
 // only when `spec` resolves to a bundleable file (otherwise we leave it external).
 const REQUIRE_RE = /require\(\s*(['"])(.*?)\1\s*\)/g;
 
-export interface BundleOptions extends TranspileOptions {
+export interface BundleOptions extends TranspileOptions, ResolveOptions {
   /**
    * Removes unused re-exports before transpilation, so their modules no longer
    * enter the graph. Defaults to `true`. See `treeshake.ts` for what it does and
    * does not do.
    */
   treeshake?: boolean;
+  /**
+   * Which export conditions a dependency is resolved with (v0.2.1).
+   * `"browser"` (the default) asks for `browser`/`module`/`import`/`default`;
+   * `"node"` asks for what Node itself would apply.
+   *
+   * It defaults to the browser because that is what this function emits. Until
+   * 0.2.1 resolution went through Node's own resolver, which applies the `node`
+   * condition and cannot be told otherwise, so a dependency with a `node`
+   * branch had its Node build packed into the browser bundle.
+   */
+  platform?: "browser" | "node";
 }
 
 export interface BundleResult {
@@ -55,10 +66,16 @@ export function bundleApp(entryFile: string, options: BundleOptions = {}): Bundl
     return id;
   };
 
+  const resolveOptions: ResolveOptions = {
+    conditions: options.conditions ?? (options.platform === "node" ? NODE_CONDITIONS : BROWSER_CONDITIONS),
+  };
+
   // ESM analysis runs BEFORE transpilation: after the CommonJS emit,
   // `export * from "x"` becomes a dynamic `require`, impossible to analyze.
+  // It resolves with the same conditions, or it would walk a different graph
+  // than the one being bundled.
   const shake =
-    options.treeshake === false ? null : treeshake(entryFile);
+    options.treeshake === false ? null : treeshake(entryFile, { resolveOptions });
 
   const seen = new Set<string>();
   const queue: string[] = [entryFile];
@@ -77,7 +94,7 @@ export function bundleApp(entryFile: string, options: BundleOptions = {}): Bundl
 
     const rewritten = emitted.replace(REQUIRE_RE, (match, _q, spec) => {
       const specStr = String(spec);
-      const r = classifySpecifier(specStr, abs);
+      const r = classifySpecifier(specStr, abs, resolveOptions);
       switch (r.kind) {
         case "module":
           if (!seen.has(r.path)) queue.push(r.path);
@@ -99,8 +116,20 @@ export function bundleApp(entryFile: string, options: BundleOptions = {}): Bundl
               `  a relative/absolute import must point at an existing file ` +
               `(tried ${specStr}[.ts|.tsx|.js|.jsx|.mjs|.cjs] and ${specStr}/index.*)`,
           );
+        case "node-builtin":
+          // Left external until 0.2.1, which emitted `require("net")` into a
+          // browser bundle: the loader does `modules[id].call(...)`, so the
+          // page died with "Cannot read properties of undefined (reading
+          // 'call')" - no file, no specifier. Fail the BUILD instead, and name
+          // the importer, which is the thing that was impossible to find.
+          throw new Error(
+            `[raptor] ${JSON.stringify(r.spec)} is a Node builtin and cannot go into a browser bundle\n` +
+              `  imported from ${abs}\n` +
+              `  this usually means a dependency resolved to its Node build; if the bundle really is ` +
+              `for Node, pass platform: "node" (raptor-bundle --platform node)`,
+          );
         case "external":
-          return match; // builtin / bare external -> left untouched
+          return match; // bare external -> left untouched
       }
     });
 

@@ -42,6 +42,38 @@ line, and all six packages still have zero runtime dependencies.
   group post-I/O writes in `store.transaction()` yourself. `authorize` stays
   synchronous.
   - *Backwards compatible* (a widened return type). *Wire format unchanged.*
+- **`@raptorstack/engine/bundle` — a browser bundle is no longer resolved like
+  Node.** `BundleOptions.platform` (`"browser"` by default, or `"node"`) and
+  `raptor-bundle build --platform browser|node`; `classifySpecifier` and
+  `resolveSpecifier` take `{ conditions }`, with `BROWSER_CONDITIONS` and
+  `NODE_CONDITIONS` exported.
+  - **Fixes a blocker.** Bare specifiers went through
+    `createRequire().resolve()`, which is Node's CJS resolver: it applies the
+    `node` and `require` conditions and there is no API to tell it otherwise.
+    Any dependency publishing a `node` branch therefore had its **Node build**
+    packed into the browser bundle. With `@firebase/firestore` that pulled in
+    `@grpc/grpc-js` and `protobufjs`, whose `require("net")` / `require("http2")`
+    / `require("tls")` reached the browser as `modules["net"]` — `undefined` —
+    and the page died inside the loader with "Cannot read properties of
+    undefined (reading 'call')", after a build that reported success.
+  - Bare specifiers are now resolved here, against the package's own `exports`
+    map, asking for `browser`/`module`/`import`/`default` in **our** priority
+    order rather than the order the map happens to list (Firebase lists `node`
+    first). The legacy top-level `browser` field is honoured too, as a
+    replacement for `main` and as a per-file redirect, since many older
+    packages give only that. Node's resolver remains the last-resort fallback
+    for layouts this does not model.
+  - A Node builtin reached from a browser graph is now a **build error naming
+    the importer and the specifier**, instead of an external that becomes a
+    runtime `TypeError` with no file and no clue. With `platform: "node"` it
+    stays a legitimate external.
+  - *Backwards compatible for this repo and for any browser app* — a browser
+    bundle is what `bundleApp` has always documented itself as emitting, and
+    the `@raptorstack/*` packages have no `node`/`browser` split, so they
+    resolve to the same `.ts` sources as before (there is a regression test).
+    A consumer who was *relying* on getting Node builds in a bundle now passes
+    `--platform node`.
+
 - **`@raptorstack/wire` — a subscription can be dropped.** New `UNSUBSCRIBE`
   frame (`0x15`, payload `varint(queryId)`), `ReactiveStore.removeSubscription(conn, queryId)`,
   and on the client `unsubscribe(queryId)`, `unsubscribeAll()` and
