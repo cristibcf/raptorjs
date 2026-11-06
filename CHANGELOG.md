@@ -12,6 +12,29 @@ All six packages are versioned in lockstep (`@raptorstack/raptorjs`, `/wire`,
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-11-06
+
+A follow-up to 0.2.1 that completes the browser-bundle resolution work.
+**Additive and backwards compatible**, zero runtime dependencies.
+
+### Fixed
+- **`@raptorstack/engine/bundle` — a `.mjs`/`.mts` dependency is downlevelled to
+  CommonJS, not inlined raw.** Resolving a dependency to its ESM build (0.2.1)
+  only helps if that build is also converted to the CommonJS the bundler packs
+  into its IIFE. TypeScript forces ES-module output for the `.mjs`/`.mts`
+  extensions *regardless of the `module` option*, so those files were emitted
+  verbatim: their `export`/`import` landed at function scope inside the IIFE and
+  the page died at load with "Unexpected token 'export'". Source files, and a
+  `node_modules` `.js` ESM file, were already correct — only `.mjs`/`.mts`
+  leaked. Such a file is now presented to the compiler under a format-neutral
+  name, so it downlevels to `require`/`exports` like every other module. This is
+  the last step between the 0.2.1 resolver fix and a package reached through its
+  `module` condition (tslib's `tslib.es6.mjs`, Firebase's `esm2017` builds)
+  actually running in the browser bundle.
+  - *Backwards compatible.* A browser bundle is what `bundleApp` has always
+    emitted; this only changes a module that previously produced invalid output.
+  - *No wire format involved.*
+
 ## [0.2.1] - 2026-11-06
 
 Six gaps a real application hit against 0.2.0. **Everything here is additive
@@ -112,16 +135,6 @@ line, and all six packages still have zero runtime dependencies.
     string bodies masked out, while a `require` inside a `${ }` template
     interpolation — real code — is still seen; the specifier is read back from
     the untouched text, so a genuine external string is still emitted verbatim.
-  - Choosing a dependency's ESM build is only useful if it is also converted to
-    the CommonJS the bundler packs. A `.mjs`/`.mts` file was emitted **verbatim**
-    — TypeScript forces ES-module output for those extensions regardless of the
-    `module` option — so its `export`/`import` statements landed at function
-    scope inside the IIFE and the page died at load with "Unexpected token
-    'export'". Such a file is now presented to the compiler under a
-    format-neutral name, so it downlevels to `require`/`exports` like every
-    other module. This is what lets a package resolved through its `module`
-    condition (tslib's `tslib.es6.mjs`, Firebase's `esm2017` builds) actually
-    run in the browser bundle.
 
 - **`@raptorstack/raptorjs/ui/primitives` — `hotkeys` can express the keys whose
   name is a separator.** `normalize()` split on `+`, trimmed each part and
@@ -313,6 +326,7 @@ First public alpha on npm.
   spec and TAP reporter output; removed a timer `unref` that left the Node 22
   test runner with a pending promise.
 
+[0.2.2]: https://github.com/cristibcf/raptorjs/releases/tag/v0.2.2
 [0.2.1]: https://github.com/cristibcf/raptorjs/releases/tag/v0.2.1
 [0.1.3]: https://github.com/cristibcf/raptorjs/releases/tag/v0.1.3
 [0.1.1]: https://github.com/cristibcf/raptorjs/releases/tag/v0.1.1
